@@ -1,6 +1,7 @@
 /**
- * The tunnel screen (PR 0): the 3D test section above, a bottom sheet below
- * with the fan slider and live readouts.
+ * The tunnel screen: the 3D test section above, a bottom sheet below with the
+ * fan slider and live readouts. The sphere's drag comes from the aero model
+ * (PR 1a), and the smoke's wake follows the separation line it finds.
  *
  * The sim runs on a fixed 60 Hz step; the screen draws whenever the browser
  * gives it a frame and shows whatever the sim says.
@@ -8,8 +9,11 @@
 import { AIR } from '../data/air'
 import { REFERENCE_SPHERE, UNIVERSITY_TUNNEL } from '../data/tunnel'
 import { t } from '../data/strings'
-import { circleArea, dragForce, dynamicPressure, reynolds } from '../sim/air'
+import { dynamicPressure, reynolds } from '../sim/air'
+import { bodyDrag } from '../sim/aero/drag'
 import { fanAtRest, setFanTarget, stepFan, type FanState } from '../sim/fan'
+import { describeBody } from '../sim/geom/body'
+import { sphere } from '../sim/geom/shapes'
 import type { TunnelView } from '../render/tunnelScene'
 import { fixed, scientific } from './format'
 
@@ -69,7 +73,6 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): void {
   const dragR = readout(t('read.drag'))
   grid.append(speedR.box, qR.box, reR.box, dragR.box)
   reR.sub.textContent = `${fixed(REFERENCE_SPHERE.diameter * 100, 0)} cm sphere`
-  dragR.sub.textContent = t('read.dragNote', { cd: fixed(REFERENCE_SPHERE.dragCoefficient, 2) })
 
   const foot = el('div', 'sheet-foot')
   const version = el('span', 'version', `v${__GAME_VERSION__} · ${__BUILD_SHA__} · ${__BUILD_DATE__}`)
@@ -106,7 +109,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): void {
   })
   showTarget()
 
-  const area = circleArea(REFERENCE_SPHERE.diameter)
+  const ball = describeBody(sphere('calibration-sphere', REFERENCE_SPHERE.diameter))
+  const radius = REFERENCE_SPHERE.diameter / 2
   let shownSpeed = -1
   const updateReadouts = () => {
     // Only touch the page when the number on screen would change.
@@ -119,7 +123,13 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): void {
     qR.value.textContent = `${fixed(q, 0)} Pa`
     qR.sub.textContent = '½ρV²'
     reR.value.textContent = scientific(reynolds(AIR.density, fan.speed, REFERENCE_SPHERE.diameter, AIR.viscosity))
-    dragR.value.textContent = `${fixed(dragForce(q, REFERENCE_SPHERE.dragCoefficient, area), 1)} N`
+
+    const drag = bodyDrag(ball, { ...AIR, speed: fan.speed, turbulence: spec.turbulence })
+    dragR.value.textContent = `${fixed(q * drag.cdA, 1)} N`
+    dragR.sub.textContent = t('read.dragNote', { cd: fixed(drag.cd, 2), regime: t(`regime.${drag.regime}` as const) })
+    // Where the flow leaves the sphere, as an angle from its nose, for the smoke.
+    const cos = Math.min(1, Math.max(-1, 1 - drag.lines.top.separationX / radius))
+    view.setSeparation((Math.acos(cos) * 180) / Math.PI)
   }
 
   // --- Loop: fixed sim steps, one draw per browser frame.
