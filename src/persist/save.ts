@@ -7,7 +7,7 @@
 import { DESIGN_CHOICES, PART_RANGE, POSTURE_RANGE, type CyclistDesign } from '../data/cyclist'
 import { MODEL_FINISH, MODEL_GRADE, MODEL_SCALES } from '../data/model'
 import { CRANK_DIAL, DEMO_TUNNEL_SEED } from '../data/tunnel'
-import { briefTemplate, newCareer, type Brief, type CareerState, type Job } from '../sim/career'
+import { briefTemplate, newCareer, type Brief, type CareerState, type Job, type JobRecord } from '../sim/career'
 import type { LabState, RunNote } from '../sim/lab'
 import type { ModelOrder } from '../sim/modelShop'
 import type { Run, RunSample } from '../sim/run'
@@ -148,7 +148,16 @@ function soundJob(x: unknown): Job | null {
   if (!isObj(x)) return null
   const brief = soundBrief(x.brief)
   if (!brief || !isCount(x.startDay) || !isCount(x.daysLeft) || x.daysLeft > brief.days || !isNum(x.spent)) return null
-  return { brief, startDay: x.startDay, daysLeft: x.daysLeft, spent: x.spent }
+  // Jobs taken before PR 5e promised the brief's ask.
+  const promise = x.promise === undefined ? briefTemplate(brief.id)!.target : x.promise
+  if (!isNum(promise) || promise < 0 || promise > 100) return null
+  return { brief, promise, startDay: x.startDay, daysLeft: x.daysLeft, spent: x.spent }
+}
+
+function soundRecord(x: unknown): JobRecord | null {
+  if (!isObj(x) || typeof x.id !== 'string' || !isCount(x.day) || !isCount(x.fee) || !isNum(x.paid)) return null
+  if (!isNum(x.promised) || !isNum(x.achieved) || !isNum(x.predicted) || !isNum(x.actual)) return null
+  return { id: x.id, day: x.day, fee: x.fee, paid: x.paid, promised: x.promised, achieved: x.achieved, predicted: x.predicted, actual: x.actual }
 }
 
 /** The career, or null if it isn't one the game could have written. */
@@ -159,7 +168,12 @@ export function soundCareer(x: unknown): CareerState | null {
   if (board.some((b) => !b)) return null
   const job = x.job === null ? null : soundJob(x.job)
   if (x.job !== null && !job) return null
-  return { seed: x.seed, money: x.money, day: x.day, jobsDone: x.jobsDone, board: board as Brief[], job }
+  // Careers from before PR 5e have no record yet.
+  const raw = x.history === undefined ? [] : x.history
+  if (!Array.isArray(raw)) return null
+  const history = raw.map(soundRecord)
+  if (history.some((r) => !r)) return null
+  return { seed: x.seed, money: x.money, day: x.day, jobsDone: x.jobsDone, board: board as Brief[], job, history: history as JobRecord[] }
 }
 
 /** A save file, checked (and brought up to date if it's older); null if it can't be trusted. */

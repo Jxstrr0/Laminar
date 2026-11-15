@@ -24,11 +24,28 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 5b | Save slots, save code (`LAM1:`) and a Saves sheet | **Done** (v0.5.1.0) |
 | 5c | Briefs, money and the job clock: the Jobs screen, runs and models charged, days spent, deliver and get paid | **Done** (v0.5.2.0) |
 | 5d | The model follows the design: parts swap for a fee, a new position needs a new model (Kelbo's call) | **Done** (v0.5.3.0) |
-| 5e | Promise and prediction, the debrief, payment and penalties | Next |
-| 5f–5i | Sealed bids, time-trial replay, velodrome, guided first job | Not started |
+| 5e | Promise and prediction, the debrief, payment and penalties | **Done** (v0.5.4.0) |
+| 5f | Sealed bids against a rival firm | Next |
+| 5g–5i | Time-trial replay, velodrome, guided first job | Not started |
 | 6–14 | See the plan | Not started |
 
 ## Versions
+
+- **0.5.4.0** (PR 5e): delivering a job is a real test now.
+  - Each brief carries a **promise**: cut the client's drag by a set share
+    against their old setup (10 % for Marta Selivan, 2 % for the national
+    rider). Job cards show it.
+  - **Deliver…** opens a sheet: you say what the road will read (the design's
+    wind-averaged CdA, full size), prefilled from the desk estimate, with
+    −/+ steppers. Then "Lock it in and race".
+  - On race day both setups are ridden in that day's air and wind. Half a
+    point short is forgiven; each point beyond costs 8 % of the fee, half the
+    fee at most.
+  - The **debrief** says kept or missed, the time against the old setup,
+    your prediction against the road CdA, how close your read was
+    (good within 2 %), the penalty and what you were paid, and why: the
+    design itself, or just the day.
+  - Every delivered job goes into the firm's history (for reputation later).
 
 - **0.5.3.0** (PR 5d): the tunnel model is a real thing now (Kelbo's
   "parts swap, position re-orders").

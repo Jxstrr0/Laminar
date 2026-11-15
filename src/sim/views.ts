@@ -230,6 +230,13 @@ export interface FieldResult {
   windSpeed: number
   windFromDeg: number
   power: number
+  /**
+   * The design's wind-averaged CdA on the day: its yaw curve in the day's
+   * air, averaged over every wind direction at the day's wind speed, m².
+   * The promise and the declared prediction are checked against this, so
+   * the wind's direction on one day doesn't decide them.
+   */
+  cdA: number
   segments: SegmentResult[]
 }
 
@@ -252,5 +259,6 @@ export function fieldResult(spec: ShapeSpec, event: EventSpec, seed: number): Fi
     { density: densityAt(temperature, event.altitude), windSpeed, windFromDeg },
     (yaw) => cdAAt(curve, yaw),
   )
-  return { ...run, temperature, windSpeed, windFromDeg, power }
+  const cdA = windAveragedCdA(curve, event.riderSpeed, windSpeed)
+  return { ...run, temperature, windSpeed, windFromDeg, power, cdA }
 }

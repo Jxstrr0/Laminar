@@ -8,13 +8,13 @@
  * - Delivering runs the event, pays the fee, jumps the calendar to the
  *   event and refreshes the board.
  */
-import { BRIEFS, CAREER, type BriefTemplate } from '../data/briefs'
+import { BRIEFS, CAREER, PROMISE, type BriefTemplate } from '../data/briefs'
 import type { CyclistDesign } from '../data/cyclist'
 import { REFERENCE_RIDER } from '../data/field'
 import { riderEvent } from './cyclist'
 import { cyclistShape } from './geom/cyclist'
 import { hashString, Rng } from './rng'
-import { fieldResult, REFERENCE_TT, type EventSpec, type FieldResult } from './views'
+import { fieldResult, REFERENCE_TT, truth, type EventSpec, type FieldResult } from './views'
 
 /** A brief as it sits on the board: which client, and the terms on offer. */
 export interface Brief {
@@ -29,11 +29,28 @@ export interface Brief {
 
 export interface Job {
   brief: Brief
+  /** The promised cut, % of wind-averaged CdA from the client's setup (the brief's ask until bids arrive). */
+  promise: number
   /** The career day the job was taken. */
   startDay: number
   daysLeft: number
   /** Money spent while on the job (runs and models), ₽. */
   spent: number
+}
+
+/** One finished job, kept for the firm's record (and the correlation score in PR 7). */
+export interface JobRecord {
+  id: string
+  /** Race day. */
+  day: number
+  fee: number
+  paid: number
+  /** Promised and achieved cut, %. */
+  promised: number
+  achieved: number
+  /** Declared and real CdA on the day, m². */
+  predicted: number
+  actual: number
 }
 
 export interface CareerState {
@@ -46,6 +63,8 @@ export interface CareerState {
   jobsDone: number
   board: Brief[]
   job: Job | null
+  /** Finished jobs, oldest first. */
+  history: JobRecord[]
 }
 
 /** Why a model can't be ordered now, or null if it can. */
@@ -79,7 +98,7 @@ export function boardFor(seed: number, jobsDone: number): Brief[] {
 }
 
 export function newCareer(seed: number): CareerState {
-  return { seed, money: CAREER.startMoney, day: 0, jobsDone: 0, board: boardFor(seed, 0), job: null }
+  return { seed, money: CAREER.startMoney, day: 0, jobsDone: 0, board: boardFor(seed, 0), job: null, history: [] }
 }
 
 /** The event a brief is for, ready for the field model. */
@@ -106,7 +125,7 @@ export function currentEvent(state: CareerState): EventSpec {
 export function acceptBrief(state: CareerState, id: string): CareerState {
   const brief = state.board.find((b) => b.id === id)
   if (!brief || state.job) return state
-  return { ...state, job: { brief, startDay: state.day, daysLeft: brief.days, spent: 0 } }
+  return { ...state, job: { brief, promise: template(id).target, startDay: state.day, daysLeft: brief.days, spent: 0 } }
 }
 
 /** Spend money (a run, a model). Goes on the job's tally when there is one. */
@@ -130,12 +149,54 @@ export function orderModel(state: CareerState, price: number, days: number): Car
   return { ...paid, day: paid.day + days, job: { ...paid.job!, daysLeft: paid.job!.daysLeft - days } }
 }
 
+/** How close a declared CdA was to the road's. */
+export type Read = 'good' | 'fair' | 'poor'
+
+/** What race day showed (plan section 4, step 8). */
+export interface Debrief {
+  /** Promised and achieved cut, % (achieved: both setups ridden in the day's air). */
+  promised: number
+  achieved: number
+  met: boolean
+  /** Points short after the allowance (0 if met). */
+  shortfall: number
+  /** ₽ taken off the fee. */
+  penalty: number
+  /** Declared and real CdA on the day, m². */
+  predicted: number
+  actual: number
+  /** (declared − real) ÷ real. */
+  readError: number
+  read: Read
+  /** The client's old setup on the same day, and the time your design saved, s. */
+  baseline: FieldResult
+  timeSaved: number
+  /**
+   * Why a miss happened: the design doesn't cut enough even on a typical
+   * day ('design'), or it does and the day's wind took it away ('day').
+   */
+  cause: 'design' | 'day' | null
+}
+
+/** The fee, less a slice per point short (Kelbo: at most half, after a small allowance). */
+export function penaltyFor(fee: number, promised: number, achieved: number): { shortfall: number; penalty: number } {
+  const shortfall = Math.max(0, promised - PROMISE.allowance - achieved)
+  const share = Math.min(PROMISE.maxShare, shortfall * PROMISE.perPoint)
+  return { shortfall, penalty: Math.round((fee * share) / 100) * 100 }
+}
+
+export function readOf(error: number): Read {
+  const e = Math.abs(error)
+  return e <= PROMISE.goodRead ? 'good' : e <= 2 * PROMISE.goodRead ? 'fair' : 'poor'
+}
+
 export interface Delivery {
   state: CareerState
   /** The job that was delivered. */
   job: Job
   event: EventSpec
   result: FieldResult
+  debrief: Debrief
   /** What the client paid, ₽. */
   paid: number
 }
@@ -146,23 +207,61 @@ export function daySeed(brief: Brief): number {
 }
 
 /**
- * Deliver the design: the calendar jumps to the event, the rider races it
- * (with whatever power the position costs them), and the fee is paid.
- * Null if there's no job.
+ * Deliver the design with a declared CdA: the calendar jumps to the event,
+ * the rider races it (with whatever power the position costs them), and so
+ * does their old setup in the same air, for the promise. The fee is paid,
+ * less any penalty. Null if there's no job.
  */
-export function deliver(state: CareerState, design: CyclistDesign): Delivery | null {
+export function deliver(state: CareerState, design: CyclistDesign, predicted: number): Delivery | null {
   const job = state.job
   if (!job) return null
+  const b = template(job.brief.id)
   const event = eventOf(job.brief)
-  const result = fieldResult(cyclistShape(design), riderEvent(design, event), daySeed(job.brief))
+  const seed = daySeed(job.brief)
+  const shape = cyclistShape(design)
+  const result = fieldResult(shape, riderEvent(design, event), seed)
+  const baseline = fieldResult(cyclistShape(b.setup), riderEvent(b.setup, event), seed)
+  const achieved = (1 - result.cdA / baseline.cdA) * 100
+  const { shortfall, penalty } = penaltyFor(job.brief.fee, job.promise, achieved)
+  const met = shortfall === 0
+  // On a typical day, would the design have kept the promise? Then the miss was the day's.
+  const typical = (1 - truth(shape, event).windAveragedCdA / truth(cyclistShape(b.setup), event).windAveragedCdA) * 100
+  const readError = (predicted - result.cdA) / result.cdA
+  const debrief: Debrief = {
+    promised: job.promise,
+    achieved,
+    met,
+    shortfall,
+    penalty,
+    predicted,
+    actual: result.cdA,
+    readError,
+    read: readOf(readError),
+    baseline,
+    timeSaved: baseline.time - result.time,
+    cause: met ? null : typical >= job.promise - PROMISE.allowance ? 'day' : 'design',
+  }
+  const paid = job.brief.fee - penalty
   const jobsDone = state.jobsDone + 1
+  const raceDay = state.day + job.daysLeft
+  const record: JobRecord = {
+    id: job.brief.id,
+    day: raceDay,
+    fee: job.brief.fee,
+    paid,
+    promised: job.promise,
+    achieved,
+    predicted,
+    actual: result.cdA,
+  }
   const next: CareerState = {
     ...state,
-    money: state.money + job.brief.fee,
-    day: state.day + job.daysLeft,
+    money: state.money + paid,
+    day: raceDay,
     jobsDone,
     board: boardFor(state.seed, jobsDone),
     job: null,
+    history: [...state.history, record],
   }
-  return { state: next, job, event, result, paid: job.brief.fee }
+  return { state: next, job, event, result, debrief, paid }
 }

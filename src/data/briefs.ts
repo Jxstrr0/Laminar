@@ -19,6 +19,23 @@ export const CAREER = {
   feeRound: 1000,
 }
 
+/**
+ * The promise (Kelbo, PR 5): a cut in the client's wind-averaged CdA from
+ * their current setup, checked on race day against both setups ridden in
+ * that day's air. Missing it costs a slice of the fee per point missed, at
+ * most half; a small allowance covers the road's own spread.
+ */
+export const PROMISE = {
+  /** Points of cut forgiven before any penalty (the field's spread). */
+  allowance: 0.5,
+  /** Share of the fee lost per point missed beyond the allowance. */
+  perPoint: 0.08,
+  /** The most of the fee a miss can cost. */
+  maxShare: 0.5,
+  /** A prediction this close (fraction of the real CdA) is a good read; twice this, fair. */
+  goodRead: 0.02,
+}
+
 /** The event a brief is for: the day's typical air, how much it varies, and the course. */
 export interface EventTemplate {
   name: string
@@ -52,6 +69,8 @@ export interface BriefTemplate {
   fee: { min: number; max: number }
   /** Days from taking the job to the event. */
   days: number
+  /** The cut they're asking for, % of wind-averaged CdA from their current setup. */
+  target: number
   /** The first job of every career (the tutorial, plan section 9.1). */
   tutorial?: true
   /** A small, low-fee brief: one is always on the board (plan section 9.8). */
@@ -97,6 +116,7 @@ export const BRIEFS: readonly BriefTemplate[] = [
     setup: setup({ torsoDeg: 30, headDrop: 0.2, armWidth: 0.4, handReach: 0.62, handHeight: 0.02 }),
     fee: { min: 90000, max: 130000 },
     days: 21,
+    target: 10,
     tutorial: true,
   },
   {
@@ -118,6 +138,7 @@ export const BRIEFS: readonly BriefTemplate[] = [
     setup: setup({ torsoDeg: 34, headDrop: 0.15, armWidth: 0.42, handReach: 0.6, handHeight: 0.04 }),
     fee: { min: 35000, max: 50000 },
     days: 10,
+    target: 10,
     small: true,
   },
   {
@@ -143,6 +164,7 @@ export const BRIEFS: readonly BriefTemplate[] = [
     setup: setup({ torsoDeg: 26, headDrop: 0.3, armWidth: 0.36, handReach: 0.66, handHeight: 0 }, { helmet: { kind: 'aero', tail: 0.2, vents: 0.3 } }),
     fee: { min: 70000, max: 100000 },
     days: 14,
+    target: 7,
   },
   {
     id: 'korolets-coast',
@@ -163,6 +185,7 @@ export const BRIEFS: readonly BriefTemplate[] = [
     setup: setup({ torsoDeg: 20, headDrop: 0.4, armWidth: 0.32, handReach: 0.7, handHeight: 0 }, { helmet: { kind: 'aero', tail: 0.4, vents: 0.1 }, wheels: { front: 'deep', rear: 'deep' } }),
     fee: { min: 120000, max: 170000 },
     days: 24,
+    target: 3,
   },
   {
     id: 'tvardov-national',
@@ -191,5 +214,6 @@ export const BRIEFS: readonly BriefTemplate[] = [
     ),
     fee: { min: 160000, max: 220000 },
     days: 28,
+    target: 2,
   },
 ]
