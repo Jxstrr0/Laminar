@@ -20,10 +20,27 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 4c | Correlation, part 3: static wheels and a known-wheel calibration | **Done** (v0.4.2.0) |
 | 4d | Correlation, part 4: model shop (scale, finish, accuracy), the Reynolds trap and trip strips | **Done** (v0.4.3.0) |
 | 4e | Correlation, part 5: pressure taps and the Cp map | **Done** (v0.4.4.0) |
-| 5 | Contracts, field replay and saves (split into 5a–5h) | Next |
+| 5a | Contracts, part 1: the lab's state lifted out of the tunnel, and autosave (one slot) | **Done** (v0.5.0.0) |
+| 5b | Save slots, save code (`LAM1:`) and a Saves sheet | Next |
+| 5c–5h | Briefs and money, promise and debrief, sealed bids, time-trial replay, velodrome, guided first job | Not started |
 | 6–14 | See the plan | Not started |
 
 ## Versions
+
+- **0.5.0.0** (PR 5a): your work now survives closing the page.
+  - **Autosave:** a second after any change (a finished run, a new model,
+    the crank, the design), and at once when you switch away from the tab
+    or close it. Your design, every finished run, calibration, tare and
+    wheel checks, the model on order and the crank angle come back next
+    time. A run still in progress when you leave is lost.
+  - **Where:** the browser's own storage on your phone (IndexedDB database
+    `laminar`, or `laminar.slot.1` if that's blocked). Nothing leaves the
+    phone. A save that's damaged or from a newer version is left alone
+    and the game starts fresh.
+  - The run line's total now reads "All runs", since runs carry over.
+  - **Not yet:** more than one slot, a way to start over, or a save code
+    to move your career between devices. Those come in 5b.
+  - Kelbo's PR 5 calls are in plan section 2.
 
 - **0.4.4.0** (PR 4e): pressure taps and the Cp map. This finishes PR 4.
   - **Taps at the shop:** a new "Pressure taps" choice (₽ 8,000, 2 more

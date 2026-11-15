@@ -1,7 +1,7 @@
 /**
  * The design you're working on, shared by the Shape and Tunnel screens:
- * shape it on one, test it on the other. Saves arrive in PR 5; until then it
- * lives only as long as the page.
+ * shape it on one, test it on the other. The autosave (src/persist) keeps it
+ * between visits.
  */
 import { DEFAULT_CYCLIST, type CyclistDesign } from '../data/cyclist'
 

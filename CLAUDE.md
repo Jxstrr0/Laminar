@@ -121,7 +121,7 @@ a CSS variable at the top of `src/style.css`.
 - localStorage keys start `laminar.`; IndexedDB database `laminar`; cache
   names start `laminar-`; save code `LAM1:`; design codes `LAMD1:`.
 - Never clear or delete anything outside those prefixes. No `localStorage.clear()`.
-- No saves yet (they arrive in PR 5). No service worker yet (PR 14).
+- Autosave since PR 5a: one slot in IndexedDB `laminar` (store `slots`), falling back to `laminar.slot.<n>`. No service worker yet (PR 14).
 
 ## Branding
 

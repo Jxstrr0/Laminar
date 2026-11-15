@@ -32,6 +32,21 @@ export interface CyclistDesign {
   frame: FrameKind
 }
 
+/** Every choice a design can make for its parts (saves are checked against these). */
+export const DESIGN_CHOICES = {
+  helmet: ['road', 'aero'],
+  fabric: ['smooth', 'textured'],
+  bars: ['drops', 'aero'],
+  wheel: ['spoked', 'deep', 'disc'],
+  frame: ['round', 'kamm'],
+} as const satisfies {
+  helmet: readonly HelmetKind[]
+  fabric: readonly FabricKind[]
+  bars: readonly BarKind[]
+  wheel: readonly WheelKind[]
+  frame: readonly FrameKind[]
+}
+
 /** Slider ranges and steps for the posture. */
 export const POSTURE_RANGE = {
   torsoDeg: { min: 5, max: 50, step: 1 },

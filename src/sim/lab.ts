@@ -1,0 +1,50 @@
+/**
+ * The lab's lasting state (plan section 9): the runs on file, what each
+ * rider run tested, the model on order and the balance's noise stream. The
+ * tunnel screen works from it and hands it back for saving, so closing the
+ * page loses nothing but a run still in progress.
+ */
+import { DEMO_MODEL_SEED, STANDARD_ORDER } from '../data/model'
+import { SKELETON } from '../data/pose'
+import type { CyclistDesign } from '../data/cyclist'
+import type { ModelOrder } from './modelShop'
+import { Rng, type RngState } from './rng'
+import type { Run } from './run'
+
+/** What a rider run tested, so the run report can say what changed. */
+export interface RunNote {
+  design: CyclistDesign
+  /** The model's fixed crank angle, degrees. */
+  crank: number
+  /** Which build of the model (each build has its own small errors). */
+  build: number
+}
+
+export interface LabState {
+  /** Finished runs, oldest first. */
+  runs: Run[]
+  /** Notes on the rider runs, by run id. */
+  notes: Record<number, RunNote>
+  /** The model on the mount, as ordered. */
+  order: ModelOrder
+  /** Builds ordered so far (0 is the model you start with). */
+  build: number
+  /** The model's crank angle now, degrees. */
+  crank: number
+  /** The id the next run takes. */
+  nextRunId: number
+  /** Where the balance's noise stream has got to. */
+  balanceRng: RngState
+}
+
+export function newLab(): LabState {
+  return {
+    runs: [],
+    notes: {},
+    order: { ...STANDARD_ORDER },
+    build: 0,
+    crank: SKELETON.crankDeg[0]!,
+    nextRunId: 1,
+    balanceRng: new Rng(DEMO_MODEL_SEED).fork('balance').state,
+  }
+}

@@ -9,6 +9,14 @@ import './style.css'
 import { t } from './data/strings'
 import { bindGlossary } from './ui/glossary'
 import { bindLoadingScreen } from './ui/loading'
+import { designStore } from './ui/designStore'
+import { newLab } from './sim/lab'
+import { startAutosave } from './persist/autosave'
+import { readSlot, writeSlot } from './persist/db'
+import { parseSave, SAVE_VERSION } from './persist/save'
+
+/** One career slot until the Saves sheet arrives (PR 5b). */
+const SLOT = 1
 
 const loading = bindLoadingScreen()
 
@@ -69,6 +77,10 @@ async function boot(): Promise<void> {
     loading.fail(t('boot.noGl'))
     return
   }
+  loading.progress(0.2)
+  // Pick up where the last visit left off. A save that can't be trusted is left alone, unread.
+  const saved = parseSave(await readSlot(SLOT).catch(() => null))
+  if (saved) designStore.set(saved.design)
   loading.progress(0.3)
   // three.js and the scenes load as their own chunks.
   const [{ createTunnelView }, { startTunnelScreen }, { createShapeView }, { startShapeScreen }] = await Promise.all([
@@ -80,9 +92,18 @@ async function boot(): Promise<void> {
   loading.progress(0.9)
   const shapeHost = screenHost(app, 'shape')
   const tunnelHost = screenHost(app, 'tunnel')
+  // The tunnel calls back when something worth keeping changes; so does the design.
+  let touch = () => {}
+  const tunnel = startTunnelScreen(tunnelHost, createTunnelView(tunnelHost), saved?.lab ?? newLab(), () => touch())
+  const autosave = startAutosave(
+    () => ({ v: SAVE_VERSION, savedAt: Date.now(), design: designStore.get(), lab: tunnel.lab() }),
+    (text) => writeSlot(SLOT, text),
+  )
+  touch = () => autosave.touch()
+  designStore.subscribe(() => touch())
   const screens: Record<Screen, { host: HTMLElement; control: { setActive(on: boolean): void } }> = {
     shape: { host: shapeHost, control: startShapeScreen(shapeHost, createShapeView(shapeHost)) },
-    tunnel: { host: tunnelHost, control: startTunnelScreen(tunnelHost, createTunnelView(tunnelHost)) },
+    tunnel: { host: tunnelHost, control: tunnel },
   }
   // Any element marked data-g on any screen opens its glossary entry.
   bindGlossary(app)
