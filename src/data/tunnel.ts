@@ -19,6 +19,11 @@ export const UNIVERSITY_TUNNEL = {
    * for now; the real, hidden value is one of the quirks in PR 4.
    */
   turbulence: 0,
+  /**
+   * The balance's scatter: each reading's forces wobble by this fraction
+   * (standard deviation). Repeat runs and average to beat it.
+   */
+  balanceNoise: 0.01,
 } as const
 
 /**

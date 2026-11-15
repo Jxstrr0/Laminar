@@ -235,14 +235,16 @@ export function bodyDrag(body: BodyDescriptor, flow: Flow): BodyDrag {
   const corner = lines.top.corner * WEIGHT.top + lines.bottom.corner * WEIGHT.bottom + lines.side.corner * WEIGHT.side
   const forebodyCdA = FOREBODY.sharpCornerCd * corner * body.frontalArea
 
-  const frictionCdA = lines.top.frictionCdA + lines.bottom.frictionCdA + lines.side.frictionCdA
-  const cdA = frictionCdA + pressureCdA + forebodyCdA
+  // A body sitting in another part's wake sees less dynamic pressure.
+  const shelter = 1 - body.inWake
+  const frictionCdA = (lines.top.frictionCdA + lines.bottom.frictionCdA + lines.side.frictionCdA) * shelter
+  const cdA = frictionCdA + (pressureCdA + forebodyCdA) * shelter
   return {
     id: body.id,
     reynolds: unit * body.length,
     frictionCdA,
-    pressureCdA,
-    forebodyCdA,
+    pressureCdA: pressureCdA * shelter,
+    forebodyCdA: forebodyCdA * shelter,
     cdA,
     cd: body.frontalArea > 0 ? cdA / body.frontalArea : 0,
     wakeArea,

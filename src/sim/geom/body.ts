@@ -37,6 +37,11 @@ export interface BodySpec {
   trip?: { at: number; height: number }
   /** Where the body's nose sits along the shape's axis (m), for moments. Default 0. */
   x?: number
+  /**
+   * Fraction of dynamic pressure lost because the body sits in another
+   * part's wake (a rider's thighs behind the arms). 0 to 1.
+   */
+  inWake?: number
 }
 
 /**
@@ -114,6 +119,8 @@ export interface BodyDescriptor {
   id: string
   /** Where the nose sits along the shape's axis. */
   x: number
+  /** Fraction of dynamic pressure lost to another part's wake. */
+  inWake: number
   stations: Station[]
   /** x of each station (handy for interpolation). */
   xs: number[]
@@ -247,6 +254,7 @@ export function describeBody(spec: BodySpec): BodyDescriptor {
   return {
     id: spec.id,
     x: spec.x ?? 0,
+    inWake: Math.min(1, Math.max(0, spec.inWake ?? 0)),
     stations: st,
     xs,
     length,

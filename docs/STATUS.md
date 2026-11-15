@@ -7,10 +7,23 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 0 | Scaffold, CI, deploy, loading screen, brand, look, address, grey tunnel with a sphere and a fan | **Done** (v0.1.0.0) |
 | 1a | Aero sim core, part 1: shape descriptors and drag (friction with transition, separation, front corners, interference, cavities); the sphere's drag crisis in the tunnel | **Done** (v0.2.0.0) |
 | 1b | Aero sim core, part 2: lift, stall, induced drag, ground effect, yaw forces | **Done** (v0.2.1.0) |
-| 1c | Aero sim core, part 3: truth / tunnel / field split, reference rider, node harness | Next |
-| 2–14 | See the plan | Not started |
+| 1c | Aero sim core, part 3: truth / tunnel / field split, reference rider, node harness | **Done** (v0.2.2.0) |
+| 2 | Shaping: the cyclist, posture, kit, comfort, rule box, desk estimate | Next |
+| 3–14 | See the plan | Not started |
 
 ## Versions
+
+- **0.2.2.0** (PR 1c): one truth, three views. The model now gives three
+  answers for any design: the hidden truth (full size, in the event's real
+  air), the tunnel reading (a scale model with its own small build errors
+  and surface finish, at tunnel speed, through the balance's scatter) and
+  the field result (a seeded race day with its own wind, temperature and
+  rider form, over a 40 km time trial). A plain reference rider reads CdA
+  0.22 m² tucked and 0.31 m² on the hoods, and rides the 40 km in about
+  54 minutes on a still day. Small models can fall into the Reynolds trap,
+  reading laminar drag where the real thing is turbulent. `npm run aero --
+  rider-tt` prints the numbers for a reference shape. Nothing new to see on
+  the site yet.
 
 - **0.2.1.0** (PR 1b): lift and crosswinds in the aero model. Wings, fins,
   disc wheels and diffusers make lift (or side force) with a stall, induced

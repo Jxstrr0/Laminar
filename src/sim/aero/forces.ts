@@ -66,8 +66,13 @@ export function aeroForces(shape: ShapeDescriptor, flow: Flow, attitude: Attitud
 
   // Bodies: their drag turns with the wind; long bodies add side force from
   // their length (acting near the nose) and cross-flow drag on their sides.
+  const absYaw = attitude.yawDeg < 0 ? -attitude.yawDeg : attitude.yawDeg
+  const fade = clamp01(1 - absYaw / YAW.shelterFadeDeg)
   shape.bodies.forEach((body, i) => {
-    const d0 = (drag.bodies[i] as ShapeDrag['bodies'][number]).cdA
+    // Shelter behind other parts fades as the wind swings round.
+    const sheltered = (drag.bodies[i] as ShapeDrag['bodies'][number]).cdA
+    const open = body.inWake < 1 ? sheltered / (1 - body.inWake) : 0
+    const d0 = open * (1 - body.inWake * fade)
     const longness = clamp01((body.fineness - 1) / (YAW.longFineness - 1))
     fx += d0 * (cos + YAW.axialRise * longness * sin2)
     const turned = d0 * sin

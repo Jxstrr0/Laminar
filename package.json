@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "lint": "eslint . && tsc --noEmit",
-    "icons": "node scripts/make-icons.mjs"
+    "icons": "node scripts/make-icons.mjs",
+    "aero": "node scripts/aero.mjs"
   },
   "engines": {
     "node": ">=20.19"
