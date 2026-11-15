@@ -16,3 +16,33 @@ export function scientific(value: number): string {
     .join('')
   return `${fixed(mant, 2)} × 10${sup}`
 }
+
+/** Money: 98500 → "₽ 98,500"; below zero "−₽ 4,200". */
+export function rubles(value: number): string {
+  const r = Math.round(value)
+  return `${r < 0 ? '−' : ''}₽ ${fixed(Math.abs(r), 0)}`
+}
+
+/** Money in a few characters for a chip: "₽98.5k", "₽120k", "₽850". */
+export function rublesShort(value: number): string {
+  const a = Math.abs(value)
+  const sign = value < 0 ? '−' : ''
+  if (a < 1000) return `${sign}₽${fixed(a, 0)}`
+  const k = a / 1000
+  return `${sign}₽${fixed(k, k < 100 ? 1 : 0).replace(/\.0$/, '')}k`
+}
+
+/** A career day as a date: 0 → "Mar 1, 2010". */
+export function careerDate(day: number, start: { year: number; month: number; day: number }): string {
+  const when = new Date(Date.UTC(start.year, start.month - 1, start.day + day))
+  return when.toLocaleDateString(LOCALE, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+}
+
+/** A race time: 3725.4 s → "1:02:05". */
+export function raceTime(seconds: number): string {
+  const s = Math.round(seconds)
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const ss = String(s % 60).padStart(2, '0')
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`
+}

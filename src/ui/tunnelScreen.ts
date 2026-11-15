@@ -35,7 +35,7 @@ import { AIR } from '../data/air'
 import type { GlossaryId } from '../data/glossary'
 import { TUFT_VIZ } from '../data/flowViz'
 import { DEMO_MODEL_SEED, STANDARD_MODEL } from '../data/model'
-import { CALIBRATION, CRANK_DIAL, DEMO_TUNNEL_SEED, REFERENCE_SPHERE, REFERENCE_WHEEL, RUN_RECORDING, RUN_STATS, TUNNEL_BILLING, UNIVERSITY_QUIRKS, UNIVERSITY_TUNNEL } from '../data/tunnel'
+import { CALIBRATION, CRANK_DIAL, REFERENCE_SPHERE, REFERENCE_WHEEL, RUN_RECORDING, RUN_STATS, TUNNEL_BILLING, UNIVERSITY_QUIRKS, UNIVERSITY_TUNNEL } from '../data/tunnel'
 import { t, type StringKey } from '../data/strings'
 import { dynamicPressure, reynolds } from '../sim/air'
 import { bodyDrag, shapeDrag, type Regime } from '../sim/aero/drag'
@@ -69,11 +69,11 @@ import { compareRuns, headlineCompare, headlineGroup, legCycle, poolRuns, yawGro
 import { addSample, newRecorder, runCost, stepRecorder, type Recorder, type Run, type RunSample } from '../sim/run'
 import { setYawTarget, stepTurntable, turntableAtRest, type TurntableState } from '../sim/turntable'
 import { rollQuirks, type MountKind } from '../sim/quirks'
-import { modelSpecOf, reynoldsRatio, type ModelOrder } from '../sim/modelShop'
-import { prepareExact, prepareModel, readBalance, readTare, REFERENCE_TT, tunnelTurbulence, type PreparedModel, type TunnelSpec } from '../sim/views'
+import { modelSpecOf, quote, reynoldsRatio, type ModelOrder } from '../sim/modelShop'
+import { prepareExact, prepareModel, readBalance, readTare, tunnelTurbulence, type EventSpec, type PreparedModel, type TunnelSpec } from '../sim/views'
 import type { TunnelView } from '../render/tunnelScene'
 import { createChart, describeLast, type ChartPoint } from './chart'
-import { openModelShop } from './modelShop'
+import { openModelShop, type ShopContext } from './modelShop'
 import { createCpLegend } from './cpLegend'
 import { designStore } from './designStore'
 import { fixed, scientific } from './format'
@@ -166,21 +166,34 @@ function rangeRow(id: string, label: string, range: { min: number; max: number; 
   return { row, input, target }
 }
 
+/** What the tunnel needs from the rest of the game. */
+export interface TunnelHooks {
+  /** Something worth saving changed: a run ended, a model was ordered, the crank was set. */
+  onChange(): void
+  /** A run finished: bill it. */
+  onRun(run: Run): void
+  /** The career's seed, which sets the tunnel's hidden quirks. */
+  tunnelSeed: number
+  /** The event the design is being built for (the job's). */
+  event(): EventSpec
+  /** The model shop's view of the job. */
+  shop(): ShopContext
+  /** A model was ordered: charge it and spend its days. */
+  onOrder(price: number, days: number): void
+}
+
 export interface TunnelControl {
   setActive(active: boolean): void
   /** The lab's lasting state now, for the save (a run in progress isn't in it). */
   lab(): LabState
 }
 
-/**
- * Start the tunnel from the lab's saved state. `onChange` is called when
- * something worth saving changes: a run ends, a model is ordered, the crank
- * is set.
- */
-export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: LabState, onChange: () => void): TunnelControl {
+/** Start the tunnel from the lab's saved state. */
+export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: LabState, hooks: TunnelHooks): TunnelControl {
+  const onChange = hooks.onChange
   const spec = UNIVERSITY_TUNNEL
-  // The tunnel as the balance reads it, hidden quirks and all.
-  const tunnel: TunnelSpec = { ...UNIVERSITY_TUNNEL, quirks: rollQuirks(UNIVERSITY_QUIRKS, DEMO_TUNNEL_SEED) }
+  // The tunnel as the balance reads it, hidden quirks and all (each career's tunnel has its own).
+  const tunnel: TunnelSpec = { ...UNIVERSITY_TUNNEL, quirks: rollQuirks(UNIVERSITY_QUIRKS, hooks.tunnelSeed) }
   const airTurbulence = tunnelTurbulence(tunnel)
   const sectionArea = spec.section.width * spec.section.height
   let fan: FanState = fanAtRest()
@@ -501,7 +514,9 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     }
   }
   shopBtn.addEventListener('click', () =>
-    openModelShop(order, (next) => {
+    openModelShop(order, hooks.shop(), (next) => {
+      const q = quote(next)
+      hooks.onOrder(q.price, q.days)
       order = next
       build++
       modelSpec = modelSpecOf(order, DEMO_MODEL_SEED + build)
@@ -607,6 +622,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   function endRun() {
     if (rec.run) {
       runs.push(rec.run)
+      hooks.onRun(rec.run)
       rec = { ...rec, run: null }
       runsDirty = true
       refreshCal()
@@ -1093,7 +1109,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     setText(rYaw.sub, t('read.sideNote', { force: `${fixed(shown.sideN, 1)} N` }))
     setText(rDrag.value, `${fixed(shown.dragN, 1)} N`)
     // How near the model's Reynolds number is to the full-size rider's on the day (the Reynolds trap).
-    setText(rDrag.sub, t('read.reMatch', { pct: fixed(reynoldsRatio(prepared, fan.speed, REFERENCE_TT) * 100, 0) }))
+    setText(rDrag.sub, t('read.reMatch', { pct: fixed(reynoldsRatio(prepared, fan.speed, hooks.event()) * 100, 0) }))
     rDrag.sub.title = t('read.modelDragNote', { re: scientific(r.reynolds) })
     // The CdA takes off whatever the tare and calibration runs have found.
     const words = fixWords(fix)
@@ -1125,6 +1141,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       rec = step.recorder
       if (step.finished) {
         runs.push(step.finished)
+        hooks.onRun(step.finished)
         refreshCal()
         onChange()
         chartDirty = true

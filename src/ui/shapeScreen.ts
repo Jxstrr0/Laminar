@@ -20,10 +20,11 @@ import { cyclistShape } from '../sim/geom/cyclist'
 import { availableHandles, dragHandle, handleDef, handlePoint } from '../sim/geom/handles'
 import { riderPose } from '../sim/geom/pose'
 import { ruleVolumes } from '../sim/geom/ruleBox'
-import { REFERENCE_TT } from '../sim/views'
+import { briefTemplate, currentEvent } from '../sim/career'
 import type { Highlight, ShapeView } from '../render/shapeScene'
 import type { GlossaryId } from '../data/glossary'
 import type { HandleId, HandleParam } from '../data/handles'
+import { careerStore } from './careerStore'
 import { designStore } from './designStore'
 import { fixed } from './format'
 import { openGlossaryIndex, glossaryTerm } from './glossary'
@@ -96,12 +97,22 @@ export interface ScreenControl {
 export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenControl {
   let design: CyclistDesign = structuredClone(designStore.get())
   let dirty = true
+  /** The copy last handed to the tunnel, so a design set from elsewhere (a new job) can be told apart. */
+  let sent: CyclistDesign | null = null
   let selected: HandleId | null = null
 
   // --- Header
   const header = el('header', 'top-bar')
   const titleBlock = el('div', 'title-block')
-  titleBlock.append(el('h1', 'wordmark', t('game.title')), el('p', 'place', t('shape.place')))
+  const place = el('p', 'place')
+  titleBlock.append(el('h1', 'wordmark', t('game.title')), place)
+  /** The subtitle names the client while there's a job. */
+  const showPlace = () => {
+    const job = careerStore.get().job
+    const who = job ? briefTemplate(job.brief.id)?.client : undefined
+    place.textContent = who ? t('shape.placeJob', { client: who }) : t('shape.place')
+  }
+  showPlace()
   header.append(titleBlock)
 
   // --- Sheet: readouts, rule breaks, tabs, controls.
@@ -310,7 +321,9 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   })
 
   reset.addEventListener('click', () => {
-    design = structuredClone(DEFAULT_CYCLIST)
+    // Back to where the job started: the client's setup (or the plain starting design between jobs).
+    const job = careerStore.get().job
+    design = structuredClone((job && briefTemplate(job.brief.id)?.setup) || DEFAULT_CYCLIST)
     selected = null
     syncAll()
     changed()
@@ -321,6 +334,18 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     tailRow.hidden = design.helmet.kind !== 'aero'
   }
   syncAll()
+  // A new job puts the client's setup on the bench: take it up.
+  designStore.subscribe((d) => {
+    if (d === sent) return
+    design = structuredClone(d)
+    selected = null
+    syncAll()
+    dirty = true
+  })
+  careerStore.subscribe(() => {
+    showPlace()
+    dirty = true
+  })
 
   function jumpTo(part: RuleBreak['part']) {
     jumpToControl(BREAK_TARGET[part])
@@ -343,10 +368,13 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   function refresh() {
     syncAll()
     // The tunnel tests whatever is shaped here; it gets its own copy.
-    designStore.set(structuredClone(design))
+    sent = structuredClone(design)
+    designStore.set(sent)
     const r = readouts(design, TCF_TIME_TRIAL)
     const shape = cyclistShape(design)
-    const desk = deskEstimate(shape, REFERENCE_TT, DESK.demoJobSeed, JSON.stringify(design))
+    // The desk estimate is for the job's event, with the job's own bias.
+    const career = careerStore.get()
+    const desk = deskEstimate(shape, currentEvent(career), career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(design))
     deskR.value.textContent = `${fixed(desk.value, 3)} m²`
     deskR.sub.textContent = t('read.deskNote', { spread: fixed((desk.high - desk.low) / 2, 3) })
 

@@ -22,11 +22,40 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 4e | Correlation, part 5: pressure taps and the Cp map | **Done** (v0.4.4.0) |
 | 5a | Contracts, part 1: the lab's state lifted out of the tunnel, and autosave (one slot) | **Done** (v0.5.0.0) |
 | 5b | Save slots, save code (`LAM1:`) and a Saves sheet | **Done** (v0.5.1.0) |
-| 5c | Briefs, money and the job clock | Next |
-| 5d–5h | Promise and debrief, sealed bids, time-trial replay, velodrome, guided first job | Not started |
+| 5c | Briefs, money and the job clock: the Jobs screen, runs and models charged, days spent, deliver and get paid | **Done** (v0.5.2.0) |
+| 5d | The model follows the design: parts swap for a fee, a new position needs a new model (Kelbo's call) | Next |
+| 5e–5i | Promise and debrief, sealed bids, time-trial replay, velodrome, guided first job | Not started |
 | 6–14 | See the plan | Not started |
 
 ## Versions
+
+- **0.5.2.0** (PR 5c): jobs, money and the days clock.
+  - **Jobs screen:** a new first tab (Jobs · Shape · Tunnel). It shows your
+    firm's money (you start with ₽ 100,000 on Mar 1, 2010) and a board of
+    three briefs: who the client is, what they want, the event, the fee,
+    the days to the event and the rider's power. A new career always offers
+    Marta Selivan's regional time trial first, and there's always one small
+    job on the board.
+  - **Take a job** (tap twice): the client's current position and kit go on
+    the Shape bench, and the job card shows the days left, the fee, what
+    you've spent and race day. Shape's subtitle names the client, and
+    "Start over" goes back to their setup.
+  - **Money chip:** beside Saves on every screen, e.g. "₽99.5k · 21 d".
+    Tap it to open Jobs.
+  - **Runs cost money:** every tunnel run (sphere, wheel and tare runs
+    too) comes off the firm's money, with or without a job.
+  - **Models need a job:** the shop charges the job and the model's days
+    pass at once (Kelbo's call). It won't take an order with no job or
+    with too few days left, and says why.
+  - **Deliver and race** (tap twice): the calendar jumps to race day, the
+    rider races your design on that day's wind and air, and you see the
+    time, speed, conditions and the fee. The board then moves on.
+  - The desk estimate and the shop's Reynolds note now use the job's event.
+    Each new career gets its own tunnel quirks; a save from before careers
+    keeps the old ones, so its calibrations still hold.
+  - **For now:** the fee is paid in full whatever happens. Promises, the
+    declared prediction and the debrief are PR 5e; bids are 5f. Money can go
+    below zero (shown in red); the soft landing is PR 7.
 
 - **0.5.1.0** (PR 5b): save slots and save codes.
   - **Saves button:** top right on every screen, under Shape / Tunnel. It

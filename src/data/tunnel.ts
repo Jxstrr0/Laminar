@@ -139,7 +139,10 @@ export const UNIVERSITY_QUIRKS = {
   },
 } as const
 
-/** The tunnel's seed until careers arrive (PR 5 seeds it from the save). */
+/**
+ * The career seed for a save from before careers (v1), so the tunnel keeps
+ * the quirks it had; the tests use it too. New careers pick their own.
+ */
 export const DEMO_TUNNEL_SEED = 2010
 
 /**

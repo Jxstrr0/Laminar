@@ -15,6 +15,10 @@ import { startAutosave } from './persist/autosave'
 import { lastSlot, readSlot, setLastSlot, writeSlot } from './persist/db'
 import { packSave, parseSave, SAVE_VERSION, type SaveFile } from './persist/save'
 import { DEFAULT_CYCLIST } from './data/cyclist'
+import { careerStore, freshSeed } from './ui/careerStore'
+import { charge, currentEvent, newCareer, orderBlock, orderModel } from './sim/career'
+import { runCost } from './sim/run'
+import { rublesShort } from './ui/format'
 
 /** The career slot in play: the one used last visit. */
 const SLOT = lastSlot()
@@ -31,13 +35,13 @@ function hasWebGL(): boolean {
   }
 }
 
-const SCREENS = ['shape', 'tunnel'] as const
+const SCREENS = ['board', 'shape', 'tunnel'] as const
 type Screen = (typeof SCREENS)[number]
 
-/** The screen named in the address (#shape or #tunnel), Shape by default. */
+/** The screen named in the address (#board, #shape or #tunnel), Jobs by default. */
 function screenFromHash(): Screen {
   const name = location.hash.slice(1)
-  return (SCREENS as readonly string[]).includes(name) ? (name as Screen) : 'shape'
+  return (SCREENS as readonly string[]).includes(name) ? (name as Screen) : 'board'
 }
 
 function screenHost(app: HTMLElement, name: Screen): HTMLElement {
@@ -49,7 +53,7 @@ function screenHost(app: HTMLElement, name: Screen): HTMLElement {
   return host
 }
 
-/** The Shape / Tunnel switch, top right. */
+/** The Jobs / Shape / Tunnel switch, top right. */
 function buildNav(go: (s: Screen) => void): { root: HTMLElement; mark(s: Screen): void } {
   const root = document.createElement('nav')
   root.className = 'screen-nav'
@@ -81,28 +85,50 @@ async function boot(): Promise<void> {
   loading.progress(0.2)
   // Pick up where the last visit left off. A save that can't be trusted is left alone, unread.
   const saved = parseSave(await readSlot(SLOT).catch(() => null))
-  if (saved) designStore.set(saved.design)
+  if (saved) {
+    designStore.set(saved.design)
+    careerStore.set(saved.career)
+  } else careerStore.set(newCareer(freshSeed()))
   loading.progress(0.3)
   // three.js and the scenes load as their own chunks.
-  const [{ createTunnelView }, { startTunnelScreen }, { createShapeView }, { startShapeScreen }] = await Promise.all([
+  const [{ createTunnelView }, { startTunnelScreen }, { createShapeView }, { startShapeScreen }, { startBoardScreen }] = await Promise.all([
     import('./render/tunnelScene'),
     import('./ui/tunnelScreen'),
     import('./render/shapeScene'),
     import('./ui/shapeScreen'),
+    import('./ui/boardScreen'),
   ])
   loading.progress(0.9)
+  const boardHost = screenHost(app, 'board')
   const shapeHost = screenHost(app, 'shape')
   const tunnelHost = screenHost(app, 'tunnel')
-  // The tunnel calls back when something worth keeping changes; so does the design.
+  // The tunnel calls back when something worth keeping changes; so do the design and the career.
   let touch = () => {}
-  const tunnel = startTunnelScreen(tunnelHost, createTunnelView(tunnelHost), saved?.lab ?? newLab(), () => touch())
+  const tunnel = startTunnelScreen(tunnelHost, createTunnelView(tunnelHost), saved?.lab ?? newLab(), {
+    onChange: () => touch(),
+    onRun: (run) => careerStore.set(charge(careerStore.get(), runCost(run))),
+    tunnelSeed: careerStore.get().seed,
+    event: () => currentEvent(careerStore.get()),
+    shop: () => {
+      const career = careerStore.get()
+      return { event: currentEvent(career), block: (days) => orderBlock(career, days), daysLeft: career.job?.daysLeft ?? 0 }
+    },
+    onOrder: (price, days) => careerStore.set(orderModel(careerStore.get(), price, days)),
+  })
   const autosave = startAutosave(
     () => current(),
     (text) => writeSlot(SLOT, text),
   )
   touch = () => autosave.touch()
   designStore.subscribe(() => touch())
-  const current = (): SaveFile => ({ v: SAVE_VERSION, savedAt: Date.now(), design: designStore.get(), lab: tunnel.lab() })
+  careerStore.subscribe(() => touch())
+  const current = (): SaveFile => ({
+    v: SAVE_VERSION,
+    savedAt: Date.now(),
+    design: designStore.get(),
+    lab: tunnel.lab(),
+    career: careerStore.get(),
+  })
   /** Leave this career for another: save it, stop saving, then reload into the new one. */
   const leaveFor = async (slot: number, write?: SaveFile) => {
     await autosave.flush()
@@ -123,12 +149,37 @@ async function boot(): Promise<void> {
       current,
       switchTo: (slot) => leaveFor(slot),
       startOver: (slot) =>
-        leaveFor(slot, { v: SAVE_VERSION, savedAt: Date.now(), design: structuredClone(DEFAULT_CYCLIST), lab: newLab() }),
+        leaveFor(slot, {
+          v: SAVE_VERSION,
+          savedAt: Date.now(),
+          design: structuredClone(DEFAULT_CYCLIST),
+          lab: newLab(),
+          career: newCareer(freshSeed()),
+        }),
       load: (save) => leaveFor(SLOT, { ...save, savedAt: Date.now() }),
     })
   })
-  app.append(savesBtn)
+  // The firm's money and the job's days, beside Saves; a tap opens Jobs.
+  const jobChip = document.createElement('button')
+  jobChip.type = 'button'
+  jobChip.className = 'chip job-chip'
+  const showJob = () => {
+    const career = careerStore.get()
+    const money = rublesShort(career.money)
+    const days = career.job?.daysLeft
+    jobChip.textContent = days === undefined ? t('job.chipIdle', { money }) : t('job.chip', { money, days })
+    jobChip.setAttribute('aria-label', days === undefined ? t('job.chipIdleName', { money }) : t('job.chipName', { money, days }))
+    jobChip.classList.toggle('over', career.money < 0)
+  }
+  showJob()
+  careerStore.subscribe(showJob)
+  jobChip.addEventListener('click', () => show('board'))
+  const chips = document.createElement('div')
+  chips.className = 'top-chips'
+  chips.append(jobChip, savesBtn)
+  app.append(chips)
   const screens: Record<Screen, { host: HTMLElement; control: { setActive(on: boolean): void } }> = {
+    board: { host: boardHost, control: startBoardScreen(boardHost, (s) => show(s)) },
     shape: { host: shapeHost, control: startShapeScreen(shapeHost, createShapeView(shapeHost)) },
     tunnel: { host: tunnelHost, control: tunnel },
   }
