@@ -1,10 +1,10 @@
 /**
- * The grey tunnel (PR 0): the university's test section with a calibration
- * sphere on a sting, the fan at the far end, and a light smoke rake so you can
- * see the air move. Placeholder geometry until the Blender art pass (PR 13).
+ * The grey tunnel: the university's test section with a calibration sphere on
+ * a sting, the fan at the far end, and a light smoke rake so you can see the
+ * air move. Placeholder geometry until the Blender art pass (PR 13).
  *
- * The renderer only draws. It reads the air speed the sim worked out and
- * never decides anything itself.
+ * The renderer only draws. It reads the air speed and the separation line
+ * the sim worked out and never decides anything itself.
  *
  * Axes: the air flows along +x. y is up. The sphere sits at the origin.
  */
@@ -28,6 +28,8 @@ const COLOURS = {
   smoke: 0xffffff,
   turntable: 0xb3bcc4,
   accent: 0x2456e8,
+  /** Separation line: the --sep colour from style.css. */
+  separation: 0xd2462b,
 } as const
 
 /** How much slower than real life the smoke drifts, so 40 m/s is still visible. */
@@ -42,10 +44,20 @@ const PORTRAIT_FOV = 55
 const LANDSCAPE_FOV = 45
 /** Fan turns per second at top speed (just for looks). */
 const FAN_REVS_AT_TOP = 6
+/**
+ * The wake behind the sphere, in sphere radii: how far the shear layer runs
+ * before it straightens out, and how long the churning region is drawn.
+ */
+const WAKE_RELAX = 0.5
+const WAKE_LENGTH = 4
+/** Puffs tumbling in the wake. */
+const WAKE_PUFFS = 90
 
 export interface TunnelView {
   /** Draw one frame. speed is the air speed in m/s; dt is real seconds since the last frame. */
   frame(speed: number, dt: number): void
+  /** Where the sim says the flow leaves the sphere, in degrees from its nose. */
+  setSeparation(deg: number): void
   /** Keep the sphere clear of the bottom sheet: pass its height in CSS pixels. */
   setSheetHeight(px: number): void
   dispose(): void
@@ -202,13 +214,13 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   fan.add(rotor)
   scene.add(fan)
 
-  // --- Smoke rake: dashes of smoke that ride ideal flow around the sphere.
+  // --- Smoke rake: dashes of smoke that ride the flow around the sphere.
   // A stand-in for the proper smoke and tufts in PR 3, driven by the same speed.
 
   /**
    * Ideal (potential) flow past a sphere of radius r in a unit stream along
-   * +x. It never separates, so it is only a look, not the answer: the aero
-   * model in PR 1 decides where flow really tears off.
+   * +x. It never separates on its own: the paths are bent round a wake below,
+   * starting where the aero model says the flow tears off.
    */
   const r3 = r * r * r
   const flowAt = (x: number, y: number, z: number): [number, number, number] => {
@@ -244,19 +256,63 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     }
   }
 
+  /**
+   * The paths as drawn: the ideal ones, held outside the wake. The wake's
+   * edge leaves the sphere at the separation line, heading inwards along the
+   * surface, and straightens out downstream. A laminar layer lets go early
+   * and leaves a wide wake; a turbulent one hangs on and leaves a narrow one.
+   */
+  const shown = paths.map((p) => p.slice())
+  let sepDeg = 100
+  let shownSep = NaN
+  let wakeStartX = 0
+  /** Radius of the wake's edge at x (only meaningful behind the separation line). */
+  let wakeRadius = (_x: number) => r
+  const applyWake = () => {
+    if (Math.abs(sepDeg - shownSep) < 0.25) return
+    shownSep = sepDeg
+    const th = (sepDeg * Math.PI) / 180
+    const xs = -r * Math.cos(th)
+    const rs = r * Math.sin(th)
+    const inward = th > Math.PI / 2 ? Math.tan(th - Math.PI / 2) : 0
+    const relax = WAKE_RELAX * r
+    wakeStartX = xs
+    wakeRadius = (x: number) => rs - inward * relax * (1 - Math.exp(-(x - xs) / relax))
+    for (let k = 0; k < paths.length; k++) {
+      const src = paths[k] as Float32Array
+      const dst = shown[k] as Float32Array
+      for (let i = 0; i < src.length; i += 3) {
+        const x = src[i] as number
+        const y = src[i + 1] as number
+        const z = src[i + 2] as number
+        dst[i] = x
+        dst[i + 1] = y
+        dst[i + 2] = z
+        if (x <= xs) continue
+        const rho = Math.hypot(y, z)
+        const edge = wakeRadius(x)
+        if (rho < edge && rho > 1e-6) {
+          dst[i + 1] = (y * edge) / rho
+          dst[i + 2] = (z * edge) / rho
+        }
+      }
+    }
+    placeRing(th)
+  }
+
   // Puffs come in short packets with gaps, so the motion is easy to see.
   const PUFF_GAP = 1 // samples between puffs
   const PACKET = 12 // puffs per packet
   const PACKET_GAP = 14 // empty puff slots after each packet
   const slots = PACKET + PACKET_GAP
-  type Puff = { path: Float32Array; start: number }
+  type Puff = { path: number; start: number }
   const puffs: Puff[] = []
-  for (const path of paths) {
+  paths.forEach((path, index) => {
     const n = path.length / 3
     for (let j = 0; j * PUFF_GAP < n; j++) {
-      if (j % slots < PACKET) puffs.push({ path, start: j * PUFF_GAP })
+      if (j % slots < PACKET) puffs.push({ path: index, start: j * PUFF_GAP })
     }
-  }
+  })
   const smokePos = new Float32Array(puffs.length * 3)
   const smokeGeo = new THREE.BufferGeometry()
   smokeGeo.setAttribute('position', new THREE.BufferAttribute(smokePos, 3))
@@ -264,7 +320,8 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   /** Place every puff `travel` samples along its path, wrapping at the end. */
   const placePuffs = (travel: number) => {
     for (let k = 0; k < puffs.length; k++) {
-      const { path, start } = puffs[k] as Puff
+      const { path: index, start } = puffs[k] as Puff
+      const path = shown[index] as Float32Array
       const n = path.length / 3
       let t = (start + travel) % n
       if (t < 0) t += n
@@ -279,6 +336,22 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     }
     smokeGeo.attributes.position!.needsUpdate = true
   }
+
+  // The separation line: a thin ring on the sphere where the flow lets go.
+  const ringMat = new THREE.MeshBasicMaterial({ color: COLOURS.separation, transparent: true, opacity: 0 })
+  let sepRing: THREE.Mesh | null = null
+  function placeRing(th: number) {
+    if (sepRing) {
+      scene.remove(sepRing)
+      sepRing.geometry.dispose()
+    }
+    sepRing = new THREE.Mesh(new THREE.TorusGeometry(r * Math.sin(th) * 1.004, 0.0022, 6, 72), ringMat)
+    sepRing.rotation.y = Math.PI / 2
+    sepRing.position.x = -r * Math.cos(th)
+    scene.add(sepRing)
+  }
+
+  applyWake()
   placePuffs(0)
 
   // Round, soft puffs instead of square points.
@@ -316,6 +389,48 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   const smokeShadow = new THREE.Points(smokeGeo, smokeShadowMat)
   smokeShadow.renderOrder = -1
   scene.add(smokeShadow)
+
+  // Puffs churning in the wake: they drift downstream slowly and tumble, so
+  // you can see how wide the separated region is.
+  type WakePuff = { u: number; angle: number; radius: number; spin: number; wobble: number }
+  const wakePuffs: WakePuff[] = []
+  for (let i = 0; i < WAKE_PUFFS; i++) {
+    wakePuffs.push({
+      u: Math.random(),
+      angle: Math.random() * Math.PI * 2,
+      radius: Math.sqrt(Math.random()) * 0.9,
+      spin: (Math.random() - 0.5) * 6,
+      wobble: Math.random() * Math.PI * 2,
+    })
+  }
+  const wakePos = new Float32Array(WAKE_PUFFS * 3)
+  const wakeGeo = new THREE.BufferGeometry()
+  wakeGeo.setAttribute('position', new THREE.BufferAttribute(wakePos, 3))
+  const wakeSmoke = new THREE.Points(wakeGeo, smokeMat)
+  const wakeShadow = new THREE.Points(wakeGeo, smokeShadowMat)
+  wakeShadow.renderOrder = -1
+  scene.add(wakeSmoke, wakeShadow)
+  let clock = 0
+  const placeWake = (advance: number) => {
+    const len = WAKE_LENGTH * r
+    for (let i = 0; i < WAKE_PUFFS; i++) {
+      const p = wakePuffs[i] as WakePuff
+      p.u += advance * (0.6 + 0.4 * p.radius)
+      if (p.u >= 1) {
+        p.u -= 1
+        p.angle = Math.random() * Math.PI * 2
+      }
+      p.angle += p.spin * advance
+      const x = wakeStartX + p.u * len
+      const edge = Math.max(0.2 * r, wakeRadius(x))
+      const rad = edge * Math.min(0.95, p.radius + 0.08 * Math.sin(clock * 9 + p.wobble))
+      wakePos[i * 3] = x
+      wakePos[i * 3 + 1] = rad * Math.cos(p.angle)
+      wakePos[i * 3 + 2] = rad * Math.sin(p.angle)
+    }
+    wakeGeo.attributes.position!.needsUpdate = true
+  }
+  placeWake(0)
 
   /** How far along their paths the puffs have travelled, in samples. */
   let travel = 0
@@ -355,13 +470,21 @@ export function createTunnelView(host: HTMLElement): TunnelView {
       const visible = Math.min(1, speed / 3)
       smokeMat.opacity = 0.9 * visible
       smokeShadowMat.opacity = 0.45 * visible
+      ringMat.opacity = visible
+      applyWake()
       if (speed > 0.05) {
         travel += (speed * SMOKE_TIME_SCALE * step) / SAMPLE_DT
         placePuffs(travel)
+        clock += step
+        // The wake drifts at about a third of the stream's speed.
+        placeWake((0.35 * speed * SMOKE_TIME_SCALE * step) / (WAKE_LENGTH * r))
       }
 
       controls.update()
       renderer.render(scene, camera)
+    },
+    setSeparation(deg) {
+      if (Number.isFinite(deg)) sepDeg = Math.min(170, Math.max(60, deg))
     },
     setSheetHeight(px) {
       sheetPx = px

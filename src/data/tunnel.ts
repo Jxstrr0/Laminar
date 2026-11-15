@@ -1,5 +1,5 @@
 /**
- * The university's old low-speed tunnel, as far as PR 0 needs it.
+ * The university's old low-speed tunnel.
  *
  * Every tuning number for the tunnel lives here, not in the code. Its hidden
  * quirks (blockage, turbulence, sting interference, static wheels and legs)
@@ -14,16 +14,19 @@ export const UNIVERSITY_TUNNEL = {
   rampRate: 6,
   /** The fan slider moves in steps of this many m/s. */
   sliderStep: 0.5,
+  /**
+   * Turbulence intensity of the air in the test section (a fraction). Calm
+   * for now; the real, hidden value is one of the quirks in PR 4.
+   */
+  turbulence: 0,
 } as const
 
-/** The calibration sphere on the sting. */
+/**
+ * The calibration sphere on the sting. Its drag comes from the aero model
+ * (src/sim/aero/drag.ts), drag crisis included: at 25 cm it goes through the
+ * crisis near 20 m/s, right in the middle of the fan's range.
+ */
 export const REFERENCE_SPHERE = {
   /** Diameter in metres. */
   diameter: 0.25,
-  /**
-   * Textbook drag coefficient of a smooth sphere below the drag crisis.
-   * A placeholder until the aero model (PR 1) works it out from the Reynolds
-   * number, drag crisis included.
-   */
-  dragCoefficient: 0.47,
 } as const
