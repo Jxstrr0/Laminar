@@ -58,6 +58,41 @@ export function crossCylinder(id: string, diameter: number, span: number, roughn
 }
 
 /**
+ * A round cylinder standing upright in the flow (a leg, a seat tube): round
+ * seen from above, `height` tall.
+ */
+export function upright(id: string, diameter: number, height: number, roughness = 0): BodySpec {
+  const r = diameter / 2
+  const stations: Station[] = cosineXs(diameter).map((x) => ({
+    x,
+    top: height / 2,
+    bottom: height / 2,
+    half: circleHalf(x, r, r),
+  }))
+  return { id, stations, squareness: 1, roughness }
+}
+
+/**
+ * A streamlined body with an elliptical cross-section (a torso, a helmet):
+ * like streamlined() but wider than it is tall, or the other way round.
+ */
+export function streamlinedOval(
+  id: string,
+  length: number,
+  width: number,
+  height: number,
+  maxAt = 0.35,
+  tailEnd = 0,
+  roughness = 0,
+): BodySpec {
+  const round = streamlined(id, length, 1, maxAt, tailEnd, roughness)
+  return {
+    ...round,
+    stations: round.stations.map((p) => ({ x: p.x, top: p.top * height, bottom: p.bottom * height, half: p.half * width })),
+  }
+}
+
+/**
  * A streamlined body of revolution: an elliptical nose up to its widest point
  * (at `maxAt`, a fraction of the length), then a smooth tail. `tailEnd` is
  * the tail's end diameter as a fraction of the widest: 0 closes to a point,

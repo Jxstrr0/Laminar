@@ -187,4 +187,9 @@ export const YAW = {
    * the body is, so a sphere's drag just turns with the wind.
    */
   axialRise: 2,
+  /**
+   * Parts sheltered behind others at 0° come out into the wind as it swings
+   * round: shelter fades to nothing by this yaw angle, degrees.
+   */
+  shelterFadeDeg: 45,
 } as const
