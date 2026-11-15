@@ -126,3 +126,65 @@ export const CAVITY: Record<CavityKind, { peak: number; half: number }> = {
   /** Spinning spokes, per disc area (depth is the spoke count over 32). */
   spokes: { peak: 0.05, half: 0.5 },
 }
+
+/** Wings, fins, discs and diffusers (plan section 6.3). */
+export const LIFT = {
+  /** Endplates raise a wing's effective aspect ratio: × (1 + this × height / span). */
+  endplateGain: 1.9,
+  /** Span efficiency in the induced-drag formula CL² / (π · AR · e). */
+  spanEfficiency: 0.85,
+  /** Stall angle (from zero lift) of a 12 %-thick section, degrees. */
+  stallDeg: 13,
+  /** Each extra 1 % of thickness adds this many degrees before stall. */
+  stallPerThickness: 0.35,
+  /** Stubby wings stall later: this many degrees ÷ aspect ratio extra (a disc wheel holds on to about 20°). */
+  stallLowAspect: 12,
+  /** Width of the stall, degrees: soft sections fade over the first, sharp over the second. */
+  stallWidthSoft: 9,
+  stallWidthSharp: 2,
+  /** Past the stall a section acts like a flat plate: CL = this × sin 2α. */
+  flatPlateLift: 0.9,
+  /** And its drag: CD = this × sin² α. */
+  flatPlateDrag: 1.28,
+  /** Profile drag thickness factor: × (1 + a·t + b·t⁴), t the thickness ratio. */
+  thicknessA: 2,
+  thicknessB: 60,
+} as const
+
+/**
+ * Ground effect (plan section 6.3): a wing near the ground makes more lift or
+ * downforce, until it gets so close that the flow under it chokes and the
+ * load collapses. That collapse is what makes a car porpoise (PR 9).
+ */
+export const GROUND = {
+  /** Load gain: × (1 + gain / (h/c)) above the critical height. */
+  gain: 0.06,
+  /** Height over chord where the flow starts to choke. */
+  critical: 0.1,
+  /** Height over chord where the load has collapsed to `floor` of its peak. */
+  collapsed: 0.03,
+  floor: 0.35,
+  /** Induced drag fades near the ground (Wieselsberger): uses (k·h/b)². */
+  inducedK: 16,
+} as const
+
+/** Bodies in a crosswind (plan section 6.4). */
+export const YAW = {
+  /**
+   * Side force from a body's side silhouette: area × slope × sin β cos β,
+   * scaled up as the body gets longer (a sphere makes none).
+   */
+  sideSlope: 1.0,
+  /** Fineness at which a body counts as fully "long" for side force. */
+  longFineness: 3,
+  /** Extra drag when side area beyond the frontal area meets the cross flow: × sin² β. */
+  crossDrag: 0.6,
+  /** Where the side force from a body's length acts, as a fraction of its length from the nose. */
+  noseCentre: 0.3,
+  /**
+   * A long bluff body's drag along its axis climbs in a crosswind: × (cos β +
+   * this × sin² β). A rider reads about 5 % more at 10°. Scaled by how long
+   * the body is, so a sphere's drag just turns with the wind.
+   */
+  axialRise: 2,
+} as const

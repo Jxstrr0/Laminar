@@ -35,6 +35,39 @@ export interface BodySpec {
   roughness?: number
   /** A trip strip: where it sits (fraction of length) and how tall it is (m). */
   trip?: { at: number; height: number }
+  /** Where the body's nose sits along the shape's axis (m), for moments. Default 0. */
+  x?: number
+}
+
+/**
+ * A wing, fin, disc wheel or diffuser: something that makes lift (or side
+ * force) on purpose. Horizontal ones make lift or downforce; vertical ones
+ * make side force in a crosswind.
+ */
+export interface LiftingElement {
+  id: string
+  plane: 'horizontal' | 'vertical'
+  /** Span and chord, metres. */
+  span: number
+  chord: number
+  /** Maximum camber as a fraction of chord (0.04 is 4 %); negative turns it upside down. */
+  camber: number
+  /** Thickness as a fraction of chord. */
+  thickness: number
+  /** Set angle in degrees: nose up for horizontal, toe for vertical. */
+  angleDeg: number
+  /** Endplate height over span (0 for none). */
+  endplates?: number
+  /** 0 stalls softly, 1 stalls sharply. */
+  stallSharpness?: number
+  /** Height above the ground in metres (horizontal only); leave out for free air. */
+  rideHeight?: number
+  /** Fraction of dynamic pressure lost to another part's wake (0 to 1). */
+  inWake?: number
+  /** Where its quarter-chord sits along the shape's axis (m), for moments. */
+  x: number
+  /** Surface roughness (sand-grain height, m). */
+  roughness?: number
 }
 
 /** Where two parts meet (adds interference drag). */
@@ -58,6 +91,7 @@ export interface Cavity {
 /** A whole shape: bodies plus the joints and cavities between them. */
 export interface ShapeSpec {
   bodies: BodySpec[]
+  elements?: LiftingElement[]
   junctions?: Junction[]
   cavities?: Cavity[]
 }
@@ -78,6 +112,8 @@ export interface Line {
 
 export interface BodyDescriptor {
   id: string
+  /** Where the nose sits along the shape's axis. */
+  x: number
   stations: Station[]
   /** x of each station (handy for interpolation). */
   xs: number[]
@@ -105,6 +141,7 @@ export interface BodyDescriptor {
 
 export interface ShapeDescriptor {
   bodies: BodyDescriptor[]
+  elements: LiftingElement[]
   junctions: Junction[]
   cavities: Cavity[]
   /** Sum of the bodies' frontal areas (overlaps aren't removed). */
@@ -209,6 +246,7 @@ export function describeBody(spec: BodySpec): BodyDescriptor {
 
   return {
     id: spec.id,
+    x: spec.x ?? 0,
     stations: st,
     xs,
     length,
@@ -231,6 +269,7 @@ export function describeShape(spec: ShapeSpec): ShapeDescriptor {
   const bodies = spec.bodies.map(describeBody)
   return {
     bodies,
+    elements: spec.elements ?? [],
     junctions: spec.junctions ?? [],
     cavities: spec.cavities ?? [],
     frontalArea: bodies.reduce((sum, b) => sum + b.frontalArea, 0),
@@ -246,7 +285,15 @@ export function scaleShape(spec: ShapeSpec, scale: number): ShapeSpec {
   return {
     bodies: spec.bodies.map((b) => ({
       ...b,
+      ...(b.x !== undefined ? { x: b.x * scale } : {}),
       stations: b.stations.map((p) => ({ x: p.x * scale, top: p.top * scale, bottom: p.bottom * scale, half: p.half * scale })),
+    })),
+    elements: (spec.elements ?? []).map((e) => ({
+      ...e,
+      span: e.span * scale,
+      chord: e.chord * scale,
+      x: e.x * scale,
+      ...(e.rideHeight !== undefined ? { rideHeight: e.rideHeight * scale } : {}),
     })),
     junctions: (spec.junctions ?? []).map((j) => ({ ...j, thickness: j.thickness * scale })),
     cavities: (spec.cavities ?? []).map((c) => ({ ...c, area: c.area * scale * scale })),
