@@ -25,11 +25,27 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 5c | Briefs, money and the job clock: the Jobs screen, runs and models charged, days spent, deliver and get paid | **Done** (v0.5.2.0) |
 | 5d | The model follows the design: parts swap for a fee, a new position needs a new model (Kelbo's call) | **Done** (v0.5.3.0) |
 | 5e | Promise and prediction, the debrief, payment and penalties | **Done** (v0.5.4.0) |
-| 5f | Sealed bids against a rival firm | Next |
-| 5g–5i | Time-trial replay, velodrome, guided first job | Not started |
+| 5f | Sealed bids against a rival firm | **Done** (v0.5.5.0) |
+| 5g | Time-trial replay | Next |
+| 5h–5i | Velodrome, guided first job | Not started |
 | 6–14 | See the plan | Not started |
 
 ## Versions
+
+- **0.5.5.0** (PR 5f): sealed bids.
+  - **Bid for this job…** opens a sheet: your price (inside the brief's fee
+    range, ₽1,000 steps) and your promise (half-point steps). Brief cards
+    show the fee range.
+  - One unnamed rival firm bids too (the named rivals come in PR 7). The
+    client counts each promised point as worth 8 % of the middle fee, the
+    same share a missed point costs you, plus how far your price is under
+    the top of the range. The higher value wins; a tie goes to you.
+  - The bids are opened at once: both prices, both promises and both
+    values, so you can see why you won or lost.
+  - Win: the client's setup goes on the bench, at your price and promise.
+    Lose: that brief goes and another comes in while any are left. If the
+    rival takes them all, **Wait a week for new briefs** brings a new board.
+  - Marta Selivan, the first job, asks for your firm by name: no rival.
 
 - **0.5.4.0** (PR 5e): delivering a job is a real test now.
   - Each brief carries a **promise**: cut the client's drag by a set share

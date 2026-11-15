@@ -5,6 +5,11 @@ export function fixed(value: number, digits: number): string {
   return value.toLocaleString(LOCALE, { minimumFractionDigits: digits, maximumFractionDigits: digits })
 }
 
+/** A promise in points: whole numbers plain, half points with one decimal (10 → "10", 10.5 → "10.5"). */
+export function pct(value: number): string {
+  return fixed(value, Number.isInteger(value) ? 0 : 1)
+}
+
 /** A big number like a Reynolds number: 678 000 → "6.78 × 10⁵". */
 export function scientific(value: number): string {
   if (value <= 0 || !Number.isFinite(value)) return '0'
@@ -20,7 +25,7 @@ export function scientific(value: number): string {
 /** Money: 98500 → "₽ 98,500"; below zero "−₽ 4,200". */
 export function rubles(value: number): string {
   const r = Math.round(value)
-  return `${r < 0 ? '−' : ''}₽ ${fixed(Math.abs(r), 0)}`
+  return `${r < 0 ? '−' : ''}₽\u00a0${fixed(Math.abs(r), 0)}`
 }
 
 /** Money in a few characters for a chip: "₽98.5k", "₽120k", "₽850". */

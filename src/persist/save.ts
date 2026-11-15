@@ -173,7 +173,12 @@ export function soundCareer(x: unknown): CareerState | null {
   if (!Array.isArray(raw)) return null
   const history = raw.map(soundRecord)
   if (history.some((r) => !r)) return null
-  return { seed: x.seed, money: x.money, day: x.day, jobsDone: x.jobsDone, board: board as Brief[], job, history: history as JobRecord[] }
+  // Careers from before PR 5f have had one board per job and lost no bids.
+  const round = x.round === undefined ? x.jobsDone : x.round
+  if (!isCount(round)) return null
+  const lost = x.lost === undefined ? [] : x.lost
+  if (!Array.isArray(lost) || !lost.every((id) => typeof id === 'string' && briefTemplate(id))) return null
+  return { seed: x.seed, money: x.money, day: x.day, jobsDone: x.jobsDone, round, board: board as Brief[], lost: lost as string[], job, history: history as JobRecord[] }
 }
 
 /** A save file, checked (and brought up to date if it's older); null if it can't be trusted. */

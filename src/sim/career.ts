@@ -5,10 +5,12 @@
  *
  * - Tunnel runs cost money and no days, with or without a job.
  * - Model orders need a job, cost money and spend days from its budget.
+ * - A brief is won with a sealed bid against one rival firm; a lost brief
+ *   leaves the board and another takes its place while any are left.
  * - Delivering runs the event, pays the fee, jumps the calendar to the
  *   event and refreshes the board.
  */
-import { BRIEFS, CAREER, PROMISE, type BriefTemplate } from '../data/briefs'
+import { BID, BRIEFS, CAREER, PROMISE, type BriefTemplate } from '../data/briefs'
 import type { CyclistDesign } from '../data/cyclist'
 import { REFERENCE_RIDER } from '../data/field'
 import { riderEvent } from './cyclist'
@@ -20,7 +22,7 @@ import { fieldResult, REFERENCE_TT, truth, type EventSpec, type FieldResult } fr
 export interface Brief {
   /** The template's id in BRIEFS. */
   id: string
-  /** ₽. */
+  /** The client's suggested fee, ₽ (the job's fee is what you bid). */
   fee: number
   days: number
   /** Seed for this job's desk bias and its event day. */
@@ -29,7 +31,7 @@ export interface Brief {
 
 export interface Job {
   brief: Brief
-  /** The promised cut, % of wind-averaged CdA from the client's setup (the brief's ask until bids arrive). */
+  /** The promised cut, % of wind-averaged CdA from the client's setup (from your bid). */
   promise: number
   /** The career day the job was taken. */
   startDay: number
@@ -61,7 +63,11 @@ export interface CareerState {
   /** Days since the career began. */
   day: number
   jobsDone: number
+  /** Which board this is: one more after every delivery or week's wait. */
+  round: number
   board: Brief[]
+  /** Briefs lost to the rival on this board, so they don't come back to it. */
+  lost: string[]
   job: Job | null
   /** Finished jobs, oldest first. */
   history: JobRecord[]
@@ -80,10 +86,20 @@ function template(id: string): BriefTemplate {
   return found
 }
 
-/** The brief board after `jobsDone` jobs: the tutorial first in a new career, and always one small brief. */
-export function boardFor(seed: number, jobsDone: number): Brief[] {
-  const rng = new Rng(seed).fork(`board-${jobsDone}`)
-  const first = jobsDone === 0 ? BRIEFS.filter((b) => b.tutorial) : []
+/** A template as it goes on a board: a suggested fee and its own seed. */
+function onBoard(b: BriefTemplate, rng: Rng): Brief {
+  const fee = Math.round(rng.range(b.fee.min, b.fee.max) / CAREER.feeRound) * CAREER.feeRound
+  return { id: b.id, fee, days: b.days, seed: rng.int(1, 0x7fffffff) }
+}
+
+/**
+ * Board number `round`: the tutorial first while no job is done, and always
+ * one small brief. (Round n of a career that has never waited or lost is the
+ * board after n jobs, as before bids.)
+ */
+export function boardFor(seed: number, round: number, firstJob = round === 0): Brief[] {
+  const rng = new Rng(seed).fork(`board-${round}`)
+  const first = firstJob ? BRIEFS.filter((b) => b.tutorial) : []
   const small = rng.shuffle(BRIEFS.filter((b) => b.small))
   const rest = rng.shuffle(BRIEFS.filter((b) => !b.tutorial && !b.small))
   const picked = [...first, ...small.slice(0, 1)]
@@ -91,14 +107,11 @@ export function boardFor(seed: number, jobsDone: number): Brief[] {
     if (picked.length >= CAREER.boardSize) break
     picked.push(b)
   }
-  return picked.map((b) => {
-    const fee = Math.round(rng.range(b.fee.min, b.fee.max) / CAREER.feeRound) * CAREER.feeRound
-    return { id: b.id, fee, days: b.days, seed: rng.int(1, 0x7fffffff) }
-  })
+  return picked.map((b) => onBoard(b, rng))
 }
 
 export function newCareer(seed: number): CareerState {
-  return { seed, money: CAREER.startMoney, day: 0, jobsDone: 0, board: boardFor(seed, 0), job: null, history: [] }
+  return { seed, money: CAREER.startMoney, day: 0, jobsDone: 0, round: 0, board: boardFor(seed, 0), lost: [], job: null, history: [] }
 }
 
 /** The event a brief is for, ready for the field model. */
@@ -121,11 +134,95 @@ export function currentEvent(state: CareerState): EventSpec {
   return state.job ? eventOf(state.job.brief) : REFERENCE_TT
 }
 
-/** Take a brief off the board. Only one job at a time. */
+/** Take a brief off the board at its suggested fee and the client's ask. Only one job at a time. */
 export function acceptBrief(state: CareerState, id: string): CareerState {
   const brief = state.board.find((b) => b.id === id)
-  if (!brief || state.job) return state
-  return { ...state, job: { brief, promise: template(id).target, startDay: state.day, daysLeft: brief.days, spent: 0 } }
+  if (!brief) return state
+  return take(state, brief, { price: brief.fee, promise: template(id).target })
+}
+
+function take(state: CareerState, brief: Brief, bid: Bid): CareerState {
+  if (state.job) return state
+  return { ...state, job: { brief: { ...brief, fee: bid.price }, promise: bid.promise, startDay: state.day, daysLeft: brief.days, spent: 0 } }
+}
+
+/** A sealed bid: a price, ₽, and a promised cut, %. */
+export interface Bid {
+  price: number
+  promise: number
+}
+
+export interface BidResult {
+  state: CareerState
+  won: boolean
+  /** Your bid as it went in (kept inside the limits). */
+  mine: Bid
+  /** The rival's bid, or null when the client asked for you alone (the first job). */
+  rival: Bid | null
+  /** What the client counts each promised point as worth, ₽. */
+  worth: number
+}
+
+/** ₽ the client counts each promised point as worth: a share of the middle of the fee range. */
+export function pointWorth(id: string): number {
+  const b = template(id)
+  return Math.round((((b.fee.min + b.fee.max) / 2) * BID.pointValue) / 100) * 100
+}
+
+/** How the client rates a bid: the promise's worth plus what it saves under the top of the fee range. Higher wins. */
+export function bidScore(id: string, bid: Bid): number {
+  return bid.promise * pointWorth(id) + template(id).fee.max - bid.price
+}
+
+const roundTo = (x: number, step: number) => Math.round(x / step) * step
+
+/** A bid brought inside the brief's fee range and the promise limits, on the steps. */
+export function clampBid(id: string, bid: Bid): Bid {
+  const b = template(id)
+  const price = Math.min(b.fee.max, Math.max(b.fee.min, roundTo(bid.price, BID.priceStep)))
+  const promise = Math.min(BID.promiseMax, Math.max(BID.promiseMin, roundTo(bid.promise, BID.promiseStep)))
+  return { price, promise }
+}
+
+/** The rival firm's sealed bid for a brief (seeded by the brief), or null for the first job. */
+export function rivalBid(brief: Brief): Bid | null {
+  const b = template(brief.id)
+  if (b.tutorial) return null
+  const rng = new Rng(brief.seed).fork('rival')
+  const promise = b.target + rng.range(BID.rivalPromise.min, BID.rivalPromise.max)
+  const share = rng.range(BID.rivalPrice.min, BID.rivalPrice.max)
+  return clampBid(brief.id, { price: b.fee.min + share * (b.fee.max - b.fee.min), promise })
+}
+
+/**
+ * Put in a sealed bid. Win (ties go to you) and the job starts at your price
+ * and promise. Lose and the brief leaves the board, and another the firm
+ * hasn't lost this round takes its place if there is one. Null if the brief
+ * isn't on the board or a job is in hand.
+ */
+export function placeBid(state: CareerState, id: string, bid: Bid): BidResult | null {
+  const brief = state.board.find((b) => b.id === id)
+  if (!brief || state.job) return null
+  const mine = clampBid(id, bid)
+  const rival = rivalBid(brief)
+  const worth = pointWorth(id)
+  const won = !rival || bidScore(id, mine) >= bidScore(id, rival)
+  if (won) return { state: take(state, brief, mine), won, mine, rival, worth }
+  const lost = [...state.lost, id]
+  const board = state.board.filter((b) => b.id !== id)
+  const spare = BRIEFS.filter((b) => !b.tutorial && !lost.includes(b.id) && !board.some((o) => o.id === b.id))
+  if (spare.length > 0) {
+    const rng = new Rng(state.seed).fork(`refill-${state.round}-${lost.length}`)
+    board.push(onBoard(rng.pick(spare), rng))
+  }
+  return { state: { ...state, board, lost }, won, mine, rival, worth }
+}
+
+/** Wait a week for a fresh board (when the rival has taken every brief). */
+export function waitForBriefs(state: CareerState): CareerState {
+  if (state.job) return state
+  const round = state.round + 1
+  return { ...state, day: state.day + BID.waitDays, round, board: boardFor(state.seed, round, state.jobsDone === 0), lost: [] }
 }
 
 /** Spend money (a run, a model). Goes on the job's tally when there is one. */
@@ -259,7 +356,9 @@ export function deliver(state: CareerState, design: CyclistDesign, predicted: nu
     money: state.money + paid,
     day: raceDay,
     jobsDone,
-    board: boardFor(state.seed, jobsDone),
+    round: state.round + 1,
+    board: boardFor(state.seed, state.round + 1, false),
+    lost: [],
     job: null,
     history: [...state.history, record],
   }

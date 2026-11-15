@@ -36,6 +36,30 @@ export const PROMISE = {
   goodRead: 0.02,
 }
 
+/**
+ * Sealed bids (plan section 4, step 2): you name a price inside the brief's
+ * fee range and a promised cut. One unnamed rival firm bids too (the named
+ * rivals come in PR 7). The client counts each promised point as worth a
+ * share of the middle fee, the same share a missed point costs you, so an
+ * over-promise wins jobs and the road takes it back.
+ */
+export const BID = {
+  /** Share of the middle fee the client counts each promised point as worth (matches PROMISE.perPoint). */
+  pointValue: 0.08,
+  /** The promise moves in these steps, between these limits, %. */
+  promiseStep: 0.5,
+  promiseMin: 0.5,
+  promiseMax: 30,
+  /** The price moves in these steps, ₽. */
+  priceStep: 1000,
+  /** The rival promises the client's ask plus this many points (uniform), rounded to promiseStep. */
+  rivalPromise: { min: -1, max: 2 },
+  /** The rival's price, as a share of the way through the fee range (uniform). */
+  rivalPrice: { min: 0.3, max: 1 },
+  /** Days the firm waits for a fresh board when every brief on it has gone. */
+  waitDays: 7,
+}
+
 /** The event a brief is for: the day's typical air, how much it varies, and the course. */
 export interface EventTemplate {
   name: string
