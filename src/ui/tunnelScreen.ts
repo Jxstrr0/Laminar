@@ -16,6 +16,13 @@
  * the readouts for live charts of this run against the last one, or for the
  * session's runs: tap two to compare them against the balance's noise.
  *
+ * The tunnel has hidden quirks (src/sim/quirks.ts): blockage, turbulent air
+ * and the mount's own drag all creep into every reading. A tare run (the
+ * mount with the model off) measures the mount; calibration runs with the
+ * sphere, held up against the book, show the crisis coming early and the
+ * blockage. The Calibrate tab gathers what the runs have found, and the
+ * rider's CdA readout takes off whatever is known.
+ *
  * Over the 3D view sit the flow instruments: a smoke wand, a smoke rake,
  * tufts and a dark backdrop. They read a flow field built from the model's
  * own drag at tunnel speed, rebuilt (at most four times a second) as the
@@ -28,13 +35,13 @@ import { AIR } from '../data/air'
 import type { GlossaryId } from '../data/glossary'
 import { TUFT_VIZ } from '../data/flowViz'
 import { DEMO_MODEL_SEED, STANDARD_MODEL } from '../data/model'
-import { REFERENCE_SPHERE, RUN_RECORDING, TUNNEL_BILLING, UNIVERSITY_TUNNEL } from '../data/tunnel'
+import { CALIBRATION, DEMO_TUNNEL_SEED, REFERENCE_SPHERE, RUN_RECORDING, TUNNEL_BILLING, UNIVERSITY_QUIRKS, UNIVERSITY_TUNNEL } from '../data/tunnel'
 import { t, type StringKey } from '../data/strings'
 import { dynamicPressure, reynolds } from '../sim/air'
 import { bodyDrag, type Regime } from '../sim/aero/drag'
 import { fanAtRest, setFanTarget, stepFan, type FanState } from '../sim/fan'
 import { modelFlowField, tufts as tuftsOf } from '../sim/flow/field'
-import { describeBody } from '../sim/geom/body'
+import { bookCurve, calibrate, correct, corrections, latestTare, tareModel, type Calibration, type Corrections } from '../sim/calibration'
 import { cyclistShape } from '../sim/geom/cyclist'
 import { riderPose } from '../sim/geom/pose'
 import { sphere } from '../sim/geom/shapes'
@@ -44,7 +51,8 @@ import { changedControls } from '../sim/designDiff'
 import { compareRuns, headlineCompare, headlineGroup, yawGroups, type YawGroup } from '../sim/runStats'
 import { addSample, newRecorder, runCost, stepRecorder, type Recorder, type Run, type RunSample } from '../sim/run'
 import { setYawTarget, stepTurntable, turntableAtRest, type TurntableState } from '../sim/turntable'
-import { prepareModel, readBalance, type PreparedModel } from '../sim/views'
+import { rollQuirks, type MountKind } from '../sim/quirks'
+import { prepareExact, prepareModel, readBalance, readTare, tunnelTurbulence, type PreparedModel, type TunnelSpec } from '../sim/views'
 import type { TunnelView } from '../render/tunnelScene'
 import { createChart, describeLast, type ChartPoint } from './chart'
 import { designStore } from './designStore'
@@ -58,13 +66,26 @@ const REGIME_TERM: Record<Regime, GlossaryId> = { laminar: 'laminar', mixed: 'dr
 const STEP = 1 / 60
 
 type Mount = 'rider' | 'sphere'
-type View = 'readouts' | 'time' | 'yaw' | 'runs'
+type View = 'readouts' | 'time' | 'yaw' | 'cal' | 'runs'
 const VIEWS: { value: View; key: StringKey }[] = [
   { value: 'readouts', key: 'view.readouts' },
   { value: 'time', key: 'view.time' },
   { value: 'yaw', key: 'view.yaw' },
+  { value: 'cal', key: 'view.cal' },
   { value: 'runs', key: 'view.runs' },
 ]
+/** What holds each model. */
+const MOUNT_KIND: Record<Mount, MountKind> = { rider: 'posts', sphere: 'sting' }
+/** How a run's model is named in the list. */
+const RUN_MODEL: Record<string, StringKey> = {
+  rider: 'mount.rider',
+  sphere: 'mount.sphere',
+  [tareModel('sting')]: 'mount.tareSting',
+  [tareModel('posts')]: 'mount.tarePosts',
+}
+
+/** A tare is a small drag area: it needs a digit more than a model's. */
+const TARE_DIGITS = 5
 
 /** Seconds as m:ss. */
 function clock(seconds: number): string {
@@ -119,9 +140,19 @@ function rangeRow(id: string, label: string, range: { min: number; max: number; 
 
 export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActive(active: boolean): void } {
   const spec = UNIVERSITY_TUNNEL
+  // The tunnel as the balance reads it, hidden quirks and all.
+  const tunnel: TunnelSpec = { ...UNIVERSITY_TUNNEL, quirks: rollQuirks(UNIVERSITY_QUIRKS, DEMO_TUNNEL_SEED) }
+  const airTurbulence = tunnelTurbulence(tunnel)
+  const sectionArea = spec.section.width * spec.section.height
   let fan: FanState = fanAtRest()
   let table: TurntableState = turntableAtRest()
   let mount: Mount = 'rider'
+  /** A tare run: the model off, the mount alone. */
+  let tare = false
+  // The calibration sphere, made exactly: a reference body has no build errors.
+  const sphereModel = prepareExact({ bodies: [sphere('calibration-sphere', REFERENCE_SPHERE.diameter)] })
+  const ball = sphereModel.shape.bodies[0]!
+  const radius = REFERENCE_SPHERE.diameter / 2
 
   // --- Header
   const header = el('header', 'top-bar')
@@ -154,7 +185,13 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     setMount(next)
     mountButtons[MOUNTS.findIndex((m) => m.value === next)]!.focus()
   })
-  mountRow.append(mountLabel, mountGroup)
+  const tareBtn = el('button', 'chip tare-chip', t('mount.tare'))
+  tareBtn.type = 'button'
+  tareBtn.setAttribute('aria-pressed', 'false')
+  tareBtn.setAttribute('aria-label', t('mount.tareName'))
+  tareBtn.title = t('mount.tareName')
+  tareBtn.addEventListener('click', () => setTare(!tare))
+  mountRow.append(mountLabel, mountGroup, tareBtn)
 
   // Fan.
   const fanCtl = rangeRow('fan-slider', t('fan.label'), { min: 0, max: spec.topSpeed, step: spec.sliderStep })
@@ -175,7 +212,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   const rDrag = readout(t('read.modelDrag'), 'forceBalance')
   const rCdA = readout(t('read.cda'), 'cda')
   riderGrid.append(rSpeed.box, rYaw.box, rDrag.box, rCdA.box)
-  rCdA.sub.textContent = t('read.cdaNote', { scale: fixed(1 / STANDARD_MODEL.scale, 0) })
+  rCdA.sub.textContent = t('read.cdaRaw', { scale: fixed(1 / STANDARD_MODEL.scale, 0) })
 
   // Readouts for the sphere.
   const sphereGrid = el('div', 'readouts')
@@ -185,6 +222,15 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   const dragR = readout(t('read.drag'), 'drag')
   sphereGrid.append(speedR.box, qR.box, reR.box, dragR.box)
   reR.sub.textContent = `${fixed(REFERENCE_SPHERE.diameter * 100, 0)} cm sphere`
+
+  // Readouts for a tare run: the mount alone.
+  const tareGrid = el('div', 'readouts')
+  const tSpeed = readout(t('read.speed'), 'airSpeed')
+  const tQ = readout(t('read.q'), 'dynamicPressure')
+  const tDrag = readout(t('read.mountDrag'), 'sting')
+  const tSoFar = readout(t('read.tare'), 'tare')
+  tareGrid.append(tSpeed.box, tQ.box, tDrag.box, tSoFar.box)
+  tQ.sub.textContent = '½ρV²'
 
   // The drag note ("Cd {cd} · {regime}") keeps its regime word as a glossary
   // term, so it is built once from the template and its slots updated in place.
@@ -242,6 +288,22 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
       .map((part) => (part === 'noise band' ? glossaryTerm('noiseBand', part) : part === '{count}' ? countText : document.createTextNode(part))),
   )
   compareBox.append(verdict, detail, changed, compareChart.canvas, compareCaption)
+  // Calibrate: the sphere against the book, and what the tunnel has given away.
+  const calBox = el('div', 'runs-box cal-box')
+  calBox.setAttribute('role', 'tabpanel')
+  calBox.setAttribute('aria-labelledby', 'view-cal')
+  const calChart = createChart(el('span'))
+  // "the book" stays a tappable glossary term in the caption.
+  const calCaption = el('p', 'chart-caption')
+  calCaption.append(
+    ...t('cal.chart')
+      .split(/(the book)/)
+      .map((part) => (part === 'the book' ? glossaryTerm('calibration', part) : document.createTextNode(part))),
+  )
+  const calLines = { tare: el('p', 'compare-detail'), crisis: el('p', 'compare-detail'), block: el('p', 'compare-detail'), posts: el('p', 'compare-detail') }
+  calLines.crisis.setAttribute('aria-live', 'polite')
+  calBox.append(calChart.canvas, calCaption, calLines.tare, calLines.crisis, calLines.block, calLines.posts)
+
   const runsHint = el('p', 'runs-hint')
   const runList = el('ul', 'run-list')
   runsBox.append(compareBox, runsHint, runList)
@@ -271,7 +333,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     instBar.append(b)
   }
 
-  sheet.append(mountRow, fanCtl.row, yawCtl.row, runLine, viewBar, riderGrid, sphereGrid, chartBox, runsBox, foot)
+  sheet.append(mountRow, fanCtl.row, yawCtl.row, runLine, viewBar, riderGrid, sphereGrid, tareGrid, chartBox, calBox, runsBox, foot)
   app.append(header, sheet, instBar)
 
   // Keep the 3D model centred in the space above the sheet.
@@ -341,14 +403,14 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   /** Rebuild the field when the setting has moved on, no more than four times a second. */
   function updateFlow(dt: number) {
     flowAge += dt
-    if (mount !== 'rider' || !prepared || !anyFlow()) return
+    if (mount !== 'rider' || tare || !prepared || !anyFlow()) return
     // Below reading speed the drag regime is the slow-air one; the drawing slows the smoke itself.
     const speed = Math.max(spec.readFrom, fan.speed)
     const key = `${modelVersion}|${Math.round(table.angle)}|${Math.round(speed / 2)}|${inst.tufts}`
     if (key === flowKey || flowAge < 0.25) return
     flowKey = key
     flowAge = 0
-    const flow = { density: AIR.density, viscosity: AIR.viscosity, speed, turbulence: spec.turbulence }
+    const flow = { density: AIR.density, viscosity: AIR.viscosity, speed, turbulence: airTurbulence }
     const field = modelFlowField(designStore.get(), prepared.shape, flow, table.angle, { seed: DEMO_MODEL_SEED })
     view.setFlow(field, inst.tufts ? tuftsOf(field, { spacing: TUFT_VIZ.spacing }) : [])
   }
@@ -367,6 +429,16 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   const designs = new Map<number, CyclistDesign>()
   let runsDirty = true
   new ResizeObserver(() => (runsDirty = true)).observe(compareChart.canvas)
+  new ResizeObserver(() => (runsDirty = true)).observe(calChart.canvas)
+  /** What the runs have found out about the tunnel, and the rider's corrections from it. */
+  let cal: Calibration = calibrate([], ball, sectionArea)
+  let fix: Corrections = { tare: null, blockage: null }
+  const refreshCal = () => {
+    cal = calibrate(runs, ball, sectionArea)
+    fix = prepared ? corrections(cal, latestTare(runs, 'posts'), prepared.shape.frontalArea, sectionArea) : { tare: null, blockage: null }
+  }
+  /** The run name for what's on the mount now. */
+  const runModel = () => (tare ? tareModel(MOUNT_KIND[mount]) : mount)
   const yawAxes = {
     x: { label: t('axis.yaw'), unit: '°', digits: 0, min: spec.turntable.min, max: spec.turntable.max },
     y: { label: t('axis.cda'), unit: 'm²', digits: 3 },
@@ -378,6 +450,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
       runs.push(rec.run)
       rec = { ...rec, run: null }
       runsDirty = true
+      refreshCal()
     }
     coasting = true
     fan = setFanTarget(fan, 0, spec)
@@ -389,12 +462,17 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   /** One balance sample of whatever is on the mount, or null below reading speed. */
   function takeSample(): Omit<RunSample, 't'> | null {
     const q = dynamicPressure(AIR.density, fan.speed)
-    if (mount === 'sphere') {
-      const d = bodyDrag(ball, { ...AIR, speed: fan.speed, turbulence: spec.turbulence })
-      return { speed: fan.speed, yawDeg: 0, cdA: d.cdA, cyA: 0, dragN: q * d.cdA, steady: fan.speed === fan.target }
+    if (fan.speed < spec.readFrom) return null
+    if (tare) {
+      const cdA = readTare(tunnel, { speed: fan.speed, yawDeg: 0, mount: MOUNT_KIND[mount] }, balanceRng)
+      return { speed: fan.speed, yawDeg: 0, cdA, cyA: 0, dragN: q * cdA, steady: fan.speed === fan.target }
     }
-    if (!prepared || fan.speed < spec.readFrom) return null
-    const r = readBalance(prepared, spec, { speed: fan.speed, yawDeg: table.angle }, balanceRng)
+    if (mount === 'sphere') {
+      const r = readBalance(sphereModel, tunnel, { speed: fan.speed, yawDeg: 0, mount: 'sting' }, balanceRng)
+      return { speed: fan.speed, yawDeg: 0, cdA: r.cdA, cyA: 0, dragN: q * r.modelCdA, steady: fan.speed === fan.target }
+    }
+    if (!prepared) return null
+    const r = readBalance(prepared, tunnel, { speed: fan.speed, yawDeg: table.angle, mount: 'posts' }, balanceRng)
     const steady = fan.speed === fan.target && table.angle === table.target
     return { speed: fan.speed, yawDeg: table.angle, cdA: r.cdA, cyA: r.cyA, dragN: q * r.modelCdA, steady }
   }
@@ -402,7 +480,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   function showRun() {
     const live = rec.run
     const done = runs[runs.length - 1]
-    if (live && mount === 'rider' && !designs.has(live.id)) designs.set(live.id, structuredClone(designStore.get()))
+    if (live && live.model === 'rider' && !designs.has(live.id)) designs.set(live.id, structuredClone(designStore.get()))
     if (live) setText(runNow, t('run.live', { id: live.id, time: clock(live.duration), cost: fixed(runCost(live), 0) }))
     else if (done) setText(runNow, t('run.last', { id: done.id, time: clock(done.duration), cost: fixed(runCost(done), 0) }))
     else setText(runNow, t('run.idle', { fee: fixed(TUNNEL_BILLING.perRun, 0) }))
@@ -410,27 +488,32 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     setText(runTotal, runs.length || live ? t('run.session', { total: fixed(total, 0) }) : '')
   }
 
+  /** The yaw sweep only means something with the rider on the turntable. */
+  const yawOpen = () => mount === 'rider' && !tare
+
   function selectView(next: View) {
-    if (next === 'yaw' && mount !== 'rider') next = 'readouts'
+    if (next === 'yaw' && !yawOpen()) next = 'readouts'
     view_ = next
     VIEWS.forEach((v, i) => {
       const on = v.value === view_
       viewButtons[i]!.setAttribute('aria-selected', String(on))
       viewButtons[i]!.tabIndex = on ? 0 : -1
     })
-    viewButtons[2]!.hidden = mount !== 'rider'
-    riderGrid.hidden = !(view_ === 'readouts' && mount === 'rider')
-    sphereGrid.hidden = !(view_ === 'readouts' && mount === 'sphere')
-    chartBox.hidden = view_ === 'readouts' || view_ === 'runs'
+    viewButtons[2]!.hidden = !yawOpen()
+    const reading = view_ === 'readouts'
+    riderGrid.hidden = !(reading && mount === 'rider' && !tare)
+    sphereGrid.hidden = !(reading && mount === 'sphere' && !tare)
+    tareGrid.hidden = !(reading && tare)
+    chartBox.hidden = view_ !== 'time' && view_ !== 'yaw'
     chartBox.setAttribute('aria-labelledby', `view-${view_}`)
+    calBox.hidden = view_ !== 'cal'
     runsBox.hidden = view_ !== 'runs'
     chartDirty = true
     runsDirty = true
-    if (view_ === 'readouts') shownSpeed = -1
   }
   viewBar.addEventListener('keydown', (e) => {
     if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
-    const open = VIEWS.filter((v) => v.value !== 'yaw' || mount === 'rider')
+    const open = VIEWS.filter((_, i) => !viewButtons[i]!.hidden)
     const i = open.findIndex((v) => v.value === view_)
     const next = open[(i + (e.key === 'ArrowRight' ? 1 : open.length - 1)) % open.length]!.value
     selectView(next)
@@ -441,7 +524,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     if (view_ === 'readouts' || view_ === 'runs' || !chartDirty) return
     chartDirty = false
     // This run bold and the last one faint; with the fan off, the last two.
-    const same = runs.filter((r) => r.model === mount).reverse()
+    const same = runs.filter((r) => r.model === runModel()).reverse()
     const [bold, faint] = rec.run ? [rec.run.samples, same[0]?.samples ?? []] : [same[0]?.samples ?? [], same[1]?.samples ?? []]
     if (view_ === 'time') {
       const pts = (s: RunSample[]): ChartPoint[] => s.map((p) => ({ x: p.t, y: p.dragN }))
@@ -463,9 +546,9 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   }
 
   // --- The Runs tab: the list, and A against B.
-  const groupWords = (g: YawGroup | null) =>
+  const groupWords = (g: YawGroup | null, digits: number) =>
     g
-      ? t('runs.rowCdA', { cda: fixed(g.mean, 4), band: fixed(g.band, 4), yaw: fixed(g.yawDeg, 0), speed: fixed(g.speed, 0), n: g.n })
+      ? t('runs.rowCdA', { cda: fixed(g.mean, digits), band: fixed(g.band, digits), yaw: fixed(g.yawDeg, 0), speed: fixed(g.speed, 0), n: g.n })
       : t('runs.rowNone')
 
   function togglePick(id: number) {
@@ -487,10 +570,10 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
         b.setAttribute('aria-pressed', String(slot >= 0))
         const badge = el('span', 'run-badge', slot === 0 ? 'A' : slot === 1 ? 'B' : '')
         const text = el('span', 'run-text')
-        const model = t(run.model === 'sphere' ? 'mount.sphere' : 'mount.rider')
+        const model = t(RUN_MODEL[run.model] ?? 'mount.rider')
         text.append(
           el('span', 'run-title', t('runs.row', { id: run.id, model, time: clock(run.duration), cost: fixed(runCost(run), 0) })),
-          el('span', 'run-sub', groupWords(headlineGroup(yawGroups(run)))),
+          el('span', 'run-sub', groupWords(headlineGroup(yawGroups(run)), run.model.startsWith('tare') ? TARE_DIGITS : 4)),
         )
         b.append(badge, text)
         b.addEventListener('click', () => togglePick(run.id))
@@ -520,7 +603,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
       const da = designs.get(a.id)
       const db = designs.get(b.id)
       const list = da && db ? changedControls(da, db) : []
-      changed.hidden = a.model !== 'rider' || !da || !db
+      changed.hidden = !da || !db
       setText(changed, list.length ? t('runs.changed', { list: list.map((id) => t(`ctl.${id}`)).join(', ') }) : t('runs.same'))
     }
     // A and B side by side by yaw, each mean with its noise band; B nudged right so the bars don't hide each other.
@@ -539,62 +622,163 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
 
   function placeModel() {
     if (mount === 'sphere') {
-      view.setModel({ kind: 'sphere' })
+      view.setModel({ kind: 'sphere', tare })
       return
     }
     if (prepared) endRun()
     const design = designStore.get()
     prepared = prepareModel(cyclistShape(design), modelSpec)
+    refreshCal()
     modelVersion++
     view.setFlow(null, [])
-    view.setModel({ kind: 'rider', state: { design, pose: riderPose(design), broken: [], strained: [] }, scale: modelSpec.scale })
+    view.setModel({ kind: 'rider', state: { design, pose: riderPose(design), broken: [], strained: [] }, scale: modelSpec.scale, tare })
     designDirty = false
+  }
+
+  /** Show the controls that fit what's on the mount. */
+  function showMount() {
+    mountButtons.forEach((b, i) => {
+      const on = MOUNTS[i]!.value === mount
+      b.setAttribute('aria-checked', String(on))
+      b.tabIndex = on ? 0 : -1
+    })
+    tareBtn.setAttribute('aria-pressed', String(tare))
+    yawCtl.row.hidden = !yawOpen()
+    instBar.hidden = !yawOpen()
+    shown.cdA = shown.dragN = shown.sideN = 0
+    placeModel()
+    selectView(view_)
   }
 
   function setMount(next: Mount) {
     if (next === mount && prepared) return
     if (rec.run) endRun()
     mount = next
-    mountButtons.forEach((b, i) => {
-      const on = MOUNTS[i]!.value === mount
-      b.setAttribute('aria-checked', String(on))
-      b.tabIndex = on ? 0 : -1
-    })
-    yawCtl.row.hidden = mount !== 'rider'
-    instBar.hidden = mount !== 'rider'
-    shownSpeed = -1
-    placeModel()
-    selectView(view_)
+    showMount()
   }
 
-  const ball = describeBody(sphere('calibration-sphere', REFERENCE_SPHERE.diameter))
-  const radius = REFERENCE_SPHERE.diameter / 2
-  let shownSpeed = -1
-  const updateSphere = () => {
-    const rounded = Math.round(fan.speed * 10) / 10
-    if (rounded === shownSpeed) return
-    shownSpeed = rounded
-    const q = dynamicPressure(AIR.density, fan.speed)
-    speedR.value.textContent = `${fixed(fan.speed, 1)} m/s`
-    speedR.sub.textContent = `${fixed(fan.speed * 3.6, 0)} km/h`
-    qR.value.textContent = `${fixed(q, 0)} Pa`
-    qR.sub.textContent = '½ρV²'
-    reR.value.textContent = scientific(reynolds(AIR.density, fan.speed, REFERENCE_SPHERE.diameter, AIR.viscosity))
+  /** Take the model off for a tare run, or put it back. Either way the run in progress ends. */
+  function setTare(on: boolean) {
+    if (rec.run) endRun()
+    tare = on
+    showMount()
+  }
 
-    const drag = bodyDrag(ball, { ...AIR, speed: fan.speed, turbulence: spec.turbulence })
-    dragR.value.textContent = `${fixed(q * drag.cdA, 1)} N`
-    cdText.data = fixed(drag.cd, 2)
-    regimeTerm.textContent = t(`regime.${drag.regime}` as const)
+  /** The readout's displayed value settles like a real balance display, so noise is a wobble, not a flicker. */
+  const settle = (dt: number) => (shown.dragN === 0 ? 1 : 1 - Math.exp(-dt / spec.displaySettle))
+  const showSpeed = (box: { value: HTMLElement; sub: HTMLElement }) => {
+    setText(box.value, `${fixed(fan.speed, 1)} m/s`)
+    setText(box.sub, `${fixed(fan.speed * 3.6, 0)} km/h`)
+  }
+  const updateSphere = (dt: number) => {
+    const q = dynamicPressure(AIR.density, fan.speed)
+    showSpeed(speedR)
+    setText(qR.value, `${fixed(q, 0)} Pa`)
+    setText(qR.sub, '½ρV²')
+    setText(reR.value, scientific(reynolds(AIR.density, fan.speed, REFERENCE_SPHERE.diameter, AIR.viscosity)))
+
+    // The sim's own view of the flow (in this tunnel's air) names the regime and places the smoke's separation.
+    const drag = bodyDrag(ball, { ...AIR, speed: fan.speed, turbulence: airTurbulence })
+    setText(regimeTerm, t(`regime.${drag.regime}` as const))
     regimeTerm.dataset.g = REGIME_TERM[drag.regime]
-    // Where the flow leaves the sphere, as an angle from its nose, for the smoke.
     const cos = Math.min(1, Math.max(-1, 1 - drag.lines.top.separationX / radius))
     view.setSeparation((Math.acos(cos) * 180) / Math.PI)
+
+    // The numbers are the balance's, sting and all.
+    if (fan.speed < spec.readFrom) {
+      shown.dragN = shown.cdA = 0
+      setText(dragR.value, '–')
+      cdText.data = '–'
+      return
+    }
+    const r = readBalance(sphereModel, tunnel, { speed: fan.speed, yawDeg: 0, mount: 'sting' }, balanceRng)
+    const k = settle(dt)
+    shown.dragN += (q * r.modelCdA - shown.dragN) * k
+    shown.cdA += (r.modelCdA - shown.cdA) * k
+    setText(dragR.value, `${fixed(shown.dragN, 1)} N`)
+    cdText.data = fixed(shown.cdA / ball.frontalArea, 2)
+  }
+
+  const updateTare = (dt: number) => {
+    const q = dynamicPressure(AIR.density, fan.speed)
+    showSpeed(tSpeed)
+    setText(tQ.value, `${fixed(q, 0)} Pa`)
+    const live = rec.run?.model === runModel() ? rec.run : null
+    const so = live ? latestTare([live], MOUNT_KIND[mount]) : null
+    setText(tSoFar.value, so ? `${fixed(so.mean, TARE_DIGITS)} m²` : '–')
+    setText(tSoFar.sub, so && so.n > 1 ? t('read.tareNote', { band: fixed(so.band, TARE_DIGITS), n: so.n }) : t('read.tareWait'))
+    if (fan.speed < spec.readFrom) {
+      shown.dragN = shown.cdA = 0
+      setText(tDrag.value, '–')
+      setText(tDrag.sub, t('read.mountDragNote', { cda: '–' }))
+      return
+    }
+    const cdA = readTare(tunnel, { speed: fan.speed, yawDeg: 0, mount: MOUNT_KIND[mount] }, balanceRng)
+    const k = settle(dt)
+    shown.dragN += (q * cdA - shown.dragN) * k
+    shown.cdA += (cdA - shown.cdA) * k
+    setText(tDrag.value, `${fixed(shown.dragN, 2)} N`)
+    setText(tDrag.sub, t('read.mountDragNote', { cda: fixed(shown.cdA, TARE_DIGITS) }))
+  }
+
+  // --- The Calibrate tab.
+  const book = bookCurve(ball)
+  const calAxes = {
+    x: { label: t('axis.re'), unit: '×10⁵', digits: 1, min: 0 },
+    y: { label: t('axis.cd'), unit: '', digits: 2, min: 0 },
+  }
+  function drawCal() {
+    if (view_ !== 'cal' || !runsDirty) return
+    runsDirty = false
+    const scale = fixed(1 / modelSpec.scale, 0)
+    const sting = cal.tare
+    setText(calLines.tare, !sting ? t('cal.tareNone') : !sting.trusted ? t('cal.tareFew', { id: sting.runId }) : t('cal.tare', { cda: fixed(sting.mean, TARE_DIGITS), band: fixed(sting.band, TARE_DIGITS), id: sting.runId }))
+    const crisis = cal.crisis
+    setText(
+      calLines.crisis,
+      crisis && cal.turbulence !== null
+        ? t('cal.crisis', { re: scientific(crisis.re), book: scientific(crisis.bookRe), tu: fixed(cal.turbulence * 100, 1) })
+        : cal.points.length === 0
+          ? t('cal.empty')
+          : t('cal.crisisNone'),
+    )
+    const b = cal.blockage
+    const riderFactor = fix.blockage
+    setText(
+      calLines.block,
+      b && riderFactor !== null
+        ? t('cal.block', { pct: fixed((b.ratio - 1) * 100, 1), band: fixed(b.band * 100, 1), scale, rider: fixed((riderFactor - 1) * 100, 1) })
+        : !sting?.trusted
+          ? t('cal.blockTare')
+          : crisis
+            ? t('cal.blockFew', { speed: fixed((crisis.re * CALIBRATION.subcritical * AIR.viscosity) / (AIR.density * REFERENCE_SPHERE.diameter), 0) })
+            : '',
+    )
+    calLines.block.hidden = calLines.block.textContent === ''
+    const posts = latestTare(runs, 'posts')
+    setText(
+      calLines.posts,
+      !posts
+        ? t('cal.postsNone')
+        : !posts.trusted
+          ? t('cal.postsFew', { id: posts.runId })
+          : t('cal.posts', { cda: fixed(posts.mean, TARE_DIGITS), band: fixed(posts.band, TARE_DIGITS), id: posts.runId }),
+    )
+    // The book as faint dots, your readings bold with their noise bands.
+    const mine: ChartPoint[] = cal.points.map((p) => ({ x: p.re / 1e5, y: p.cd, lo: p.cd - p.band, hi: p.cd + p.band }))
+    calChart.draw({
+      ...calAxes,
+      series: [
+        { points: book.filter((_, i) => i % 2 === 0).map((p) => ({ x: p.re / 1e5, y: p.cd })), mark: 'faint' },
+        { points: mine, mark: 'dot' },
+      ],
+      caption: [t('cal.chart'), calLines.crisis.textContent].join(' · '),
+    })
   }
 
   const updateRider = (dt: number) => {
     if (!prepared) return
-    setText(rSpeed.value, `${fixed(fan.speed, 1)} m/s`)
-    setText(rSpeed.sub, `${fixed(fan.speed * 3.6, 0)} km/h`)
+    showSpeed(rSpeed)
     setText(rYaw.value, `${fixed(table.angle, 1)}°`)
     if (fan.speed < spec.readFrom) {
       shown.cdA = shown.dragN = shown.sideN = 0
@@ -604,18 +788,25 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
       setText(rCdA.value, '–')
       return
     }
-    const r = readBalance(prepared, spec, { speed: fan.speed, yawDeg: table.angle }, balanceRng)
+    const r = readBalance(prepared, tunnel, { speed: fan.speed, yawDeg: table.angle, mount: 'posts' }, balanceRng)
     const q = dynamicPressure(AIR.density, fan.speed)
     const s2 = prepared.scale * prepared.scale
-    // The readout settles like a real balance's display, so noise is a wobble, not a flicker.
-    const k = shown.cdA === 0 ? 1 : 1 - Math.exp(-dt / spec.displaySettle)
+    const k = settle(dt)
     shown.cdA += (r.cdA - shown.cdA) * k
     shown.dragN += (q * r.modelCdA - shown.dragN) * k
     shown.sideN += (q * Math.abs(r.cyA) * s2 - shown.sideN) * k
     setText(rYaw.sub, t('read.sideNote', { force: `${fixed(shown.sideN, 1)} N` }))
     setText(rDrag.value, `${fixed(shown.dragN, 1)} N`)
     setText(rDrag.sub, t('read.modelDragNote', { re: scientific(r.reynolds) }))
-    setText(rCdA.value, `${fixed(shown.cdA, 3)} m²`)
+    // The CdA takes off whatever the tare and calibration runs have found.
+    const list = [fix.tare !== null ? t('fix.tare') : '', fix.blockage !== null ? t('fix.blockage') : ''].filter(Boolean)
+    if (list.length === 0) {
+      setText(rCdA.value, `${fixed(shown.cdA, 3)} m²`)
+      setText(rCdA.sub, t('read.cdaRaw', { scale: fixed(1 / prepared.scale, 0) }))
+    } else {
+      setText(rCdA.value, `${fixed(correct(shown.cdA * s2, fix) / s2, 3)} m²`)
+      setText(rCdA.sub, t('read.cdaFixed', { raw: fixed(shown.cdA, 3), list: list.join(t('fix.and')) }))
+    }
   }
 
   // --- Loop: fixed sim steps, one draw per browser frame, only while shown.
@@ -631,10 +822,11 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
       fan = stepFan(fan, STEP, spec)
       table = stepTurntable(table, STEP, spec.turntable)
       if (coasting && fan.speed < RUN_RECORDING.endBelow) coasting = false
-      const step = coasting ? { recorder: rec, sampleDue: false, finished: null } : stepRecorder(rec, fan.speed, STEP, mount)
+      const step = coasting ? { recorder: rec, sampleDue: false, finished: null } : stepRecorder(rec, fan.speed, STEP, runModel())
       rec = step.recorder
       if (step.finished) {
         runs.push(step.finished)
+        refreshCal()
         chartDirty = true
         runsDirty = true
       }
@@ -647,15 +839,17 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
       }
       carry -= STEP
     }
-    if (mount === 'rider') {
-      if (designDirty) placeModel()
+    if (mount === 'rider' && designDirty) placeModel()
+    if (tare) updateTare(dt)
+    else if (mount === 'rider') {
       updateRider(dt)
       updateFlow(dt)
-    } else updateSphere()
+    } else updateSphere(dt)
     showRun()
     drawChart()
     drawRuns()
-    view.setYaw(mount === 'rider' ? table.angle : 0)
+    drawCal()
+    view.setYaw(yawOpen() ? table.angle : 0)
     view.frame(fan.speed, dt)
     raf = requestAnimationFrame(loop)
   }

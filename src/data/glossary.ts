@@ -330,6 +330,13 @@ export const GLOSSARY = defineGlossary({
     aliases: ['tare', 'tare drag'],
     seeAlso: ['sting', 'forceBalance'],
   },
+  calibration: {
+    term: 'Calibration run',
+    short: 'A run with a reference body whose drag is in the book, to find the tunnel’s faults.',
+    long: 'A smooth sphere’s drag is known from countless tests in calm air. Run one in your tunnel and every gap to the book is the tunnel talking: a drag crisis that comes early means turbulent air, and readings that sit high before the crisis mean blockage. Tare the sting first, or its drag muddles the answer.',
+    aliases: ['calibration', 'calibrate', 'reference body', 'the book'],
+    seeAlso: ['dragCrisis', 'blockage', 'turbulenceIntensity', 'tare'],
+  },
   noiseBand: {
     term: 'Noise band',
     short: 'How far a reading could wander by chance: the error bar on a mean.',
