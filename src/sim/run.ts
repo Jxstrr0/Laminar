@@ -1,0 +1,99 @@
+/**
+ * Tunnel runs (plan section 7.1). A run starts at fan-up and ends at
+ * fan-down; every balance sample in between is kept, so the run report can
+ * replay it. Runs cost money, never days: the fan's energy at the
+ * university's power rate, plus a fee per run.
+ */
+import { AIR } from '../data/air'
+import { RUN_RECORDING, TUNNEL_BILLING, UNIVERSITY_TUNNEL } from '../data/tunnel'
+
+export interface RunSample {
+  /** Seconds since the run started. */
+  t: number
+  speed: number
+  yawDeg: number
+  /** Full-size drag area and side-force area, m². */
+  cdA: number
+  cyA: number
+  /** The model's drag as the balance felt it, N. */
+  dragN: number
+  /** Fan and turntable were at rest on their settings: a clean data point. */
+  steady: boolean
+}
+
+export interface Run {
+  id: number
+  /** What was on the mount ('sphere', or the design's key). */
+  model: string
+  samples: RunSample[]
+  /** Seconds from fan-up to fan-down. */
+  duration: number
+  /** Fan energy used, kWh. */
+  energyKWh: number
+  /** Fastest air speed reached, m/s. */
+  topSpeed: number
+}
+
+export interface Recorder {
+  /** The run in progress, or null with the fan off. */
+  run: Run | null
+  nextId: number
+  /** Seconds until the next balance sample is due. */
+  untilSample: number
+}
+
+export function newRecorder(): Recorder {
+  return { run: null, nextId: 1, untilSample: 0 }
+}
+
+/** Fan power at an air speed, W. */
+export function fanPower(speed: number): number {
+  const { width, height } = UNIVERSITY_TUNNEL.section
+  return 0.5 * AIR.density * width * height * speed * speed * speed * TUNNEL_BILLING.powerFactor
+}
+
+/** What a run costs (or has cost so far), ₽. */
+export function runCost(run: Pick<Run, 'energyKWh'>): number {
+  return TUNNEL_BILLING.perRun + run.energyKWh * TUNNEL_BILLING.perKWh
+}
+
+export interface RecorderStep {
+  recorder: Recorder
+  /** True when a balance sample is due this step (add it with addSample). */
+  sampleDue: boolean
+  /** The run that just ended this step, if any. */
+  finished: Run | null
+}
+
+/**
+ * Advance the recorder by one sim step at the current air speed. `model` names
+ * what's on the mount, kept with a run when it starts.
+ */
+export function stepRecorder(rec: Recorder, speed: number, dt: number, model: string): RecorderStep {
+  let run = rec.run
+  if (!run) {
+    if (speed <= RUN_RECORDING.startAbove) return { recorder: rec, sampleDue: false, finished: null }
+    run = { id: rec.nextId, model, samples: [], duration: 0, energyKWh: 0, topSpeed: 0 }
+    rec = { run, nextId: rec.nextId + 1, untilSample: 0 }
+  }
+  if (speed < RUN_RECORDING.endBelow) {
+    return { recorder: { ...rec, run: null }, sampleDue: false, finished: run }
+  }
+  run = {
+    ...run,
+    duration: run.duration + dt,
+    energyKWh: run.energyKWh + (fanPower(speed) * dt) / 3.6e6,
+    topSpeed: Math.max(run.topSpeed, speed),
+  }
+  let untilSample = rec.untilSample - dt
+  const sampleDue = untilSample <= 0
+  if (sampleDue) untilSample += RUN_RECORDING.sampleEvery
+  return { recorder: { ...rec, run, untilSample }, sampleDue, finished: null }
+}
+
+/** Keep a balance sample in the run in progress. */
+export function addSample(rec: Recorder, sample: Omit<RunSample, 't'>): Recorder {
+  if (!rec.run) return rec
+  const run = { ...rec.run, samples: [...rec.run.samples, { ...sample, t: rec.run.duration }] }
+  return { ...rec, run }
+}

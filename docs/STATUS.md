@@ -12,12 +12,22 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 2b | Shaping, part 2: the Shape screen (3D rider and bike from the design, slider sheet, readouts, comfort meter, rule breaks with a "change this" jump), Shape / Tunnel switch | **Done** (v0.3.1.0) |
 | 2c | Shaping, part 3: drag handles, the rule box drawn in 3D, glossary and tooltips | **Done** (v0.3.2.0) |
 | 3a | The tunnel, part 1: your design on the yaw turntable at 1:2, live balance readouts (model drag, side force, full-size CdA), Sphere / Your rider switch | **Done** (v0.3.3.0) |
-| 3b | The tunnel, part 2: runs (fan-up to fan-down), run billing, live force charts | Next |
-| 3c | The tunnel, part 3: run history with A/B compare and noise bands | Not started |
+| 3b | The tunnel, part 2: runs (fan-up to fan-down), run billing, live force charts | **Done** (v0.3.4.0) |
+| 3c | The tunnel, part 3: run history with A/B compare and noise bands | Next |
 | 3d | The tunnel, part 4: smoke wand and rake, tufts round the rider | Not started |
 | 4–14 | See the plan | Not started |
 
 ## Versions
+
+- **0.3.4.0** (PR 3b): tunnel runs and the bill. Every fan-up to fan-down
+  is now a run: the balance logs a reading four times a second, and the
+  sheet shows the run number, its time and what it has cost so far, plus
+  the session's total. A run costs ₽ 500 plus the fan's power, which
+  climbs with the cube of air speed (a minute at 30 m/s is about ₽ 1,330
+  all in). New tabs swap the readouts for live charts: Drag over time, and
+  a Yaw sweep that plots CdA against yaw using only settled readings. The
+  last run shows faint behind this one. Swapping the model stops the fan
+  and ends the run.
 
 - **0.3.3.0** (PR 3a): your rider in the tunnel. The Tunnel screen now
   opens on a 1:2 scale model of whatever you shaped, standing on the yaw

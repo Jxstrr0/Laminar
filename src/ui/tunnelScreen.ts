@@ -10,13 +10,18 @@
  * - **The sphere**: the calibration sphere on its sting, with the drag crisis
  *   and the smoke wake that follows the separation line the sim finds.
  *
+ * Every fan-up to fan-down is a run (src/sim/run.ts): the balance logs a
+ * sample four times a second, and the run is billed in rubles for the fan's
+ * power plus a fee. The sheet shows the bill as it grows, and its tabs swap
+ * the readouts for live charts of this run against the last one.
+ *
  * The sim runs on a fixed 60 Hz step; the screen draws whenever the browser
  * gives it a frame and shows whatever the sim says.
  */
 import { AIR } from '../data/air'
 import type { GlossaryId } from '../data/glossary'
 import { DEMO_MODEL_SEED, STANDARD_MODEL } from '../data/model'
-import { REFERENCE_SPHERE, UNIVERSITY_TUNNEL } from '../data/tunnel'
+import { REFERENCE_SPHERE, RUN_RECORDING, TUNNEL_BILLING, UNIVERSITY_TUNNEL } from '../data/tunnel'
 import { t, type StringKey } from '../data/strings'
 import { dynamicPressure, reynolds } from '../sim/air'
 import { bodyDrag, type Regime } from '../sim/aero/drag'
@@ -26,9 +31,11 @@ import { cyclistShape } from '../sim/geom/cyclist'
 import { riderPose } from '../sim/geom/pose'
 import { sphere } from '../sim/geom/shapes'
 import { Rng } from '../sim/rng'
+import { addSample, newRecorder, runCost, stepRecorder, type Recorder, type Run, type RunSample } from '../sim/run'
 import { setYawTarget, stepTurntable, turntableAtRest, type TurntableState } from '../sim/turntable'
 import { prepareModel, readBalance, type PreparedModel } from '../sim/views'
 import type { TunnelView } from '../render/tunnelScene'
+import { createChart, type ChartPoint } from './chart'
 import { designStore } from './designStore'
 import { fixed, scientific } from './format'
 import { glossaryTerm } from './glossary'
@@ -40,6 +47,18 @@ const REGIME_TERM: Record<Regime, GlossaryId> = { laminar: 'laminar', mixed: 'dr
 const STEP = 1 / 60
 
 type Mount = 'rider' | 'sphere'
+type View = 'readouts' | 'time' | 'yaw'
+const VIEWS: { value: View; key: StringKey }[] = [
+  { value: 'readouts', key: 'view.readouts' },
+  { value: 'time', key: 'view.time' },
+  { value: 'yaw', key: 'view.yaw' },
+]
+
+/** Seconds as m:ss. */
+function clock(seconds: number): string {
+  const s = Math.floor(seconds)
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
 const MOUNTS: { value: Mount; key: StringKey }[] = [
   { value: 'rider', key: 'mount.rider' },
   { value: 'sphere', key: 'mount.sphere' },
@@ -165,11 +184,37 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
       .map((part) => (part === '{cd}' ? cdText : part === '{regime}' ? regimeTerm : document.createTextNode(part))),
   )
 
+  // The run and its bill.
+  const runLine = el('div', 'run-line')
+  const runNow = el('span', 'run-now')
+  const runTotal = el('span', 'run-total')
+  runLine.append(runNow, runTotal)
+  runLine.setAttribute('aria-live', 'off')
+
+  // Tabs: readouts, or a live chart in the same space.
+  const viewBar = el('div', 'tabs view-tabs')
+  viewBar.setAttribute('role', 'tablist')
+  viewBar.setAttribute('aria-label', t('view.tabs'))
+  const viewButtons = VIEWS.map((v) => {
+    const b = el('button', 'tab', t(v.key))
+    b.type = 'button'
+    b.id = `view-${v.value}`
+    b.setAttribute('role', 'tab')
+    b.addEventListener('click', () => selectView(v.value))
+    viewBar.append(b)
+    return b
+  })
+  const chartBox = el('div', 'chart-box')
+  chartBox.setAttribute('role', 'tabpanel')
+  const chartCaption = el('p', 'chart-caption')
+  const chart = createChart(chartCaption)
+  chartBox.append(chart.canvas, chartCaption)
+
   const foot = el('div', 'sheet-foot')
   const version = el('span', 'version', `v${__GAME_VERSION__} · ${__BUILD_SHA__} · ${__BUILD_DATE__}`)
   foot.append(el('span', 'hint', t('hint.orbit')), version)
 
-  sheet.append(mountRow, fanCtl.row, yawCtl.row, riderGrid, sphereGrid, foot)
+  sheet.append(mountRow, fanCtl.row, yawCtl.row, runLine, viewBar, riderGrid, sphereGrid, chartBox, foot)
   app.append(header, sheet)
 
   // Keep the 3D model centred in the space above the sheet.
@@ -222,11 +267,110 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   const balanceRng = new Rng(DEMO_MODEL_SEED).fork('balance')
   const shown = { cdA: 0, dragN: 0, sideN: 0 }
 
+  // --- Runs: the recorder, the session's finished runs and the bill.
+  let rec: Recorder = newRecorder()
+  const runs: Run[] = []
+  let view_: View = 'readouts'
+  let chartDirty = true
+  /** After a model swap the fan coasts down; no new run starts until it stops. */
+  let coasting = false
+  new ResizeObserver(() => (chartDirty = true)).observe(chart.canvas)
+
+  /** End the run in progress (the model is being swapped) and stop the fan. */
+  function endRun() {
+    if (rec.run) {
+      runs.push(rec.run)
+      rec = { ...rec, run: null }
+    }
+    coasting = true
+    fan = setFanTarget(fan, 0, spec)
+    fanCtl.input.value = '0'
+    showTargets()
+    chartDirty = true
+  }
+
+  /** One balance sample of whatever is on the mount, or null below reading speed. */
+  function takeSample(): Omit<RunSample, 't'> | null {
+    const q = dynamicPressure(AIR.density, fan.speed)
+    if (mount === 'sphere') {
+      const d = bodyDrag(ball, { ...AIR, speed: fan.speed, turbulence: spec.turbulence })
+      return { speed: fan.speed, yawDeg: 0, cdA: d.cdA, cyA: 0, dragN: q * d.cdA, steady: fan.speed === fan.target }
+    }
+    if (!prepared || fan.speed < spec.readFrom) return null
+    const r = readBalance(prepared, spec, { speed: fan.speed, yawDeg: table.angle }, balanceRng)
+    const steady = fan.speed === fan.target && table.angle === table.target
+    return { speed: fan.speed, yawDeg: table.angle, cdA: r.cdA, cyA: r.cyA, dragN: q * r.modelCdA, steady }
+  }
+
+  function showRun() {
+    const live = rec.run
+    const done = runs[runs.length - 1]
+    if (live) setText(runNow, t('run.live', { id: live.id, time: clock(live.duration), cost: fixed(runCost(live), 0) }))
+    else if (done) setText(runNow, t('run.last', { id: done.id, time: clock(done.duration), cost: fixed(runCost(done), 0) }))
+    else setText(runNow, t('run.idle', { fee: fixed(TUNNEL_BILLING.perRun, 0) }))
+    const total = runs.reduce((sum, r) => sum + runCost(r), live ? runCost(live) : 0)
+    setText(runTotal, runs.length || live ? t('run.session', { total: fixed(total, 0) }) : '')
+  }
+
+  function selectView(next: View) {
+    if (next === 'yaw' && mount !== 'rider') next = 'readouts'
+    view_ = next
+    VIEWS.forEach((v, i) => {
+      const on = v.value === view_
+      viewButtons[i]!.setAttribute('aria-selected', String(on))
+      viewButtons[i]!.tabIndex = on ? 0 : -1
+    })
+    viewButtons[2]!.hidden = mount !== 'rider'
+    riderGrid.hidden = !(view_ === 'readouts' && mount === 'rider')
+    sphereGrid.hidden = !(view_ === 'readouts' && mount === 'sphere')
+    chartBox.hidden = view_ === 'readouts'
+    chartBox.setAttribute('aria-labelledby', `view-${view_}`)
+    chartDirty = true
+    if (view_ === 'readouts') shownSpeed = -1
+  }
+  viewBar.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
+    const open = VIEWS.filter((v) => v.value !== 'yaw' || mount === 'rider')
+    const i = open.findIndex((v) => v.value === view_)
+    const next = open[(i + (e.key === 'ArrowRight' ? 1 : open.length - 1)) % open.length]!.value
+    selectView(next)
+    viewButtons[VIEWS.findIndex((v) => v.value === next)]!.focus()
+  })
+
+  function drawChart() {
+    if (view_ === 'readouts' || !chartDirty) return
+    chartDirty = false
+    // This run bold and the last one faint; with the fan off, the last two.
+    const same = runs.filter((r) => r.model === mount).reverse()
+    const [bold, faint] = rec.run ? [rec.run.samples, same[0]?.samples ?? []] : [same[0]?.samples ?? [], same[1]?.samples ?? []]
+    if (view_ === 'time') {
+      const pts = (s: RunSample[]): ChartPoint[] => s.map((p) => ({ x: p.t, y: p.dragN }))
+      chart.draw({
+        x: { label: t('axis.time'), unit: 's', digits: 0, min: 0 },
+        y: { label: t('axis.drag'), unit: 'N', digits: 1, min: 0 },
+        current: pts(bold),
+        previous: pts(faint),
+        empty: t('chart.emptyTime'),
+      })
+    } else {
+      // Only points taken with the fan and table settled: CdA against yaw, not against a moving table.
+      const pts = (s: RunSample[]): ChartPoint[] => s.filter((p) => p.steady).map((p) => ({ x: p.yawDeg, y: p.cdA }))
+      chart.draw({
+        x: { label: t('axis.yaw'), unit: '°', digits: 0, min: spec.turntable.min, max: spec.turntable.max },
+        y: { label: t('axis.cda'), unit: 'm²', digits: 3 },
+        current: pts(bold),
+        previous: pts(faint),
+        empty: t('chart.emptyYaw'),
+      })
+    }
+  }
+
   function placeModel() {
     if (mount === 'sphere') {
       view.setModel({ kind: 'sphere' })
       return
     }
+    if (prepared) endRun()
     const design = designStore.get()
     prepared = prepareModel(cyclistShape(design), modelSpec)
     view.setModel({ kind: 'rider', state: { design, pose: riderPose(design), broken: [], strained: [] }, scale: modelSpec.scale })
@@ -234,17 +378,18 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   }
 
   function setMount(next: Mount) {
+    if (next === mount && prepared) return
+    if (rec.run) endRun()
     mount = next
     mountButtons.forEach((b, i) => {
       const on = MOUNTS[i]!.value === mount
       b.setAttribute('aria-checked', String(on))
       b.tabIndex = on ? 0 : -1
     })
-    riderGrid.hidden = mount !== 'rider'
     yawCtl.row.hidden = mount !== 'rider'
-    sphereGrid.hidden = mount !== 'sphere'
     shownSpeed = -1
     placeModel()
+    selectView(view_)
   }
 
   const ball = describeBody(sphere('calibration-sphere', REFERENCE_SPHERE.diameter))
@@ -310,12 +455,28 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     while (carry >= STEP) {
       fan = stepFan(fan, STEP, spec)
       table = stepTurntable(table, STEP, spec.turntable)
+      if (coasting && fan.speed < RUN_RECORDING.endBelow) coasting = false
+      const step = coasting ? { recorder: rec, sampleDue: false, finished: null } : stepRecorder(rec, fan.speed, STEP, mount)
+      rec = step.recorder
+      if (step.finished) {
+        runs.push(step.finished)
+        chartDirty = true
+      }
+      if (step.sampleDue) {
+        const sample = takeSample()
+        if (sample) {
+          rec = addSample(rec, sample)
+          chartDirty = true
+        }
+      }
       carry -= STEP
     }
     if (mount === 'rider') {
       if (designDirty) placeModel()
       updateRider(dt)
     } else updateSphere()
+    showRun()
+    drawChart()
     view.setYaw(mount === 'rider' ? table.angle : 0)
     view.frame(fan.speed, dt)
     raf = requestAnimationFrame(loop)
