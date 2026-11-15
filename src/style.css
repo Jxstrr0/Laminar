@@ -755,7 +755,6 @@ html, body {
 .job-actions .save-btn { min-height: var(--tap); flex: 1 1 auto; }
 .job-days { margin-top: 10px; }
 .save-slot-tag.quiet { background: var(--panel-2); color: var(--ink); }
-.raceday { z-index: 400; }
 .saves { z-index: 400; }
 .saves-sheet { max-height: min(86vh, 680px); max-height: min(86dvh, 680px); }
 .save-slots { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
@@ -822,3 +821,25 @@ html, body {
 .model-note-text { flex: 1 1 0; min-width: 0; margin: 0; font-size: 0.78rem; font-weight: 600; line-height: 1.2; }
 .model-note-actions { display: flex; flex: none; gap: 6px; }
 .model-note .save-btn { min-height: 34px; padding: 0 10px; font-size: 0.8rem; }
+
+/* Deliver sheet and the race-day debrief (PR 5e). */
+.deliver, .raceday { z-index: 400; }
+.deliver-promise { margin: 10px 0 0; font-weight: 700; }
+.deliver-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.deliver-input {
+  width: 7.5em;
+  min-height: var(--tap);
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--ink);
+  font-family: var(--font-num);
+  font-size: 1.1rem;
+  text-align: center;
+}
+.deliver-unit { font-family: var(--font-num); color: var(--muted); }
+.deliver-step { min-width: var(--tap); min-height: var(--tap); padding: 0; font-size: 1.2rem; }
+.race-verdict { margin: 10px 0 0; padding: 8px 10px; border-radius: 10px; font-weight: 700; }
+.race-verdict.is-met { background: color-mix(in srgb, var(--accent) 14%, transparent); border: 1px solid var(--accent); }
+.race-verdict.is-missed { background: color-mix(in srgb, var(--sep) 12%, transparent); border: 1px solid var(--sep); }
