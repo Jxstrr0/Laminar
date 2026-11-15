@@ -332,3 +332,203 @@ html, body {
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* --- Glossary (src/ui/glossary.ts) --------------------------------------
+   A tappable term is a dotted accent underline; tapping opens a small sheet
+   at the bottom of the screen. */
+.g-term {
+  position: relative;
+  color: inherit;
+  text-decoration: underline dotted var(--accent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  border-radius: 3px;
+  cursor: pointer;
+  -webkit-touch-callout: none;
+}
+/* A bigger invisible hit area, so a small word is still a 44 px tap target. */
+.g-term::after {
+  content: '';
+  position: absolute;
+  inset: -14px -6px;
+}
+.g-term:hover { text-decoration-style: solid; }
+
+.gloss {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  font-family: var(--font-ui);
+  color: var(--ink);
+}
+.gloss-scrim {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+.gloss.is-open .gloss-scrim { opacity: 1; }
+
+.gloss-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: min(560px, 100%);
+  margin: 0 auto;
+  max-height: min(72vh, 560px);
+  max-height: min(72dvh, 560px);
+  display: flex;
+  flex-direction: column;
+  padding: 0 calc(16px + var(--safe-r)) 0 calc(16px + var(--safe-l));
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: 16px 16px 0 0;
+  box-shadow: var(--shadow);
+  transform: translateY(100%);
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  outline: none;
+}
+.gloss.is-open .gloss-sheet { transform: none; }
+.gloss-sheet.is-dragging { transition: none; }
+.gloss[data-view='index'] .gloss-sheet { height: min(72vh, 560px); height: min(72dvh, 560px); }
+
+/* The top edge (handle and title row) is where a swipe down starts. */
+.gloss-grab {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 2px;
+  touch-action: none;
+  cursor: grab;
+}
+.gloss-grab-bar {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+}
+.gloss-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  touch-action: none;
+}
+.gloss-title {
+  flex: 1;
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.gloss-close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  margin-right: -8px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.gloss-close:hover { color: var(--ink); background: var(--panel-2); }
+
+.gloss-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* A little side room so focus rings aren't clipped by the scroller. */
+  margin: 0 -6px;
+  padding: 4px 6px calc(16px + var(--safe-b));
+}
+.gloss-short { margin: 4px 0 0; font-weight: 600; line-height: 1.4; }
+.gloss-long { margin: 10px 0 0; line-height: 1.55; }
+
+.gloss-chips { margin-top: 16px; }
+.gloss-chips-label {
+  margin: 0 0 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.gloss-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.gloss-chip {
+  min-height: var(--tap);
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.gloss-chip:hover { border-color: var(--accent); }
+.gloss-chip-all {
+  margin-top: 12px;
+  background: transparent;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.gloss-search {
+  width: 100%;
+  min-height: var(--tap);
+  margin-top: 4px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1rem;
+}
+.gloss-search::placeholder { color: var(--muted); }
+.gloss-count { margin: 8px 0 0; font-size: 0.75rem; color: var(--muted); }
+.gloss-index { margin: 0; padding: 0; list-style: none; }
+.gloss-letter {
+  padding: 12px 0 4px;
+  font-family: var(--font-num);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--accent);
+  border-bottom: 1px solid var(--line);
+}
+.gloss-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 8px 4px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.gloss-row:hover { background: var(--panel-2); }
+.gloss-row-term { font-weight: 600; }
+.gloss-row-short { font-size: 0.8rem; color: var(--muted); line-height: 1.35; }
+
+@media (prefers-reduced-motion: reduce) {
+  .gloss-scrim, .gloss-sheet { transition: none; }
+}

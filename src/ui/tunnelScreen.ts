@@ -10,12 +10,17 @@ import { AIR } from '../data/air'
 import { REFERENCE_SPHERE, UNIVERSITY_TUNNEL } from '../data/tunnel'
 import { t } from '../data/strings'
 import { dynamicPressure, reynolds } from '../sim/air'
-import { bodyDrag } from '../sim/aero/drag'
+import { bodyDrag, type Regime } from '../sim/aero/drag'
 import { fanAtRest, setFanTarget, stepFan, type FanState } from '../sim/fan'
 import { describeBody } from '../sim/geom/body'
 import { sphere } from '../sim/geom/shapes'
+import type { GlossaryId } from '../data/glossary'
 import type { TunnelView } from '../render/tunnelScene'
 import { fixed, scientific } from './format'
+import { bindGlossary, glossaryTerm } from './glossary'
+
+/** The glossary entry for each drag regime word. */
+const REGIME_TERM: Record<Regime, GlossaryId> = { laminar: 'laminar', mixed: 'dragCrisis', turbulent: 'turbulent' }
 
 /** The sim's fixed time step, in seconds. */
 const STEP = 1 / 60
@@ -27,11 +32,13 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
   return node
 }
 
-function readout(label: string): { box: HTMLElement; value: HTMLElement; sub: HTMLElement } {
+function readout(label: string, term: GlossaryId): { box: HTMLElement; value: HTMLElement; sub: HTMLElement } {
   const box = el('div', 'readout')
   const value = el('div', 'readout-value', '0')
   const sub = el('div', 'readout-sub')
-  box.append(el('div', 'readout-label', label), value, sub)
+  const labelBox = el('div', 'readout-label')
+  labelBox.append(glossaryTerm(term, label))
+  box.append(labelBox, value, sub)
   return { box, value, sub }
 }
 
@@ -67,12 +74,22 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   fanRow.append(fanHead, slider, offBtn)
 
   const grid = el('div', 'readouts')
-  const speedR = readout(t('read.speed'))
-  const qR = readout(t('read.q'))
-  const reR = readout(t('read.re'))
-  const dragR = readout(t('read.drag'))
+  const speedR = readout(t('read.speed'), 'airSpeed')
+  const qR = readout(t('read.q'), 'dynamicPressure')
+  const reR = readout(t('read.re'), 'reynolds')
+  const dragR = readout(t('read.drag'), 'drag')
   grid.append(speedR.box, qR.box, reR.box, dragR.box)
   reR.sub.textContent = `${fixed(REFERENCE_SPHERE.diameter * 100, 0)} cm sphere`
+
+  // The drag note ("Cd {cd} · {regime}") keeps its regime word as a glossary
+  // term, so it is built once from the template and its slots updated in place.
+  const cdText = document.createTextNode('')
+  const regimeTerm = glossaryTerm('laminar', '')
+  dragR.sub.append(
+    ...t('read.dragNote')
+      .split(/(\{\w+\})/)
+      .map((part) => (part === '{cd}' ? cdText : part === '{regime}' ? regimeTerm : document.createTextNode(part))),
+  )
 
   const foot = el('div', 'sheet-foot')
   const version = el('span', 'version', `v${__GAME_VERSION__} · ${__BUILD_SHA__} · ${__BUILD_DATE__}`)
@@ -80,6 +97,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
 
   sheet.append(fanRow, grid, foot)
   app.append(header, sheet)
+  bindGlossary(app)
 
   // Keep the 3D sphere centred in the space above the sheet.
   const sheetObserver = new ResizeObserver(() => view.setSheetHeight(sheet.offsetHeight))
@@ -126,7 +144,9 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
 
     const drag = bodyDrag(ball, { ...AIR, speed: fan.speed, turbulence: spec.turbulence })
     dragR.value.textContent = `${fixed(q * drag.cdA, 1)} N`
-    dragR.sub.textContent = t('read.dragNote', { cd: fixed(drag.cd, 2), regime: t(`regime.${drag.regime}` as const) })
+    cdText.data = fixed(drag.cd, 2)
+    regimeTerm.textContent = t(`regime.${drag.regime}` as const)
+    regimeTerm.dataset.g = REGIME_TERM[drag.regime]
     // Where the flow leaves the sphere, as an angle from its nose, for the smoke.
     const cos = Math.min(1, Math.max(-1, 1 - drag.lines.top.separationX / radius))
     view.setSeparation((Math.acos(cos) * 180) / Math.PI)
