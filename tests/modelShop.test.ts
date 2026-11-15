@@ -16,8 +16,8 @@ const read = (order: Parameters<typeof modelSpecOf>[0], speed: number) =>
 describe('the model shop', () => {
   it('prices the standard order, and adds up finish, grade and trips', () => {
     expect(quote(STANDARD_ORDER)).toEqual({ price: 52000, days: 7 })
-    expect(quote({ scale: 4, finish: 'printed', grade: 'fine', trips: true })).toEqual({ price: 30000, days: 6 })
-    expect(quote({ scale: 2, finish: 'polished', grade: 'standard', trips: false }).price).toBeGreaterThan(52000)
+    expect(quote({ scale: 4, finish: 'printed', grade: 'fine', trips: true, taps: false })).toEqual({ price: 30000, days: 6 })
+    expect(quote({ scale: 2, finish: 'polished', grade: 'standard', trips: false, taps: false }).price).toBeGreaterThan(52000)
   })
 
   it('builds the standard order as the standard model', () => {

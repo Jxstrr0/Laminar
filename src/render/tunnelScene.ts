@@ -23,6 +23,7 @@ import { HANDLE_TOUCH } from '../data/handles'
 import { FRAME } from '../data/pose'
 import { UNIVERSITY_TUNNEL, REFERENCE_SPHERE, REFERENCE_WHEEL } from '../data/tunnel'
 import type { FlowField, Tuft } from '../sim/flow/field'
+import type { Tap } from '../sim/flow/taps'
 import { createFlowViz, type Instruments } from './flowViz'
 import { buildReferenceWheel, buildRider, disposeGroup, type RiderState } from './riderFigure'
 
@@ -108,6 +109,8 @@ export interface TunnelView {
   setFlow(field: FlowField | null, tufts: readonly Tuft[]): void
   /** Which instruments are out, and whether the dark backdrop is up. */
   setInstruments(on: Instruments & { dark: boolean }): void
+  /** The pressure taps and their latest scan (an empty list hides them). */
+  setTaps(taps: readonly Tap[], cps: readonly number[]): void
   /** Keep the sphere clear of the bottom sheet: pass its height in CSS pixels. */
   setSheetHeight(px: number): void
   dispose(): void
@@ -453,7 +456,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
 
   // --- Flow instruments round the rider, and the smoke wand.
   const flowViz = createFlowViz(dotTexture)
-  let instruments: Instruments & { dark: boolean } = { wand: false, rake: false, tufts: false, dark: false }
+  let instruments: Instruments & { dark: boolean } = { wand: false, rake: false, tufts: false, taps: false, dark: false }
   const wandTip = new THREE.Vector3(WAND.x, floorY + WAND.startUp, WAND.startZ)
   const wandRod = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 1, 8), new THREE.MeshStandardMaterial({ color: COLOURS.wand, roughness: 0.5 }))
   // The tip reads as a handle: a cobalt dot in a white ring, drawn on top.
@@ -692,6 +695,9 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     },
     setFlow(field, list) {
       flowViz.setField(field, list)
+    },
+    setTaps(taps, cps) {
+      flowViz.setTaps(taps, cps)
     },
     setInstruments(next) {
       instruments = { ...next }

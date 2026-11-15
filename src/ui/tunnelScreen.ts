@@ -42,6 +42,7 @@ import { dynamicPressure, reynolds } from '../sim/air'
 import { bodyDrag, shapeDrag, type Regime } from '../sim/aero/drag'
 import { fanAtRest, setFanTarget, stepFan, type FanState } from '../sim/fan'
 import { modelFlowField, tufts as tuftsOf } from '../sim/flow/field'
+import { readTaps, tapExtremes, tapLayout } from '../sim/flow/taps'
 import {
   bookCurve,
   calibrate,
@@ -73,6 +74,7 @@ import { prepareExact, prepareModel, readBalance, readTare, REFERENCE_TT, tunnel
 import type { TunnelView } from '../render/tunnelScene'
 import { createChart, describeLast, type ChartPoint } from './chart'
 import { openModelShop } from './modelShop'
+import { createCpLegend } from './cpLegend'
 import { designStore } from './designStore'
 import { fixed, scientific } from './format'
 import { glossaryTerm } from './glossary'
@@ -391,12 +393,13 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   foot.append(footHint, version)
 
   // Flow instruments: toggle chips over the 3D view, just above the sheet.
-  type Inst = 'wand' | 'rake' | 'tufts' | 'dark'
-  const inst: Record<Inst, boolean> = { wand: false, rake: false, tufts: false, dark: false }
+  type Inst = 'wand' | 'rake' | 'tufts' | 'taps' | 'dark'
+  const inst: Record<Inst, boolean> = { wand: false, rake: false, tufts: false, taps: false, dark: false }
+  const instChips = new Map<Inst, HTMLButtonElement>()
   const instBar = el('div', 'instruments')
   instBar.setAttribute('role', 'group')
   instBar.setAttribute('aria-label', t('inst.label'))
-  for (const id of ['wand', 'rake', 'tufts', 'dark'] as const) {
+  for (const id of ['wand', 'rake', 'tufts', 'taps', 'dark'] as const) {
     const b = el('button', 'chip', t(`inst.${id}`))
     b.type = 'button'
     b.setAttribute('aria-pressed', 'false')
@@ -407,11 +410,16 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
       b.setAttribute('aria-pressed', String(inst[id]))
       applyInstruments()
     })
+    instChips.set(id, b)
     instBar.append(b)
   }
+  // The Cp chip only shows when the model on the mount has taps.
+  const tapsChip = instChips.get('taps')!
+  tapsChip.hidden = true
+  const cpLegend = createCpLegend()
 
   sheet.append(mountRow, fanCtl.row, yawCtl.row, runLine, viewBar, riderGrid, sphereGrid, wheelGrid, tareGrid, chartBox, calBox, runsBox, foot)
-  app.append(header, sheet, instBar)
+  app.append(header, sheet, instBar, cpLegend.root)
 
   // Keep the 3D model centred in the space above the sheet.
   const sheetObserver = new ResizeObserver(() => {
@@ -472,12 +480,22 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     shopBtn.setAttribute('aria-label', `${words}. ${t('shop.openName')}`)
   }
   showOrder()
+  /** Taps come with the model: a new model without them puts the chip (and the map) away. */
+  function showTapsChip() {
+    tapsChip.hidden = !order.taps
+    if (!order.taps && inst.taps) {
+      inst.taps = false
+      tapsChip.setAttribute('aria-pressed', 'false')
+      applyInstruments()
+    }
+  }
   shopBtn.addEventListener('click', () =>
     openModelShop(order, (next) => {
       order = next
       build++
       modelSpec = modelSpecOf(order, DEMO_MODEL_SEED + build)
       showOrder()
+      showTapsChip()
       placeModel()
     }),
   )
@@ -488,7 +506,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   let modelVersion = 0
   let flowKey = ''
   let flowAge = Infinity
-  const anyFlow = () => inst.wand || inst.rake || inst.tufts
+  const anyFlow = () => inst.wand || inst.rake || inst.tufts || inst.taps
+  const tapsRng = new Rng(DEMO_MODEL_SEED).fork('taps')
   function applyInstruments() {
     view.setInstruments({ ...inst })
     setText(footHint, t(inst.wand && mount === 'rider' ? 'hint.wand' : 'hint.orbit'))
@@ -498,16 +517,26 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   /** Rebuild the field when the setting has moved on, no more than four times a second. */
   function updateFlow(dt: number) {
     flowAge += dt
+    const mapping = inst.taps && mount === 'rider' && !tare && !!prepared
+    if (cpLegend.root.hidden === mapping) cpLegend.root.hidden = !mapping
     if (mount !== 'rider' || tare || !prepared || !anyFlow()) return
     // Below reading speed the drag regime is the slow-air one; the drawing slows the smoke itself.
     const speed = Math.max(spec.readFrom, fan.speed)
-    const key = `${modelVersion}|${Math.round(table.angle)}|${Math.round(speed / 2)}|${inst.tufts}`
+    // The taps read only once there's air enough for the scanner (Cp is pressure over the dynamic pressure).
+    const reading = fan.speed >= spec.readFrom
+    const key = `${modelVersion}|${Math.round(table.angle)}|${Math.round(speed / 2)}|${inst.tufts}|${inst.taps}|${reading}`
     if (key === flowKey || flowAge < 0.25) return
     flowKey = key
     flowAge = 0
     const flow = { density: AIR.density, viscosity: AIR.viscosity, speed, turbulence: airTurbulence }
     const field = modelFlowField(designStore.get(), prepared.shape, flow, table.angle, { seed: DEMO_MODEL_SEED, crankDeg: crank })
     view.setFlow(field, inst.tufts ? tuftsOf(field, { spacing: TUFT_VIZ.spacing }) : [])
+    if (inst.taps) {
+      const taps = reading ? tapLayout(field) : []
+      const cps = readTaps(field, taps, tapsRng)
+      view.setTaps(taps, cps)
+      cpLegend.show(tapExtremes(taps, cps))
+    }
   }
 
   // --- Runs: the recorder, the session's finished runs and the bill.
@@ -818,6 +847,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     refreshCal()
     modelVersion++
     view.setFlow(null, [])
+    view.setTaps([], [])
     view.setModel({ kind: 'rider', state: { design, pose: riderPose(design, crank), broken: [], strained: [] }, scale: modelSpec.scale, tare })
     runsDirty = true
     designDirty = false

@@ -1,6 +1,6 @@
 /**
  * The model shop sheet (plan section 9.3): pick a scale, finish, accuracy
- * grade and trip strips, see the price and lead time, and order. It slides
+ * grade, trip strips and pressure taps, see the price and lead time, and order. It slides
  * up over the tunnel like the glossary and borrows its look.
  *
  * Until jobs arrive (PR 5–6) the price and days are shown but not spent.
@@ -112,13 +112,14 @@ function buildShop(): Shop {
   const intro = el('p', 'shop-intro', t('shop.intro'))
 
   // The order being drawn up, and what happens when it's placed.
-  let order: ModelOrder = { scale: 2, finish: 'sanded', grade: 'standard', trips: false }
+  let order: ModelOrder = { scale: 2, finish: 'sanded', grade: 'standard', trips: false, taps: false }
   let place: (o: ModelOrder) => void = () => {}
   const update = () => {
     scale.set(order.scale)
     finish.set(order.finish)
     grade.set(order.grade)
     trips.set(order.trips ? 'on' : 'off')
+    taps.set(order.taps ? 'on' : 'off')
     const speed = matchedSpeed(1 / order.scale, REFERENCE_TT)
     const top = UNIVERSITY_TUNNEL.topSpeed
     reText.data =
@@ -162,6 +163,15 @@ function buildShop(): Shop {
     (v) => pick({ trips: v === 'on' }),
   )
   trips.note.textContent = t('shop.tripsNote')
+  const taps = choice<'off' | 'on'>(
+    t('shop.taps'),
+    [
+      { value: 'off', text: t('shop.taps.off') },
+      { value: 'on', text: t('shop.taps.on') },
+    ],
+    (v) => pick({ taps: v === 'on' }),
+  )
+  taps.note.textContent = t('shop.tapsNote')
 
   const bill = el('div', 'shop-bill')
   const price = el('p', 'shop-price')
@@ -176,7 +186,7 @@ function buildShop(): Shop {
   })
   bill.append(price, free, orderBtn)
 
-  body.append(intro, scale.box, finish.box, grade.box, trips.box, bill)
+  body.append(intro, scale.box, finish.box, grade.box, trips.box, taps.box, bill)
   panel.append(grab, head, body)
   root.append(scrim, panel)
   document.body.append(root)

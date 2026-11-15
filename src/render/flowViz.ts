@@ -4,7 +4,8 @@
  * surface. Everything follows the flow field (src/sim/flow/field.ts), which
  * takes its separation lines and wakes from the aero model, so the smoke
  * slows and churns exactly where the numbers say the flow has let go, and a
- * tuft flails only past its separation point.
+ * tuft flails only past its separation point. Pressure taps, when the
+ * model has them, show as small dots coloured by their Cp reading.
  *
  * This group lives inside the scaled model, in the full-size rider's
  * coordinates (x forward, y up, z to the rider's right), so the field's
@@ -12,9 +13,11 @@
  * flapping use Math freely, but where the smoke goes is the field's call.
  */
 import * as THREE from 'three'
-import { SMOKE_VIZ, TUFT_VIZ } from '../data/flowViz'
+import { SMOKE_VIZ, TAPS, TUFT_VIZ } from '../data/flowViz'
 import { FRAME } from '../data/pose'
 import type { FlowField, Tuft } from '../sim/flow/field'
+import type { Tap } from '../sim/flow/taps'
+import { cpRgb } from './cpScale'
 import type { Point } from '../sim/geom/pose'
 
 const COLOURS = {
@@ -29,6 +32,8 @@ export interface Instruments {
   wand: boolean
   rake: boolean
   tufts: boolean
+  /** The pressure taps' Cp dots. */
+  taps: boolean
 }
 
 export interface FlowViz {
@@ -37,6 +42,8 @@ export interface FlowViz {
   /** The air to draw, and the tufts on it (an empty list hides them). */
   setField(field: FlowField | null, tufts: readonly Tuft[]): void
   setInstruments(on: Instruments): void
+  /** The taps and their latest scan (an empty list hides them). */
+  setTaps(taps: readonly Tap[], cps: readonly number[]): void
   /** The wand's tip, in the rider's coordinates. */
   setWandTip(p: Point): void
   /** Advance the smoke and tufts; `fan` is the air speed over the fan's top speed. */
@@ -47,11 +54,13 @@ export interface FlowViz {
 /** The bike's middle along its length: the instruments are placed from here. */
 const MID: Point = { x: (FRAME.rearAxleX + FRAME.frontAxleX) / 2, y: 0, z: 0 }
 const HIDDEN_Y = -1e4
+/** A tap's dot: radius, and how far it sits off the skin so it isn't buried, m at full size. */
+const TAP_DOT = { radius: 0.028, raise: 0.003 }
 
 export function createFlowViz(dot: THREE.Texture): FlowViz {
   const group = new THREE.Group()
   let field: FlowField | null = null
-  let on: Instruments = { wand: false, rake: false, tufts: false }
+  let on: Instruments = { wand: false, rake: false, tufts: false, taps: false }
   let wandTip: Point = { x: MID.x + SMOKE_VIZ.upstream, y: 0.9, z: 0.1 }
   let clock = 0
 
@@ -121,6 +130,38 @@ export function createFlowViz(dot: THREE.Texture): FlowViz {
       phases[i * 2] = (h - Math.floor(h)) * Math.PI * 2
       phases[i * 2 + 1] = 0.7 + ((h * 7.13) % 1 + 1) % 1 * 0.6
     })
+  }
+
+  // --- Taps: one flat dot per tap, facing out along the surface normal.
+  const dotGeo = new THREE.CircleGeometry(TAP_DOT.radius, 12)
+  const dotMat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 })
+  let tapDots: THREE.InstancedMesh | null = null
+  const tmpObj = new THREE.Object3D()
+  const tmpColour = new THREE.Color()
+  const zAxis = new THREE.Vector3(0, 0, 1)
+  const tmpNormal = new THREE.Vector3()
+  function buildTaps(taps: readonly Tap[], cps: readonly number[]) {
+    if (tapDots) {
+      group.remove(tapDots)
+      tapDots.dispose()
+      tapDots = null
+    }
+    if (taps.length === 0 || cps.length !== taps.length) return
+    const mesh = new THREE.InstancedMesh(dotGeo, dotMat, taps.length)
+    taps.forEach((t, i) => {
+      const lift = TAPS.lift + TAP_DOT.raise
+      tmpObj.position.set(t.point.x + t.normal.x * lift, t.point.y + t.normal.y * lift, t.point.z + t.normal.z * lift)
+      tmpObj.quaternion.setFromUnitVectors(zAxis, tmpNormal.set(t.normal.x, t.normal.y, t.normal.z))
+      tmpObj.updateMatrix()
+      mesh.setMatrixAt(i, tmpObj.matrix)
+      // Colours are given in sRGB; the renderer's colour management converts them.
+      const [r, g, b] = cpRgb(cps[i]!)
+      mesh.setColorAt(i, tmpColour.setRGB(r, g, b, THREE.SRGBColorSpace))
+    })
+    mesh.frustumCulled = false
+    mesh.visible = on.taps
+    tapDots = mesh
+    group.add(mesh)
   }
 
   const DEG = Math.PI / 180
@@ -235,6 +276,10 @@ export function createFlowViz(dot: THREE.Texture): FlowViz {
       if (!next.wand && !next.rake && (on.wand || on.rake)) clearSmoke()
       on = { ...next }
       if (!on.tufts) buildTufts([])
+      if (!on.taps) buildTaps([], [])
+    },
+    setTaps(taps, cps) {
+      buildTaps(on.taps ? taps : [], cps)
     },
     setWandTip(p) {
       wandTip = { ...p }
@@ -252,6 +297,9 @@ export function createFlowViz(dot: THREE.Texture): FlowViz {
       smokeMat.dispose()
       twinMat.dispose()
       tuftMat.dispose()
+      buildTaps([], [])
+      dotGeo.dispose()
+      dotMat.dispose()
     },
   }
 }

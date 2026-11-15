@@ -48,6 +48,8 @@ export const MODEL_SHOP = {
     fine: { times: 1.5, days: 2 },
   } satisfies Record<ModelGrade, { times: number; days: number }>,
   trips: { price: 3000, days: 1 },
+  /** Pressure taps: pinholes over the rider piped to the tunnel's scanner. */
+  taps: { price: 8000, days: 2 },
   /** Prices round to this many rubles. */
   round: 500,
 }
@@ -73,7 +75,7 @@ export const STANDARD_MODEL = {
 } as const
 
 /** The standard order as the shop writes it up. */
-export const STANDARD_ORDER = { scale: 2 as ModelScale, finish: 'sanded' as ModelFinish, grade: 'standard' as ModelGrade, trips: false }
+export const STANDARD_ORDER = { scale: 2 as ModelScale, finish: 'sanded' as ModelFinish, grade: 'standard' as ModelGrade, trips: false, taps: false }
 
 /**
  * The seed for the model you test before contracts arrive (PR 5 gives each

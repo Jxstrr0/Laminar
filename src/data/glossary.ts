@@ -382,8 +382,8 @@ export const GLOSSARY = defineGlossary({
   cp: {
     term: 'Pressure coefficient (Cp)',
     short: 'The pressure at one spot on the surface, compared with dynamic pressure.',
-    long: 'Cp is 1 at the nose, where the air stops dead. It goes below zero where the air speeds up round a curve. A Cp map colours the whole surface so you can see where the push and the pull are.',
-    aliases: ['cp', 'cp map', 'pressure map'],
+    long: 'Cp is 1 at the nose, where the air stops dead. It goes below zero where the air speeds up round a curve. A Cp map colours the whole surface so you can see where the push and the pull are. Pressure taps read it through pinholes in a model’s skin.',
+    aliases: ['cp', 'cp map', 'pressure map', 'pressure taps', 'taps'],
     seeAlso: ['dynamicPressure', 'pressureDrag'],
   },
 

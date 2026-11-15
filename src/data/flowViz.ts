@@ -115,6 +115,46 @@ export const CP_VIZ = {
 }
 
 /**
+ * Pressure taps (plan section 7.1): pinholes in the model's skin piped to a
+ * scanner. They sit on a coarse lattice over the rider's parts and read the
+ * pressure coefficient there, with the scanner's own scatter.
+ */
+export const TAPS = {
+  /** Spacing between taps over the surface, m at full size. */
+  spacing: 0.1,
+  /** The reading is taken this far off the skin, m at full size (inside the boundary layer's edge). */
+  lift: 0.004,
+  /** Scanner scatter on each reading, in Cp (standard deviation). */
+  noise: 0.02,
+  /**
+   * The field's attached-flow estimate runs away in the tight gaps between
+   * legs and arms, where real air separates long before. Past `knee` a
+   * reading eases off, never reaching `floor`, so the order of readings
+   * holds but none runs away.
+   */
+  knee: -1.2,
+  floor: -2.5,
+}
+
+/**
+ * The Cp map's colours (plan section 11): a diverging scale, blue for
+ * suction (Cp below 0) through a neutral grey at 0 to orange for pressure,
+ * lightness stepping evenly out from the middle. Blue and orange stay apart
+ * for every common colour-vision type, and orange keeps clear of the red the
+ * lab uses for separation. Equal steps per arm, though the arms cover
+ * different Cp ranges.
+ */
+export const CP_PALETTE = {
+  min: -2,
+  max: 1,
+  suction: ['#376AD6', '#6A96EB', '#A7BFE9'],
+  neutral: '#E2E2DE',
+  pressure: ['#E3B47D', '#D68125', '#AD5702'],
+  /** Legend ticks, Cp. */
+  ticks: [-2, -1, 0, 1],
+}
+
+/**
  * The tunnel's smoke and tufts as drawn (PR 3d). Positions are in the
  * full-size rider's metres (the drawing scales them down with the model);
  * speeds are how fast the smoke moves on screen in those metres, slowed

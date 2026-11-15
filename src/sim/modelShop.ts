@@ -14,6 +14,8 @@ export interface ModelOrder {
   finish: ModelFinish
   grade: ModelGrade
   trips: boolean
+  /** Pressure taps fitted (they read the surface pressure; they don't change the drag). */
+  taps: boolean
 }
 
 export interface Quote {
@@ -28,10 +30,11 @@ export function quote(order: ModelOrder): Quote {
   const finish = MODEL_SHOP.finish[order.finish]
   const grade = MODEL_SHOP.grade[order.grade]
   const trips = order.trips ? MODEL_SHOP.trips : { price: 0, days: 0 }
-  const raw = base.price * finish.times * grade.times + trips.price
+  const taps = order.taps ? MODEL_SHOP.taps : { price: 0, days: 0 }
+  const raw = base.price * finish.times * grade.times + trips.price + taps.price
   return {
     price: Math.round(raw / MODEL_SHOP.round) * MODEL_SHOP.round,
-    days: Math.max(1, base.days + finish.days + grade.days + trips.days),
+    days: Math.max(1, base.days + finish.days + grade.days + trips.days + taps.days),
   }
 }
 
