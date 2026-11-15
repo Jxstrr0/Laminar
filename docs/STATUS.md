@@ -9,11 +9,22 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 1b | Aero sim core, part 2: lift, stall, induced drag, ground effect, yaw forces | **Done** (v0.2.1.0) |
 | 1c | Aero sim core, part 3: truth / tunnel / field split, reference rider, node harness | **Done** (v0.2.2.0) |
 | 2a | Shaping, part 1: the cyclist as numbers (posture, helmet, suit, bars, wheels, frame), comfort and power, TCF rule checks, readouts, desk estimate | **Done** (v0.3.0.0) |
-| 2b | Shaping, part 2: the Shape screen (3D rider from the same bodies, slider sheet, readouts, comfort meter) | Next |
-| 2c | Shaping, part 3: drag handles, the rule box drawn in 3D, glossary and tooltips | Not started |
+| 2b | Shaping, part 2: the Shape screen (3D rider and bike from the design, slider sheet, readouts, comfort meter, rule breaks with a "change this" jump), Shape / Tunnel switch | **Done** (v0.3.1.0) |
+| 2c | Shaping, part 3: drag handles, the rule box drawn in 3D, glossary and tooltips | Next |
 | 3–14 | See the plan | Not started |
 
 ## Versions
+
+- **0.3.1.0** (PR 2b): the Shape screen. The game now opens on a 3D rider
+  and bike you can turn with a finger, drawn from the design (the helmet's
+  outline is the very shape the aero model tests). The sheet below has the
+  desk estimate, a comfort meter, frontal area, mass and price, and the
+  TCF rule check, plus three tabs of controls: Position (back angle, head,
+  arm width, hand reach and height), Kit (helmet, tail, vents, fabric, arm
+  trip strips) and Bike (bars, wheels, frame tubes). Broken rules turn the
+  part red and list a "Change this" button that jumps to the control; a
+  position that strains the rider lights the worst part amber. A Shape /
+  Tunnel switch sits top right.
 
 - **0.3.0.0** (PR 2a): the cyclist you'll shape. A design is a set of
   numbers (back angle, head, arm width, hand reach and height, helmet tail
