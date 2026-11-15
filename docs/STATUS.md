@@ -16,12 +16,28 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 3c | The tunnel, part 3: run history with A/B compare and noise bands | **Done** (v0.3.5.0) |
 | 3d | The tunnel, part 4: smoke wand and rake, tufts round the rider | **Done** (v0.3.6.0) |
 | 4a | Correlation, part 1: the tunnel's hidden quirks (blockage, turbulent air, mount drag), tare runs, sphere calibration against the book, corrections on the rider's CdA | **Done** (v0.4.0.0) |
-| 4b | Correlation, part 2: static wheels and legs (crank-angle runs), repeat runs pooled | Next |
-| 4c | Correlation, part 3: model shop (scale, finish, accuracy), the Reynolds trap and trip strips | Not started |
-| 4d | Correlation, part 4: pressure taps and the Cp map | Not started |
+| 4b | Correlation, part 2: static legs (crank-angle runs and the pedalling average), repeat runs pooled | **Done** (v0.4.1.0) |
+| 4c | Correlation, part 3: static wheels and a known-wheel calibration | Next |
+| 4d | Correlation, part 4: model shop (scale, finish, accuracy), the Reynolds trap and trip strips | Not started |
+| 4e | Correlation, part 5: pressure taps and the Cp map | Not started |
 | 5–14 | See the plan | Not started |
 
 ## Versions
+
+- **0.4.1.0** (PR 4b): the legs go round. A scale model's legs are fixed
+  at one crank angle, and the legs' drag swings with the cranks: most with
+  a thigh up in the air, least with the cranks level. A pedalling rider
+  gets the average, so a single tunnel run can read up to about 6 % off.
+  - **Cranks:** pick the model's crank angle beside the yaw setting.
+    Changing it stops the fan while the tunnel is opened.
+  - **This design:** a card at the top of the Runs tab pools every run of
+    the design you're shaping at each crank angle, with the run-to-run
+    spread. With two or more angles it gives the pedalling average. Four
+    angles spread over half a turn (0°, 45°, 90°, 135°) cancel the swing
+    exactly. Its numbers take off the tare and blockage once known.
+
+  The standard pose's cranks moved from 20° to 15° to sit on the dial.
+  "Pedalling average" joins the glossary.
 
 - **0.4.0.0** (PR 4a): the tunnel lies, a little. The university tunnel
   now has hidden faults, drawn once from a seed, that creep into every

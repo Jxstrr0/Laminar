@@ -92,7 +92,15 @@ export const RUN_STATS = {
   yawTolerance: 0.5,
   /** Air speeds closer than this (m/s) count as the same setting. */
   speedTolerance: 0.25,
+  /**
+   * Crank angles needed for a fair pedalling average. Spread evenly over a
+   * half turn (say 0°, 45°, 90°, 135°), four cancel the legs' swing exactly.
+   */
+  legAngles: 4,
 }
+
+/** The crank dial on a rider model's legs, degrees (0 forward, 90 down). */
+export const CRANK_DIAL = { min: 0, max: 165, step: 15 } as const
 
 /**
  * The university tunnel's hidden quirks (plan section 7.2), drawn once per

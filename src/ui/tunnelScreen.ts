@@ -35,7 +35,8 @@ import { AIR } from '../data/air'
 import type { GlossaryId } from '../data/glossary'
 import { TUFT_VIZ } from '../data/flowViz'
 import { DEMO_MODEL_SEED, STANDARD_MODEL } from '../data/model'
-import { CALIBRATION, DEMO_TUNNEL_SEED, REFERENCE_SPHERE, RUN_RECORDING, TUNNEL_BILLING, UNIVERSITY_QUIRKS, UNIVERSITY_TUNNEL } from '../data/tunnel'
+import { SKELETON } from '../data/pose'
+import { CALIBRATION, CRANK_DIAL, DEMO_TUNNEL_SEED, REFERENCE_SPHERE, RUN_RECORDING, RUN_STATS, TUNNEL_BILLING, UNIVERSITY_QUIRKS, UNIVERSITY_TUNNEL } from '../data/tunnel'
 import { t, type StringKey } from '../data/strings'
 import { dynamicPressure, reynolds } from '../sim/air'
 import { bodyDrag, type Regime } from '../sim/aero/drag'
@@ -48,7 +49,7 @@ import { sphere } from '../sim/geom/shapes'
 import { Rng } from '../sim/rng'
 import type { CyclistDesign } from '../data/cyclist'
 import { changedControls } from '../sim/designDiff'
-import { compareRuns, headlineCompare, headlineGroup, yawGroups, type YawGroup } from '../sim/runStats'
+import { compareRuns, headlineCompare, headlineGroup, legCycle, poolRuns, yawGroups, type YawGroup } from '../sim/runStats'
 import { addSample, newRecorder, runCost, stepRecorder, type Recorder, type Run, type RunSample } from '../sim/run'
 import { setYawTarget, stepTurntable, turntableAtRest, type TurntableState } from '../sim/turntable'
 import { rollQuirks, type MountKind } from '../sim/quirks'
@@ -205,6 +206,24 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   squareBtn.type = 'button'
   yawCtl.row.append(squareBtn)
 
+  // The crank angle of the rider model's fixed legs, picked from a list in the yaw row's head.
+  let crank: number = SKELETON.crankDeg[0]!
+  const crankBox = el('span', 'crank-box')
+  const crankLabel = el('label', 'crank-label', t('crank.label'))
+  const crankSel = el('select', 'crank-select')
+  crankSel.id = 'crank-select'
+  crankLabel.htmlFor = crankSel.id
+  crankSel.title = t('crank.name')
+  for (let deg = CRANK_DIAL.min; deg <= CRANK_DIAL.max; deg += CRANK_DIAL.step) {
+    const option = el('option', undefined, `${deg}°`)
+    option.value = String(deg)
+    crankSel.append(option)
+  }
+  crankSel.value = String(crank)
+  crankSel.addEventListener('change', () => setCrank(Number(crankSel.value)))
+  crankBox.append(crankLabel, crankSel)
+  yawCtl.target.before(crankBox)
+
   // Readouts for the rider model.
   const riderGrid = el('div', 'readouts')
   const rSpeed = readout(t('read.speed'), 'airSpeed')
@@ -306,7 +325,14 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
 
   const runsHint = el('p', 'runs-hint')
   const runList = el('ul', 'run-list')
-  runsBox.append(compareBox, runsHint, runList)
+  // This design's record: repeat runs pooled at each crank angle, and the pedalling average.
+  const poolBox = el('div', 'compare pool')
+  const poolTitle = el('p', 'compare-verdict', t('pool.title'))
+  const poolRows = el('div')
+  const poolCycle = el('p', 'compare-detail pool-note')
+  const poolFix = el('p', 'compare-detail pool-note')
+  poolBox.append(poolTitle, poolRows, poolCycle, poolFix)
+  runsBox.append(poolBox, compareBox, runsHint, runList)
 
   const foot = el('div', 'sheet-foot')
   const version = el('span', 'version', `v${__GAME_VERSION__} · ${__BUILD_SHA__} · ${__BUILD_DATE__}`)
@@ -411,7 +437,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     flowKey = key
     flowAge = 0
     const flow = { density: AIR.density, viscosity: AIR.viscosity, speed, turbulence: airTurbulence }
-    const field = modelFlowField(designStore.get(), prepared.shape, flow, table.angle, { seed: DEMO_MODEL_SEED })
+    const field = modelFlowField(designStore.get(), prepared.shape, flow, table.angle, { seed: DEMO_MODEL_SEED, crankDeg: crank })
     view.setFlow(field, inst.tufts ? tuftsOf(field, { spacing: TUFT_VIZ.spacing }) : [])
   }
 
@@ -427,6 +453,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   let picks: number[] = []
   /** The design each rider run tested, by run id, so the report can say what changed. */
   const designs = new Map<number, CyclistDesign>()
+  /** The crank angle of each rider run. */
+  const cranks = new Map<number, number>()
   let runsDirty = true
   new ResizeObserver(() => (runsDirty = true)).observe(compareChart.canvas)
   new ResizeObserver(() => (runsDirty = true)).observe(calChart.canvas)
@@ -480,7 +508,10 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   function showRun() {
     const live = rec.run
     const done = runs[runs.length - 1]
-    if (live && live.model === 'rider' && !designs.has(live.id)) designs.set(live.id, structuredClone(designStore.get()))
+    if (live && live.model === 'rider' && !designs.has(live.id)) {
+      designs.set(live.id, structuredClone(designStore.get()))
+      cranks.set(live.id, crank)
+    }
     if (live) setText(runNow, t('run.live', { id: live.id, time: clock(live.duration), cost: fixed(runCost(live), 0) }))
     else if (done) setText(runNow, t('run.last', { id: done.id, time: clock(done.duration), cost: fixed(runCost(done), 0) }))
     else setText(runNow, t('run.idle', { fee: fixed(TUNNEL_BILLING.perRun, 0) }))
@@ -583,6 +614,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     )
     setText(runsHint, runs.length === 0 ? t('runs.empty') : picks.length < 2 ? t('runs.pick') : '')
     runsHint.hidden = runsHint.textContent === ''
+    drawPool()
 
     const a = runs.find((r) => r.id === picks[0])
     const b = runs.find((r) => r.id === picks[1])
@@ -602,9 +634,10 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
       detail.hidden = !head
       const da = designs.get(a.id)
       const db = designs.get(b.id)
-      const list = da && db ? changedControls(da, db) : []
+      const list = da && db ? changedControls(da, db).map((id) => t(`ctl.${id}`)) : []
+      if (cranks.get(a.id) !== cranks.get(b.id)) list.push(t('crank.changed'))
       changed.hidden = !da || !db
-      setText(changed, list.length ? t('runs.changed', { list: list.map((id) => t(`ctl.${id}`)).join(', ') }) : t('runs.same'))
+      setText(changed, list.length ? t('runs.changed', { list: list.join(', ') }) : t('runs.same'))
     }
     // A and B side by side by yaw, each mean with its noise band; B nudged right so the bars don't hide each other.
     const pts = (groups: YawGroup[], nudge: number): ChartPoint[] =>
@@ -620,6 +653,65 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     })
   }
 
+  /** This design's runs, pooled at each crank angle, with corrections taken off. */
+  function drawPool() {
+    const now = designStore.get()
+    const byCrank = new Map<number, Run[]>()
+    for (const run of runs) {
+      const d = designs.get(run.id)
+      const c = cranks.get(run.id)
+      if (run.model !== 'rider' || !d || c === undefined || changedControls(d, now).length > 0) continue
+      byCrank.set(c, [...(byCrank.get(c) ?? []), run])
+    }
+    poolBox.hidden = byCrank.size === 0 || !prepared
+    if (poolBox.hidden || !prepared) return
+    const s2 = prepared.scale * prepared.scale
+    const fixCdA = (v: number) => correct(v * s2, fix) / s2
+    const fixBand = (v: number) => v / (fix.blockage ?? 1)
+    const cycle = legCycle(byCrank)
+    poolRows.replaceChildren(
+      ...[...byCrank.entries()]
+        .sort((p, q) => p[0] - q[0])
+        .map(([c, list]) => {
+          // At the pedalling average's setting if there is one, else this angle's own headline.
+          const pooled = poolRuns(list)
+          const g = cycle ? cycle.angles.find((a) => a.crankDeg === c)?.pooled : headlineGroup(pooled.filter((p) => p.trusted))
+          const row = el('p', 'compare-detail')
+          if (!g) row.textContent = `${c}° · ${t('runs.rowNone')}`
+          else {
+            const p = g
+            row.textContent =
+              t('pool.row', {
+                crank: c,
+                cda: fixed(fixCdA(p.mean), 4),
+                band: fixed(fixBand(p.band), 4),
+                runs: p.runs === 1 ? t('pool.run') : t('pool.runs', { n: p.runs }),
+              }) +
+              (p.spread !== null ? t('pool.spread', { spread: fixed(fixBand(p.spread), 4) }) : '') +
+              (cycle ? '' : t('pool.at', { yaw: fixed(p.yawDeg, 0), speed: fixed(p.speed, 0) }))
+          }
+          return row
+        }),
+    )
+    setText(poolTitle, cycle ? t('pool.titleAt', { yaw: fixed(cycle.yawDeg, 0), speed: fixed(cycle.speed, 0) }) : t('pool.title'))
+    const more = cycle ? Math.max(0, RUN_STATS.legAngles - cycle.angles.length) : 0
+    setText(
+      poolCycle,
+      !cycle
+        ? t('pool.one')
+        : t(cycle.enough ? 'pool.cycle' : 'pool.cycleFew', { k: cycle.angles.length, cda: fixed(fixCdA(cycle.mean), 4), band: fixed(fixBand(cycle.band), 4), more }),
+    )
+    const list = [fix.tare !== null ? t('fix.tare') : '', fix.blockage !== null ? t('fix.blockage') : ''].filter(Boolean)
+    setText(poolFix, list.length ? t('pool.fixed', { list: list.join(t('fix.and')) }) : t('pool.raw'))
+  }
+
+  /** Set the model's legs to a crank angle: the fan stops while the tunnel is opened. */
+  function setCrank(deg: number) {
+    if (deg === crank) return
+    crank = deg
+    placeModel()
+  }
+
   function placeModel() {
     if (mount === 'sphere') {
       view.setModel({ kind: 'sphere', tare })
@@ -627,11 +719,12 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     }
     if (prepared) endRun()
     const design = designStore.get()
-    prepared = prepareModel(cyclistShape(design), modelSpec)
+    prepared = prepareModel(cyclistShape(design, { crankDeg: crank }), modelSpec)
     refreshCal()
     modelVersion++
     view.setFlow(null, [])
-    view.setModel({ kind: 'rider', state: { design, pose: riderPose(design), broken: [], strained: [] }, scale: modelSpec.scale, tare })
+    view.setModel({ kind: 'rider', state: { design, pose: riderPose(design, crank), broken: [], strained: [] }, scale: modelSpec.scale, tare })
+    runsDirty = true
     designDirty = false
   }
 
@@ -644,6 +737,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     })
     tareBtn.setAttribute('aria-pressed', String(tare))
     yawCtl.row.hidden = !yawOpen()
+    crankBox.hidden = !yawOpen()
     instBar.hidden = !yawOpen()
     shown.cdA = shown.dragN = shown.sideN = 0
     placeModel()

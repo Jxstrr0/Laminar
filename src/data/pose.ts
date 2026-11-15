@@ -29,7 +29,7 @@ export const SKELETON = {
   shoulderWidth: 0.36,
   hipWidth: 0.2,
   /** Static crank angles for the two feet, degrees (0 forward, 90 down). */
-  crankDeg: [20, 200],
+  crankDeg: [15, 195],
 }
 
 /** Where the helmet sits: its mount point from the head's centre, and how much of its length lies ahead of the mount. */

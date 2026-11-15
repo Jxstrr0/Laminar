@@ -145,6 +145,8 @@ html, body {
 .compare .chart { height: 96px; margin-top: 6px; }
 .compare .chart-caption { white-space: normal; }
 /* Calibrate tab: the sphere against the book, then what the runs found. */
+.pool .compare-detail { margin-top: 3px; }
+.pool .pool-note { font-family: inherit; font-size: 0.76rem; }
 .cal-box .chart { height: 104px; }
 .cal-box .chart-caption { white-space: normal; }
 .cal-box .compare-detail { font-family: inherit; font-size: 0.76rem; margin-top: 4px; }
@@ -168,6 +170,13 @@ html, body {
 .fan-head { grid-area: head; display: flex; justify-content: space-between; align-items: baseline; }
 .fan-label { font-weight: 600; font-size: 1rem; }
 .fan-target { font-family: var(--font-num); font-size: 0.85rem; color: var(--muted); }
+/* The crank picker sits in the yaw row's head, beside the yaw setting. */
+.crank-box { display: flex; align-items: center; gap: 6px; margin: 0 12px 0 auto; font-size: 0.85rem; color: var(--muted); }
+.crank-box[hidden] { display: none; }
+.crank-select {
+  min-height: 30px; padding: 0 6px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--panel); color: var(--ink); font-family: var(--font-num); font-size: 0.85rem;
+}
 
 .fan-slider {
   grid-area: slider;

@@ -452,6 +452,8 @@ export function flowField(input: FlowFieldInput): FlowField {
 
 export interface RiderFlowOptions {
   seed?: number
+  /** A tunnel model's fixed crank angle, so the legs' ellipsoids sit where the model's legs are. */
+  crankDeg?: number
 }
 
 /**
@@ -477,7 +479,7 @@ export function riderFlowField(design: CyclistDesign, flow: Flow, yawDeg: number
  * model's scale with full-size ellipsoids is safe.
  */
 export function modelFlowField(design: CyclistDesign, modelShape: ShapeDescriptor, flow: Flow, yawDeg: number, options: RiderFlowOptions = {}): FlowField {
-  const ellipsoids = riderEllipsoids(design, riderPose(design))
+  const ellipsoids = riderEllipsoids(design, riderPose(design, options.crankDeg))
   const drag = shapeDrag(modelShape, flow)
   return flowField({ ellipsoids, shape: modelShape, drag, speed: flow.speed, yawDeg, ...(options.seed !== undefined ? { seed: options.seed } : {}) })
 }
