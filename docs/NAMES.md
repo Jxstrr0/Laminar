@@ -30,7 +30,7 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 
 | Name | What it is | Status |
 | --- | --- | --- |
-| Tarnovian Cycling Federation (TCF) | Sets the cycling rulebook and legality box. Fictional; never the real UCI. | Proposal (PR 0), for Kelbo to keep or change |
+| Tarnovian Cycling Federation (TCF) | Sets the cycling rulebook and legality box. Fictional; never the real UCI. | Kept by Kelbo (15 November 2026) |
 
 ## Still to name (later PRs)
 

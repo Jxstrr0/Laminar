@@ -78,10 +78,9 @@ describe('Canadian spelling', () => {
     expect(hits, `use ${canadian}: ${hits.join(', ')}`).toEqual([])
   })
 
-  // Canadian Oxford leans to -ize, but the repo's one existing case is
-  // "voxelised", so the -ise/-ize choice isn't settled. Until it is, the
-  // glossary avoids those words altogether. Words that are always -ise
-  // (size, noise, rise, precise...) are fine.
+  // Kelbo chose -ize (15 November 2026), as the Canadian Oxford does:
+  // organize, realize, stabilize. Words that are always -ise (size, noise,
+  // rise, precise...) are fine; "analyse" keeps its -yse.
   const ALWAYS_ISE = new Set([
     'size', 'sizes', 'sized', 'noise', 'noises', 'rise', 'rises', 'risen', 'wise', 'otherwise', 'precise',
     'exercise', 'surprise', 'promise', 'advise', 'devise', 'revise', 'comprise', 'compromise', 'expertise',
@@ -89,10 +88,10 @@ describe('Canadian spelling', () => {
     'demise', 'paradise', 'disguise', 'supervise', 'improvise', 'televise', 'despise', 'incise', 'excise',
     'arise', 'arises', 'porpoising', 'poise', 'bruise', 'chastise', 'guise', 'franchise', 'merchandise', 'apprise',
   ])
-  it('no glossary text uses a word whose -ise or -ize ending is a choice', () => {
+  it('uses -ize, not -ise, where the ending is a choice', () => {
     const hits: string[] = []
     for (const [where, text] of playerText) {
-      for (const word of text.toLowerCase().match(/\b[a-z]+i[sz](e|es|ed|ing|ation|ations)\b/g) ?? []) {
+      for (const word of text.toLowerCase().match(/\b[a-z]+is(e|es|ed|ing|ation|ations)\b/g) ?? []) {
         if (!ALWAYS_ISE.has(word)) hits.push(`${where}: ${word}`)
       }
     }

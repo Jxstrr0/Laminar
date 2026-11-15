@@ -379,6 +379,36 @@ html, body {
 .shape-sheet .sheet-foot .version { margin-left: auto; }
 
 /* The handle hint, just above the sheet over the 3D view. */
+/* Tunnel: flow instrument chips over the 3D view, just above the sheet. */
+.instruments {
+  position: absolute;
+  left: calc(12px + var(--safe-l));
+  right: calc(12px + var(--safe-r));
+  bottom: calc(var(--sheet-h, 0px) + 8px);
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.instruments[hidden] { display: none; }
+.chip {
+  flex: none;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.chip[aria-pressed='true'] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+@media (min-width: 720px) {
+  .instruments { left: 50%; right: auto; transform: translateX(-50%); width: min(860px, 100%); padding: 0 16px; }
+}
 .shape-hint {
   position: absolute;
   left: 50%;

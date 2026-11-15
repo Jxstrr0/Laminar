@@ -280,7 +280,7 @@ From the parameter vector, compute:
 
 ### 6.6 Late-game CFD Cluster
 - An optional real solver: a coarse **lattice Boltzmann (D3Q19)** grid on
-  **WebGPU**, roughly 96×48×48 cells, run on the voxelised shape.
+  **WebGPU**, roughly 96×48×48 cells, run on the voxelized shape.
 - Shows a true flow field slice and a second drag estimate. It's coarse, so
   it has its own biases (too much numerical viscosity, poor at transition).
   Good players use it for trends and the tunnel for numbers.
