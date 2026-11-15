@@ -36,14 +36,29 @@ import type { GlossaryId } from '../data/glossary'
 import { TUFT_VIZ } from '../data/flowViz'
 import { DEMO_MODEL_SEED, STANDARD_MODEL } from '../data/model'
 import { SKELETON } from '../data/pose'
-import { CALIBRATION, CRANK_DIAL, DEMO_TUNNEL_SEED, REFERENCE_SPHERE, RUN_RECORDING, RUN_STATS, TUNNEL_BILLING, UNIVERSITY_QUIRKS, UNIVERSITY_TUNNEL } from '../data/tunnel'
+import { CALIBRATION, CRANK_DIAL, DEMO_TUNNEL_SEED, REFERENCE_SPHERE, REFERENCE_WHEEL, RUN_RECORDING, RUN_STATS, TUNNEL_BILLING, UNIVERSITY_QUIRKS, UNIVERSITY_TUNNEL } from '../data/tunnel'
 import { t, type StringKey } from '../data/strings'
 import { dynamicPressure, reynolds } from '../sim/air'
-import { bodyDrag, type Regime } from '../sim/aero/drag'
+import { bodyDrag, shapeDrag, type Regime } from '../sim/aero/drag'
 import { fanAtRest, setFanTarget, stepFan, type FanState } from '../sim/fan'
 import { modelFlowField, tufts as tuftsOf } from '../sim/flow/field'
-import { bookCurve, calibrate, correct, corrections, latestTare, tareModel, type Calibration, type Corrections } from '../sim/calibration'
-import { cyclistShape } from '../sim/geom/cyclist'
+import {
+  bookCurve,
+  calibrate,
+  correct,
+  corrections,
+  latestTare,
+  NO_CORRECTIONS,
+  spokeShare,
+  tareModel,
+  WHEEL_RUN,
+  wheelCheck,
+  type Calibration,
+  type Corrections,
+  type WheelCheck,
+} from '../sim/calibration'
+import { describeShape, scaleShape } from '../sim/geom/body'
+import { cyclistShape, referenceWheel } from '../sim/geom/cyclist'
 import { riderPose } from '../sim/geom/pose'
 import { sphere } from '../sim/geom/shapes'
 import { Rng } from '../sim/rng'
@@ -66,7 +81,7 @@ const REGIME_TERM: Record<Regime, GlossaryId> = { laminar: 'laminar', mixed: 'dr
 /** The sim's fixed time step, in seconds. */
 const STEP = 1 / 60
 
-type Mount = 'rider' | 'sphere'
+type Mount = 'rider' | 'sphere' | 'wheel'
 type View = 'readouts' | 'time' | 'yaw' | 'cal' | 'runs'
 const VIEWS: { value: View; key: StringKey }[] = [
   { value: 'readouts', key: 'view.readouts' },
@@ -76,11 +91,12 @@ const VIEWS: { value: View; key: StringKey }[] = [
   { value: 'runs', key: 'view.runs' },
 ]
 /** What holds each model. */
-const MOUNT_KIND: Record<Mount, MountKind> = { rider: 'posts', sphere: 'sting' }
+const MOUNT_KIND: Record<Mount, MountKind> = { rider: 'posts', sphere: 'sting', wheel: 'posts' }
 /** How a run's model is named in the list. */
 const RUN_MODEL: Record<string, StringKey> = {
   rider: 'mount.rider',
   sphere: 'mount.sphere',
+  [WHEEL_RUN]: 'mount.wheel',
   [tareModel('sting')]: 'mount.tareSting',
   [tareModel('posts')]: 'mount.tarePosts',
 }
@@ -94,9 +110,16 @@ function clock(seconds: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 const MOUNTS: { value: Mount; key: StringKey }[] = [
-  { value: 'rider', key: 'mount.rider' },
+  { value: 'rider', key: 'mount.riderShort' },
   { value: 'sphere', key: 'mount.sphere' },
+  { value: 'wheel', key: 'mount.wheel' },
 ]
+
+/** What the corrections cover, as words: "posts, blockage and still wheels". */
+function fixWords(fix: Corrections): string {
+  const list = [fix.tare !== null ? t('fix.tare') : '', fix.blockage !== null ? t('fix.blockage') : '', fix.wheels !== null ? t('fix.wheels') : ''].filter(Boolean)
+  return list.length < 2 ? (list[0] ?? '') : `${list.slice(0, -1).join(', ')}${t('fix.and')}${list[list.length - 1]}`
+}
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag)
@@ -154,6 +177,9 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   const sphereModel = prepareExact({ bodies: [sphere('calibration-sphere', REFERENCE_SPHERE.diameter)] })
   const ball = sphereModel.shape.bodies[0]!
   const radius = REFERENCE_SPHERE.diameter / 2
+  // The reference wheel, made exactly at the model's scale: read still on the posts, and spinning in the book.
+  const wheelModel = prepareExact(scaleShape(referenceWheel(false), STANDARD_MODEL.scale))
+  const wheelSpinning = describeShape(scaleShape(referenceWheel(true), STANDARD_MODEL.scale))
 
   // --- Header
   const header = el('header', 'top-bar')
@@ -182,7 +208,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   })
   mountGroup.addEventListener('keydown', (e) => {
     if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
-    const next = mount === 'rider' ? 'sphere' : 'rider'
+    const i = MOUNTS.findIndex((m) => m.value === mount)
+    const next = MOUNTS[(i + (e.key === 'ArrowRight' ? 1 : MOUNTS.length - 1)) % MOUNTS.length]!.value
     setMount(next)
     mountButtons[MOUNTS.findIndex((m) => m.value === next)]!.focus()
   })
@@ -241,6 +268,16 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   const dragR = readout(t('read.drag'), 'drag')
   sphereGrid.append(speedR.box, qR.box, reR.box, dragR.box)
   reR.sub.textContent = `${fixed(REFERENCE_SPHERE.diameter * 100, 0)} cm sphere`
+
+  // Readouts for the reference wheel.
+  const wheelGrid = el('div', 'readouts')
+  const wSpeed = readout(t('read.speed'), 'airSpeed')
+  const wDrag = readout(t('read.modelDrag'), 'drag')
+  const wCdA = readout(t('read.wheelCdA'), 'staticWheels')
+  const wBook = readout(t('read.book'), 'calibration')
+  wheelGrid.append(wSpeed.box, wDrag.box, wCdA.box, wBook.box)
+  wCdA.sub.textContent = t('read.wheelNote', { scale: fixed(1 / STANDARD_MODEL.scale, 0), spokes: REFERENCE_WHEEL.spokes })
+  wBook.sub.textContent = t('read.bookNote')
 
   // Readouts for a tare run: the mount alone.
   const tareGrid = el('div', 'readouts')
@@ -319,9 +356,15 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
       .split(/(the book)/)
       .map((part) => (part === 'the book' ? glossaryTerm('calibration', part) : document.createTextNode(part))),
   )
-  const calLines = { tare: el('p', 'compare-detail'), crisis: el('p', 'compare-detail'), block: el('p', 'compare-detail'), posts: el('p', 'compare-detail') }
+  const calLines = {
+    tare: el('p', 'compare-detail'),
+    crisis: el('p', 'compare-detail'),
+    block: el('p', 'compare-detail'),
+    posts: el('p', 'compare-detail'),
+    wheel: el('p', 'compare-detail'),
+  }
   calLines.crisis.setAttribute('aria-live', 'polite')
-  calBox.append(calChart.canvas, calCaption, calLines.tare, calLines.crisis, calLines.block, calLines.posts)
+  calBox.append(calChart.canvas, calCaption, calLines.tare, calLines.crisis, calLines.block, calLines.posts, calLines.wheel)
 
   const runsHint = el('p', 'runs-hint')
   const runList = el('ul', 'run-list')
@@ -359,7 +402,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     instBar.append(b)
   }
 
-  sheet.append(mountRow, fanCtl.row, yawCtl.row, runLine, viewBar, riderGrid, sphereGrid, tareGrid, chartBox, calBox, runsBox, foot)
+  sheet.append(mountRow, fanCtl.row, yawCtl.row, runLine, viewBar, riderGrid, sphereGrid, wheelGrid, tareGrid, chartBox, calBox, runsBox, foot)
   app.append(header, sheet, instBar)
 
   // Keep the 3D model centred in the space above the sheet.
@@ -460,13 +503,26 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   new ResizeObserver(() => (runsDirty = true)).observe(calChart.canvas)
   /** What the runs have found out about the tunnel, and the rider's corrections from it. */
   let cal: Calibration = calibrate([], ball, sectionArea)
-  let fix: Corrections = { tare: null, blockage: null }
+  let fix: Corrections = NO_CORRECTIONS
+  /** The reference wheel against the book, once the posts are tared. */
+  let wheel: WheelCheck | null = null
+  /** What comes off the reference wheel's own readings: the posts and its (small) blockage. */
+  let wheelFix: Corrections = NO_CORRECTIONS
   const refreshCal = () => {
     cal = calibrate(runs, ball, sectionArea)
-    fix = prepared ? corrections(cal, latestTare(runs, 'posts'), prepared.shape.frontalArea, sectionArea) : { tare: null, blockage: null }
+    const posts = latestTare(runs, 'posts')
+    wheelFix = corrections(cal, posts, wheelModel.shape.frontalArea, sectionArea)
+    wheel = wheelFix.tare !== null ? wheelCheck(runs, wheelSpinning, wheelFix.tare, wheelFix.blockage) : null
+    if (!prepared) {
+      fix = NO_CORRECTIONS
+      return
+    }
+    // With no wheel drive the rider's still spokes read low: add back the reference wheel's gap, scaled by its spokes.
+    const wheels = wheel?.trusted && !spec.wheelDrive ? wheel.gap * spokeShare(prepared.shape, wheelSpinning) : null
+    fix = corrections(cal, posts, prepared.shape.frontalArea, sectionArea, wheels)
   }
   /** The run name for what's on the mount now. */
-  const runModel = () => (tare ? tareModel(MOUNT_KIND[mount]) : mount)
+  const runModel = () => (tare ? tareModel(MOUNT_KIND[mount]) : mount === 'wheel' ? WHEEL_RUN : mount)
   const yawAxes = {
     x: { label: t('axis.yaw'), unit: '°', digits: 0, min: spec.turntable.min, max: spec.turntable.max },
     y: { label: t('axis.cda'), unit: 'm²', digits: 3 },
@@ -498,6 +554,10 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     if (mount === 'sphere') {
       const r = readBalance(sphereModel, tunnel, { speed: fan.speed, yawDeg: 0, mount: 'sting' }, balanceRng)
       return { speed: fan.speed, yawDeg: 0, cdA: r.cdA, cyA: 0, dragN: q * r.modelCdA, steady: fan.speed === fan.target }
+    }
+    if (mount === 'wheel') {
+      const r = readBalance(wheelModel, tunnel, { speed: fan.speed, yawDeg: 0, mount: 'posts' }, balanceRng)
+      return { speed: fan.speed, yawDeg: 0, cdA: r.modelCdA, cyA: 0, dragN: q * r.modelCdA, steady: fan.speed === fan.target }
     }
     if (!prepared) return null
     const r = readBalance(prepared, tunnel, { speed: fan.speed, yawDeg: table.angle, mount: 'posts' }, balanceRng)
@@ -534,6 +594,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     const reading = view_ === 'readouts'
     riderGrid.hidden = !(reading && mount === 'rider' && !tare)
     sphereGrid.hidden = !(reading && mount === 'sphere' && !tare)
+    wheelGrid.hidden = !(reading && mount === 'wheel' && !tare)
     tareGrid.hidden = !(reading && tare)
     chartBox.hidden = view_ !== 'time' && view_ !== 'yaw'
     chartBox.setAttribute('aria-labelledby', `view-${view_}`)
@@ -604,7 +665,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
         const model = t(RUN_MODEL[run.model] ?? 'mount.rider')
         text.append(
           el('span', 'run-title', t('runs.row', { id: run.id, model, time: clock(run.duration), cost: fixed(runCost(run), 0) })),
-          el('span', 'run-sub', groupWords(headlineGroup(yawGroups(run)), run.model.startsWith('tare') ? TARE_DIGITS : 4)),
+          el('span', 'run-sub', groupWords(headlineGroup(yawGroups(run)), run.model.startsWith('tare') || run.model === WHEEL_RUN ? TARE_DIGITS : 4)),
         )
         b.append(badge, text)
         b.addEventListener('click', () => togglePick(run.id))
@@ -701,8 +762,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
         ? t('pool.one')
         : t(cycle.enough ? 'pool.cycle' : 'pool.cycleFew', { k: cycle.angles.length, cda: fixed(fixCdA(cycle.mean), 4), band: fixed(fixBand(cycle.band), 4), more }),
     )
-    const list = [fix.tare !== null ? t('fix.tare') : '', fix.blockage !== null ? t('fix.blockage') : ''].filter(Boolean)
-    setText(poolFix, list.length ? t('pool.fixed', { list: list.join(t('fix.and')) }) : t('pool.raw'))
+    const words = fixWords(fix)
+    setText(poolFix, words ? t('pool.fixed', { list: words }) : t('pool.raw'))
   }
 
   /** Set the model's legs to a crank angle: the fan stops while the tunnel is opened. */
@@ -717,9 +778,13 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
       view.setModel({ kind: 'sphere', tare })
       return
     }
+    if (mount === 'wheel') {
+      view.setModel({ kind: 'wheel', scale: modelSpec.scale, tare })
+      return
+    }
     if (prepared) endRun()
     const design = designStore.get()
-    prepared = prepareModel(cyclistShape(design, { crankDeg: crank }), modelSpec)
+    prepared = prepareModel(cyclistShape(design, { crankDeg: crank, staticWheels: !spec.wheelDrive }), modelSpec)
     refreshCal()
     modelVersion++
     view.setFlow(null, [])
@@ -815,6 +880,39 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     setText(tDrag.sub, t('read.mountDragNote', { cda: fixed(shown.cdA, TARE_DIGITS) }))
   }
 
+  const updateWheel = (dt: number) => {
+    showSpeed(wSpeed)
+    const q = dynamicPressure(AIR.density, fan.speed)
+    if (fan.speed < spec.readFrom) {
+      shown.dragN = shown.cdA = 0
+      setText(wDrag.value, '–')
+      setText(wDrag.sub, '')
+      setText(wCdA.value, '–')
+      setText(wBook.value, '–')
+      return
+    }
+    // The book's figure is the reference wheel spinning in calm air, with no posts.
+    const book = shapeDrag(wheelSpinning, { ...AIR, speed: fan.speed, turbulence: 0 }).cdA
+    setText(wBook.value, `${fixed(book, TARE_DIGITS)} m²`)
+    const r = readBalance(wheelModel, tunnel, { speed: fan.speed, yawDeg: 0, mount: 'posts' }, balanceRng)
+    const k = settle(dt)
+    shown.dragN += (q * r.modelCdA - shown.dragN) * k
+    shown.cdA += (r.modelCdA - shown.cdA) * k
+    setText(wDrag.value, `${fixed(shown.dragN, 2)} N`)
+    setText(wDrag.sub, t('read.withPosts'))
+    // With the posts tared, the wheel's own drag; the book has no posts.
+    const words = fixWords(wheelFix)
+    if (!words) {
+      setText(wCdA.value, `${fixed(shown.cdA, TARE_DIGITS)} m²`)
+      setText(wCdA.sub, t('read.wheelNote', { scale: fixed(1 / modelSpec.scale, 0), spokes: REFERENCE_WHEEL.spokes }))
+      wCdA.sub.title = ''
+    } else {
+      setText(wCdA.value, `${fixed(correct(shown.cdA, wheelFix), TARE_DIGITS)} m²`)
+      setText(wCdA.sub, t('read.cdaFixed', { raw: fixed(shown.cdA, TARE_DIGITS) }))
+      wCdA.sub.title = t('read.fixedFor', { list: words })
+    }
+  }
+
   // --- The Calibrate tab.
   const book = bookCurve(ball)
   const calAxes = {
@@ -858,6 +956,28 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
           ? t('cal.postsFew', { id: posts.runId })
           : t('cal.posts', { cda: fixed(posts.mean, TARE_DIGITS), band: fixed(posts.band, TARE_DIGITS), id: posts.runId }),
     )
+    const share = prepared ? spokeShare(prepared.shape, wheelSpinning) : 0
+    const postsTare = posts?.trusted ? posts : null
+    const wheelRuns = runs.filter((r) => r.model === WHEEL_RUN)
+    const ww = wheel
+    setText(
+      calLines.wheel,
+      spec.wheelDrive
+        ? ''
+        : wheelRuns.length === 0
+          ? t('cal.wheelNone')
+          : !postsTare
+            ? t('cal.wheelTare')
+            : !ww || !ww.trusted
+              ? t('cal.wheelFew', { id: wheelRuns[wheelRuns.length - 1]!.id })
+              : t(share > 0 ? 'cal.wheel' : 'cal.wheelDiscs', {
+                  gap: fixed(ww.gap, TARE_DIGITS),
+                  band: fixed(ww.band, TARE_DIGITS),
+                  book: fixed(ww.book, TARE_DIGITS),
+                  rider: fixed((ww.gap * share) / (modelSpec.scale * modelSpec.scale), 4),
+                }),
+    )
+    calLines.wheel.hidden = calLines.wheel.textContent === ''
     // The book as faint dots, your readings bold with their noise bands.
     const mine: ChartPoint[] = cal.points.map((p) => ({ x: p.re / 1e5, y: p.cd, lo: p.cd - p.band, hi: p.cd + p.band }))
     calChart.draw({
@@ -893,13 +1013,15 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     setText(rDrag.value, `${fixed(shown.dragN, 1)} N`)
     setText(rDrag.sub, t('read.modelDragNote', { re: scientific(r.reynolds) }))
     // The CdA takes off whatever the tare and calibration runs have found.
-    const list = [fix.tare !== null ? t('fix.tare') : '', fix.blockage !== null ? t('fix.blockage') : ''].filter(Boolean)
-    if (list.length === 0) {
+    const words = fixWords(fix)
+    if (!words) {
       setText(rCdA.value, `${fixed(shown.cdA, 3)} m²`)
       setText(rCdA.sub, t('read.cdaRaw', { scale: fixed(1 / prepared.scale, 0) }))
+      rCdA.sub.title = ''
     } else {
       setText(rCdA.value, `${fixed(correct(shown.cdA * s2, fix) / s2, 3)} m²`)
-      setText(rCdA.sub, t('read.cdaFixed', { raw: fixed(shown.cdA, 3), list: list.join(t('fix.and')) }))
+      setText(rCdA.sub, t('read.cdaFixed', { raw: fixed(shown.cdA, 3) }))
+      rCdA.sub.title = t('read.fixedFor', { list: words })
     }
   }
 
@@ -938,7 +1060,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     else if (mount === 'rider') {
       updateRider(dt)
       updateFlow(dt)
-    } else updateSphere(dt)
+    } else if (mount === 'wheel') updateWheel(dt)
+    else updateSphere(dt)
     showRun()
     drawChart()
     drawRuns()

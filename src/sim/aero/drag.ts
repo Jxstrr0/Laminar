@@ -17,9 +17,9 @@
  * certain speed a sphere's layer goes turbulent first, separates later, its
  * wake shrinks and its drag drops by two thirds.
  */
-import { CAVITY, FOREBODY, FRICTION, INTERFERENCE, SEPARATION, TRANSITION, WAKE } from '../../data/aero'
+import { CAVITY, FOREBODY, FRICTION, INTERFERENCE, SEPARATION, SPOKES, TRANSITION, WAKE } from '../../data/aero'
 import { detPow } from '../det'
-import type { BodyDescriptor, Line, ShapeDescriptor } from '../geom/body'
+import type { BodyDescriptor, Cavity, Line, ShapeDescriptor } from '../geom/body'
 import { sectionFill } from '../geom/body'
 import { DEG, clamp01, interp, lerp, smoothstep } from '../num'
 import type { Flow } from './flow'
@@ -253,6 +253,17 @@ export function bodyDrag(body: BodyDescriptor, flow: Flow): BodyDrag {
   }
 }
 
+/**
+ * Drag area of one cavity. Spokes held still churn less air than spinning
+ * ones (each spoke's top half meets the air at up to twice the road speed),
+ * so a static wheel reads low.
+ */
+export function cavityDrag(c: Cavity): number {
+  const k = CAVITY[c.kind]
+  const still = c.kind === 'spokes' && c.spinning === false ? SPOKES.staticFactor : 1
+  return c.area * k.peak * (c.depth / (c.depth + k.half)) * still
+}
+
 /** Drag of a whole shape: its bodies plus joints and cavities. */
 export function shapeDrag(shape: ShapeDescriptor, flow: Flow): ShapeDrag {
   const bodies = shape.bodies.map((b) => bodyDrag(b, flow))
@@ -260,11 +271,7 @@ export function shapeDrag(shape: ShapeDescriptor, flow: Flow): ShapeDrag {
   for (const j of shape.junctions) {
     interferenceCdA += INTERFERENCE[j.kind] * j.thickness * j.thickness * (1 - INTERFERENCE.filletCut * clamp01(j.fillet ?? 0))
   }
-  let cavityCdA = 0
-  for (const c of shape.cavities) {
-    const k = CAVITY[c.kind]
-    cavityCdA += c.area * k.peak * (c.depth / (c.depth + k.half))
-  }
+  const cavityCdA = shape.cavities.reduce((sum, c) => sum + cavityDrag(c), 0)
   const cdA = bodies.reduce((s, b) => s + b.cdA, 0) + interferenceCdA + cavityCdA
   return {
     bodies,

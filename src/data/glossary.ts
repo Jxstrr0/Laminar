@@ -344,6 +344,13 @@ export const GLOSSARY = defineGlossary({
     aliases: ['crank angle', 'static legs', 'leg-cycle average', 'pedalling'],
     seeAlso: ['scaleModel', 'noiseBand'],
   },
+  staticWheels: {
+    term: 'Static wheels',
+    short: 'A tunnel model’s wheels sit still; real ones spin.',
+    long: 'A spinning wheel’s spokes slice the air, the top ones moving forward at up to twice the road speed, and that churns up drag. With no wheel drive the model’s wheels are held still, so spoked wheels read low and disc wheels look less of a gain than they are. Run the lab’s reference wheel still, hold it against the book’s figure for it spinning, and the gap tells you what to add back.',
+    aliases: ['still wheels', 'reference wheel', 'wheel drive', 'spinning wheels'],
+    seeAlso: ['calibration', 'legCycle'],
+  },
   noiseBand: {
     term: 'Noise band',
     short: 'How far a reading could wander by chance: the error bar on a mean.',

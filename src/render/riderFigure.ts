@@ -99,7 +99,7 @@ function helmetMesh(design: CyclistDesign, material: THREE.Material): THREE.Obje
   return g
 }
 
-function wheel(axleX: number, kind: CyclistDesign['wheels']['front'], material?: THREE.Material): THREE.Group {
+function wheel(axleX: number, kind: CyclistDesign['wheels']['front'], material?: THREE.Material, spokes = 16): THREE.Group {
   const g = new THREE.Group()
   const r = FRAME.wheelRadius
   const tyre = new THREE.Mesh(new THREE.TorusGeometry(r - 0.012, 0.013, 10, 48), material ?? M.tyre)
@@ -109,7 +109,6 @@ function wheel(axleX: number, kind: CyclistDesign['wheels']['front'], material?:
   } else {
     const rimDepth = kind === 'deep' ? BIKE.wheelDiameter * BIKE.deepChord * 0.5 : 0.022
     g.add(new THREE.Mesh(new THREE.RingGeometry(r - 0.02 - rimDepth, r - 0.02, 48), material ?? (kind === 'deep' ? M.disc : M.rim)))
-    const spokes = 16
     for (let i = 0; i < spokes; i++) {
       const a = (i / spokes) * Math.PI * 2
       const inner = new THREE.Vector3(0, 0, 0)
@@ -119,6 +118,13 @@ function wheel(axleX: number, kind: CyclistDesign['wheels']['front'], material?:
   }
   g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.1, 12).rotateX(Math.PI / 2), M.rim))
   g.position.set(axleX, r, 0)
+  return g
+}
+
+/** The lab's reference wheel on its own, at the front axle, as a fresh group (dispose it with disposeGroup). */
+export function buildReferenceWheel(spokes: number): THREE.Group {
+  const g = new THREE.Group()
+  g.add(wheel(FRAME.frontAxleX, 'spoked', undefined, spokes))
   return g
 }
 

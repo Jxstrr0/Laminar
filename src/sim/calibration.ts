@@ -12,15 +12,20 @@
  *   off) is blockage. That gives the blockage constant k, and from it the
  *   correction for any model by its frontal area.
  *
+ * - Static wheels: the rider model's wheels don't spin, so their spokes
+ *   read low. The lab's reference wheel, run still on the posts, against
+ *   the book's figure for it spinning, shows how much a still spoke disc
+ *   misses; the rider's correction scales that by its own spokes.
+ *
  * Every figure comes from the player's own noisy readings, so a careless
  * sweep gives a rough answer. Nothing here reads the hidden quirks.
  */
 import { AIR } from '../data/air'
 import { TRANSITION } from '../data/aero'
 import { CALIBRATION, RUN_STATS } from '../data/tunnel'
-import { bodyDrag } from './aero/drag'
+import { bodyDrag, cavityDrag, shapeDrag } from './aero/drag'
 import { detExp, detLog } from './det'
-import type { BodyDescriptor } from './geom/body'
+import type { BodyDescriptor, Cavity, ShapeDescriptor } from './geom/body'
 import { blockageFactor, type MountKind } from './quirks'
 import type { Run } from './run'
 
@@ -207,22 +212,83 @@ export function calibrate(runs: readonly Run[], ball: BodyDescriptor, sectionAre
   return { points, tare, crisis, turbulence, blockage }
 }
 
+/** The run name for the reference wheel. */
+export const WHEEL_RUN = 'wheel'
+
+export interface WheelCheck extends Stats {
+  /** The book's drag area for the reference wheel spinning, m² at model size (at the readings' mean speed). */
+  book: number
+  /** What still spokes miss: the book less the corrected reading, m² at model size. */
+  gap: number
+  /** The latest reference-wheel run. */
+  runId: number
+  trusted: boolean
+}
+
+/**
+ * The reference wheel's readings against the book. Each settled reading has
+ * the posts' tare taken off and the blockage divided out, then sits against
+ * the book at its own speed; the gap is the mean of those. Needs the posts'
+ * tare: without it the gap would be mostly posts.
+ */
+export function wheelCheck(runs: readonly Run[], spinning: ShapeDescriptor, tare: number, blockage: number | null): WheelCheck | null {
+  const book = (speed: number) => shapeDrag(spinning, { density: AIR.density, viscosity: AIR.viscosity, speed, turbulence: 0 }).cdA
+  const gaps: number[] = []
+  const books: number[] = []
+  let runId = -1
+  for (const run of runs) {
+    if (run.model !== WHEEL_RUN) continue
+    for (const s of run.samples) {
+      if (!s.steady) continue
+      const b = book(s.speed)
+      books.push(b)
+      gaps.push(b - (s.cdA - tare) / (blockage ?? 1))
+      runId = run.id
+    }
+  }
+  if (gaps.length === 0) return null
+  const g = stats(gaps)
+  return { ...g, gap: g.mean, book: books.reduce((sum, v) => sum + v, 0) / books.length, runId, trusted: g.n >= RUN_STATS.minSamples }
+}
+
+/** Spoke drag as if every wheel spun, m². */
+function spinningSpokes(cavities: readonly Cavity[]): number {
+  return cavities.filter((c) => c.kind === 'spokes').reduce((sum, c) => sum + cavityDrag({ ...c, spinning: true }), 0)
+}
+
+/**
+ * How a design's spokes compare with the reference wheel's: 0 for two discs,
+ * about 1 for two plain spoked wheels (the rear half hidden behind the frame).
+ */
+export function spokeShare(shape: ShapeDescriptor, reference: ShapeDescriptor): number {
+  const ref = spinningSpokes(reference.cavities)
+  return ref > 0 ? spinningSpokes(shape.cavities) / ref : 0
+}
+
 export interface Corrections {
   /** The mount's tare to take off, m² at model size. */
   tare: number | null
   /** The blockage factor to divide by. */
   blockage: number | null
+  /** Drag the still wheels miss, to add back, m² at model size. */
+  wheels: number | null
 }
 
-/** What to take off a model's readings, from what the player has found so far. */
-export function corrections(cal: Calibration, tare: Tare | null, frontalArea: number, sectionArea: number): Corrections {
+export const NO_CORRECTIONS: Corrections = { tare: null, blockage: null, wheels: null }
+
+/**
+ * What to take off a model's readings, from what the player has found so far.
+ * `wheels` is the reference wheel's gap times the model's spoke share.
+ */
+export function corrections(cal: Calibration, tare: Tare | null, frontalArea: number, sectionArea: number, wheels: number | null = null): Corrections {
   return {
     tare: tare && tare.trusted ? tare.mean : null,
     blockage: cal.blockage ? blockageFactor(cal.blockage.k, frontalArea, sectionArea) : null,
+    wheels,
   }
 }
 
 /** A model's drag area with the corrections applied, m² at model size. */
 export function correct(modelCdA: number, fix: Corrections): number {
-  return (modelCdA - (fix.tare ?? 0)) / (fix.blockage ?? 1)
+  return (modelCdA - (fix.tare ?? 0)) / (fix.blockage ?? 1) + (fix.wheels ?? 0)
 }
