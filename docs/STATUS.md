@@ -11,10 +11,23 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 2a | Shaping, part 1: the cyclist as numbers (posture, helmet, suit, bars, wheels, frame), comfort and power, TCF rule checks, readouts, desk estimate | **Done** (v0.3.0.0) |
 | 2b | Shaping, part 2: the Shape screen (3D rider and bike from the design, slider sheet, readouts, comfort meter, rule breaks with a "change this" jump), Shape / Tunnel switch | **Done** (v0.3.1.0) |
 | 2c | Shaping, part 3: drag handles, the rule box drawn in 3D, glossary and tooltips | **Done** (v0.3.2.0) |
-| 3 | The tunnel: 3D lab, model mount, live sweep, force balance charts, smoke and tufts, run billing, run history | Next |
+| 3a | The tunnel, part 1: your design on the yaw turntable at 1:2, live balance readouts (model drag, side force, full-size CdA), Sphere / Your rider switch | **Done** (v0.3.3.0) |
+| 3b | The tunnel, part 2: runs (fan-up to fan-down), run billing, live force charts | Next |
+| 3c | The tunnel, part 3: run history with A/B compare and noise bands | Not started |
+| 3d | The tunnel, part 4: smoke wand and rake, tufts round the rider | Not started |
 | 4–14 | See the plan | Not started |
 
 ## Versions
+
+- **0.3.3.0** (PR 3a): your rider in the tunnel. The Tunnel screen now
+  opens on a 1:2 scale model of whatever you shaped, standing on the yaw
+  turntable. Turn the fan up and the balance reads the model's drag, the
+  side force and the full-size CdA (the model's reading scaled up), with a
+  small wobble from the balance's noise. A yaw slider turns the table up to
+  20° each way; "Square on" brings it back. A Model switch swaps back to
+  the calibration sphere and its smoke. The tunnel view now fits the space
+  between the header and the sheet, so nothing hides behind them on short
+  phones.
 
 - **0.3.2.0** (PR 2c): pull the rider into shape. Six blue dots sit on the
   rider (hands, both elbows, back, head and helmet tail); press one and drag

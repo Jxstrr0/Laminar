@@ -11,7 +11,7 @@ import { sphere } from '../src/sim/geom/shapes'
 import { harnessReport } from '../src/sim/harness'
 import { gaussian } from '../src/sim/noise'
 import { Rng } from '../src/sim/rng'
-import { buildModel, fieldResult, REFERENCE_TT, truth, tunnelReading } from '../src/sim/views'
+import { buildModel, fieldResult, prepareModel, readBalance, REFERENCE_TT, truth, tunnelReading } from '../src/sim/views'
 
 const tt = referenceRider(TT_POSITION)
 const hoods = referenceRider(HOODS_POSITION)
@@ -150,5 +150,27 @@ describe('noise and the harness', () => {
       expect(lines.some((l) => l.startsWith('Field, 40 km TT'))).toBe(true)
     }
     expect(harnessReport('teapot')[0]).toContain('Unknown shape')
+  })
+})
+
+describe('the balance on a prepared model', () => {
+  const spec = referenceRider(TT_POSITION)
+  const model = { scale: 0.5, finish: 'sanded' as const, accuracy: 0.01, seed: 4 }
+  const run = { speed: 30, yawDeg: 5 }
+
+  it('reads exactly what a one-off tunnel reading does', () => {
+    const a = tunnelReading(spec, model, UNIVERSITY_TUNNEL, run, new Rng(9))
+    const b = readBalance(prepareModel(spec, model), UNIVERSITY_TUNNEL, run, new Rng(9))
+    expect(b).toEqual(a)
+  })
+
+  it('scatters reading to reading, around the quiet value', () => {
+    const prepared = prepareModel(spec, model)
+    const quiet = readBalance(prepared, { ...UNIVERSITY_TUNNEL, balanceNoise: 0 }, run, new Rng(1)).cdA
+    const rng = new Rng(2)
+    const reads = Array.from({ length: 200 }, () => readBalance(prepared, UNIVERSITY_TUNNEL, run, rng).cdA)
+    expect(new Set(reads).size).toBeGreaterThan(190)
+    const mean = reads.reduce((s, v) => s + v, 0) / reads.length
+    expect(Math.abs(mean / quiet - 1)).toBeLessThan(0.003)
   })
 })

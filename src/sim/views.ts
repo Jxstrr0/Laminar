@@ -24,7 +24,7 @@ import type { Flow } from './aero/flow'
 import { cdAAt, windAveragedCdA, yawCurve, type YawCurve } from './aero/windAverage'
 import { densityAt, viscosityAt } from './field/atmosphere'
 import { courseTime, type RiderSpec, type SegmentResult } from './field/timeTrial'
-import { describeShape, scaleShape, type ShapeSpec } from './geom/body'
+import { describeShape, scaleShape, type ShapeDescriptor, type ShapeSpec } from './geom/body'
 import { gaussian } from './noise'
 import { Rng } from './rng'
 
@@ -132,18 +132,30 @@ export function buildModel(spec: ShapeSpec, model: ModelSpec): ShapeSpec {
   }
 }
 
-/**
- * One tunnel run: what the balance reads for a model at a speed and yaw.
- * Draws its noise from `rng`, so repeat runs on the same stream scatter.
- */
-export function tunnelReading(spec: ShapeSpec, model: ModelSpec, tunnel: TunnelSpec, run: RunSpec, rng: Rng): TunnelReading {
+/** A built model, described once so the balance can read it many times a second. */
+export interface PreparedModel {
+  shape: ShapeDescriptor
+  scale: number
+  /** Length of the model's longest part, m (for its Reynolds number). */
+  longest: number
+}
+
+export function prepareModel(spec: ShapeSpec, model: ModelSpec): PreparedModel {
   const shape = describeShape(buildModel(spec, model))
+  return { shape, scale: model.scale, longest: shape.bodies.reduce((m, b) => Math.max(m, b.length), 0) }
+}
+
+/**
+ * One balance reading of a prepared model at a speed and yaw. Draws its
+ * noise from `rng`, so repeat readings on the same stream scatter.
+ */
+export function readBalance(prepared: PreparedModel, tunnel: TunnelSpec, run: RunSpec, rng: Rng): TunnelReading {
+  const { shape, longest } = prepared
   const flow: Flow = { density: AIR.density, viscosity: AIR.viscosity, speed: run.speed, turbulence: tunnel.turbulence }
   const forces = aeroForces(shape, flow, { yawDeg: run.yawDeg })
   const modelCdA = forces.cdA * (1 + tunnel.balanceNoise * gaussian(rng))
   const cyA = forces.cyA * (1 + tunnel.balanceNoise * gaussian(rng))
-  const s2 = model.scale * model.scale
-  const longest = shape.bodies.reduce((m, b) => Math.max(m, b.length), 0)
+  const s2 = prepared.scale * prepared.scale
   return {
     modelCdA,
     cdA: modelCdA / s2,
@@ -151,6 +163,14 @@ export function tunnelReading(spec: ShapeSpec, model: ModelSpec, tunnel: TunnelS
     reynolds: (flow.density * flow.speed * longest) / flow.viscosity,
     forces,
   }
+}
+
+/**
+ * One tunnel run: what the balance reads for a model at a speed and yaw.
+ * Draws its noise from `rng`, so repeat runs on the same stream scatter.
+ */
+export function tunnelReading(spec: ShapeSpec, model: ModelSpec, tunnel: TunnelSpec, run: RunSpec, rng: Rng): TunnelReading {
+  return readBalance(prepareModel(spec, model), tunnel, run, rng)
 }
 
 export interface FieldResult {

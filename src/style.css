@@ -109,6 +109,11 @@ html, body {
   gap: 6px 12px;
   align-items: center;
 }
+/* Tunnel: the model switch above the fan, and the yaw row under it. */
+.mount-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.mount-row .segmented { flex: 1; margin-top: 0; }
+.mount-row .segment { min-height: 36px; }
+.fan-row + .fan-row { margin-top: 10px; }
 .fan-head { grid-area: head; display: flex; justify-content: space-between; align-items: baseline; }
 .fan-label { font-weight: 600; font-size: 1rem; }
 .fan-target { font-family: var(--font-num); font-size: 0.85rem; color: var(--muted); }

@@ -24,6 +24,7 @@ import { REFERENCE_TT } from '../sim/views'
 import type { Highlight, ShapeView } from '../render/shapeScene'
 import type { GlossaryId } from '../data/glossary'
 import type { HandleId, HandleParam } from '../data/handles'
+import { designStore } from './designStore'
 import { fixed } from './format'
 import { openGlossaryIndex, glossaryTerm } from './glossary'
 
@@ -93,7 +94,7 @@ export interface ScreenControl {
 }
 
 export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenControl {
-  let design: CyclistDesign = structuredClone(DEFAULT_CYCLIST)
+  let design: CyclistDesign = structuredClone(designStore.get())
   let dirty = true
   let selected: HandleId | null = null
 
@@ -341,6 +342,8 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   // --- Recompute everything from the design.
   function refresh() {
     syncAll()
+    // The tunnel tests whatever is shaped here; it gets its own copy.
+    designStore.set(structuredClone(design))
     const r = readouts(design, TCF_TIME_TRIAL)
     const shape = cyclistShape(design)
     const desk = deskEstimate(shape, REFERENCE_TT, DESK.demoJobSeed, JSON.stringify(design))
