@@ -17,10 +17,15 @@ import { t, type StringKey } from '../data/strings'
 import { readouts, type RuleBreak } from '../sim/cyclist'
 import { deskEstimate } from '../sim/desk'
 import { cyclistShape } from '../sim/geom/cyclist'
+import { availableHandles, dragHandle, handleDef, handlePoint } from '../sim/geom/handles'
 import { riderPose } from '../sim/geom/pose'
+import { ruleVolumes } from '../sim/geom/ruleBox'
 import { REFERENCE_TT } from '../sim/views'
 import type { Highlight, ShapeView } from '../render/shapeScene'
+import type { GlossaryId } from '../data/glossary'
+import type { HandleId, HandleParam } from '../data/handles'
 import { fixed } from './format'
+import { openGlossaryIndex, glossaryTerm } from './glossary'
 
 type Tab = 'position' | 'kit' | 'bike'
 type PostureKey = keyof CyclistDesign['posture']
@@ -32,11 +37,13 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
   return node
 }
 
-function readout(label: string): { box: HTMLElement; value: HTMLElement; sub: HTMLElement } {
+function readout(label: string, term: GlossaryId): { box: HTMLElement; value: HTMLElement; sub: HTMLElement } {
   const box = el('div', 'readout')
   const value = el('div', 'readout-value', '–')
   const sub = el('div', 'readout-sub')
-  box.append(el('div', 'readout-label', label), value, sub)
+  const labelBox = el('div', 'readout-label')
+  labelBox.append(glossaryTerm(term, label))
+  box.append(labelBox, value, sub)
   return { box, value, sub }
 }
 
@@ -62,6 +69,15 @@ const BREAK_TARGET: Record<RuleBreak['part'], { tab: Tab; id: string }> = {
   'wheels.front': { tab: 'bike', id: 'ctl-front' },
   frame: { tab: 'bike', id: 'ctl-frame' },
 }
+/** Which tab holds each handle number's slider. */
+const PARAM_TAB: Record<HandleParam, Tab> = {
+  torsoDeg: 'position',
+  headDrop: 'position',
+  armWidth: 'position',
+  handReach: 'position',
+  handHeight: 'position',
+  tail: 'kit',
+}
 
 /** How each posture slider shows its value. */
 const POSTURE_FORMAT: Record<PostureKey, (v: number) => string> = {
@@ -79,6 +95,7 @@ export interface ScreenControl {
 export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenControl {
   let design: CyclistDesign = structuredClone(DEFAULT_CYCLIST)
   let dirty = true
+  let selected: HandleId | null = null
 
   // --- Header
   const header = el('header', 'top-bar')
@@ -90,8 +107,8 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   const sheet = el('section', 'sheet shape-sheet')
   sheet.setAttribute('aria-label', t('shape.sheet'))
   const grid = el('div', 'readouts')
-  const deskR = readout(t('read.desk'))
-  const comfortR = readout(t('read.comfort'))
+  const deskR = readout(t('read.desk'), 'deskEstimate')
+  const comfortR = readout(t('read.comfort'), 'comfort')
   const meter = el('div', 'meter')
   const meterFill = el('div', 'meter-fill')
   meter.append(meterFill)
@@ -100,8 +117,8 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   meter.setAttribute('aria-valuemin', '0')
   meter.setAttribute('aria-valuemax', String(COMFORT.riderLimit))
   comfortR.box.insertBefore(meter, comfortR.sub)
-  const frontalR = readout(t('read.frontal'))
-  const rulesR = readout(t('read.rules'))
+  const frontalR = readout(t('read.frontal'), 'frontalArea')
+  const rulesR = readout(t('read.rules'), 'ruleBox')
   rulesR.sub.textContent = t('book.tcf-tt')
   grid.append(deskR.box, comfortR.box, frontalR.box, rulesR.box)
 
@@ -137,13 +154,23 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   const foot = el('div', 'sheet-foot')
   const reset = el('button', 'text-button', t('shape.reset'))
   reset.type = 'button'
+  const terms = el('button', 'text-button', t('shape.glossary'))
+  terms.type = 'button'
+  terms.addEventListener('click', () => openGlossaryIndex())
   const version = el('span', 'version', `v${__GAME_VERSION__} · ${__BUILD_SHA__} · ${__BUILD_DATE__}`)
-  foot.append(reset, version)
+  foot.append(reset, terms, version)
 
   sheet.append(grid, breaks, tabBar, panelBox, foot)
   host.append(header, sheet)
 
-  const sheetObserver = new ResizeObserver(() => view.setSheetHeight(sheet.offsetHeight))
+  // A one-line hint just above the sheet, over the 3D view.
+  const hint = el('p', 'shape-hint', t('hint.shape'))
+  host.append(hint)
+
+  const sheetObserver = new ResizeObserver(() => {
+    view.setSheetHeight(sheet.offsetHeight)
+    host.style.setProperty('--sheet-h', `${sheet.offsetHeight}px`)
+  })
   sheetObserver.observe(sheet)
 
   let currentTab: Tab = 'position'
@@ -283,6 +310,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
 
   reset.addEventListener('click', () => {
     design = structuredClone(DEFAULT_CYCLIST)
+    selected = null
     syncAll()
     changed()
   })
@@ -294,7 +322,10 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   syncAll()
 
   function jumpTo(part: RuleBreak['part']) {
-    const target = BREAK_TARGET[part]
+    jumpToControl(BREAK_TARGET[part])
+  }
+
+  function jumpToControl(target: { tab: Tab; id: string }) {
     selectTab(target.tab)
     const node = document.getElementById(target.id)
     if (!node) return
@@ -344,8 +375,37 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     )
 
     const strained = c.strain >= COMFORT.strainWarn * c.limit && c.worst ? [STRAIN_HIGHLIGHT[c.worst]] : []
-    view.show({ design, pose: riderPose(design), broken: r.breaks.map((b) => BREAK_HIGHLIGHT[b.part]), strained })
+    const pose = riderPose(design)
+    view.show({
+      design,
+      pose,
+      broken: r.breaks.map((b) => BREAK_HIGHLIGHT[b.part]),
+      strained,
+      handles: availableHandles(design).map((id) => ({ id, point: handlePoint(design, id, pose) })),
+      selected,
+      volumes: ruleVolumes(design, pose, TCF_TIME_TRIAL),
+    })
   }
+
+  // --- Drag handles: a pull moves the same numbers as the sliders.
+  view.setHandleListener({
+    begin(id) {
+      selected = id
+      changed()
+    },
+    move(id, target, project) {
+      design = dragHandle(design, id, target, project)
+      changed()
+    },
+    end(id, tapped) {
+      // A tap shows the handle's slider, the precise way to set it.
+      if (tapped) {
+        const param = handleDef(id).params[0]!
+        jumpToControl({ tab: PARAM_TAB[param], id: `ctl-${param}` })
+      }
+      changed()
+    },
+  })
 
   // --- Loop: recompute at most once a frame, draw every frame while shown.
   let active = false

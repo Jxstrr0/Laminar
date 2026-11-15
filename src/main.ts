@@ -7,6 +7,7 @@ import '@fontsource/spline-sans-mono/latin-400.css'
 import '@fontsource/spline-sans-mono/latin-500.css'
 import './style.css'
 import { t } from './data/strings'
+import { bindGlossary } from './ui/glossary'
 import { bindLoadingScreen } from './ui/loading'
 
 const loading = bindLoadingScreen()
@@ -83,6 +84,8 @@ async function boot(): Promise<void> {
     shape: { host: shapeHost, control: startShapeScreen(shapeHost, createShapeView(shapeHost)) },
     tunnel: { host: tunnelHost, control: startTunnelScreen(tunnelHost, createTunnelView(tunnelHost)) },
   }
+  // Any element marked data-g on any screen opens its glossary entry.
+  bindGlossary(app)
   const nav = buildNav((s) => show(s))
   app.append(nav.root)
   const show = (screen: Screen) => {

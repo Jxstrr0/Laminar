@@ -4,13 +4,21 @@
  * the very cross-section stack the aero model reads, so a longer tail on
  * screen is a longer tail in the sim. Parts that break the rules glow red;
  * the part of the posture that strains the rider most glows amber.
+ *
+ * Drag handles are cobalt dots drawn on top of everything. A press near one
+ * grabs it (the camera stays put), and the screen turns the pull into new
+ * design numbers; a press anywhere else turns the camera as before. The rule
+ * box is drawn as see-through volumes that go red when a part breaks out.
  */
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { BIKE, HELMET, type CyclistDesign } from '../data/cyclist'
+import { HANDLE_TOUCH, type HandleId } from '../data/handles'
 import { FRAME, SKELETON } from '../data/pose'
 import { cyclistShape } from '../sim/geom/cyclist'
+import type { Project, ScreenPoint } from '../sim/geom/handles'
 import type { Point, Pose } from '../sim/geom/pose'
+import type { RuleVolume } from '../sim/geom/ruleBox'
 
 const COLOURS = {
   background: 0xe9edf0,
@@ -29,6 +37,9 @@ const COLOURS = {
   trip: 0xe08a00,
   broken: 0xd2462b,
   strain: 0xe08a00,
+  handle: 0x2456e8,
+  handleRing: 0xffffff,
+  rules: 0x2456e8,
 }
 
 /** Vertical field of view above the sheet, degrees, at least. */
@@ -46,12 +57,26 @@ export interface ShapeViewState {
   pose: Pose
   broken: Highlight[]
   strained: Highlight[]
+  handles: { id: HandleId; point: Point }[]
+  /** The handle last touched, drawn larger. */
+  selected: HandleId | null
+  volumes: RuleVolume[]
+}
+
+/** What the screen hears about a handle pull. */
+export interface HandleListener {
+  begin(id: HandleId): void
+  /** The finger wants the dot at `target` (canvas pixels). */
+  move(id: HandleId, target: ScreenPoint, project: Project): void
+  /** `tapped` when the finger let go without really moving. */
+  end(id: HandleId, tapped: boolean): void
 }
 
 export interface ShapeView {
   show(state: ShapeViewState): void
   frame(dt: number): void
   setSheetHeight(px: number): void
+  setHandleListener(listener: HandleListener): void
   dispose(): void
 }
 
@@ -111,6 +136,13 @@ export function createShapeView(host: HTMLElement): ShapeView {
     trip: mat(COLOURS.trip, 0.6),
     broken: new THREE.MeshStandardMaterial({ color: COLOURS.broken, emissive: COLOURS.broken, emissiveIntensity: 0.35, roughness: 0.5 }),
     strain: new THREE.MeshStandardMaterial({ color: COLOURS.strain, emissive: COLOURS.strain, emissiveIntensity: 0.25, roughness: 0.6 }),
+    // Handles and the rule box draw on top, unlit, so they read from any angle.
+    handle: new THREE.MeshBasicMaterial({ color: COLOURS.handle, depthTest: false, transparent: true }),
+    handleRing: new THREE.MeshBasicMaterial({ color: COLOURS.handleRing, depthTest: false, transparent: true }),
+    rules: new THREE.MeshBasicMaterial({ color: COLOURS.rules, transparent: true, opacity: 0.07, depthWrite: false, side: THREE.DoubleSide }),
+    rulesEdge: new THREE.LineBasicMaterial({ color: COLOURS.rules, transparent: true, opacity: 0.45 }),
+    rulesBroken: new THREE.MeshBasicMaterial({ color: COLOURS.broken, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide }),
+    rulesBrokenEdge: new THREE.LineBasicMaterial({ color: COLOURS.broken, transparent: true, opacity: 0.8 }),
   }
 
   let figure = new THREE.Group()
@@ -283,7 +315,7 @@ export function createShapeView(host: HTMLElement): ShapeView {
     // Helmet, tilted with the head; its centre sits a little above the head's.
     const helmetMat = tint('helmet', M.helmet)
     const helmet = design.helmet.kind === 'aero' ? helmetMesh(design, helmetMat) : roadHelmet(helmetMat)
-    helmet.position.copy(head).add(new THREE.Vector3(-0.02, 0.03, 0))
+    helmet.position.copy(v3(pose.helmet))
     helmet.rotation.z = (pose.headPitchDeg * Math.PI) / 180
     g.add(helmet)
     const visor = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 8, -0.9, 1.8, 1.2, 0.7), M.visor)
@@ -291,6 +323,30 @@ export function createShapeView(host: HTMLElement): ShapeView {
     visor.position.copy(head).add(new THREE.Vector3(0.02, 0, 0))
     visor.rotation.z = (pose.headPitchDeg * Math.PI) / 180
     g.add(visor)
+
+    // The rule box: where the hands and the helmet must stay.
+    for (const vol of state.volumes) {
+      const broken = isBroken(vol.id)
+      const box = new THREE.BoxGeometry(vol.size.x, vol.size.y, vol.size.z)
+      const solid = new THREE.Mesh(box, broken ? M.rulesBroken : M.rules)
+      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(box), broken ? M.rulesBrokenEdge : M.rulesEdge)
+      for (const o of [solid, edges]) {
+        o.position.copy(v3(vol.centre))
+        o.rotation.z = (vol.pitchDeg * Math.PI) / 180
+        o.renderOrder = 5
+        g.add(o)
+      }
+    }
+
+    // Drag handles: a cobalt dot in a white ring, on top of everything.
+    for (const h of state.handles) {
+      const big = h.id === state.selected ? 1.35 : 1
+      const ring = ball(v3(h.point), 0.034 * big, M.handleRing)
+      ring.renderOrder = 10
+      const dot = ball(v3(h.point), 0.024 * big, M.handle)
+      dot.renderOrder = 11
+      g.add(ring, dot)
+    }
     return g
   }
 
@@ -303,9 +359,77 @@ export function createShapeView(host: HTMLElement): ShapeView {
 
   function disposeGroup(group: THREE.Object3D) {
     group.traverse((o) => {
-      if (o instanceof THREE.Mesh) o.geometry.dispose()
+      if (o instanceof THREE.Mesh || o instanceof THREE.LineSegments) o.geometry.dispose()
     })
   }
+
+  // --- Handles: grab one with a press near it; anything else orbits.
+  const canvas = renderer.domElement
+  let handles: ShapeViewState['handles'] = []
+  let listener: HandleListener | null = null
+  let drag: { id: HandleId; pointer: number; offX: number; offY: number; downX: number; downY: number; moved: boolean } | null = null
+  const tmp = new THREE.Vector3()
+  /** World point to canvas pixels, through the camera as drawn. */
+  const project: Project = (p) => {
+    tmp.set(p.x, p.y, p.z).project(camera)
+    return { x: ((tmp.x + 1) / 2) * canvas.clientWidth, y: ((1 - tmp.y) / 2) * canvas.clientHeight }
+  }
+  const local = (e: PointerEvent): ScreenPoint => {
+    const r = canvas.getBoundingClientRect()
+    return { x: e.clientX - r.left, y: e.clientY - r.top }
+  }
+  const nearest = (at: ScreenPoint): { id: HandleId; screen: ScreenPoint } | null => {
+    let best: { id: HandleId; screen: ScreenPoint } | null = null
+    let bestD = HANDLE_TOUCH.hitPx
+    for (const h of handles) {
+      const s = project(h.point)
+      const d = Math.hypot(s.x - at.x, s.y - at.y)
+      if (d <= bestD) {
+        bestD = d
+        best = { id: h.id, screen: s }
+      }
+    }
+    return best
+  }
+  // Capture phase on the host runs before the camera controls see the press.
+  host.addEventListener(
+    'pointerdown',
+    (e) => {
+      if (!listener || e.target !== canvas || !e.isPrimary || drag) return
+      const at = local(e)
+      const hit = nearest(at)
+      if (!hit) return
+      e.stopPropagation()
+      e.preventDefault()
+      canvas.setPointerCapture(e.pointerId)
+      drag = { id: hit.id, pointer: e.pointerId, offX: hit.screen.x - at.x, offY: hit.screen.y - at.y, downX: at.x, downY: at.y, moved: false }
+      listener.begin(hit.id)
+    },
+    { capture: true },
+  )
+  canvas.addEventListener('pointermove', (e) => {
+    const at = local(e)
+    if (!drag) {
+      // Desktop: show a hand over a handle.
+      if (e.pointerType === 'mouse' && e.buttons === 0) canvas.style.cursor = nearest(at) ? 'grab' : ''
+      return
+    }
+    if (e.pointerId !== drag.pointer) return
+    if (!drag.moved && Math.hypot(at.x - drag.downX, at.y - drag.downY) < HANDLE_TOUCH.tapPx) return
+    drag.moved = true
+    canvas.style.cursor = 'grabbing'
+    listener?.move(drag.id, { x: at.x + drag.offX, y: at.y + drag.offY }, project)
+  })
+  const release = (e: PointerEvent) => {
+    if (!drag || e.pointerId !== drag.pointer) return
+    const { id, moved } = drag
+    drag = null
+    canvas.style.cursor = ''
+    resize()
+    listener?.end(id, !moved && e.type === 'pointerup')
+  }
+  canvas.addEventListener('pointerup', release)
+  canvas.addEventListener('pointercancel', release)
 
   let sheetPx = 0
   const resize = () => {
@@ -335,6 +459,7 @@ export function createShapeView(host: HTMLElement): ShapeView {
       disposeGroup(figure)
       figure = build(state)
       scene.add(figure)
+      handles = state.handles
     },
     frame() {
       controls.update()
@@ -342,7 +467,11 @@ export function createShapeView(host: HTMLElement): ShapeView {
     },
     setSheetHeight(px) {
       sheetPx = px
-      resize()
+      // Don't reframe under a finger mid-pull; it catches up on release.
+      if (!drag) resize()
+    },
+    setHandleListener(l) {
+      listener = l
     },
     dispose() {
       observer.disconnect()
