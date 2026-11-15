@@ -99,4 +99,12 @@ describe('the save file', () => {
     expect(back.career).toEqual(newCareer(DEMO_TUNNEL_SEED))
     expect(back.lab.nextRunId).toBe(3)
   })
+
+  it('remembers what the model was built of, and assumes the bench design for older saves', () => {
+    const back = roundTrip(file({ modelDesign: structuredClone(DEFAULT_CYCLIST) }))!
+    expect(back.lab.modelDesign).toEqual(DEFAULT_CYCLIST)
+    const raw = JSON.parse(packSave(file())) as { lab: Record<string, unknown> }
+    delete raw.lab.modelDesign
+    expect(parseSave(JSON.stringify(raw))!.lab.modelDesign).toEqual(SIT_UP_CYCLIST)
+  })
 })

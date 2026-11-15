@@ -10,7 +10,7 @@ import type { CourseSegment } from './field'
 /** How a career starts, and how the brief board works. */
 export const CAREER = {
   /** The firm's money on day one, ₽. */
-  startMoney: 100000,
+  startMoney: 150000,
   /** Day 0 of the career (UTC). */
   start: { year: 2010, month: 3, day: 1 },
   /** Briefs on the board at a time. */

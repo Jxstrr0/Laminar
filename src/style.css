@@ -800,3 +800,25 @@ html, body {
   word-break: break-all;
 }
 .save-code .save-btn { margin-top: 8px; }
+
+/* The tunnel's note when the bench design has moved on from the model (PR 5d): one slim bar. */
+.model-note {
+  position: absolute;
+  z-index: 4;
+  top: calc(108px + var(--safe-t));
+  left: calc(16px + var(--safe-l));
+  right: calc(16px + var(--safe-r));
+  max-width: 520px;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding: 5px 5px 5px 10px;
+  border: 1px solid var(--warn);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  backdrop-filter: blur(6px);
+}
+.model-note-text { flex: 1 1 0; min-width: 0; margin: 0; font-size: 0.78rem; font-weight: 600; line-height: 1.2; }
+.model-note-actions { display: flex; flex: none; gap: 6px; }
+.model-note .save-btn { min-height: 34px; padding: 0 10px; font-size: 0.8rem; }

@@ -100,8 +100,13 @@ function soundOrder(x: unknown): ModelOrder | null {
   return { scale: scale as ModelOrder['scale'], finish, grade, trips, taps: taps === true }
 }
 
-/** The lab's state, or null if it isn't one the game could have written. Notes on runs that aren't on file are dropped. */
-export function soundLab(x: unknown): LabState | null {
+/**
+ * The lab's state, or null if it isn't one the game could have written.
+ * Notes on runs that aren't on file are dropped. A save from before PR 5d
+ * doesn't say what the model was built of; then it was `modelFallback`
+ * (back then the model always matched the bench design).
+ */
+export function soundLab(x: unknown, modelFallback: CyclistDesign): LabState | null {
   if (!isObj(x) || !Array.isArray(x.runs) || !x.runs.every(soundRun) || !isObj(x.notes)) return null
   if (!isCount(x.build) || !soundCrank(x.crank) || !isCount(x.nextRunId) || !isCount(x.balanceRng) || x.balanceRng > 0xffffffff) return null
   const order = soundOrder(x.order)
@@ -117,7 +122,18 @@ export function soundLab(x: unknown): LabState | null {
     if (!design || !soundCrank(n.crank) || !isCount(n.build)) return null
     notes[id] = { design, crank: n.crank, build: n.build }
   }
-  return { runs, notes, order, build: x.build, crank: x.crank, nextRunId: x.nextRunId, balanceRng: x.balanceRng }
+  const modelDesign = x.modelDesign === undefined ? structuredClone(modelFallback) : soundDesign(x.modelDesign)
+  if (!modelDesign) return null
+  return {
+    runs,
+    notes,
+    order,
+    modelDesign,
+    build: x.build,
+    crank: x.crank,
+    nextRunId: x.nextRunId,
+    balanceRng: x.balanceRng,
+  }
 }
 
 const isSeed = (x: unknown): x is number => isCount(x) && x <= 0xffffffff
@@ -150,7 +166,7 @@ export function soundCareer(x: unknown): CareerState | null {
 export function soundSave(x: unknown): SaveFile | null {
   if (!isObj(x) || (x.v !== SAVE_VERSION && x.v !== 1) || !isNum(x.savedAt)) return null
   const design = soundDesign(x.design)
-  const lab = soundLab(x.lab)
+  const lab = design && soundLab(x.lab, design)
   const career = x.v === 1 ? newCareer(DEMO_TUNNEL_SEED) : soundCareer(x.career)
   return design && lab && career ? { v: SAVE_VERSION, savedAt: x.savedAt, design, lab, career } : null
 }
