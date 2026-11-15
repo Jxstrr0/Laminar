@@ -4,6 +4,9 @@
  * Every tuning number for the tunnel lives here, not in the code. Its hidden
  * quirks (blockage, turbulence, sting interference, static wheels and legs)
  * arrive in PR 4.
+ *
+ * Axes in the test section: the air flows along +x, y is up, and the model's
+ * centre sits on the turntable at the origin.
  */
 export const UNIVERSITY_TUNNEL = {
   /** Test section, in metres: length along the flow, width, height. */
@@ -24,6 +27,15 @@ export const UNIVERSITY_TUNNEL = {
    * (standard deviation). Repeat runs and average to beat it.
    */
   balanceNoise: 0.01,
+  /** The yaw turntable: range and steps in degrees, and how fast it turns (degrees per second). */
+  turntable: { min: -20, max: 20, step: 1, rate: 6 },
+  /**
+   * The balance readout on screen settles over about this many seconds (an
+   * exponential average), so the noise shows as a gentle wobble, not flicker.
+   */
+  displaySettle: 0.6,
+  /** Below this air speed (m/s) the balance reads nothing worth showing. */
+  readFrom: 1,
 } as const
 
 /**

@@ -22,3 +22,9 @@ export const STANDARD_MODEL = {
   /** Each part's size is off by this fraction (standard deviation). */
   accuracy: 0.01,
 } as const
+
+/**
+ * The seed for the model you test before contracts arrive (PR 5 gives each
+ * job its own model and seed).
+ */
+export const DEMO_MODEL_SEED = 1

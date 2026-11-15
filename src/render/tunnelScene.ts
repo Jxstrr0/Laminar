@@ -1,16 +1,20 @@
 /**
- * The grey tunnel: the university's test section with a calibration sphere on
- * a sting, the fan at the far end, and a light smoke rake so you can see the
- * air move. Placeholder geometry until the Blender art pass (PR 13).
+ * The grey tunnel: the university's test section with either the calibration
+ * sphere on a sting or your rider model on the yaw turntable, the fan at the
+ * far end, and a light smoke rake round the sphere so you can see the air
+ * move. Placeholder geometry until the Blender art pass (PR 13).
  *
  * The renderer only draws. It reads the air speed and the separation line
  * the sim worked out and never decides anything itself.
  *
- * Axes: the air flows along +x. y is up. The sphere sits at the origin.
+ * Axes: the air flows along +x. y is up. The sphere sits at the origin; the
+ * rider stands on the turntable below it, facing upstream.
  */
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { FRAME } from '../data/pose'
 import { UNIVERSITY_TUNNEL, REFERENCE_SPHERE } from '../data/tunnel'
+import { buildRider, disposeGroup, type RiderState } from './riderFigure'
 
 /** Scene colours: a bright, clean lab (plan section 11). */
 const COLOURS = {
@@ -39,9 +43,11 @@ const SMOKE_TIME_SCALE = 0.08
  * and one side to side, so the smoke draws two slices through the flow.
  */
 const RAKE = { x: -2.2, perArm: 9, spread: 0.24 }
-/** Vertical field of view of the part of the picture you see, in degrees. */
-const PORTRAIT_FOV = 55
-const LANDSCAPE_FOV = 45
+/** Vertical field of view of the space between the header and the sheet, in degrees. */
+const PORTRAIT_FOV = 34
+const LANDSCAPE_FOV = 30
+/** Room the header takes at the top, CSS pixels: the model is centred below it. */
+const HEADER_PX = 64
 /** Fan turns per second at top speed (just for looks). */
 const FAN_REVS_AT_TOP = 6
 /**
@@ -53,11 +59,25 @@ const WAKE_LENGTH = 4
 /** Puffs tumbling in the wake. */
 const WAKE_PUFFS = 90
 
+/** What stands in the test section. */
+export type TunnelModel = { kind: 'sphere' } | { kind: 'rider'; state: RiderState; scale: number }
+
+/** Where the camera starts, from the model's centre (outside the near glass). */
+const CAMERA_OFFSET = { sphere: new THREE.Vector3(-0.85, 0.3, 1.65), rider: new THREE.Vector3(-1.1, 0.5, 2.1) }
+/** The rider model's centre, as a height above the floor at full scale, m. */
+const RIDER_CENTRE_Y = 0.65
+/** The rider bike's middle along its length at full scale (between the tyres' ends), m. */
+const RIDER_MID_X = (FRAME.rearAxleX + FRAME.frontAxleX) / 2
+
 export interface TunnelView {
   /** Draw one frame. speed is the air speed in m/s; dt is real seconds since the last frame. */
   frame(speed: number, dt: number): void
   /** Where the sim says the flow leaves the sphere, in degrees from its nose. */
   setSeparation(deg: number): void
+  /** Put the sphere or a rider model in the test section. */
+  setModel(model: TunnelModel): void
+  /** Turn the turntable, degrees (positive: the air arrives from the rider's right). */
+  setYaw(deg: number): void
   /** Keep the sphere clear of the bottom sheet: pass its height in CSS pixels. */
   setSheetHeight(px: number): void
   dispose(): void
@@ -87,7 +107,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   // camera can back out through it like an observation window. Keep it on
   // that side so the far wall and its windows stay behind the model.
   controls.minDistance = 0.45
-  controls.maxDistance = 3.2
+  controls.maxDistance = 4
   controls.minAzimuthAngle = -1.25
   controls.maxAzimuthAngle = 1.25
   controls.minPolarAngle = 0.35
@@ -132,7 +152,16 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     new THREE.MeshStandardMaterial({ color: COLOURS.turntable, roughness: 0.6, metalness: 0.1 }),
   )
   turntable.position.y = floorY + 0.006
-  scene.add(turntable)
+  // The yaw table turns as one: the disc, a cobalt tick at its upstream edge and the rider model.
+  const yawTable = new THREE.Group()
+  yawTable.add(turntable)
+  const tick = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.004, 0.018), new THREE.MeshBasicMaterial({ color: COLOURS.accent }))
+  tick.position.set(-0.48, floorY + 0.013, 0)
+  yawTable.add(tick)
+  scene.add(yawTable)
+  const mount = new THREE.Group()
+  mount.position.y = floorY + 0.011
+  yawTable.add(mount)
 
   // Ceiling light strips.
   const lightMat = new THREE.MeshBasicMaterial({ color: COLOURS.ceilingLight })
@@ -174,7 +203,10 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     new THREE.SphereGeometry(r, 48, 32),
     new THREE.MeshStandardMaterial({ color: COLOURS.sphere, roughness: 0.35, metalness: 0.05 }),
   )
-  scene.add(sphere)
+  // Everything that belongs to the sphere test, shown or hidden together.
+  const sphereRig = new THREE.Group()
+  scene.add(sphereRig)
+  sphereRig.add(sphere)
 
   const stingMat = new THREE.MeshStandardMaterial({ color: COLOURS.sting, roughness: 0.4, metalness: 0.6 })
   const stingLen = 0.7
@@ -186,7 +218,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   strut.position.set(r + stingLen - 0.01, floorY + strutHeight / 2, 0)
   const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.024, 16, 12), stingMat)
   elbow.position.set(r + stingLen - 0.01, 0, 0)
-  scene.add(sting, strut, elbow)
+  sphereRig.add(sting, strut, elbow)
 
   // --- The fan at the downstream end.
   const fan = new THREE.Group()
@@ -342,13 +374,13 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   let sepRing: THREE.Mesh | null = null
   function placeRing(th: number) {
     if (sepRing) {
-      scene.remove(sepRing)
+      sphereRig.remove(sepRing)
       sepRing.geometry.dispose()
     }
     sepRing = new THREE.Mesh(new THREE.TorusGeometry(r * Math.sin(th) * 1.004, 0.0022, 6, 72), ringMat)
     sepRing.rotation.y = Math.PI / 2
     sepRing.position.x = -r * Math.cos(th)
-    scene.add(sepRing)
+    sphereRig.add(sepRing)
   }
 
   applyWake()
@@ -376,7 +408,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     depthWrite: false,
   })
   const smoke = new THREE.Points(smokeGeo, smokeMat)
-  scene.add(smoke)
+  sphereRig.add(smoke)
   // White smoke on a pale lab is hard to see, so the puffs get a faint grey twin.
   const smokeShadowMat = new THREE.PointsMaterial({
     color: 0x6b7885,
@@ -388,7 +420,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   })
   const smokeShadow = new THREE.Points(smokeGeo, smokeShadowMat)
   smokeShadow.renderOrder = -1
-  scene.add(smokeShadow)
+  sphereRig.add(smokeShadow)
 
   // Puffs churning in the wake: they drift downstream slowly and tumble, so
   // you can see how wide the separated region is.
@@ -409,7 +441,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   const wakeSmoke = new THREE.Points(wakeGeo, smokeMat)
   const wakeShadow = new THREE.Points(wakeGeo, smokeShadowMat)
   wakeShadow.renderOrder = -1
-  scene.add(wakeSmoke, wakeShadow)
+  sphereRig.add(wakeSmoke, wakeShadow)
   let clock = 0
   const placeWake = (advance: number) => {
     const len = WAKE_LENGTH * r
@@ -441,22 +473,62 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     const w = host.clientWidth || 1
     const h = host.clientHeight || 1
     renderer.setSize(w, h, false)
-    // Shift the picture so the sphere sits in the middle of the space above
-    // the sheet. The camera draws a taller picture (window plus sheet) and we
-    // show its top part; the field of view widens to match, so the part we
-    // show keeps the intended FOV instead of looking zoomed in.
+    // Shift the picture so the model sits in the middle of the space between
+    // the header and the sheet. The camera draws a taller picture and we show
+    // part of it; the field of view is set so that space keeps the intended
+    // FOV, so a tall sheet on a short phone shrinks the model instead of
+    // cropping it.
     const sheet = Math.min(sheetPx, h * 0.6)
-    const full = h + sheet
+    const top = Math.min(HEADER_PX, h * 0.1)
+    const above = Math.max(1, h - sheet - top)
+    const full = h + sheet - top
     const visibleFov = h > w ? PORTRAIT_FOV : LANDSCAPE_FOV
     const half = (visibleFov * Math.PI) / 360
-    camera.fov = (360 / Math.PI) * Math.atan(Math.tan(half) * (full / h))
+    camera.fov = (360 / Math.PI) * Math.atan(Math.tan(half) * (full / above))
     camera.aspect = w / full
-    camera.setViewOffset(w, full, 0, sheet, w, h)
+    camera.setViewOffset(w, full, 0, sheet - top, w, h)
     camera.updateProjectionMatrix()
   }
   const observer = new ResizeObserver(resize)
   observer.observe(host)
   resize()
+
+  // --- The rider model on its mount: scaled, facing upstream, on fork posts.
+  const postMat = new THREE.MeshStandardMaterial({ color: COLOURS.sting, roughness: 0.4, metalness: 0.6 })
+  let riderGroup: THREE.Group | null = null
+  let modelKind: TunnelModel['kind'] = 'sphere'
+  function clearRider() {
+    if (!riderGroup) return
+    mount.remove(riderGroup)
+    disposeGroup(riderGroup)
+    riderGroup = null
+  }
+  function showRider(state: RiderState, scale: number) {
+    clearRider()
+    const g = new THREE.Group()
+    const figure = buildRider(state)
+    figure.position.x = -RIDER_MID_X
+    // Two posts clamp the axles to the balance under the floor.
+    for (const axle of [FRAME.rearAxleX, FRAME.frontAxleX]) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, FRAME.wheelRadius, 12), postMat)
+      post.position.set(axle - RIDER_MID_X, FRAME.wheelRadius / 2, 0)
+      g.add(post)
+    }
+    g.add(figure)
+    g.scale.setScalar(scale)
+    // The rider's forward is +x; the air comes from −x, so turn it round.
+    g.rotation.y = Math.PI
+    mount.add(g)
+    riderGroup = g
+  }
+  /** Point the camera at the model, keeping it on the observation-window side. */
+  function aim(kind: TunnelModel['kind'], scale = 1) {
+    const target = kind === 'rider' ? new THREE.Vector3(0, floorY + RIDER_CENTRE_Y * scale, 0) : new THREE.Vector3(0, 0, 0)
+    const offset = CAMERA_OFFSET[kind].clone().multiplyScalar(kind === 'rider' ? scale * 2 : 1)
+    controls.target.copy(target)
+    camera.position.copy(target).add(offset)
+    controls.update()
+  }
 
   return {
     frame(speed, dt) {
@@ -471,7 +543,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
       smokeMat.opacity = 0.9 * visible
       smokeShadowMat.opacity = 0.45 * visible
       ringMat.opacity = visible
-      applyWake()
+      if (modelKind === 'sphere') applyWake()
       if (speed > 0.05) {
         travel += (speed * SMOKE_TIME_SCALE * step) / SAMPLE_DT
         placePuffs(travel)
@@ -483,6 +555,21 @@ export function createTunnelView(host: HTMLElement): TunnelView {
       controls.update()
       renderer.render(scene, camera)
     },
+    setModel(model) {
+      const changed = model.kind !== modelKind
+      modelKind = model.kind
+      sphereRig.visible = model.kind === 'sphere'
+      if (model.kind === 'rider') showRider(model.state, model.scale)
+      else clearRider()
+      renderer.domElement.setAttribute(
+        'aria-label',
+        model.kind === 'rider' ? 'The wind tunnel test section with your rider model on the yaw turntable' : 'The wind tunnel test section with a sphere on a sting',
+      )
+      if (changed) aim(model.kind, model.kind === 'rider' ? model.scale : 1)
+    },
+    setYaw(deg) {
+      yawTable.rotation.y = (deg * Math.PI) / 180
+    },
     setSeparation(deg) {
       if (Number.isFinite(deg)) sepDeg = Math.min(170, Math.max(60, deg))
     },
@@ -491,6 +578,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
       resize()
     },
     dispose() {
+      clearRider()
       observer.disconnect()
       controls.dispose()
       renderer.dispose()
