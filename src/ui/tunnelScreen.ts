@@ -17,7 +17,7 @@ import { sphere } from '../sim/geom/shapes'
 import type { GlossaryId } from '../data/glossary'
 import type { TunnelView } from '../render/tunnelScene'
 import { fixed, scientific } from './format'
-import { bindGlossary, glossaryTerm } from './glossary'
+import { glossaryTerm } from './glossary'
 
 /** The glossary entry for each drag regime word. */
 const REGIME_TERM: Record<Regime, GlossaryId> = { laminar: 'laminar', mixed: 'dragCrisis', turbulent: 'turbulent' }
@@ -97,7 +97,6 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
 
   sheet.append(fanRow, grid, foot)
   app.append(header, sheet)
-  bindGlossary(app)
 
   // Keep the 3D sphere centred in the space above the sheet.
   const sheetObserver = new ResizeObserver(() => view.setSheetHeight(sheet.offsetHeight))

@@ -20,7 +20,9 @@ import { cyclistShape } from '../sim/geom/cyclist'
 import { riderPose } from '../sim/geom/pose'
 import { REFERENCE_TT } from '../sim/views'
 import type { Highlight, ShapeView } from '../render/shapeScene'
+import type { GlossaryId } from '../data/glossary'
 import { fixed } from './format'
+import { openGlossaryIndex, glossaryTerm } from './glossary'
 
 type Tab = 'position' | 'kit' | 'bike'
 type PostureKey = keyof CyclistDesign['posture']
@@ -32,11 +34,13 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
   return node
 }
 
-function readout(label: string): { box: HTMLElement; value: HTMLElement; sub: HTMLElement } {
+function readout(label: string, term: GlossaryId): { box: HTMLElement; value: HTMLElement; sub: HTMLElement } {
   const box = el('div', 'readout')
   const value = el('div', 'readout-value', '–')
   const sub = el('div', 'readout-sub')
-  box.append(el('div', 'readout-label', label), value, sub)
+  const labelBox = el('div', 'readout-label')
+  labelBox.append(glossaryTerm(term, label))
+  box.append(labelBox, value, sub)
   return { box, value, sub }
 }
 
@@ -90,8 +94,8 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   const sheet = el('section', 'sheet shape-sheet')
   sheet.setAttribute('aria-label', t('shape.sheet'))
   const grid = el('div', 'readouts')
-  const deskR = readout(t('read.desk'))
-  const comfortR = readout(t('read.comfort'))
+  const deskR = readout(t('read.desk'), 'deskEstimate')
+  const comfortR = readout(t('read.comfort'), 'comfort')
   const meter = el('div', 'meter')
   const meterFill = el('div', 'meter-fill')
   meter.append(meterFill)
@@ -100,8 +104,8 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   meter.setAttribute('aria-valuemin', '0')
   meter.setAttribute('aria-valuemax', String(COMFORT.riderLimit))
   comfortR.box.insertBefore(meter, comfortR.sub)
-  const frontalR = readout(t('read.frontal'))
-  const rulesR = readout(t('read.rules'))
+  const frontalR = readout(t('read.frontal'), 'frontalArea')
+  const rulesR = readout(t('read.rules'), 'ruleBox')
   rulesR.sub.textContent = t('book.tcf-tt')
   grid.append(deskR.box, comfortR.box, frontalR.box, rulesR.box)
 
@@ -137,8 +141,11 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   const foot = el('div', 'sheet-foot')
   const reset = el('button', 'text-button', t('shape.reset'))
   reset.type = 'button'
+  const terms = el('button', 'text-button', t('shape.glossary'))
+  terms.type = 'button'
+  terms.addEventListener('click', () => openGlossaryIndex())
   const version = el('span', 'version', `v${__GAME_VERSION__} · ${__BUILD_SHA__} · ${__BUILD_DATE__}`)
-  foot.append(reset, version)
+  foot.append(reset, terms, version)
 
   sheet.append(grid, breaks, tabBar, panelBox, foot)
   host.append(header, sheet)
