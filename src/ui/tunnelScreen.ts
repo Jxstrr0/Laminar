@@ -34,8 +34,7 @@
 import { AIR } from '../data/air'
 import type { GlossaryId } from '../data/glossary'
 import { TUFT_VIZ } from '../data/flowViz'
-import { DEMO_MODEL_SEED, STANDARD_MODEL, STANDARD_ORDER } from '../data/model'
-import { SKELETON } from '../data/pose'
+import { DEMO_MODEL_SEED, STANDARD_MODEL } from '../data/model'
 import { CALIBRATION, CRANK_DIAL, DEMO_TUNNEL_SEED, REFERENCE_SPHERE, REFERENCE_WHEEL, RUN_RECORDING, RUN_STATS, TUNNEL_BILLING, UNIVERSITY_QUIRKS, UNIVERSITY_TUNNEL } from '../data/tunnel'
 import { t, type StringKey } from '../data/strings'
 import { dynamicPressure, reynolds } from '../sim/air'
@@ -64,6 +63,7 @@ import { riderPose } from '../sim/geom/pose'
 import { sphere } from '../sim/geom/shapes'
 import { Rng } from '../sim/rng'
 import type { CyclistDesign } from '../data/cyclist'
+import type { LabState } from '../sim/lab'
 import { changedControls } from '../sim/designDiff'
 import { compareRuns, headlineCompare, headlineGroup, legCycle, poolRuns, yawGroups, type YawGroup } from '../sim/runStats'
 import { addSample, newRecorder, runCost, stepRecorder, type Recorder, type Run, type RunSample } from '../sim/run'
@@ -166,7 +166,18 @@ function rangeRow(id: string, label: string, range: { min: number; max: number; 
   return { row, input, target }
 }
 
-export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActive(active: boolean): void } {
+export interface TunnelControl {
+  setActive(active: boolean): void
+  /** The lab's lasting state now, for the save (a run in progress isn't in it). */
+  lab(): LabState
+}
+
+/**
+ * Start the tunnel from the lab's saved state. `onChange` is called when
+ * something worth saving changes: a run ends, a model is ordered, the crank
+ * is set.
+ */
+export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: LabState, onChange: () => void): TunnelControl {
   const spec = UNIVERSITY_TUNNEL
   // The tunnel as the balance reads it, hidden quirks and all.
   const tunnel: TunnelSpec = { ...UNIVERSITY_TUNNEL, quirks: rollQuirks(UNIVERSITY_QUIRKS, DEMO_TUNNEL_SEED) }
@@ -244,7 +255,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   yawCtl.row.append(squareBtn)
 
   // The crank angle of the rider model's fixed legs, picked from a list in the yaw row's head.
-  let crank: number = SKELETON.crankDeg[0]!
+  let crank: number = saved.crank
   const crankBox = el('span', 'crank-box')
   const crankLabel = el('label', 'crank-label', t('crank.label'))
   const crankSel = el('select', 'crank-select')
@@ -471,9 +482,9 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   let designDirty = true
   designStore.subscribe(() => (designDirty = true))
   /** The model on order: what the shop built, and which build it is (each build has its own errors). */
-  let order: ModelOrder = STANDARD_ORDER
-  let build = 0
-  let modelSpec = modelSpecOf(order, DEMO_MODEL_SEED)
+  let order: ModelOrder = { ...saved.order }
+  let build = saved.build
+  let modelSpec = modelSpecOf(order, DEMO_MODEL_SEED + build)
   const showOrder = () => {
     const words = t('shop.open', { scale: order.scale })
     setText(shopBtn, words)
@@ -497,9 +508,11 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
       showOrder()
       showTapsChip()
       placeModel()
+      onChange()
     }),
   )
-  const balanceRng = new Rng(DEMO_MODEL_SEED).fork('balance')
+  showTapsChip()
+  const balanceRng = Rng.from(saved.balanceRng)
   const shown = { cdA: 0, dragN: 0, sideN: 0 }
 
   // --- The air for the instruments.
@@ -540,8 +553,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   }
 
   // --- Runs: the recorder, the session's finished runs and the bill.
-  let rec: Recorder = newRecorder()
-  const runs: Run[] = []
+  let rec: Recorder = { ...newRecorder(), nextId: saved.nextRunId }
+  const runs: Run[] = [...saved.runs]
   let view_: View = 'readouts'
   let chartDirty = true
   /** After a model swap the fan coasts down; no new run starts until it stops. */
@@ -555,6 +568,11 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   const cranks = new Map<number, number>()
   /** Which build of the model each rider run used. */
   const builds = new Map<number, number>()
+  for (const [id, note] of Object.entries(saved.notes)) {
+    designs.set(Number(id), note.design)
+    cranks.set(Number(id), note.crank)
+    builds.set(Number(id), note.build)
+  }
   let runsDirty = true
   new ResizeObserver(() => (runsDirty = true)).observe(compareChart.canvas)
   new ResizeObserver(() => (runsDirty = true)).observe(calChart.canvas)
@@ -592,6 +610,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
       rec = { ...rec, run: null }
       runsDirty = true
       refreshCal()
+      onChange()
     }
     coasting = true
     fan = setFanTarget(fan, 0, spec)
@@ -830,6 +849,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     if (deg === crank) return
     crank = deg
     placeModel()
+    onChange()
   }
 
   function placeModel() {
@@ -1106,6 +1126,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
       if (step.finished) {
         runs.push(step.finished)
         refreshCal()
+        onChange()
         chartDirty = true
         runsDirty = true
       }
@@ -1144,6 +1165,16 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
         last = performance.now()
         raf = requestAnimationFrame(loop)
       } else cancelAnimationFrame(raf)
+    },
+    lab() {
+      const notes: LabState['notes'] = {}
+      for (const r of runs) {
+        const design = designs.get(r.id)
+        const c = cranks.get(r.id)
+        const b = builds.get(r.id)
+        if (design && c !== undefined && b !== undefined) notes[r.id] = { design, crank: c, build: b }
+      }
+      return { runs: [...runs], notes, order: { ...order }, build, crank, nextRunId: rec.nextId, balanceRng: balanceRng.state }
     },
   }
 }

@@ -74,7 +74,7 @@ export const STRINGS = {
   'run.idle': 'Fan up to start a run · ₽ {fee} + power',
   'run.live': 'Run {id} · {time} · ₽ {cost}',
   'run.last': 'Run {id} done · {time} · ₽ {cost}',
-  'run.session': 'Session ₽ {total}',
+  'run.session': 'All runs ₽ {total}',
   'inst.label': 'Flow instruments',
   'inst.wand': 'Wand',
   'inst.wandName': 'Smoke wand',

@@ -98,6 +98,12 @@ quirks you have to learn.
 | Going broke | **Soft landing.** No game over: sell kit, drop back to renting the university tunnel, take small jobs (section 9.8). |
 | Design codes | **Share and challenge.** `LAMD1:` codes share a design; "beat my CdA" challenges on the same brief come in a later PR (with the records board). |
 | Defence tone | **Pods, vehicles, aircraft.** A clearance track and secrecy rules; no espionage layer. |
+| Between jobs | **The lab stays open** (runs cost ₽); no model orders without a job. *(15 Nov 2026, for PR 5)* |
+| Bid promise | **A % drag cut** on the client's current setup, checked as a ceiling on the field result. |
+| Missing the promise | **A slice of the fee per 1 % missed, at most half the fee**, with a small allowance for the field's own spread. |
+| Model orders | **Days pass at once** when you order; the model arrives straight away. |
+| Rivals in PR 5 | **One unnamed firm** bids against you (seeded); the named rivals come in PR 7. |
+| First job guide | **Partner's cards plus a highlighted checklist**, skippable. |
 
 ---
 

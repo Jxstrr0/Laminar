@@ -49,4 +49,19 @@ export default tseslint.config(
       'no-restricted-globals': ['error', 'window', 'document', 'navigator', 'localStorage', 'performance'],
     },
   },
+  {
+    // Saves read and write the sim's state; they never reach into the screens or the 3D.
+    files: ['src/persist/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            { group: ['three', 'three/*'], message: 'Saves must not import three.' },
+            { group: ['**/render/**', '**/ui/**', '**/audio/**'], message: 'Saves hold state, not screens.' },
+          ],
+        },
+      ],
+    },
+  },
 )
