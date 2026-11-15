@@ -21,6 +21,12 @@ const STRINGS = {
   'hint.orbit': 'Drag to look · pinch to zoom',
   'boot.fail': 'Laminar could not start. Reload to try again.',
   'boot.noGl': 'This browser cannot draw 3D (WebGL is off or missing). Try another browser.',
+  'rule.helmetLength': 'Helmet is {value} m long; the {book} allows {limit} m.',
+  'rule.handReach': 'Hands reach {value} m ahead; the {book} allows {limit} m.',
+  'rule.handHeight': 'Hands sit {value} m above the saddle; the {book} allows {limit} m.',
+  'rule.frontWheel': 'A {value} front wheel is not allowed; the {book} allows {limit}.',
+  'rule.tubeAspect': 'Frame tubes are {value} times longer than wide; the {book} allows {limit}.',
+  'book.tcf-tt': 'TCF time-trial rules',
   'studio.credit': '© 2026 Kelbo / Longlight Interactive',
 } as const
 

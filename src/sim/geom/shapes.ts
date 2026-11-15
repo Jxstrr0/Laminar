@@ -145,3 +145,23 @@ export function box(
   })
   return { id, stations, squareness: 1, roughness }
 }
+
+/**
+ * An upright tube with a teardrop profile seen from above (a Kamm-tail frame
+ * tube): `chord` long in the flow, `thickness` wide, cut off at `tailEnd`.
+ */
+export function uprightProfile(
+  id: string,
+  chord: number,
+  thickness: number,
+  height: number,
+  tailEnd = 0.35,
+  roughness = 0,
+): BodySpec {
+  const plan = streamlined(id, chord, thickness, 0.3, tailEnd, roughness)
+  return {
+    ...plan,
+    squareness: 1,
+    stations: plan.stations.map((p) => ({ x: p.x, top: height / 2, bottom: height / 2, half: p.half })),
+  }
+}

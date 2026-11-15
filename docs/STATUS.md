@@ -8,10 +8,25 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 1a | Aero sim core, part 1: shape descriptors and drag (friction with transition, separation, front corners, interference, cavities); the sphere's drag crisis in the tunnel | **Done** (v0.2.0.0) |
 | 1b | Aero sim core, part 2: lift, stall, induced drag, ground effect, yaw forces | **Done** (v0.2.1.0) |
 | 1c | Aero sim core, part 3: truth / tunnel / field split, reference rider, node harness | **Done** (v0.2.2.0) |
-| 2 | Shaping: the cyclist, posture, kit, comfort, rule box, desk estimate | Next |
+| 2a | Shaping, part 1: the cyclist as numbers (posture, helmet, suit, bars, wheels, frame), comfort and power, TCF rule checks, readouts, desk estimate | **Done** (v0.3.0.0) |
+| 2b | Shaping, part 2: the Shape screen (3D rider from the same bodies, slider sheet, readouts, comfort meter) | Next |
+| 2c | Shaping, part 3: drag handles, the rule box drawn in 3D, glossary and tooltips | Not started |
 | 3–14 | See the plan | Not started |
 
 ## Versions
+
+- **0.3.0.0** (PR 2a): the cyclist you'll shape. A design is a set of
+  numbers (back angle, head, arm width, hand reach and height, helmet tail
+  and vents, suit fabric and arm trip strips, drop or aero bars, spoked,
+  deep or disc wheels, round or Kamm-tail tubes) that turns into the bodies
+  the aero model reads. Each choice moves drag the way it does on a real
+  bike: a flatter back is faster, a vented road helmet slower, a rear disc
+  helps in a crosswind. Low positions strain the rider, costing a few per
+  cent of power, and past their limit they can't be held. The Tarnovian
+  Cycling Federation's time-trial rules check helmet length, hand reach
+  and height, front wheels and tube shape. The desk estimate gives a
+  wind-averaged CdA with error bars. Nothing new to see yet; the Shape
+  screen comes next.
 
 - **0.2.2.0** (PR 1c): one truth, three views. The model now gives three
   answers for any design: the hidden truth (full size, in the event's real
