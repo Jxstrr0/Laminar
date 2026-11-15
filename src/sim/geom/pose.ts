@@ -53,7 +53,12 @@ export function twoBone(a: Point, c: Point, l1: number, l2: number, bend: 1 | -1
   return p(a.x + l1 * detCos(theta), a.y + l1 * detSin(theta), a.z + t)
 }
 
-export function riderPose(design: CyclistDesign): Pose {
+/**
+ * Where every joint sits for a design. `crankDeg` turns the cranks (the
+ * near foot's angle; the far one is half a turn on), as on a tunnel model
+ * whose legs are set to an angle; leave it out for the standard pose.
+ */
+export function riderPose(design: CyclistDesign, crankDeg?: number): Pose {
   const s = SKELETON
   const post = design.posture
   const bb = s.bottomBracket
@@ -87,7 +92,8 @@ export function riderPose(design: CyclistDesign): Pose {
     return twoBone(sh, h, s.upperArm, s.forearm, -1)
   }) as [Point, Point]
 
-  const foot = s.crankDeg.map((deg, i) =>
+  const cranks = crankDeg === undefined ? s.crankDeg : [crankDeg, crankDeg + 180]
+  const foot = cranks.map((deg, i) =>
     p(bb.x + s.crank * detCos(-deg * DEG), bb.y + s.crank * detSin(-deg * DEG), i === 0 ? -hw : hw),
   ) as [Point, Point]
   const knee = foot.map((f, i) => twoBone(hip[i]!, f, s.thigh, s.shin, 1)) as [Point, Point]

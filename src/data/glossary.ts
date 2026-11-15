@@ -337,6 +337,13 @@ export const GLOSSARY = defineGlossary({
     aliases: ['calibration', 'calibrate', 'reference body', 'the book'],
     seeAlso: ['dragCrisis', 'blockage', 'turbulenceIntensity', 'tare'],
   },
+  legCycle: {
+    term: 'Pedalling average',
+    short: 'A model’s fixed legs read at one crank angle; real legs go round.',
+    long: 'With one thigh up in the air the legs catch the most wind; with the cranks level, the least. A scale model’s legs are set at one angle, so a single run reads high or low. Run the same design at several crank angles spread over half a turn and average them to see what a pedalling rider gets.',
+    aliases: ['crank angle', 'static legs', 'leg-cycle average', 'pedalling'],
+    seeAlso: ['scaleModel', 'noiseBand'],
+  },
   noiseBand: {
     term: 'Noise band',
     short: 'How far a reading could wander by chance: the error bar on a mean.',

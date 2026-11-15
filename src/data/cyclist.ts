@@ -148,6 +148,19 @@ export const LEGS = {
   shin: { x: 0.9, diameter: 0.1, height: 0.44, wakeTuck: 0.2, wakeUpright: 0.03 },
 }
 
+/**
+ * The legs' drag swings as the cranks go round: most with one thigh up in
+ * the air, least with the cranks level. The legs' frontal height is
+ * multiplied by 1 + amp × cos(2 × (crank − peakDeg)), so it repeats every
+ * half turn and averages to 1 over a pedal stroke. A pedalling rider (the
+ * truth) gets the average; a model with its legs fixed reads at one angle.
+ */
+export const LEG_SWING = {
+  amp: 0.1,
+  /** Crank angle of the most drag, degrees (0 forward, 90 down, as in the pose). */
+  peakDeg: 75,
+}
+
 /** Skinsuit fabric roughness (m) and trip strip height (m) and place (fraction of the arm's depth). */
 export const SUIT = {
   smooth: 0.00002,

@@ -8,13 +8,14 @@ import {
   BIKE,
   HELMET,
   LEGS,
+  LEG_SWING,
   SUIT,
   TORSO,
   TUCK,
   type CyclistDesign,
   type WheelKind,
 } from '../../data/cyclist'
-import { detSin, PI } from '../det'
+import { detCos, detSin, PI } from '../det'
 import { clamp, clamp01, DEG, lerp } from '../num'
 import type { BodySpec, Cavity, LiftingElement, ShapeSpec } from './body'
 import { ellipsoid, streamlinedOval, upright, uprightProfile } from './shapes'
@@ -40,7 +41,20 @@ export function tubeAspect(design: CyclistDesign): number {
   return design.frame === 'kamm' ? BIKE.kammChord : 1
 }
 
-export function cyclistShape(design: CyclistDesign): ShapeSpec {
+/** How much the legs' frontal height swells at a crank angle (1 on average over a stroke). */
+export function legFactor(crankDeg: number): number {
+  return 1 + LEG_SWING.amp * detCos(2 * (crankDeg - LEG_SWING.peakDeg) * DEG)
+}
+
+export interface CyclistShapeOptions {
+  /**
+   * Fix the legs at this crank angle, as on a tunnel model. Leave it out for
+   * a pedalling rider, whose legs' drag averages over the stroke.
+   */
+  crankDeg?: number
+}
+
+export function cyclistShape(design: CyclistDesign, options: CyclistShapeOptions = {}): ShapeSpec {
   const p = design.posture
   const aero = design.bars === 'aero'
   const sine = detSin(p.torsoDeg * DEG)
@@ -119,8 +133,9 @@ export function cyclistShape(design: CyclistDesign): ShapeSpec {
     bodies.push(pos({ ...upright(`upper-arm-${side}`, arm.upper.diameter, arm.upper.height, armSkin), ...trip }, arm.upper.x, upperWake))
     const t = LEGS.thigh
     const s = LEGS.shin
-    bodies.push(pos(upright(`thigh-${side}`, t.diameter, t.height, skin), t.x, lerp(t.wakeTuck, t.wakeUpright, tuck)))
-    bodies.push(pos(upright(`shin-${side}`, s.diameter, s.height, skin), s.x, lerp(s.wakeTuck, s.wakeUpright, tuck)))
+    const swell = options.crankDeg === undefined ? 1 : legFactor(options.crankDeg)
+    bodies.push(pos(upright(`thigh-${side}`, t.diameter, t.height * swell, skin), t.x, lerp(t.wakeTuck, t.wakeUpright, tuck)))
+    bodies.push(pos(upright(`shin-${side}`, s.diameter, s.height * swell, skin), s.x, lerp(s.wakeTuck, s.wakeUpright, tuck)))
   }
 
   // Frame.
