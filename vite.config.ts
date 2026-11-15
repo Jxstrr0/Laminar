@@ -26,7 +26,7 @@ if (!/^\d+\.\d+\.\d+\.\d+$/.test(gameVersion)) {
 
 export default defineConfig({
   // Relative base: the same dist/ works at the root of laminar.longlight.games
-  // and under a sub-path such as jxstrr0.github.io/Laminar-/.
+  // and under a sub-path such as jxstrr0.github.io/Laminar/.
   base: './',
   define: {
     __BUILD_SHA__: JSON.stringify(shortSha()),

@@ -13,7 +13,7 @@
   Tarnovia is its own take, and it doesn't reuse Hull Down's names
   (`docs/NAMES.md`).
 - **Look chosen:** "Cobalt lab", Instrument Sans + Spline Sans Mono (`CLAUDE.md`).
-- **Address chosen:** `laminar.longlight.games`; the repo stays `Jxstrr0/Laminar-`.
+- **Address chosen:** `laminar.longlight.games`; the repo is `Jxstrr0/Laminar` (renamed from `Laminar-`).
 - **Cycling body proposed:** the Tarnovian Cycling Federation (TCF).
 
 ### Revision notes (15 Nov 2026, gap review)
@@ -624,7 +624,7 @@ readout, not colour alone.
 - **Performance:** the tunnel must hold 30+ fps on a 2021 mid-range Android
   with smoke on. The sim computes forces; the renderer only draws. First load
   under 15 MiB (Lombard's cap); venues and later sectors load on demand.
-- **Hosting:** public repo `Jxstrr0/Laminar-` (trailing hyphen kept), GitHub Pages,
+- **Hosting:** public repo `Jxstrr0/Laminar`, GitHub Pages,
   `laminar.longlight.games`, listed on the studio site when playable.
   - A custom subdomain is **its own origin**, separate from
     `jxstrr0.github.io`. Pick the address in PR 0 and keep it: moving later
