@@ -79,7 +79,10 @@ const WAKE_LENGTH = 4
 const WAKE_PUFFS = 90
 
 /** What stands in the test section. */
-export type TunnelModel = { kind: 'sphere' } | { kind: 'rider'; state: RiderState; scale: number }
+export type TunnelModel = ({ kind: 'sphere' } | { kind: 'rider'; state: RiderState; scale: number }) & {
+  /** A tare run: the mount alone, with the model taken off. */
+  tare?: boolean
+}
 
 /** Where the camera starts, from the model's centre (outside the near glass). */
 const CAMERA_OFFSET = { sphere: new THREE.Vector3(-0.85, 0.3, 1.65), rider: new THREE.Vector3(-1.1, 0.5, 2.1) }
@@ -401,6 +404,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     sepRing = new THREE.Mesh(new THREE.TorusGeometry(r * Math.sin(th) * 1.004, 0.0022, 6, 72), ringMat)
     sepRing.rotation.y = Math.PI / 2
     sepRing.position.x = -r * Math.cos(th)
+    sepRing.visible = sphere.visible
     sphereRig.add(sepRing)
   }
 
@@ -558,18 +562,20 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     disposeGroup(riderGroup)
     riderGroup = null
   }
-  function showRider(state: RiderState, scale: number) {
+  function showRider(state: RiderState, scale: number, tare: boolean) {
     clearRider()
     const g = new THREE.Group()
-    const figure = buildRider(state)
-    figure.position.x = -RIDER_MID_X
     // Two posts clamp the axles to the balance under the floor.
     for (const axle of [FRAME.rearAxleX, FRAME.frontAxleX]) {
       const post = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, FRAME.wheelRadius, 12), postMat)
       post.position.set(axle - RIDER_MID_X, FRAME.wheelRadius / 2, 0)
       g.add(post)
     }
-    g.add(figure)
+    if (!tare) {
+      const figure = buildRider(state)
+      figure.position.x = -RIDER_MID_X
+      g.add(figure)
+    }
     flowViz.group.position.x = -RIDER_MID_X
     g.add(flowViz.group)
     g.scale.setScalar(scale)
@@ -689,13 +695,24 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     setModel(model) {
       const changed = model.kind !== modelKind
       modelKind = model.kind
+      const tare = model.tare === true
       sphereRig.visible = model.kind === 'sphere'
-      if (model.kind === 'rider') showRider(model.state, model.scale)
+      // With the sphere off there is nothing to bend the smoke round.
+      for (const part of [sphere, smoke, smokeShadow, wakeSmoke, wakeShadow]) part.visible = !tare
+      if (sepRing) sepRing.visible = !tare
+      if (model.kind === 'rider') showRider(model.state, model.scale, tare)
       else clearRider()
-      wand.visible = instruments.wand && model.kind === 'rider'
+      wand.visible = instruments.wand && model.kind === 'rider' && !tare
+      flowViz.group.visible = !tare
       renderer.domElement.setAttribute(
         'aria-label',
-        model.kind === 'rider' ? 'The wind tunnel test section with your rider model on the yaw turntable' : 'The wind tunnel test section with a sphere on a sting',
+        tare
+          ? model.kind === 'rider'
+            ? 'The wind tunnel test section with the empty rider posts, for a tare run'
+            : 'The wind tunnel test section with the empty sting, for a tare run'
+          : model.kind === 'rider'
+            ? 'The wind tunnel test section with your rider model on the yaw turntable'
+            : 'The wind tunnel test section with a sphere on a sting',
       )
       if (changed) aim(model.kind, model.kind === 'rider' ? model.scale : 1)
     },

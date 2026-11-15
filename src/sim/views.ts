@@ -26,6 +26,7 @@ import { densityAt, viscosityAt } from './field/atmosphere'
 import { courseTime, type RiderSpec, type SegmentResult } from './field/timeTrial'
 import { describeShape, scaleShape, type ShapeDescriptor, type ShapeSpec } from './geom/body'
 import { gaussian } from './noise'
+import { blockageFactor, type MountKind, type TunnelQuirks } from './quirks'
 import { Rng } from './rng'
 
 /** The event a design is built for. */
@@ -93,13 +94,30 @@ export interface ModelSpec {
 
 /** The tunnel as the reading sees it. */
 export interface TunnelSpec {
+  /** Turbulence intensity with no quirks given. */
   turbulence: number
   balanceNoise: number
+  /** The tunnel's hidden quirks; leave out for an ideal tunnel. */
+  quirks?: TunnelQuirks
+  /** Test section, m (needed for blockage). */
+  section?: { width: number; height: number }
 }
 
 export interface RunSpec {
   speed: number
   yawDeg: number
+  /** What holds the model, so its drag joins the reading (with quirks). */
+  mount?: MountKind
+}
+
+/** The test-section air's turbulence: the hidden quirk if there is one. */
+export function tunnelTurbulence(tunnel: TunnelSpec): number {
+  return tunnel.quirks ? tunnel.quirks.turbulence : tunnel.turbulence
+}
+
+/** The mount's own drag area at model size, m² (0 with no quirks). */
+function mountDrag(tunnel: TunnelSpec, run: RunSpec): number {
+  return tunnel.quirks && run.mount ? tunnel.quirks.mountCdA[run.mount] : 0
 }
 
 export interface TunnelReading {
@@ -141,20 +159,32 @@ export interface PreparedModel {
 }
 
 export function prepareModel(spec: ShapeSpec, model: ModelSpec): PreparedModel {
-  const shape = describeShape(buildModel(spec, model))
-  return { shape, scale: model.scale, longest: shape.bodies.reduce((m, b) => Math.max(m, b.length), 0) }
+  return prepareExact(buildModel(spec, model), model.scale)
+}
+
+/** A shape made exactly, with no build errors: a reference body like the calibration sphere. */
+export function prepareExact(spec: ShapeSpec, scale = 1): PreparedModel {
+  const shape = describeShape(spec)
+  return { shape, scale, longest: shape.bodies.reduce((m, b) => Math.max(m, b.length), 0) }
 }
 
 /**
  * One balance reading of a prepared model at a speed and yaw. Draws its
  * noise from `rng`, so repeat readings on the same stream scatter.
+ *
+ * With quirks the reading goes through the tunnel's faults: the air is a
+ * little turbulent, blockage inflates the model's forces, and the mount's
+ * own drag is read along with the model's.
  */
 export function readBalance(prepared: PreparedModel, tunnel: TunnelSpec, run: RunSpec, rng: Rng): TunnelReading {
   const { shape, longest } = prepared
-  const flow: Flow = { density: AIR.density, viscosity: AIR.viscosity, speed: run.speed, turbulence: tunnel.turbulence }
+  const flow: Flow = { density: AIR.density, viscosity: AIR.viscosity, speed: run.speed, turbulence: tunnelTurbulence(tunnel) }
   const forces = aeroForces(shape, flow, { yawDeg: run.yawDeg })
-  const modelCdA = forces.cdA * (1 + tunnel.balanceNoise * gaussian(rng))
-  const cyA = forces.cyA * (1 + tunnel.balanceNoise * gaussian(rng))
+  const q = tunnel.quirks
+  const section = tunnel.section
+  const blocked = q && section ? blockageFactor(q.blockage, shape.frontalArea, section.width * section.height) : 1
+  const modelCdA = (forces.cdA * blocked + mountDrag(tunnel, run)) * (1 + tunnel.balanceNoise * gaussian(rng))
+  const cyA = forces.cyA * blocked * (1 + tunnel.balanceNoise * gaussian(rng))
   const s2 = prepared.scale * prepared.scale
   return {
     modelCdA,
@@ -163,6 +193,14 @@ export function readBalance(prepared: PreparedModel, tunnel: TunnelSpec, run: Ru
     reynolds: (flow.density * flow.speed * longest) / flow.viscosity,
     forces,
   }
+}
+
+/**
+ * A tare reading: the mount with no model on it. The drag area is at model
+ * size, m², and carries the balance's noise like any reading.
+ */
+export function readTare(tunnel: TunnelSpec, run: RunSpec, rng: Rng): number {
+  return mountDrag(tunnel, run) * (1 + tunnel.balanceNoise * gaussian(rng))
 }
 
 /**

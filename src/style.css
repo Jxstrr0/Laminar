@@ -113,6 +113,8 @@ html, body {
 .mount-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
 .mount-row .segmented { flex: 1; margin-top: 0; }
 .mount-row .segment { min-height: 36px; }
+.mount-row .tare-chip { min-height: 36px; background: var(--panel); }
+.mount-row .tare-chip[aria-pressed='true'] { background: var(--accent); }
 .fan-row + .fan-row { margin-top: 10px; }
 /* Tunnel: the run's bill, the view tabs and the live chart. */
 .run-line { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; font-family: var(--font-num); font-size: 0.75rem; color: var(--muted); }
@@ -128,7 +130,7 @@ html, body {
   .sheet:not(.shape-sheet) .fan-row { row-gap: 2px; }
   .sheet:not(.shape-sheet) .fan-slider, .sheet:not(.shape-sheet) .fan-off { height: 36px; min-height: 36px; }
   .mount-row { margin-bottom: 6px; }
-  .mount-row .segment { min-height: 32px; }
+  .mount-row .segment, .mount-row .tare-chip { min-height: 32px; }
   .fan-row + .fan-row { margin-top: 6px; }
   .view-tabs .tab { min-height: 32px; }
   .chart-box, .sheet:not(.shape-sheet) .readouts { margin-top: 8px; }
@@ -142,6 +144,10 @@ html, body {
 .compare-detail { margin: 2px 0 0; font-family: var(--font-num); font-size: 0.72rem; color: var(--muted); }
 .compare .chart { height: 96px; margin-top: 6px; }
 .compare .chart-caption { white-space: normal; }
+/* Calibrate tab: the sphere against the book, then what the runs found. */
+.cal-box .chart { height: 104px; }
+.cal-box .chart-caption { white-space: normal; }
+.cal-box .compare-detail { font-family: inherit; font-size: 0.76rem; margin-top: 4px; }
 .runs-hint { margin: 0 0 6px; font-size: 0.78rem; color: var(--muted); }
 .run-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .run-item {

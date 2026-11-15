@@ -15,10 +15,34 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 3b | The tunnel, part 2: runs (fan-up to fan-down), run billing, live force charts | **Done** (v0.3.4.0) |
 | 3c | The tunnel, part 3: run history with A/B compare and noise bands | **Done** (v0.3.5.0) |
 | 3d | The tunnel, part 4: smoke wand and rake, tufts round the rider | **Done** (v0.3.6.0) |
-| 4 | Correlation: cycling-slice quirks, calibration and tare runs, model scale and quality, Reynolds trap and trip strips, repeat runs, pressure taps and the Cp map | Next |
+| 4a | Correlation, part 1: the tunnel's hidden quirks (blockage, turbulent air, mount drag), tare runs, sphere calibration against the book, corrections on the rider's CdA | **Done** (v0.4.0.0) |
+| 4b | Correlation, part 2: static wheels and legs (crank-angle runs), repeat runs pooled | Next |
+| 4c | Correlation, part 3: model shop (scale, finish, accuracy), the Reynolds trap and trip strips | Not started |
+| 4d | Correlation, part 4: pressure taps and the Cp map | Not started |
 | 5–14 | See the plan | Not started |
 
 ## Versions
+
+- **0.4.0.0** (PR 4a): the tunnel lies, a little. The university tunnel
+  now has hidden faults, drawn once from a seed, that creep into every
+  reading:
+  - **Blockage:** a big model squeezes the air, so it reads high.
+  - **Turbulent air:** the drag crisis comes early.
+  - **Mount drag:** the sting and the rider's posts add drag of their own.
+
+  Your rider’s raw CdA now reads about 10–17 % high. To find out by how
+  much:
+  - **Tare:** take the model off and run the bare mount to measure its
+    drag.
+  - **Calibrate:** a new tab plots the sphere's Cd against Reynolds number
+    over the book curve (a smooth sphere in calm air). Sweep the sphere
+    through the crisis and it tells you how turbulent the air is. Tare the
+    sting and hold a few slow speeds, and it finds the blockage too.
+
+  Once a tare or calibration is done, the rider's CdA readout takes off
+  what's known and shows the raw number beside it. "Calibration run" joins
+  the glossary. Static wheels and legs, the model shop and the Cp map come
+  in 4b to 4d.
 
 - **0.3.6.0** (PR 3d): see the air. Four chips sit over the tunnel view
   when your rider is on the turntable:
