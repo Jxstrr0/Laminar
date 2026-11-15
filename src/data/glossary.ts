@@ -330,6 +330,13 @@ export const GLOSSARY = defineGlossary({
     aliases: ['tare', 'tare drag'],
     seeAlso: ['sting', 'forceBalance'],
   },
+  noiseBand: {
+    term: 'Noise band',
+    short: 'How far a reading could wander by chance: the error bar on a mean.',
+    long: 'Every balance reading wobbles a little. Average many readings and the mean settles, and the band shows how sure that mean is: two standard errors either side, about 95 % sure. If two runs differ by less than their bands combined, the change may be nothing but noise. Holding a setting longer narrows the band.',
+    aliases: ['error bar', 'standard error', 'repeatability', 'noise'],
+    seeAlso: ['forceBalance', 'scaleModel'],
+  },
   blockage: {
     term: 'Blockage',
     short: 'When the model fills too much of the test section.',

@@ -8,6 +8,23 @@
 export interface ChartPoint {
   x: number
   y: number
+  /** Ends of an error bar (a noise band), drawn when given. */
+  lo?: number
+  hi?: number
+}
+
+/**
+ * How a series is drawn. Marks differ in shape as well as colour, so A and B
+ * read apart without relying on colour.
+ * - dot: bold filled dots (this run, or run A)
+ * - ring: hollow rings (run B)
+ * - faint: small grey dots (the last run, for comparison)
+ */
+export interface ChartSeries {
+  points: ChartPoint[]
+  mark: 'dot' | 'ring' | 'faint'
+  /** Ring the newest point. */
+  latest?: boolean
 }
 
 export interface ChartAxis {
@@ -22,12 +39,25 @@ export interface ChartAxis {
 export interface ChartSpec {
   x: ChartAxis
   y: ChartAxis
-  /** This run's points, drawn bold. */
-  current: ChartPoint[]
-  /** The last run's points, drawn faint for comparison. */
-  previous: ChartPoint[]
-  /** What to say when there's nothing to draw yet. */
-  empty: string
+  series: ChartSeries[]
+  /** The chart in words: shown under it and read out by screen readers. */
+  caption: string
+}
+
+function fmt(v: number, a: ChartAxis): string {
+  return v.toLocaleString('en-CA', { minimumFractionDigits: a.digits, maximumFractionDigits: a.digits })
+}
+
+/** A value with its unit ("0.236 m²", "15°"). */
+export function withUnit(v: number, a: ChartAxis): string {
+  return a.unit === '°' ? `${fmt(v, a)}°` : `${fmt(v, a)} ${a.unit}`
+}
+
+/** "CdA 0.236 m² at yaw 15° · 28 points", or `empty` with no points. */
+export function describeLast(spec: Pick<ChartSpec, 'x' | 'y'>, points: readonly ChartPoint[], empty: string): string {
+  const last = points[points.length - 1]
+  if (!last) return empty
+  return `${spec.y.label} ${withUnit(last.y, spec.y)} at ${spec.x.label.toLowerCase()} ${withUnit(last.x, spec.x)} · ${points.length} points`
 }
 
 /** Round, readable tick values covering min..max. */
@@ -52,12 +82,7 @@ export function createChart(caption: HTMLElement): { canvas: HTMLCanvasElement; 
   const ctx = canvas.getContext('2d')
 
   function draw(spec: ChartSpec) {
-    const fmt = (v: number, a: ChartAxis) => v.toLocaleString('en-CA', { minimumFractionDigits: a.digits, maximumFractionDigits: a.digits })
-    const withUnit = (v: number, a: ChartAxis) => (a.unit === '°' ? `${fmt(v, a)}°` : `${fmt(v, a)} ${a.unit}`)
-    const last = spec.current[spec.current.length - 1]
-    const words = last
-      ? `${spec.y.label} ${withUnit(last.y, spec.y)} at ${spec.x.label.toLowerCase()} ${withUnit(last.x, spec.x)} · ${spec.current.length} points`
-      : spec.empty
+    const words = spec.caption
     if (caption.textContent !== words) caption.textContent = words
     canvas.setAttribute('aria-label', words)
     if (!ctx) return
@@ -73,10 +98,11 @@ export function createChart(caption: HTMLElement): { canvas: HTMLCanvasElement; 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, w, h)
 
-    const all = [...spec.current, ...spec.previous]
+    const yOf = (p: ChartPoint) => p.y
+    const all = spec.series.flatMap((s) => s.points)
     const fit = (axis: ChartAxis, pick: (p: ChartPoint) => number): [number, number] => {
-      let lo = axis.min ?? Math.min(...all.map(pick))
-      let hi = axis.max ?? Math.max(...all.map(pick))
+      let lo = axis.min ?? Math.min(...all.map(pick), ...(pick === yOf ? all.map((p) => p.lo ?? p.y) : []))
+      let hi = axis.max ?? Math.max(...all.map(pick), ...(pick === yOf ? all.map((p) => p.hi ?? p.y) : []))
       if (!Number.isFinite(lo) || !Number.isFinite(hi)) [lo, hi] = [axis.min ?? 0, axis.max ?? 1]
       if (hi - lo < 1e-9) {
         const pad = Math.abs(hi) * 0.05 || 1
@@ -90,7 +116,7 @@ export function createChart(caption: HTMLElement): { canvas: HTMLCanvasElement; 
       return [lo, hi]
     }
     const [x0, x1] = fit(spec.x, (p) => p.x)
-    const [y0, y1] = fit(spec.y, (p) => p.y)
+    const [y0, y1] = fit(spec.y, yOf)
 
     const font = getComputedStyle(document.documentElement).getPropertyValue('--font-num').trim() || 'monospace'
     ctx.font = `10px ${font}`
@@ -125,26 +151,52 @@ export function createChart(caption: HTMLElement): { canvas: HTMLCanvasElement; 
       ctx.fillText(fmt(v, spec.x), x, h - pad.bottom + 4)
     }
 
-    // The last run, faint; this run, bold; the newest point ringed.
-    const dots = (pts: ChartPoint[], colour: string, r: number) => {
+    // Faint series first, so the bold ones sit on top.
+    const accent = token('--accent')
+    const order = [...spec.series].sort((p, q) => Number(q.mark === 'faint') - Number(p.mark === 'faint'))
+    for (const series of order) {
+      const faint = series.mark === 'faint'
+      const colour = faint ? token('--muted') : accent
+      ctx.globalAlpha = faint ? 0.45 : 1
+      ctx.strokeStyle = colour
       ctx.fillStyle = colour
-      for (const p of pts) {
+      for (const p of series.points) {
+        const x = px(p.x)
+        const y = py(p.y)
+        if (p.lo !== undefined && p.hi !== undefined) {
+          // The noise band as an error bar with small caps.
+          ctx.lineWidth = 1.5
+          ctx.beginPath()
+          ctx.moveTo(x, py(p.lo))
+          ctx.lineTo(x, py(p.hi))
+          ctx.moveTo(x - 3, py(p.lo))
+          ctx.lineTo(x + 3, py(p.lo))
+          ctx.moveTo(x - 3, py(p.hi))
+          ctx.lineTo(x + 3, py(p.hi))
+          ctx.stroke()
+        }
         ctx.beginPath()
-        ctx.arc(px(p.x), py(p.y), r, 0, Math.PI * 2)
-        ctx.fill()
+        if (series.mark === 'ring') {
+          ctx.lineWidth = 1.75
+          ctx.fillStyle = token('--panel')
+          ctx.arc(x, y, 3.5, 0, Math.PI * 2)
+          ctx.fill()
+          ctx.stroke()
+          ctx.fillStyle = colour
+        } else {
+          ctx.arc(x, y, faint ? 2 : 2.5, 0, Math.PI * 2)
+          ctx.fill()
+        }
+      }
+      const last = series.points[series.points.length - 1]
+      if (series.latest && last) {
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.arc(px(last.x), py(last.y), 5.5, 0, Math.PI * 2)
+        ctx.stroke()
       }
     }
-    ctx.globalAlpha = 0.45
-    dots(spec.previous, token('--muted'), 2)
     ctx.globalAlpha = 1
-    dots(spec.current, token('--accent'), 2.5)
-    if (last) {
-      ctx.strokeStyle = token('--accent')
-      ctx.lineWidth = 2
-      ctx.beginPath()
-      ctx.arc(px(last.x), py(last.y), 5.5, 0, Math.PI * 2)
-      ctx.stroke()
-    }
   }
 
   return { canvas, draw }

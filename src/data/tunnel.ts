@@ -76,3 +76,19 @@ export const REFERENCE_SPHERE = {
   /** Diameter in metres. */
   diameter: 0.25,
 } as const
+
+/**
+ * Reading runs side by side (plan section 7.3). Readings taken at rest are
+ * grouped by yaw; a group's noise band is ±z standard errors of its mean.
+ * A change counts as real only when it is bigger than the combined band.
+ */
+export const RUN_STATS = {
+  /** Standard errors either side of a mean: 2 is about 95 % confidence. */
+  z: 2,
+  /** Fewer settled readings than this at a yaw and the group isn't trusted. */
+  minSamples: 4,
+  /** Yaw angles closer than this (degrees) count as the same setting. */
+  yawTolerance: 0.5,
+  /** Air speeds closer than this (m/s) count as the same setting. */
+  speedTolerance: 0.25,
+}

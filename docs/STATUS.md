@@ -13,11 +13,20 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 2c | Shaping, part 3: drag handles, the rule box drawn in 3D, glossary and tooltips | **Done** (v0.3.2.0) |
 | 3a | The tunnel, part 1: your design on the yaw turntable at 1:2, live balance readouts (model drag, side force, full-size CdA), Sphere / Your rider switch | **Done** (v0.3.3.0) |
 | 3b | The tunnel, part 2: runs (fan-up to fan-down), run billing, live force charts | **Done** (v0.3.4.0) |
-| 3c | The tunnel, part 3: run history with A/B compare and noise bands | Next |
-| 3d | The tunnel, part 4: smoke wand and rake, tufts round the rider | Not started |
+| 3c | The tunnel, part 3: run history with A/B compare and noise bands | **Done** (v0.3.5.0) |
+| 3d | The tunnel, part 4: smoke wand and rake, tufts round the rider | Next |
 | 4–14 | See the plan | Not started |
 
 ## Versions
+
+- **0.3.5.0** (PR 3c): is it real, or is it noise? A new Runs tab lists
+  the session's runs, each with its CdA and noise band. Tap two to compare
+  them: the first is A, the second B. The report says whether B is lower
+  or higher than A beyond the noise, or within it, and lists what changed
+  in the design between the two. A small chart shows both runs' readings
+  at each yaw, with error bars (A as dots, B as rings). Only readings taken
+  with the fan and table settled count, and holding a setting longer
+  narrows the band. "Noise band" joins the glossary.
 
 - **0.3.4.0** (PR 3b): tunnel runs and the bill. Every fan-up to fan-down
   is now a run: the balance logs a reading four times a second, and the

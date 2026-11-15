@@ -13,7 +13,8 @@
  * Every fan-up to fan-down is a run (src/sim/run.ts): the balance logs a
  * sample four times a second, and the run is billed in rubles for the fan's
  * power plus a fee. The sheet shows the bill as it grows, and its tabs swap
- * the readouts for live charts of this run against the last one.
+ * the readouts for live charts of this run against the last one, or for the
+ * session's runs: tap two to compare them against the balance's noise.
  *
  * The sim runs on a fixed 60 Hz step; the screen draws whenever the browser
  * gives it a frame and shows whatever the sim says.
@@ -31,11 +32,14 @@ import { cyclistShape } from '../sim/geom/cyclist'
 import { riderPose } from '../sim/geom/pose'
 import { sphere } from '../sim/geom/shapes'
 import { Rng } from '../sim/rng'
+import type { CyclistDesign } from '../data/cyclist'
+import { changedControls } from '../sim/designDiff'
+import { compareRuns, headlineCompare, headlineGroup, yawGroups, type YawGroup } from '../sim/runStats'
 import { addSample, newRecorder, runCost, stepRecorder, type Recorder, type Run, type RunSample } from '../sim/run'
 import { setYawTarget, stepTurntable, turntableAtRest, type TurntableState } from '../sim/turntable'
 import { prepareModel, readBalance, type PreparedModel } from '../sim/views'
 import type { TunnelView } from '../render/tunnelScene'
-import { createChart, type ChartPoint } from './chart'
+import { createChart, describeLast, type ChartPoint } from './chart'
 import { designStore } from './designStore'
 import { fixed, scientific } from './format'
 import { glossaryTerm } from './glossary'
@@ -47,11 +51,12 @@ const REGIME_TERM: Record<Regime, GlossaryId> = { laminar: 'laminar', mixed: 'dr
 const STEP = 1 / 60
 
 type Mount = 'rider' | 'sphere'
-type View = 'readouts' | 'time' | 'yaw'
+type View = 'readouts' | 'time' | 'yaw' | 'runs'
 const VIEWS: { value: View; key: StringKey }[] = [
   { value: 'readouts', key: 'view.readouts' },
   { value: 'time', key: 'view.time' },
   { value: 'yaw', key: 'view.yaw' },
+  { value: 'runs', key: 'view.runs' },
 ]
 
 /** Seconds as m:ss. */
@@ -210,11 +215,35 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   const chart = createChart(chartCaption)
   chartBox.append(chart.canvas, chartCaption)
 
+  // Runs: the session's runs, and A against B.
+  const runsBox = el('div', 'runs-box')
+  runsBox.setAttribute('role', 'tabpanel')
+  runsBox.setAttribute('aria-labelledby', 'view-runs')
+  const compareBox = el('div', 'compare')
+  const verdict = el('p', 'compare-verdict')
+  verdict.setAttribute('aria-live', 'polite')
+  const detail = el('p', 'compare-detail')
+  const changed = el('p', 'compare-detail')
+  // The chart's own words go on the canvas label; the caption shown keeps
+  // "noise band" as a tappable glossary term, with the count updated in place.
+  const compareChart = createChart(el('span'))
+  const compareCaption = el('p', 'chart-caption')
+  const countText = document.createTextNode('')
+  compareCaption.append(
+    ...t('runs.chart')
+      .split(/(noise band|\{count\})/)
+      .map((part) => (part === 'noise band' ? glossaryTerm('noiseBand', part) : part === '{count}' ? countText : document.createTextNode(part))),
+  )
+  compareBox.append(verdict, detail, changed, compareChart.canvas, compareCaption)
+  const runsHint = el('p', 'runs-hint')
+  const runList = el('ul', 'run-list')
+  runsBox.append(compareBox, runsHint, runList)
+
   const foot = el('div', 'sheet-foot')
   const version = el('span', 'version', `v${__GAME_VERSION__} · ${__BUILD_SHA__} · ${__BUILD_DATE__}`)
   foot.append(el('span', 'hint', t('hint.orbit')), version)
 
-  sheet.append(mountRow, fanCtl.row, yawCtl.row, runLine, viewBar, riderGrid, sphereGrid, chartBox, foot)
+  sheet.append(mountRow, fanCtl.row, yawCtl.row, runLine, viewBar, riderGrid, sphereGrid, chartBox, runsBox, foot)
   app.append(header, sheet)
 
   // Keep the 3D model centred in the space above the sheet.
@@ -275,12 +304,23 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   /** After a model swap the fan coasts down; no new run starts until it stops. */
   let coasting = false
   new ResizeObserver(() => (chartDirty = true)).observe(chart.canvas)
+  /** Runs picked for comparison, by id: A first, then B. */
+  let picks: number[] = []
+  /** The design each rider run tested, by run id, so the report can say what changed. */
+  const designs = new Map<number, CyclistDesign>()
+  let runsDirty = true
+  new ResizeObserver(() => (runsDirty = true)).observe(compareChart.canvas)
+  const yawAxes = {
+    x: { label: t('axis.yaw'), unit: '°', digits: 0, min: spec.turntable.min, max: spec.turntable.max },
+    y: { label: t('axis.cda'), unit: 'm²', digits: 3 },
+  }
 
   /** End the run in progress (the model is being swapped) and stop the fan. */
   function endRun() {
     if (rec.run) {
       runs.push(rec.run)
       rec = { ...rec, run: null }
+      runsDirty = true
     }
     coasting = true
     fan = setFanTarget(fan, 0, spec)
@@ -305,6 +345,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   function showRun() {
     const live = rec.run
     const done = runs[runs.length - 1]
+    if (live && mount === 'rider' && !designs.has(live.id)) designs.set(live.id, structuredClone(designStore.get()))
     if (live) setText(runNow, t('run.live', { id: live.id, time: clock(live.duration), cost: fixed(runCost(live), 0) }))
     else if (done) setText(runNow, t('run.last', { id: done.id, time: clock(done.duration), cost: fixed(runCost(done), 0) }))
     else setText(runNow, t('run.idle', { fee: fixed(TUNNEL_BILLING.perRun, 0) }))
@@ -323,9 +364,11 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     viewButtons[2]!.hidden = mount !== 'rider'
     riderGrid.hidden = !(view_ === 'readouts' && mount === 'rider')
     sphereGrid.hidden = !(view_ === 'readouts' && mount === 'sphere')
-    chartBox.hidden = view_ === 'readouts'
+    chartBox.hidden = view_ === 'readouts' || view_ === 'runs'
     chartBox.setAttribute('aria-labelledby', `view-${view_}`)
+    runsBox.hidden = view_ !== 'runs'
     chartDirty = true
+    runsDirty = true
     if (view_ === 'readouts') shownSpeed = -1
   }
   viewBar.addEventListener('keydown', (e) => {
@@ -338,31 +381,103 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   })
 
   function drawChart() {
-    if (view_ === 'readouts' || !chartDirty) return
+    if (view_ === 'readouts' || view_ === 'runs' || !chartDirty) return
     chartDirty = false
     // This run bold and the last one faint; with the fan off, the last two.
     const same = runs.filter((r) => r.model === mount).reverse()
     const [bold, faint] = rec.run ? [rec.run.samples, same[0]?.samples ?? []] : [same[0]?.samples ?? [], same[1]?.samples ?? []]
     if (view_ === 'time') {
       const pts = (s: RunSample[]): ChartPoint[] => s.map((p) => ({ x: p.t, y: p.dragN }))
+      const axes = { x: { label: t('axis.time'), unit: 's', digits: 0, min: 0 }, y: { label: t('axis.drag'), unit: 'N', digits: 1, min: 0 } }
       chart.draw({
-        x: { label: t('axis.time'), unit: 's', digits: 0, min: 0 },
-        y: { label: t('axis.drag'), unit: 'N', digits: 1, min: 0 },
-        current: pts(bold),
-        previous: pts(faint),
-        empty: t('chart.emptyTime'),
+        ...axes,
+        series: [{ points: pts(faint), mark: 'faint' }, { points: pts(bold), mark: 'dot', latest: true }],
+        caption: describeLast(axes, pts(bold), t('chart.emptyTime')),
       })
     } else {
       // Only points taken with the fan and table settled: CdA against yaw, not against a moving table.
       const pts = (s: RunSample[]): ChartPoint[] => s.filter((p) => p.steady).map((p) => ({ x: p.yawDeg, y: p.cdA }))
       chart.draw({
-        x: { label: t('axis.yaw'), unit: '°', digits: 0, min: spec.turntable.min, max: spec.turntable.max },
-        y: { label: t('axis.cda'), unit: 'm²', digits: 3 },
-        current: pts(bold),
-        previous: pts(faint),
-        empty: t('chart.emptyYaw'),
+        ...yawAxes,
+        series: [{ points: pts(faint), mark: 'faint' }, { points: pts(bold), mark: 'dot', latest: true }],
+        caption: describeLast(yawAxes, pts(bold), t('chart.emptyYaw')),
       })
     }
+  }
+
+  // --- The Runs tab: the list, and A against B.
+  const groupWords = (g: YawGroup | null) =>
+    g
+      ? t('runs.rowCdA', { cda: fixed(g.mean, 4), band: fixed(g.band, 4), yaw: fixed(g.yawDeg, 0), speed: fixed(g.speed, 0), n: g.n })
+      : t('runs.rowNone')
+
+  function togglePick(id: number) {
+    if (picks.includes(id)) picks = picks.filter((p) => p !== id)
+    else picks = picks.length < 2 ? [...picks, id] : [picks[0]!, id]
+    runsDirty = true
+  }
+
+  function drawRuns() {
+    if (view_ !== 'runs' || !runsDirty) return
+    runsDirty = false
+    // The list, newest first. Rebuilt only when something changed.
+    runList.replaceChildren(
+      ...[...runs].reverse().map((run) => {
+        const li = el('li')
+        const b = el('button', 'run-item')
+        b.type = 'button'
+        const slot = picks.indexOf(run.id)
+        b.setAttribute('aria-pressed', String(slot >= 0))
+        const badge = el('span', 'run-badge', slot === 0 ? 'A' : slot === 1 ? 'B' : '')
+        const text = el('span', 'run-text')
+        const model = t(run.model === 'sphere' ? 'mount.sphere' : 'mount.rider')
+        text.append(
+          el('span', 'run-title', t('runs.row', { id: run.id, model, time: clock(run.duration), cost: fixed(runCost(run), 0) })),
+          el('span', 'run-sub', groupWords(headlineGroup(yawGroups(run)))),
+        )
+        b.append(badge, text)
+        b.addEventListener('click', () => togglePick(run.id))
+        li.append(b)
+        return li
+      }),
+    )
+    setText(runsHint, runs.length === 0 ? t('runs.empty') : picks.length < 2 ? t('runs.pick') : '')
+    runsHint.hidden = runsHint.textContent === ''
+
+    const a = runs.find((r) => r.id === picks[0])
+    const b = runs.find((r) => r.id === picks[1])
+    compareBox.hidden = !a || !b
+    if (!a || !b) return
+    if (a.model !== b.model) {
+      setText(verdict, t('runs.otherModel'))
+      detail.hidden = changed.hidden = true
+    } else {
+      const head = headlineCompare(compareRuns(a, b))
+      if (!head) setText(verdict, t('runs.noShared'))
+      else {
+        const slots = { delta: fixed(Math.abs(head.delta), 4), band: fixed(head.band, 4), yaw: fixed(head.yawDeg, 0) }
+        setText(verdict, t(head.verdict === 'lower' ? 'runs.lower' : head.verdict === 'higher' ? 'runs.higher' : head.verdict === 'noise' ? 'runs.noise' : 'runs.tooFew', slots))
+        setText(detail, t('runs.detail', { a: fixed(head.a.mean, 4), bandA: fixed(head.a.band, 4), b: fixed(head.b.mean, 4), bandB: fixed(head.b.band, 4) }))
+      }
+      detail.hidden = !head
+      const da = designs.get(a.id)
+      const db = designs.get(b.id)
+      const list = da && db ? changedControls(da, db) : []
+      changed.hidden = a.model !== 'rider' || !da || !db
+      setText(changed, list.length ? t('runs.changed', { list: list.map((id) => t(`ctl.${id}`)).join(', ') }) : t('runs.same'))
+    }
+    // A and B side by side by yaw, each mean with its noise band; B nudged right so the bars don't hide each other.
+    const pts = (groups: YawGroup[], nudge: number): ChartPoint[] =>
+      groups.map((g) => ({ x: g.yawDeg + nudge, y: g.mean, lo: g.mean - g.band, hi: g.mean + g.band }))
+    const ga = yawGroups(a)
+    const gb = yawGroups(b)
+    const shared = a.model === b.model ? compareRuns(a, b).length : 0
+    countText.data = String(shared)
+    compareChart.draw({
+      ...yawAxes,
+      series: [{ points: pts(ga, -0.4), mark: 'dot' }, { points: pts(gb, 0.4), mark: 'ring' }],
+      caption: `${verdict.textContent} · ${t('runs.chart', { count: shared })}`,
+    })
   }
 
   function placeModel() {
@@ -461,6 +576,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
       if (step.finished) {
         runs.push(step.finished)
         chartDirty = true
+        runsDirty = true
       }
       if (step.sampleDue) {
         const sample = takeSample()
@@ -477,6 +593,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     } else updateSphere()
     showRun()
     drawChart()
+    drawRuns()
     view.setYaw(mount === 'rider' ? table.angle : 0)
     view.frame(fan.speed, dt)
     raf = requestAnimationFrame(loop)

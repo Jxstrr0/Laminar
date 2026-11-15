@@ -119,7 +119,7 @@ html, body {
 .run-now { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .run-total { white-space: nowrap; color: var(--ink); }
 .view-tabs { margin-top: 6px; }
-.view-tabs .tab { min-height: 36px; font-size: 0.85rem; }
+.view-tabs .tab { min-height: 36px; font-size: 0.82rem; white-space: nowrap; padding: 0 2px; }
 .chart-box { margin-top: 12px; }
 .chart { display: block; width: 100%; height: 118px; }
 /* Short phones: tighten the tunnel sheet so the model keeps some room. */
@@ -135,6 +135,29 @@ html, body {
   .chart { height: 96px; }
   .sheet:not(.shape-sheet) .readout { padding: 5px 10px; }
 }
+/* Runs tab: A against B, then the session's runs. It scrolls inside itself. */
+.runs-box { margin-top: 8px; max-height: min(28vh, 230px); overflow-y: auto; overscroll-behavior: contain; }
+.compare { padding: 8px 10px; border-radius: 10px; background: var(--panel-2); margin-bottom: 8px; }
+.compare-verdict { margin: 0; font-weight: 600; font-size: 0.85rem; }
+.compare-detail { margin: 2px 0 0; font-family: var(--font-num); font-size: 0.72rem; color: var(--muted); }
+.compare .chart { height: 96px; margin-top: 6px; }
+.compare .chart-caption { white-space: normal; }
+.runs-hint { margin: 0 0 6px; font-size: 0.78rem; color: var(--muted); }
+.run-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.run-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: var(--tap);
+  padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--panel); color: var(--ink); font: inherit; text-align: left; cursor: pointer;
+}
+.run-item[aria-pressed='true'] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.run-badge {
+  flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+  border: 1.5px dashed var(--line); font-weight: 700; font-size: 0.8rem; color: var(--accent);
+}
+.run-item[aria-pressed='true'] .run-badge { border: 2px solid var(--accent); }
+.run-text { display: grid; min-width: 0; }
+.run-title { font-size: 0.82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.run-sub { font-family: var(--font-num); font-size: 0.7rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chart-caption { margin: 4px 0 0; font-family: var(--font-num); font-size: 0.7rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fan-head { grid-area: head; display: flex; justify-content: space-between; align-items: baseline; }
 .fan-label { font-weight: 600; font-size: 1rem; }
