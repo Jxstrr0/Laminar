@@ -6,13 +6,18 @@
  */
 import { DESIGN_CHOICES, PART_RANGE, POSTURE_RANGE, type CyclistDesign } from '../data/cyclist'
 import { MODEL_FINISH, MODEL_GRADE, MODEL_SCALES } from '../data/model'
-import { CRANK_DIAL } from '../data/tunnel'
+import { CRANK_DIAL, DEMO_TUNNEL_SEED } from '../data/tunnel'
+import { briefTemplate, newCareer, type Brief, type CareerState, type Job } from '../sim/career'
 import type { LabState, RunNote } from '../sim/lab'
 import type { ModelOrder } from '../sim/modelShop'
 import type { Run, RunSample } from '../sim/run'
 
-/** The save format's version. A later format adds a step that brings v1 files up to date. */
-export const SAVE_VERSION = 1
+/**
+ * The save format's version. v2 (PR 5c) added the career; a v1 file is
+ * brought up to date with a fresh career on the seed the tunnel used before
+ * careers, so its calibrations still hold.
+ */
+export const SAVE_VERSION = 2
 
 export interface SaveFile {
   v: typeof SAVE_VERSION
@@ -20,6 +25,7 @@ export interface SaveFile {
   savedAt: number
   design: CyclistDesign
   lab: LabState
+  career: CareerState
 }
 
 type Obj = Record<string, unknown>
@@ -114,12 +120,39 @@ export function soundLab(x: unknown): LabState | null {
   return { runs, notes, order, build: x.build, crank: x.crank, nextRunId: x.nextRunId, balanceRng: x.balanceRng }
 }
 
-/** A save file, checked; null if it can't be trusted. */
+const isSeed = (x: unknown): x is number => isCount(x) && x <= 0xffffffff
+
+function soundBrief(x: unknown): Brief | null {
+  if (!isObj(x) || typeof x.id !== 'string' || !briefTemplate(x.id)) return null
+  if (!isCount(x.fee) || !isCount(x.days) || x.days === 0 || !isSeed(x.seed)) return null
+  return { id: x.id, fee: x.fee, days: x.days, seed: x.seed }
+}
+
+function soundJob(x: unknown): Job | null {
+  if (!isObj(x)) return null
+  const brief = soundBrief(x.brief)
+  if (!brief || !isCount(x.startDay) || !isCount(x.daysLeft) || x.daysLeft > brief.days || !isNum(x.spent)) return null
+  return { brief, startDay: x.startDay, daysLeft: x.daysLeft, spent: x.spent }
+}
+
+/** The career, or null if it isn't one the game could have written. */
+export function soundCareer(x: unknown): CareerState | null {
+  if (!isObj(x) || !isSeed(x.seed) || !isNum(x.money) || !isCount(x.day) || !isCount(x.jobsDone)) return null
+  if (!Array.isArray(x.board)) return null
+  const board = x.board.map(soundBrief)
+  if (board.some((b) => !b)) return null
+  const job = x.job === null ? null : soundJob(x.job)
+  if (x.job !== null && !job) return null
+  return { seed: x.seed, money: x.money, day: x.day, jobsDone: x.jobsDone, board: board as Brief[], job }
+}
+
+/** A save file, checked (and brought up to date if it's older); null if it can't be trusted. */
 export function soundSave(x: unknown): SaveFile | null {
-  if (!isObj(x) || x.v !== SAVE_VERSION || !isNum(x.savedAt)) return null
+  if (!isObj(x) || (x.v !== SAVE_VERSION && x.v !== 1) || !isNum(x.savedAt)) return null
   const design = soundDesign(x.design)
   const lab = soundLab(x.lab)
-  return design && lab ? { v: SAVE_VERSION, savedAt: x.savedAt, design, lab } : null
+  const career = x.v === 1 ? newCareer(DEMO_TUNNEL_SEED) : soundCareer(x.career)
+  return design && lab && career ? { v: SAVE_VERSION, savedAt: x.savedAt, design, lab, career } : null
 }
 
 /** Readings keep six decimal places: plenty for any of them, and it keeps saves small. */

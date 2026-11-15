@@ -68,8 +68,8 @@ html, body {
   position: absolute;
   top: calc(10px + var(--safe-t));
   left: calc(16px + var(--safe-l));
-  /* Leave room for the Shape / Tunnel switch on the right. */
-  right: calc(186px + var(--safe-r));
+  /* Leave room for the Jobs / Shape / Tunnel switch on the right. */
+  right: calc(222px + var(--safe-r));
   pointer-events: none;
 }
 .title-block {
@@ -266,7 +266,7 @@ html, body {
 .nav-button {
   min-height: var(--tap);
   min-width: var(--tap);
-  padding: 0 14px;
+  padding: 0 11px;
   border: 0;
   border-radius: 9px;
   background: transparent;
@@ -277,6 +277,12 @@ html, body {
   cursor: pointer;
 }
 .nav-button[aria-current='page'] { background: var(--accent); color: var(--accent-ink); }
+/* Narrow phones: a smaller wordmark and tighter switch so three screens fit beside it. */
+@media (max-width: 400px) {
+  .wordmark { font-size: 1.05rem; letter-spacing: 0.14em; }
+  .nav-button { padding: 0 9px; }
+  .top-bar { right: calc(200px + var(--safe-r)); }
+}
 
 /* --- Shape screen ------------------------------------------------------ */
 .shape-sheet { padding-top: 12px; }
@@ -709,12 +715,47 @@ html, body {
 
 /* --- Saves ------------------------------------------------------------- */
 /* The Saves chip sits under the screen switch, top right, on every screen. */
-.saves-open {
+/* The money chip and Saves, under the screen switch. */
+.top-chips {
   position: absolute;
   z-index: 5;
   top: calc(66px + var(--safe-t));
   right: calc(16px + var(--safe-r));
+  display: flex;
+  gap: 6px;
 }
+.job-chip { font-family: var(--font-num); font-weight: 500; }
+.job-chip.over { color: var(--sep); border-color: var(--sep); }
+
+/* --- Jobs screen -------------------------------------------------------- */
+.board-screen { overflow-y: auto; -webkit-overflow-scrolling: touch; background: var(--bg); }
+.board-page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: calc(112px + var(--safe-t)) calc(16px + var(--safe-r)) calc(24px + var(--safe-b)) calc(16px + var(--safe-l));
+}
+.firm-strip { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.firm-money { margin: 0; font-family: var(--font-num); font-size: 1.6rem; font-weight: 500; }
+.firm-money.over { color: var(--sep); }
+.firm-date { margin: 2px 0 0; color: var(--muted); font-size: 0.85rem; }
+.board-heading { margin: 18px 0 6px; font-size: 1rem; }
+.job-list { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.job-card { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.job-card.is-active { margin-top: 12px; border-color: var(--accent); }
+.job-card.is-active .board-heading { margin-top: 0; }
+.job-client { margin: 0; font-weight: 700; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.job-who { margin: 2px 0 0; color: var(--muted); font-size: 0.85rem; }
+.job-goal { margin: 8px 0 0; padding-left: 10px; border-left: 3px solid var(--line); font-size: 0.9rem; }
+.job-event { margin: 8px 0 0; font-weight: 600; font-size: 0.9rem; }
+.job-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; margin-top: 8px; }
+.job-fact { display: flex; flex-direction: column; min-width: 0; }
+.job-fact-label { color: var(--muted); font-size: 0.75rem; }
+.job-fact-value { font-family: var(--font-num); font-size: 0.9rem; overflow-wrap: anywhere; }
+.job-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.job-actions .save-btn { min-height: var(--tap); flex: 1 1 auto; }
+.job-days { margin-top: 10px; }
+.save-slot-tag.quiet { background: var(--panel-2); color: var(--ink); }
+.raceday { z-index: 400; }
 .saves { z-index: 400; }
 .saves-sheet { max-height: min(86vh, 680px); max-height: min(86dvh, 680px); }
 .save-slots { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
@@ -738,6 +779,8 @@ html, body {
 }
 .save-btn.quiet { background: transparent; color: var(--accent); border-color: var(--line); }
 .save-btn.is-armed { background: var(--sep); border-color: var(--sep); color: #fff; }
+.save-btn:disabled { background: var(--panel-2); border-color: var(--line); color: var(--muted); cursor: default; }
+.shop-order:disabled { background: var(--panel-2); color: var(--muted); cursor: default; filter: none; }
 .save-code { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
 .save-code-title { margin: 0; font-size: 1rem; }
 .save-code .shop-order { margin-top: 10px; }

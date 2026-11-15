@@ -3,6 +3,7 @@ import { SIT_UP_CYCLIST } from '../src/data/cyclist'
 import { CODE_PREFIX, decodeSave, encodeSave } from '../src/persist/code'
 import { packSave, SAVE_VERSION, type SaveFile } from '../src/persist/save'
 import { newLab } from '../src/sim/lab'
+import { newCareer } from '../src/sim/career'
 import type { Run } from '../src/sim/run'
 
 const run = (id: number): Run => ({
@@ -13,7 +14,7 @@ const run = (id: number): Run => ({
   energyKWh: 0.02,
   topSpeed: 30,
 })
-const save: SaveFile = { v: SAVE_VERSION, savedAt: 1_763_200_000_000, design: structuredClone(SIT_UP_CYCLIST), lab: { ...newLab(), runs: [run(1), run(2)], nextRunId: 3 } }
+const save: SaveFile = { v: SAVE_VERSION, savedAt: 1_763_200_000_000, design: structuredClone(SIT_UP_CYCLIST), lab: { ...newLab(), runs: [run(1), run(2)], nextRunId: 3 }, career: newCareer(7) }
 
 describe('save codes', () => {
   it('round-trip a career, squeezed well under the plain save', async () => {

@@ -3,13 +3,15 @@
  * grade, trip strips and pressure taps, see the price and lead time, and order. It slides
  * up over the tunnel like the glossary and borrows its look.
  *
- * Until jobs arrive (PR 5–6) the price and days are shown but not spent.
+ * Models are built for a job (Kelbo, PR 5): the price is charged to it and
+ * the lead time comes off its days, all at once when the order is placed.
  */
 import { MODEL_FINISH, MODEL_GRADE, MODEL_SCALES, type ModelFinish, type ModelGrade, type ModelScale } from '../data/model'
 import { t, type StringKey } from '../data/strings'
 import { UNIVERSITY_TUNNEL } from '../data/tunnel'
 import { matchedSpeed, quote, type ModelOrder } from '../sim/modelShop'
-import { REFERENCE_TT } from '../sim/views'
+import type { OrderBlock } from '../sim/career'
+import type { EventSpec } from '../sim/views'
 import { fixed } from './format'
 import { glossaryTerm } from './glossary'
 import { createSheet, type Sheet } from './sheet'
@@ -65,9 +67,19 @@ function choice<T extends string | number>(
   }
 }
 
+/** What the shop needs to know about the job in hand. */
+export interface ShopContext {
+  /** The event the model is for (its Reynolds number). */
+  event: EventSpec
+  /** Whether an order taking this many days can be placed. */
+  block(days: number): OrderBlock
+  /** Days left on the job (0 with none). */
+  daysLeft: number
+}
+
 interface Shop {
   sheet: Sheet
-  show(order: ModelOrder, onOrder: (order: ModelOrder) => void): void
+  show(order: ModelOrder, context: ShopContext, onOrder: (order: ModelOrder) => void): void
 }
 
 let shop: Shop | null = null
@@ -80,13 +92,15 @@ function buildShop(): Shop {
   // The order being drawn up, and what happens when it's placed.
   let order: ModelOrder = { scale: 2, finish: 'sanded', grade: 'standard', trips: false, taps: false }
   let place: (o: ModelOrder) => void = () => {}
+  let context: ShopContext | null = null
   const update = () => {
+    if (!context) return
     scale.set(order.scale)
     finish.set(order.finish)
     grade.set(order.grade)
     trips.set(order.trips ? 'on' : 'off')
     taps.set(order.taps ? 'on' : 'off')
-    const speed = matchedSpeed(1 / order.scale, REFERENCE_TT)
+    const speed = matchedSpeed(1 / order.scale, context.event)
     const top = UNIVERSITY_TUNNEL.topSpeed
     reText.data =
       speed <= top
@@ -96,6 +110,12 @@ function buildShop(): Shop {
     grade.note.textContent = t('shop.gradeNote', { pct: fixed(MODEL_GRADE[order.grade].accuracy * 100, 1) })
     const q = quote(order)
     price.textContent = t('shop.quote', { price: fixed(q.price, 0), days: q.days })
+    const block = context.block(q.days)
+    const left = context.daysLeft
+    bill.classList.toggle('is-blocked', block !== null)
+    orderBtn.disabled = block !== null
+    free.textContent =
+      block === 'noJob' ? t('shop.noJob') : block === 'noDays' ? t('shop.noDays', { days: q.days, left }) : t('shop.bill', { days: q.days, left })
   }
   const pick = (patch: Partial<ModelOrder>) => {
     order = { ...order, ...patch }
@@ -142,7 +162,8 @@ function buildShop(): Shop {
   const bill = el('div', 'shop-bill')
   const price = el('p', 'shop-price')
   price.setAttribute('aria-live', 'polite')
-  const free = el('p', 'shop-note', t('shop.free'))
+  const free = el('p', 'shop-note')
+  free.setAttribute('aria-live', 'polite')
   const orderBtn = el('button', 'shop-order', t('shop.order'))
   orderBtn.type = 'button'
   orderBtn.addEventListener('click', () => {
@@ -156,8 +177,9 @@ function buildShop(): Shop {
 
   return {
     sheet,
-    show(current, onOrder) {
+    show(current, ctx, onOrder) {
       order = { ...current }
+      context = ctx
       place = onOrder
       update()
     },
@@ -165,9 +187,9 @@ function buildShop(): Shop {
 }
 
 /** Open the shop on the current model's order; `onOrder` gets the new order. */
-export function openModelShop(current: ModelOrder, onOrder: (order: ModelOrder) => void): void {
+export function openModelShop(current: ModelOrder, context: ShopContext, onOrder: (order: ModelOrder) => void): void {
   shop ??= buildShop()
-  shop.show(current, onOrder)
+  shop.show(current, context, onOrder)
   shop.sheet.open()
 }
 

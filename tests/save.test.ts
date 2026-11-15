@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_CYCLIST, POSTURE_RANGE, SIT_UP_CYCLIST } from '../src/data/cyclist'
 import { packSave, parseSave, SAVE_VERSION, soundDesign, type SaveFile } from '../src/persist/save'
 import { newLab, type LabState } from '../src/sim/lab'
+import { acceptBrief, newCareer } from '../src/sim/career'
+import { DEMO_TUNNEL_SEED } from '../src/data/tunnel'
 import type { Run } from '../src/sim/run'
 
 const run = (id: number, model = 'rider'): Run => ({
@@ -22,6 +24,7 @@ function file(lab: Partial<LabState> = {}): SaveFile {
     savedAt: 1_763_200_000_000,
     design: structuredClone(SIT_UP_CYCLIST),
     lab: { ...newLab(), runs: [run(1, 'sphere'), run(2)], notes: { 2: { design: structuredClone(DEFAULT_CYCLIST), crank: 45, build: 1 } }, nextRunId: 3, build: 1, ...lab },
+    career: newCareer(99),
   }
 }
 const roundTrip = (s: SaveFile) => parseSave(packSave(s))
@@ -42,7 +45,7 @@ describe('the save file', () => {
     expect(parseSave('')).toBeNull()
     expect(parseSave('{not json')).toBeNull()
     expect(parseSave(packSave(file()).slice(0, 200))).toBeNull()
-    expect(parseSave(JSON.stringify({ ...file(), v: 2 }))).toBeNull()
+    expect(parseSave(JSON.stringify({ ...file(), v: SAVE_VERSION + 1 }))).toBeNull()
     // Two runs with one id, or a run from the future.
     expect(roundTrip(file({ runs: [run(1), run(1)] }))).toBeNull()
     expect(roundTrip(file({ nextRunId: 2 }))).toBeNull()
@@ -78,5 +81,22 @@ describe('the save file', () => {
     const long = Array.from({ length: 40 }, (_, i) => ({ ...run(i + 1), samples: Array.from({ length: 480 }, () => run(1).samples[0]!) }))
     const text = packSave(file({ runs: long, notes: {}, nextRunId: 41 }))
     expect(text.length).toBeLessThan(5_000_000)
+  })
+
+  it('keeps the career, job and all', () => {
+    const career = acceptBrief(newCareer(99), 'selivan-regional')
+    const back = roundTrip({ ...file(), career })!
+    expect(back.career).toEqual(career)
+    expect(roundTrip({ ...file(), career: { ...career, board: [{ ...career.board[0]!, id: 'nobody' }] } })).toBeNull()
+    expect(roundTrip({ ...file(), career: { ...career, job: { ...career.job!, daysLeft: 99 } } })).toBeNull()
+  })
+
+  it('brings a v1 save up to date with a career on the old tunnel seed', () => {
+    const { career: _drop, ...rest } = file()
+    const old = JSON.stringify({ ...rest, v: 1 })
+    const back = parseSave(old)!
+    expect(back.v).toBe(SAVE_VERSION)
+    expect(back.career).toEqual(newCareer(DEMO_TUNNEL_SEED))
+    expect(back.lab.nextRunId).toBe(3)
   })
 })

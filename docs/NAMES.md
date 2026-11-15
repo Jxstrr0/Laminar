@@ -25,6 +25,9 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Tarnovia | Home country. | From the plan |
 | Rubles (₽) | Money. | Kelbo, 15 Nov 2026 |
 | Mostograd | A city in Laminar's Tarnovia (Lombard's city). | From the plan |
+| Stavren | The town where the firm starts; home of the university tunnel and the regional time trial. | PR 5c |
+| Lake Dolgo | A lake and ridge loop, site of a hill time trial. | PR 5c |
+| Kosa spit | A coastal spit with a sea-wall road, site of a windy time trial. | PR 5c |
 
 ## Bodies
 
@@ -32,7 +35,18 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | --- | --- | --- |
 | Tarnovian Cycling Federation (TCF) | Sets the cycling rulebook and legality box. Fictional; never the real UCI. | Kept by Kelbo (15 November 2026) |
 
+## Clients and events (PR 5c)
+
+| Name | What it is |
+| --- | --- |
+| Marta Selivan | Club time-triallist; the first job (Stavren Regional Time Trial). |
+| Stavren Road Club | A volunteer cycling club; the small job (Club 16 km Time Trial). |
+| Oleg Brusnik | Veteran climber (Lake Dolgo Hill Time Trial). |
+| Yana Korolets | National team hopeful (Kosa Coast Time Trial). |
+| Ruslan Tvardov | Defending national time-trial champion (National Time Trial Championship). |
+| Stavren Regional Time Trial, Club 16 km Time Trial, Lake Dolgo Hill Time Trial, Kosa Coast Time Trial, National Time Trial Championship | The events above. |
+
 ## Still to name (later PRs)
 
 The university and its tunnel, the two rival firms, the outside model shop,
-clients, staff, other sport federations, venues and export countries.
+staff, other sport federations, more venues and export countries.

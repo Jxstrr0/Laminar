@@ -40,6 +40,8 @@ export interface EventSpec {
   rider: RiderSpec
   /** Point the yaw moment is taken about, m from the front. */
   refX?: number
+  /** How much the day varies (standard deviations): temperature °C, wind m/s, power fraction. The reference event's if left out. */
+  spread?: { temperature: number; wind: number; power: number }
 }
 
 export const REFERENCE_TT: EventSpec = {
@@ -234,10 +236,15 @@ export interface FieldResult {
 /** The day itself: seeded weather and form, the truth's yaw curve, the course. */
 export function fieldResult(spec: ShapeSpec, event: EventSpec, seed: number): FieldResult {
   const rng = new Rng(seed).fork('field-day')
-  const temperature = event.temperature + REFERENCE_EVENT.temperatureSpread * gaussian(rng)
-  const windSpeed = Math.max(0, event.windSpeed + REFERENCE_EVENT.windSpread * gaussian(rng))
+  const spread = event.spread ?? {
+    temperature: REFERENCE_EVENT.temperatureSpread,
+    wind: REFERENCE_EVENT.windSpread,
+    power: REFERENCE_EVENT.powerSpread,
+  }
+  const temperature = event.temperature + spread.temperature * gaussian(rng)
+  const windSpeed = Math.max(0, event.windSpeed + spread.wind * gaussian(rng))
   const windFromDeg = rng.range(0, 360)
-  const power = event.rider.power * (1 + REFERENCE_EVENT.powerSpread * gaussian(rng))
+  const power = event.rider.power * (1 + spread.power * gaussian(rng))
   const curve = yawCurve(describeShape(spec), eventFlow(event, temperature), event.refX)
   const run = courseTime(
     { ...event.rider, power },

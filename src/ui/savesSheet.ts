@@ -9,6 +9,8 @@ import { decodeSave, encodeSave } from '../persist/code'
 import { readSlot, SLOTS } from '../persist/db'
 import { parseSave, type SaveFile } from '../persist/save'
 import { createSheet, type Sheet } from './sheet'
+import { twoTap } from './twoTap'
+import { rubles } from './format'
 
 export interface SavesActions {
   /** The slot in play. */
@@ -34,30 +36,6 @@ function button(cls: string, text: string): HTMLButtonElement {
   const b = el('button', cls, text)
   b.type = 'button'
   return b
-}
-
-/**
- * A button that asks for a second tap before something that can't be
- * undone, instead of a pop-up: the first tap changes its words for a few
- * seconds.
- */
-function twoTap(b: HTMLButtonElement, words: string, confirmWords: string, run: () => void): void {
-  let armed = 0
-  b.addEventListener('click', () => {
-    if (armed) {
-      window.clearTimeout(armed)
-      armed = 0
-      run()
-      return
-    }
-    b.textContent = confirmWords
-    b.classList.add('is-armed')
-    armed = window.setTimeout(() => {
-      armed = 0
-      b.textContent = words
-      b.classList.remove('is-armed')
-    }, 4000)
-  })
 }
 
 const savedAt = (ms: number) =>
@@ -88,7 +66,7 @@ export async function openSaves(actions: SavesActions): Promise<void> {
     const shown = playing ? actions.current() : save
     const runs = shown?.lab.runs.length ?? 0
     const line = shown
-      ? t(runs === 1 ? 'saves.summaryOne' : 'saves.summary', { runs, when: savedAt(shown.savedAt) })
+      ? t(runs === 1 ? 'saves.summaryOne' : 'saves.summary', { runs, money: rubles(shown.career.money), when: savedAt(shown.savedAt) })
       : t(text ? 'saves.unreadable' : 'saves.empty')
     const buttons = el('div', 'save-slot-actions')
     if (!playing && save) {
