@@ -706,3 +706,54 @@ html, body {
   font-weight: 600;
   cursor: pointer;
 }
+
+/* --- Saves ------------------------------------------------------------- */
+/* The Saves chip sits under the screen switch, top right, on every screen. */
+.saves-open {
+  position: absolute;
+  z-index: 5;
+  top: calc(66px + var(--safe-t));
+  right: calc(16px + var(--safe-r));
+}
+.saves { z-index: 400; }
+.saves-sheet { max-height: min(86vh, 680px); max-height: min(86dvh, 680px); }
+.save-slots { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.save-slot { padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.save-slot.is-current { border-color: var(--accent); }
+.save-slot-head { display: flex; align-items: center; gap: 8px; margin: 0; font-weight: 600; }
+.save-slot-tag { padding: 1px 8px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 0.7rem; }
+.save-slot-line { margin: 2px 0 0; font-size: 0.8rem; color: var(--muted); }
+.save-slot-actions { display: flex; gap: 8px; margin-top: 8px; }
+.save-btn {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.save-btn.quiet { background: transparent; color: var(--accent); border-color: var(--line); }
+.save-btn.is-armed { background: var(--sep); border-color: var(--sep); color: #fff; }
+.save-code { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
+.save-code-title { margin: 0; font-size: 1rem; }
+.save-code .shop-order { margin-top: 10px; }
+.save-code .shop-label { display: block; margin-top: 14px; }
+.save-code-box {
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-2);
+  color: var(--ink);
+  font-family: var(--font-num);
+  font-size: 0.75rem;
+  resize: vertical;
+  word-break: break-all;
+}
+.save-code .save-btn { margin-top: 8px; }

@@ -12,11 +12,12 @@ import { bindLoadingScreen } from './ui/loading'
 import { designStore } from './ui/designStore'
 import { newLab } from './sim/lab'
 import { startAutosave } from './persist/autosave'
-import { readSlot, writeSlot } from './persist/db'
-import { parseSave, SAVE_VERSION } from './persist/save'
+import { lastSlot, readSlot, setLastSlot, writeSlot } from './persist/db'
+import { packSave, parseSave, SAVE_VERSION, type SaveFile } from './persist/save'
+import { DEFAULT_CYCLIST } from './data/cyclist'
 
-/** One career slot until the Saves sheet arrives (PR 5b). */
-const SLOT = 1
+/** The career slot in play: the one used last visit. */
+const SLOT = lastSlot()
 
 const loading = bindLoadingScreen()
 
@@ -96,11 +97,37 @@ async function boot(): Promise<void> {
   let touch = () => {}
   const tunnel = startTunnelScreen(tunnelHost, createTunnelView(tunnelHost), saved?.lab ?? newLab(), () => touch())
   const autosave = startAutosave(
-    () => ({ v: SAVE_VERSION, savedAt: Date.now(), design: designStore.get(), lab: tunnel.lab() }),
+    () => current(),
     (text) => writeSlot(SLOT, text),
   )
   touch = () => autosave.touch()
   designStore.subscribe(() => touch())
+  const current = (): SaveFile => ({ v: SAVE_VERSION, savedAt: Date.now(), design: designStore.get(), lab: tunnel.lab() })
+  /** Leave this career for another: save it, stop saving, then reload into the new one. */
+  const leaveFor = async (slot: number, write?: SaveFile) => {
+    await autosave.flush()
+    autosave.stop()
+    if (write) await writeSlot(slot, packSave(write))
+    setLastSlot(slot)
+    location.reload()
+  }
+  const savesBtn = document.createElement('button')
+  savesBtn.type = 'button'
+  savesBtn.className = 'chip saves-open'
+  savesBtn.textContent = t('saves.open')
+  savesBtn.setAttribute('aria-label', t('saves.openName'))
+  savesBtn.addEventListener('click', async () => {
+    const { openSaves } = await import('./ui/savesSheet')
+    await openSaves({
+      slot: SLOT,
+      current,
+      switchTo: (slot) => leaveFor(slot),
+      startOver: (slot) =>
+        leaveFor(slot, { v: SAVE_VERSION, savedAt: Date.now(), design: structuredClone(DEFAULT_CYCLIST), lab: newLab() }),
+      load: (save) => leaveFor(SLOT, { ...save, savedAt: Date.now() }),
+    })
+  })
+  app.append(savesBtn)
   const screens: Record<Screen, { host: HTMLElement; control: { setActive(on: boolean): void } }> = {
     shape: { host: shapeHost, control: startShapeScreen(shapeHost, createShapeView(shapeHost)) },
     tunnel: { host: tunnelHost, control: tunnel },

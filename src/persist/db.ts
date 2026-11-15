@@ -10,6 +10,29 @@ const DB_NAME = 'laminar'
 const DB_VERSION = 1
 const STORE = 'slots'
 const fallbackKey = (slot: number) => `laminar.slot.${slot}`
+const LAST_SLOT_KEY = 'laminar.lastSlot'
+
+/** How many career slots there are. */
+export const SLOTS = 3
+const inRange = (slot: number) => Number.isInteger(slot) && slot >= 1 && slot <= SLOTS
+
+/** The slot that was in play last visit (1 if none was recorded). */
+export function lastSlot(): number {
+  try {
+    const n = Number(localStorage.getItem(LAST_SLOT_KEY))
+    return inRange(n) ? n : 1
+  } catch {
+    return 1
+  }
+}
+
+export function setLastSlot(slot: number): void {
+  try {
+    if (inRange(slot)) localStorage.setItem(LAST_SLOT_KEY, String(slot))
+  } catch {
+    // Storage blocked: the game opens slot 1 next time.
+  }
+}
 
 let opening: Promise<IDBDatabase | null> | null = null
 
@@ -51,6 +74,7 @@ function fallbackGet(slot: number): string | null {
 
 /** A slot's text, or null when it is empty or storage is blocked. */
 export async function readSlot(slot: number): Promise<string | null> {
+  if (!inRange(slot)) return null
   const db = await openDb()
   if (!db) return fallbackGet(slot)
   try {
@@ -63,6 +87,7 @@ export async function readSlot(slot: number): Promise<string | null> {
 
 /** Write a slot. False when it couldn't be written anywhere (storage blocked or full). */
 export async function writeSlot(slot: number, text: string): Promise<boolean> {
+  if (!inRange(slot)) return false
   const db = await openDb()
   if (db) {
     try {

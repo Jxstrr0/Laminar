@@ -21,11 +21,28 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 4d | Correlation, part 4: model shop (scale, finish, accuracy), the Reynolds trap and trip strips | **Done** (v0.4.3.0) |
 | 4e | Correlation, part 5: pressure taps and the Cp map | **Done** (v0.4.4.0) |
 | 5a | Contracts, part 1: the lab's state lifted out of the tunnel, and autosave (one slot) | **Done** (v0.5.0.0) |
-| 5b | Save slots, save code (`LAM1:`) and a Saves sheet | Next |
-| 5c–5h | Briefs and money, promise and debrief, sealed bids, time-trial replay, velodrome, guided first job | Not started |
+| 5b | Save slots, save code (`LAM1:`) and a Saves sheet | **Done** (v0.5.1.0) |
+| 5c | Briefs, money and the job clock | Next |
+| 5d–5h | Promise and debrief, sealed bids, time-trial replay, velodrome, guided first job | Not started |
 | 6–14 | See the plan | Not started |
 
 ## Versions
+
+- **0.5.1.0** (PR 5b): save slots and save codes.
+  - **Saves button:** top right on every screen, under Shape / Tunnel. It
+    opens a sheet with three slots, each its own career, showing how many
+    runs it has and when it was last saved.
+  - **Play** another slot, or **New career** to wipe a slot and start
+    fresh (tap twice: the first tap turns the button red and asks again).
+    Switching reloads the page into that career.
+  - **Save code:** "Copy save code" puts the whole career on the clipboard
+    as one line starting `LAM1:` (a short session is about 1 KB). Paste a
+    code into the box and tap "Load into slot n" twice to bring a career
+    over from another phone. A cut-short or mistyped code is caught by its
+    checksum and nothing is loaded.
+  - The model shop now uses the same slide-up sheet as Saves.
+  - **Not yet:** backup files and the "you haven't backed up in a while"
+    reminder (PR 7).
 
 - **0.5.0.0** (PR 5a): your work now survives closing the page.
   - **Autosave:** a second after any change (a finished run, a new model,
