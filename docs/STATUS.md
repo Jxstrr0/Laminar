@@ -19,10 +19,29 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 4b | Correlation, part 2: static legs (crank-angle runs and the pedalling average), repeat runs pooled | **Done** (v0.4.1.0) |
 | 4c | Correlation, part 3: static wheels and a known-wheel calibration | **Done** (v0.4.2.0) |
 | 4d | Correlation, part 4: model shop (scale, finish, accuracy), the Reynolds trap and trip strips | **Done** (v0.4.3.0) |
-| 4e | Correlation, part 5: pressure taps and the Cp map | Next |
-| 5–14 | See the plan | Not started |
+| 4e | Correlation, part 5: pressure taps and the Cp map | **Done** (v0.4.4.0) |
+| 5 | Contracts, field replay and saves (split into 5a–5h) | Next |
+| 6–14 | See the plan | Not started |
 
 ## Versions
+
+- **0.4.4.0** (PR 4e): pressure taps and the Cp map. This finishes PR 4.
+  - **Taps at the shop:** a new "Pressure taps" choice (₽ 8,000, 2 more
+    days) fits pinholes over the rider, piped to the tunnel's scanner. They
+    don't change the drag.
+  - **Cp chip:** with a tapped model on the mount, a "Cp" chip joins the
+    flow instruments. Turn it on and fan up: each tap shows as a dot,
+    orange where the air pushes (the fronts of the forearms and shins),
+    grey near zero, blue where it pulls (round the back, the arms and the
+    helmet's sides). The scale is blue to orange with grey at 0, so it
+    reads for colour-blind players too.
+  - **Numbers, not just colour:** a slim legend at the side gives the
+    scale (−2 to +1) and the highest and lowest readings with the part
+    they're on. Below reading speed it asks you to fan up.
+  - **Known simplification:** the taps read the flow field's attached-flow
+    estimate, which runs away in the tight gaps between the legs and arms.
+    Past −1.2 a reading eases off and never goes below −2.5, so the
+    lowest reading is usually in a gap between parts.
 
 - **0.4.3.0** (PR 4d): the model shop and the Reynolds trap. Kelbo's
   calls (15 November 2026): the shop is a sheet in the Tunnel, scales are

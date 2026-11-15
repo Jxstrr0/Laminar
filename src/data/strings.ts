@@ -3,7 +3,7 @@
  * to find and change (and to translate one day).
  * Canadian spelling throughout.
  */
-const STRINGS = {
+export const STRINGS = {
   'game.title': 'Laminar',
   'tunnel.place': 'University tunnel · test section',
   'tunnel.sheet': 'Tunnel controls and balance readouts',
@@ -34,6 +34,10 @@ const STRINGS = {
   'shop.trips.off': 'None',
   'shop.trips.on': 'Taped',
   'shop.tripsNote': 'On the long parts (torso, helmet, forearms), which go turbulent at full size but not on a small model.',
+  'shop.taps': 'Pressure taps',
+  'shop.taps.off': 'None',
+  'shop.taps.on': 'Fitted',
+  'shop.tapsNote': 'Pinholes over the rider, piped to the scanner: they map the surface pressure (Cp) and leave the drag alone.',
   'shop.quote': '₽ {price} · {days} days',
   'shop.free': 'No jobs yet: the model arrives at once and nothing is charged.',
   'shop.order': 'Order this model',
@@ -78,8 +82,22 @@ const STRINGS = {
   'inst.rakeName': 'Smoke rake',
   'inst.tufts': 'Tufts',
   'inst.tuftsName': 'Wool tufts',
+  'inst.taps': 'Cp',
+  'inst.tapsName': 'Pressure taps: colour the model by its Cp',
   'inst.dark': 'Dark wall',
   'inst.darkName': 'Dark backdrop',
+  'cp.title': 'Cp',
+  'cp.legend': 'Cp scale from {min} to {max}: blue is suction, grey is 0, orange is pressure',
+  'cp.high': 'High {cp} {part}',
+  'cp.low': 'Low {cp} {part}',
+  'cp.fanUp': 'Fan up to read the taps',
+  'part.torso': 'torso',
+  'part.helmet': 'helmet',
+  'part.head': 'head',
+  'part.upper-arm': 'upper arm',
+  'part.forearm': 'forearm',
+  'part.thigh': 'thigh',
+  'part.shin': 'shin',
   'hint.wand': 'Drag the blue tip to move the wand · drag elsewhere to look',
   'view.tabs': 'Balance views',
   'view.readouts': 'Readouts',
