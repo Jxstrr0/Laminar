@@ -91,6 +91,17 @@ describe('the save file', () => {
     expect(roundTrip({ ...file(), career: { ...career, job: { ...career.job!, daysLeft: 99 } } })).toBeNull()
   })
 
+  it('gives careers from before bids a board round and no lost briefs', () => {
+    const raw = JSON.parse(packSave({ ...file(), career: { ...newCareer(99), jobsDone: 2, round: 2 } })) as { career: Record<string, unknown> }
+    delete raw.career.round
+    delete raw.career.lost
+    const back = parseSave(JSON.stringify(raw))!
+    expect(back.career.round).toBe(2)
+    expect(back.career.lost).toEqual([])
+    raw.career.lost = ['nobody']
+    expect(parseSave(JSON.stringify(raw))).toBeNull()
+  })
+
   it('brings a v1 save up to date with a career on the old tunnel seed', () => {
     const { career: _drop, ...rest } = file()
     const old = JSON.stringify({ ...rest, v: 1 })
