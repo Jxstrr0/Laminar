@@ -11,10 +11,8 @@ import { UNIVERSITY_TUNNEL } from '../data/tunnel'
 import { matchedSpeed, quote, type ModelOrder } from '../sim/modelShop'
 import { REFERENCE_TT } from '../sim/views'
 import { fixed } from './format'
-import { bindGlossary, glossaryTerm } from './glossary'
-
-/** How long the slide takes, ms (matches the CSS). */
-const SLIDE_MS = 220
+import { glossaryTerm } from './glossary'
+import { createSheet, type Sheet } from './sheet'
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag)
@@ -68,47 +66,15 @@ function choice<T extends string | number>(
 }
 
 interface Shop {
-  root: HTMLElement
-  panel: HTMLElement
-  close: HTMLButtonElement
+  sheet: Sheet
   show(order: ModelOrder, onOrder: (order: ModelOrder) => void): void
 }
 
 let shop: Shop | null = null
-let isOpen = false
-let opener: HTMLElement | null = null
-let hideTimer = 0
-
-const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 
 function buildShop(): Shop {
-  const root = el('div', 'gloss shop')
-  root.hidden = true
-  const scrim = el('div', 'gloss-scrim')
-  scrim.addEventListener('click', () => closeModelShop())
-
-  const panel = el('section', 'gloss-sheet shop-sheet')
-  panel.setAttribute('role', 'dialog')
-  panel.setAttribute('aria-modal', 'true')
-  panel.setAttribute('aria-labelledby', 'shop-title')
-  panel.tabIndex = -1
-
-  const grab = el('div', 'gloss-grab')
-  grab.setAttribute('aria-hidden', 'true')
-  grab.append(el('span', 'gloss-grab-bar'))
-  const head = el('div', 'gloss-head')
-  const title = el('h2', 'gloss-title', t('shop.title'))
-  title.id = 'shop-title'
-  const close = el('button', 'gloss-close')
-  close.type = 'button'
-  close.setAttribute('aria-label', t('shop.close'))
-  close.innerHTML =
-    '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">' +
-    '<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/></svg>'
-  close.addEventListener('click', () => closeModelShop())
-  head.append(title, close)
-
-  const body = el('div', 'gloss-body')
+  const sheet = createSheet({ cls: 'shop', title: t('shop.title'), closeLabel: t('shop.close') })
+  const body = sheet.body
   const intro = el('p', 'shop-intro', t('shop.intro'))
 
   // The order being drawn up, and what happens when it's placed.
@@ -187,45 +153,13 @@ function buildShop(): Shop {
   bill.append(price, free, orderBtn)
 
   body.append(intro, scale.box, finish.box, grade.box, trips.box, taps.box, bill)
-  panel.append(grab, head, body)
-  root.append(scrim, panel)
-  document.body.append(root)
-  bindGlossary(root)
-
-  panel.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      e.preventDefault()
-      closeModelShop()
-    } else if (e.key === 'Tab') {
-      // Keep focus inside the sheet while it is open.
-      const stops = Array.from(panel.querySelectorAll<HTMLElement>('button:not([tabindex="-1"]), [tabindex="0"]')).filter(
-        (n) => n.offsetParent !== null,
-      )
-      const first = stops[0]
-      const last = stops[stops.length - 1]
-      if (first && last) {
-        if (e.shiftKey && (document.activeElement === first || document.activeElement === panel)) {
-          e.preventDefault()
-          last.focus()
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault()
-          first.focus()
-        }
-      }
-    }
-    // Keys typed in the sheet are the sheet's: Space mustn't stop the fan behind it.
-    e.stopPropagation()
-  })
 
   return {
-    root,
-    panel,
-    close,
+    sheet,
     show(current, onOrder) {
       order = { ...current }
       place = onOrder
       update()
-      body.scrollTop = 0
     },
   }
 }
@@ -233,40 +167,11 @@ function buildShop(): Shop {
 /** Open the shop on the current model's order; `onOrder` gets the new order. */
 export function openModelShop(current: ModelOrder, onOrder: (order: ModelOrder) => void): void {
   shop ??= buildShop()
-  const s = shop
-  s.show(current, onOrder)
-  if (isOpen) return
-  isOpen = true
-  const active = document.activeElement
-  opener = active instanceof HTMLElement && active !== document.body ? active : null
-  window.clearTimeout(hideTimer)
-  s.root.hidden = false
-  for (const sib of Array.from(document.body.children)) {
-    if (sib !== s.root && sib instanceof HTMLElement && !sib.inert) {
-      sib.inert = true
-      sib.dataset.shopInert = '1'
-    }
-  }
-  void s.root.offsetHeight
-  s.root.classList.add('is-open')
-  s.close.focus({ preventScroll: true })
+  shop.show(current, onOrder)
+  shop.sheet.open()
 }
 
 /** Slide the shop away and hand focus back to whatever opened it. */
 export function closeModelShop(): void {
-  if (!shop || !isOpen) return
-  const s = shop
-  isOpen = false
-  s.root.classList.remove('is-open')
-  for (const sib of Array.from(document.body.querySelectorAll<HTMLElement>('[data-shop-inert]'))) {
-    sib.inert = false
-    delete sib.dataset.shopInert
-  }
-  const hide = () => {
-    if (!isOpen) s.root.hidden = true
-  }
-  if (reducedMotion()) hide()
-  else hideTimer = window.setTimeout(hide, SLIDE_MS)
-  if (opener?.isConnected) opener.focus({ preventScroll: true })
-  opener = null
+  shop?.sheet.close()
 }
