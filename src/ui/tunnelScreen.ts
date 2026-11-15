@@ -35,7 +35,7 @@ function readout(label: string): { box: HTMLElement; value: HTMLElement; sub: HT
   return { box, value, sub }
 }
 
-export function startTunnelScreen(app: HTMLElement, view: TunnelView): void {
+export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActive(active: boolean): void } {
   const spec = UNIVERSITY_TUNNEL
   let fan: FanState = fanAtRest()
 
@@ -102,7 +102,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): void {
   })
   // Desktop: arrow keys already move a focused slider; Space stops the fan anywhere else.
   window.addEventListener('keydown', (e) => {
-    if (e.key === ' ' && document.activeElement !== slider && document.activeElement?.tagName !== 'BUTTON') {
+    if (active && e.key === ' ' && document.activeElement !== slider && document.activeElement?.tagName !== 'BUTTON') {
       e.preventDefault()
       offBtn.click()
     }
@@ -132,9 +132,11 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): void {
     view.setSeparation((Math.acos(cos) * 180) / Math.PI)
   }
 
-  // --- Loop: fixed sim steps, one draw per browser frame.
+  // --- Loop: fixed sim steps, one draw per browser frame, only while shown.
   let last = performance.now()
   let carry = 0
+  let active = false
+  let raf = 0
   const loop = (now: number) => {
     const dt = Math.min((now - last) / 1000, 0.25)
     last = now
@@ -145,7 +147,17 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): void {
     }
     updateReadouts()
     view.frame(fan.speed, dt)
-    requestAnimationFrame(loop)
+    raf = requestAnimationFrame(loop)
   }
-  requestAnimationFrame(loop)
+  return {
+    setActive(on) {
+      if (on === active) return
+      active = on
+      if (on) {
+        view.setSheetHeight(sheet.offsetHeight)
+        last = performance.now()
+        raf = requestAnimationFrame(loop)
+      } else cancelAnimationFrame(raf)
+    },
+  }
 }

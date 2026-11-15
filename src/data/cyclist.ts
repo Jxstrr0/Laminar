@@ -208,6 +208,8 @@ export const COMFORT = {
   powerPerStrain: 0.05,
   /** Strain a typical rider can hold for a whole time trial. */
   riderLimit: 1,
+  /** Strain past this fraction of the limit lights the strained part amber. */
+  strainWarn: 0.75,
 }
 
 /**
@@ -227,4 +229,6 @@ export const DESK = {
   floor: 0.3,
   /** Error bars are this many standard deviations each side. */
   bars: 1.5,
+  /** Job seed the Shape screen uses until briefs arrive (PR 5). */
+  demoJobSeed: 1,
 }
