@@ -823,7 +823,7 @@ html, body {
 .model-note .save-btn { min-height: 34px; padding: 0 10px; font-size: 0.8rem; }
 
 /* Deliver sheet and the race-day debrief (PR 5e). */
-.deliver, .raceday { z-index: 400; }
+.deliver, .raceday, .bids { z-index: 400; }
 .deliver-promise { margin: 10px 0 0; font-weight: 700; }
 .deliver-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
 .deliver-input {
@@ -843,3 +843,40 @@ html, body {
 .race-verdict { margin: 10px 0 0; padding: 8px 10px; border-radius: 10px; font-weight: 700; }
 .race-verdict.is-met { background: color-mix(in srgb, var(--accent) 14%, transparent); border: 1px solid var(--accent); }
 .race-verdict.is-missed { background: color-mix(in srgb, var(--sep) 12%, transparent); border: 1px solid var(--sep); }
+
+/* --- Race-day replay (PR 5g): the 3D lab stays bright, so the title chip keeps dark ink. */
+.replay { position: fixed; inset: 0; z-index: 500; background: var(--bg); }
+.replay-stage { position: absolute; inset: 0; }
+.replay-canvas { display: block; width: 100%; height: 100%; }
+.replay-top {
+  position: absolute; top: 0; left: 0; right: 0;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: calc(12px + var(--safe-t)) calc(16px + var(--safe-r)) 0 calc(16px + var(--safe-l));
+}
+.replay-title {
+  margin: 0; padding: 6px 10px; border-radius: 10px; font-size: 1rem; font-weight: 700;
+  color: #13202b; background: rgba(255, 255, 255, 0.82);
+}
+.replay-skip { min-height: var(--tap); }
+.replay-panel {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 12px calc(16px + var(--safe-r)) calc(14px + var(--safe-b)) calc(16px + var(--safe-l));
+  background: var(--panel); color: var(--ink); border-top: 1px solid var(--line);
+  border-radius: 16px 16px 0 0; box-shadow: var(--shadow);
+}
+.replay-reads { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 10px; }
+.replay-read { display: flex; flex-direction: column; min-width: 0; }
+.replay-read-label { font-size: 0.75rem; color: var(--muted); }
+.replay-read-value { font-family: var(--font-num); font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.replay-line { min-height: 2.6em; margin: 10px 0 8px; font-weight: 600; }
+.replay-strip { position: relative; height: 10px; margin: 6px 6px 8px; border-radius: 5px; background: var(--panel-2); }
+.replay-tick { position: absolute; top: -3px; width: 2px; height: 16px; margin-left: -1px; background: var(--muted); }
+.replay-dot { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; }
+.replay-dot.is-mine { background: var(--accent); }
+.replay-dot.is-old { background: var(--panel); border: 2px solid var(--muted); }
+.replay-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 0; font-size: 0.8rem; color: var(--muted); }
+.replay-key { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+.replay-key.is-mine { background: var(--accent); }
+.replay-key.is-old { margin-left: 8px; border: 2px solid var(--muted); }
+.replay-end { margin-top: 10px; }
+.replay-predicted { margin: 0 0 10px; font-family: var(--font-num); font-size: 0.9rem; }

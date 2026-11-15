@@ -6,6 +6,7 @@
  * event and pays the fee.
  */
 import { BID, CAREER, PROMISE, type BriefTemplate } from '../data/briefs'
+import type { CyclistDesign } from '../data/cyclist'
 import { t } from '../data/strings'
 import {
   bidScore,
@@ -24,6 +25,7 @@ import { careerStore } from './careerStore'
 import { designStore } from './designStore'
 import { careerDate, fixed, pct, raceTime, rubles, rublesShort } from './format'
 import { glossaryTerm } from './glossary'
+import { playReplay } from './replayOverlay'
 import { createSheet, type Sheet } from './sheet'
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
@@ -132,11 +134,13 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
         status.textContent = t('deliver.bad')
         return
       }
-      const d = deliver(careerStore.get(), designStore.get(), predicted)
+      const design = designStore.get()
+      const d = deliver(careerStore.get(), design, predicted)
       if (!d) return
       deliverSheet?.close()
       careerStore.set(d.state)
-      showDelivery(d)
+      // Race day plays out first; the debrief follows.
+      replay(d, design, () => showDelivery(d, design))
     })
     deliverSheet.body.replaceChildren(
       el('p', 'shop-intro', t('deliver.intro', { client: b.client, event: b.event.name })),
@@ -151,7 +155,23 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     deliverSheet.open()
   }
 
-  function showDelivery(d: Delivery) {
+  /** The race-day replay for a delivery, then `after`. */
+  function replay(d: Delivery, design: CyclistDesign, after: () => void) {
+    const b = briefTemplate(d.job.brief.id)!
+    void playReplay({
+      client: b.client,
+      event: b.event.name,
+      course: d.event.course,
+      design,
+      setup: b.setup,
+      result: d.result,
+      baseline: d.debrief.baseline,
+      predicted: d.debrief.predicted,
+      onDone: after,
+    })
+  }
+
+  function showDelivery(d: Delivery, design: CyclistDesign) {
     result ??= createSheet({ cls: 'raceday', title: t('race.title'), closeLabel: t('race.close') })
     const b = briefTemplate(d.job.brief.id)!
     const r = d.result
@@ -187,6 +207,12 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     ]
     if (db.cause) parts.push(el('p', 'shop-note', t(db.cause === 'design' ? 'race.causeDesign' : 'race.causeDay')))
     parts.push(el('p', 'shop-note', t('race.readNote')))
+    const again = button('save-btn quiet', t('race.replay'))
+    again.addEventListener('click', () => {
+      result?.close()
+      replay(d, design, () => showDelivery(d, design))
+    })
+    parts.push(again)
     result.body.replaceChildren(...parts)
     result.open()
   }
@@ -262,7 +288,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
   }
 
   function showBids(r: BidResult) {
-    bidsSheet ??= createSheet({ cls: 'raceday', title: t('bids.title'), closeLabel: t('bids.close') })
+    bidsSheet ??= createSheet({ cls: 'bids', title: t('bids.title'), closeLabel: t('bids.close') })
     const id = r.state.job?.brief.id ?? r.state.lost[r.state.lost.length - 1]!
     const verdict = el('p', `race-verdict ${r.won ? 'is-met' : 'is-missed'}`, t(r.won ? (r.rival ? 'bids.won' : 'bids.solo') : 'bids.lost'))
     const facts = el('div', 'job-facts')

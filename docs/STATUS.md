@@ -26,11 +26,28 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 5d | The model follows the design: parts swap for a fee, a new position needs a new model (Kelbo's call) | **Done** (v0.5.3.0) |
 | 5e | Promise and prediction, the debrief, payment and penalties | **Done** (v0.5.4.0) |
 | 5f | Sealed bids against a rival firm | **Done** (v0.5.5.0) |
-| 5g | Time-trial replay | Next |
-| 5h–5i | Velodrome, guided first job | Not started |
+| 5g | Time-trial replay | **Done** (v0.5.6.0) |
+| 5h | Velodrome | Next |
+| 5i | Guided first job | Not started |
 | 6–14 | See the plan | Not started |
 
 ## Versions
+
+- **0.5.6.0** (PR 5g): race day plays out.
+  - After "Lock it in and race", a short 3D replay (about 22 seconds) shows
+    the time trial: your design on the road, the client's old setup as a
+    see-through twin in the next lane, wind flags on the verge, a chase
+    camera that swings round at the turn.
+  - A live readout gives the race clock, distance, speed, the wind (head,
+    cross or tail, with the yaw angle) and the gap to the old setup in
+    seconds, plus a strip with both riders as dots.
+  - The commentator speaks at the start, the turn, halfway, when you meet
+    the old setup still heading out, and at the finish.
+  - At the line it shows your prediction next to what the road read, then
+    **See the debrief**. **Skip** goes straight there, and the debrief has
+    **Watch the replay**.
+  - Every number comes from the same field result as the debrief; nothing is
+    re-run.
 
 - **0.5.5.0** (PR 5f): sealed bids.
   - **Bid for this job…** opens a sheet: your price (inside the brief's fee
