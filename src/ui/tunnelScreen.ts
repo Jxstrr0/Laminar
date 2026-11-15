@@ -34,7 +34,7 @@
 import { AIR } from '../data/air'
 import type { GlossaryId } from '../data/glossary'
 import { TUFT_VIZ } from '../data/flowViz'
-import { DEMO_MODEL_SEED, STANDARD_MODEL } from '../data/model'
+import { DEMO_MODEL_SEED, STANDARD_MODEL, STANDARD_ORDER } from '../data/model'
 import { SKELETON } from '../data/pose'
 import { CALIBRATION, CRANK_DIAL, DEMO_TUNNEL_SEED, REFERENCE_SPHERE, REFERENCE_WHEEL, RUN_RECORDING, RUN_STATS, TUNNEL_BILLING, UNIVERSITY_QUIRKS, UNIVERSITY_TUNNEL } from '../data/tunnel'
 import { t, type StringKey } from '../data/strings'
@@ -68,9 +68,11 @@ import { compareRuns, headlineCompare, headlineGroup, legCycle, poolRuns, yawGro
 import { addSample, newRecorder, runCost, stepRecorder, type Recorder, type Run, type RunSample } from '../sim/run'
 import { setYawTarget, stepTurntable, turntableAtRest, type TurntableState } from '../sim/turntable'
 import { rollQuirks, type MountKind } from '../sim/quirks'
-import { prepareExact, prepareModel, readBalance, readTare, tunnelTurbulence, type PreparedModel, type TunnelSpec } from '../sim/views'
+import { modelSpecOf, reynoldsRatio, type ModelOrder } from '../sim/modelShop'
+import { prepareExact, prepareModel, readBalance, readTare, REFERENCE_TT, tunnelTurbulence, type PreparedModel, type TunnelSpec } from '../sim/views'
 import type { TunnelView } from '../render/tunnelScene'
 import { createChart, describeLast, type ChartPoint } from './chart'
+import { openModelShop } from './modelShop'
 import { designStore } from './designStore'
 import { fixed, scientific } from './format'
 import { glossaryTerm } from './glossary'
@@ -223,6 +225,12 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
 
   // Fan.
   const fanCtl = rangeRow('fan-slider', t('fan.label'), { min: 0, max: spec.topSpeed, step: spec.sliderStep })
+  // The model shop opens from the fan row's head, for the rider model.
+  const shopBtn = el('button', 'shop-open')
+  shopBtn.type = 'button'
+  shopBtn.title = t('shop.openName')
+  shopBtn.setAttribute('aria-haspopup', 'dialog')
+  fanCtl.target.before(shopBtn)
   const offBtn = el('button', 'fan-off', t('fan.off'))
   offBtn.type = 'button'
   fanCtl.row.append(offBtn)
@@ -454,7 +462,25 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   let prepared: PreparedModel | null = null
   let designDirty = true
   designStore.subscribe(() => (designDirty = true))
-  const modelSpec = { ...STANDARD_MODEL, seed: DEMO_MODEL_SEED }
+  /** The model on order: what the shop built, and which build it is (each build has its own errors). */
+  let order: ModelOrder = STANDARD_ORDER
+  let build = 0
+  let modelSpec = modelSpecOf(order, DEMO_MODEL_SEED)
+  const showOrder = () => {
+    const words = t('shop.open', { scale: order.scale })
+    setText(shopBtn, words)
+    shopBtn.setAttribute('aria-label', `${words}. ${t('shop.openName')}`)
+  }
+  showOrder()
+  shopBtn.addEventListener('click', () =>
+    openModelShop(order, (next) => {
+      order = next
+      build++
+      modelSpec = modelSpecOf(order, DEMO_MODEL_SEED + build)
+      showOrder()
+      placeModel()
+    }),
+  )
   const balanceRng = new Rng(DEMO_MODEL_SEED).fork('balance')
   const shown = { cdA: 0, dragN: 0, sideN: 0 }
 
@@ -498,6 +524,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   const designs = new Map<number, CyclistDesign>()
   /** The crank angle of each rider run. */
   const cranks = new Map<number, number>()
+  /** Which build of the model each rider run used. */
+  const builds = new Map<number, number>()
   let runsDirty = true
   new ResizeObserver(() => (runsDirty = true)).observe(compareChart.canvas)
   new ResizeObserver(() => (runsDirty = true)).observe(calChart.canvas)
@@ -571,6 +599,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     if (live && live.model === 'rider' && !designs.has(live.id)) {
       designs.set(live.id, structuredClone(designStore.get()))
       cranks.set(live.id, crank)
+      builds.set(live.id, build)
     }
     if (live) setText(runNow, t('run.live', { id: live.id, time: clock(live.duration), cost: fixed(runCost(live), 0) }))
     else if (done) setText(runNow, t('run.last', { id: done.id, time: clock(done.duration), cost: fixed(runCost(done), 0) }))
@@ -697,6 +726,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
       const db = designs.get(b.id)
       const list = da && db ? changedControls(da, db).map((id) => t(`ctl.${id}`)) : []
       if (cranks.get(a.id) !== cranks.get(b.id)) list.push(t('crank.changed'))
+      if (builds.get(a.id) !== builds.get(b.id)) list.push(t('model.changed'))
       changed.hidden = !da || !db
       setText(changed, list.length ? t('runs.changed', { list: list.join(', ') }) : t('runs.same'))
     }
@@ -721,7 +751,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     for (const run of runs) {
       const d = designs.get(run.id)
       const c = cranks.get(run.id)
-      if (run.model !== 'rider' || !d || c === undefined || changedControls(d, now).length > 0) continue
+      if (run.model !== 'rider' || !d || c === undefined || builds.get(run.id) !== build || changedControls(d, now).length > 0) continue
       byCrank.set(c, [...(byCrank.get(c) ?? []), run])
     }
     poolBox.hidden = byCrank.size === 0 || !prepared
@@ -803,6 +833,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     tareBtn.setAttribute('aria-pressed', String(tare))
     yawCtl.row.hidden = !yawOpen()
     crankBox.hidden = !yawOpen()
+    shopBtn.hidden = !yawOpen()
     instBar.hidden = !yawOpen()
     shown.cdA = shown.dragN = shown.sideN = 0
     placeModel()
@@ -904,7 +935,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     const words = fixWords(wheelFix)
     if (!words) {
       setText(wCdA.value, `${fixed(shown.cdA, TARE_DIGITS)} m²`)
-      setText(wCdA.sub, t('read.wheelNote', { scale: fixed(1 / modelSpec.scale, 0), spokes: REFERENCE_WHEEL.spokes }))
+      setText(wCdA.sub, t('read.wheelNote', { scale: fixed(1 / STANDARD_MODEL.scale, 0), spokes: REFERENCE_WHEEL.spokes }))
       wCdA.sub.title = ''
     } else {
       setText(wCdA.value, `${fixed(correct(shown.cdA, wheelFix), TARE_DIGITS)} m²`)
@@ -998,7 +1029,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
       shown.cdA = shown.dragN = shown.sideN = 0
       setText(rYaw.sub, t('read.sideNote', { force: '–' }))
       setText(rDrag.value, '–')
-      setText(rDrag.sub, t('read.modelDragNote', { re: '–' }))
+      setText(rDrag.sub, t('read.reMatch', { pct: '–' }))
       setText(rCdA.value, '–')
       return
     }
@@ -1011,7 +1042,9 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     shown.sideN += (q * Math.abs(r.cyA) * s2 - shown.sideN) * k
     setText(rYaw.sub, t('read.sideNote', { force: `${fixed(shown.sideN, 1)} N` }))
     setText(rDrag.value, `${fixed(shown.dragN, 1)} N`)
-    setText(rDrag.sub, t('read.modelDragNote', { re: scientific(r.reynolds) }))
+    // How near the model's Reynolds number is to the full-size rider's on the day (the Reynolds trap).
+    setText(rDrag.sub, t('read.reMatch', { pct: fixed(reynoldsRatio(prepared, fan.speed, REFERENCE_TT) * 100, 0) }))
+    rDrag.sub.title = t('read.modelDragNote', { re: scientific(r.reynolds) })
     // The CdA takes off whatever the tare and calibration runs have found.
     const words = fixWords(fix)
     if (!words) {

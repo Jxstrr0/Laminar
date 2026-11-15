@@ -18,7 +18,7 @@ import {
   REFERENCE_RIDER,
   type CourseSegment,
 } from '../data/field'
-import { MODEL_FINISH, type ModelFinish } from '../data/model'
+import { MODEL_FINISH, MODEL_TRIPS, type ModelFinish } from '../data/model'
 import { aeroForces, type AeroForces } from './aero/forces'
 import type { Flow } from './aero/flow'
 import { cdAAt, windAveragedCdA, yawCurve, type YawCurve } from './aero/windAverage'
@@ -90,6 +90,8 @@ export interface ModelSpec {
   accuracy: number
   /** Seed for this particular model's build errors. */
   seed: number
+  /** The shop's trip strips on the long parts (plan section 6.5, MODEL_TRIPS). */
+  trips?: boolean
 }
 
 /** The tunnel as the reading sees it. */
@@ -137,13 +139,19 @@ export function buildModel(spec: ShapeSpec, model: ModelSpec): ShapeSpec {
   const rng = new Rng(model.seed).fork('model-build')
   const roughness = MODEL_FINISH[model.finish]
   const scaled = scaleShape(spec, model.scale)
+  /** The shop's trip strips go on the parts that are long at full size. */
+  const tripped = (i: number) => {
+    const xs = spec.bodies[i]!.stations.map((p) => p.x)
+    return model.trips === true && Math.max(...xs) - Math.min(...xs) >= MODEL_TRIPS.minLength
+  }
   return {
     ...scaled,
-    bodies: scaled.bodies.map((b) => {
+    bodies: scaled.bodies.map((b, i) => {
       const k = 1 + model.accuracy * gaussian(rng)
       return {
         ...b,
         roughness: Math.max(b.roughness ?? 0, roughness),
+        ...(tripped(i) && !b.trip ? { trip: { at: MODEL_TRIPS.at, height: MODEL_TRIPS.height } } : {}),
         stations: b.stations.map((p) => ({ x: p.x, top: p.top * k, bottom: p.bottom * k, half: p.half * k })),
       }
     }),

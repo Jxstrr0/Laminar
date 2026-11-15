@@ -18,12 +18,36 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 4a | Correlation, part 1: the tunnel's hidden quirks (blockage, turbulent air, mount drag), tare runs, sphere calibration against the book, corrections on the rider's CdA | **Done** (v0.4.0.0) |
 | 4b | Correlation, part 2: static legs (crank-angle runs and the pedalling average), repeat runs pooled | **Done** (v0.4.1.0) |
 | 4c | Correlation, part 3: static wheels and a known-wheel calibration | **Done** (v0.4.2.0) |
-| 4d | Correlation, part 4: model shop (scale, finish, accuracy), the Reynolds trap and trip strips | Next |
-| 4e | Correlation, part 5: pressure taps and the Cp map | Not started |
+| 4d | Correlation, part 4: model shop (scale, finish, accuracy), the Reynolds trap and trip strips | **Done** (v0.4.3.0) |
+| 4e | Correlation, part 5: pressure taps and the Cp map | Next |
 | 5–14 | See the plan | Not started |
 
 ## Versions
 
+- **0.4.3.0** (PR 4d): the model shop and the Reynolds trap. Kelbo's
+  calls (15 November 2026): the shop is a sheet in the Tunnel, scales are
+  1:4, 1:3 and 1:2, and until jobs arrive it shows ₽ and days without
+  spending them.
+  - **Model shop:** the "Model 1:2" button in the fan row opens it. Pick
+    scale, finish (printed, sanded, polished), accuracy (standard ±1 %,
+    fine ±0.4 %) and trip strips; see the price and days; order. Each
+    build has its own small size errors.
+  - **Reynolds trap:** the model drag readout now says how near the
+    model's Reynolds number is to the full-size rider's on the day. A
+    1:2 model matches at about 24 m/s; a 1:4 model would need 48, so even
+    flat out it reads a few per cent high. Run a 1:2 flat out and its
+    round parts hit their drag crisis early: it reads well low. A printed
+    finish does that sooner.
+  - **Trip strips on the model:** the shop tapes the long parts (torso,
+    helmet, forearms), which go turbulent at full size but not on a small
+    model. That brings a 1:4 or 1:3 model within about 1 %. A textured
+    skinsuit still reads better on a small model than it really is: its
+    weave doesn't shrink with the model.
+  - Runs remember which build they used: the This design card pools only
+    the current build, and A/B says when the model changed.
+
+  The posts are the same for every scale, so their tare matters much more
+  on a small model. "Reynolds trap" joins the glossary.
 - **0.4.2.0** (PR 4c): the wheels stand still. The university tunnel has
   no wheel drive, so the rider model's wheels don't spin. A spinning
   wheel's spokes churn the air; still ones churn about half as much, so
