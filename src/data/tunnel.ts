@@ -39,6 +39,35 @@ export const UNIVERSITY_TUNNEL = {
 } as const
 
 /**
+ * What a run costs (plan section 7.1). Runs cost money, never days. Power is
+ * billed by the energy the fan uses, and fan power grows with the cube of air
+ * speed, so holding top speed is what costs. The university also charges a
+ * small fee per run.
+ */
+export const TUNNEL_BILLING = {
+  /** Fee per run, ₽. */
+  perRun: 500,
+  /** Power price, ₽ per kWh of fan energy (the university's research rate). */
+  perKWh: 2000,
+  /**
+   * Fan power as a fraction of the air's kinetic power through the test
+   * section (½ρAV³): circuit losses over fan efficiency. About 0.35 for an
+   * old closed-return tunnel.
+   */
+  powerFactor: 0.35,
+}
+
+/** How runs are recorded (plan section 7.1): from fan-up to fan-down, every sample kept. */
+export const RUN_RECORDING = {
+  /** A run starts once the air passes this speed, m/s. */
+  startAbove: 0.5,
+  /** And ends when it has slowed back below this, m/s. */
+  endBelow: 0.05,
+  /** The balance is sampled this often, seconds of tunnel time. */
+  sampleEvery: 0.25,
+}
+
+/**
  * The calibration sphere on the sting. Its drag comes from the aero model
  * (src/sim/aero/drag.ts), drag crisis included: at 25 cm it goes through the
  * crisis near 20 m/s, right in the middle of the fan's range.

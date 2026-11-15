@@ -114,6 +114,28 @@ html, body {
 .mount-row .segmented { flex: 1; margin-top: 0; }
 .mount-row .segment { min-height: 36px; }
 .fan-row + .fan-row { margin-top: 10px; }
+/* Tunnel: the run's bill, the view tabs and the live chart. */
+.run-line { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; font-family: var(--font-num); font-size: 0.75rem; color: var(--muted); }
+.run-now { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.run-total { white-space: nowrap; color: var(--ink); }
+.view-tabs { margin-top: 6px; }
+.view-tabs .tab { min-height: 36px; font-size: 0.85rem; }
+.chart-box { margin-top: 12px; }
+.chart { display: block; width: 100%; height: 118px; }
+/* Short phones: tighten the tunnel sheet so the model keeps some room. */
+@media (max-height: 700px) {
+  .sheet:not(.shape-sheet) { padding-top: 10px; }
+  .sheet:not(.shape-sheet) .fan-row { row-gap: 2px; }
+  .sheet:not(.shape-sheet) .fan-slider, .sheet:not(.shape-sheet) .fan-off { height: 36px; min-height: 36px; }
+  .mount-row { margin-bottom: 6px; }
+  .mount-row .segment { min-height: 32px; }
+  .fan-row + .fan-row { margin-top: 6px; }
+  .view-tabs .tab { min-height: 32px; }
+  .chart-box, .sheet:not(.shape-sheet) .readouts { margin-top: 8px; }
+  .chart { height: 96px; }
+  .sheet:not(.shape-sheet) .readout { padding: 5px 10px; }
+}
+.chart-caption { margin: 4px 0 0; font-family: var(--font-num); font-size: 0.7rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fan-head { grid-area: head; display: flex; justify-content: space-between; align-items: baseline; }
 .fan-label { font-weight: 600; font-size: 1rem; }
 .fan-target { font-family: var(--font-num); font-size: 0.85rem; color: var(--muted); }
@@ -187,6 +209,7 @@ html, body {
   color: var(--muted);
 }
 .version { font-family: var(--font-num); white-space: nowrap; }
+.sheet-foot .hint { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* --- Screen switch (top right) ----------------------------------------- */
 .screen-nav {
