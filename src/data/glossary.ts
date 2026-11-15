@@ -344,6 +344,13 @@ export const GLOSSARY = defineGlossary({
     aliases: ['crank angle', 'static legs', 'leg-cycle average', 'pedalling'],
     seeAlso: ['scaleModel', 'noiseBand'],
   },
+  reynoldsTrap: {
+    term: 'Reynolds trap',
+    short: 'A small model in slow air can behave like a different shape.',
+    long: 'A model’s air behaves like full-size air only at the same Reynolds number, so halve the size and you need double the speed. Too slow, and boundary layers stay laminar and let go early, so the model reads high. Too fast (or too rough), and round parts hit their drag crisis early and read low. The shop’s trip strips make a small model’s long parts go turbulent where the full-size ones do.',
+    aliases: ['Reynolds matching', 'scale effect', 'model trip strips', 'model shop'],
+    seeAlso: ['reynolds', 'scaleModel', 'dragCrisis'],
+  },
   staticWheels: {
     term: 'Static wheels',
     short: 'A tunnel model’s wheels sit still; real ones spin.',
