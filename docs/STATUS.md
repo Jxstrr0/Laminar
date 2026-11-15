@@ -10,10 +10,21 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 1c | Aero sim core, part 3: truth / tunnel / field split, reference rider, node harness | **Done** (v0.2.2.0) |
 | 2a | Shaping, part 1: the cyclist as numbers (posture, helmet, suit, bars, wheels, frame), comfort and power, TCF rule checks, readouts, desk estimate | **Done** (v0.3.0.0) |
 | 2b | Shaping, part 2: the Shape screen (3D rider and bike from the design, slider sheet, readouts, comfort meter, rule breaks with a "change this" jump), Shape / Tunnel switch | **Done** (v0.3.1.0) |
-| 2c | Shaping, part 3: drag handles, the rule box drawn in 3D, glossary and tooltips | Next |
-| 3–14 | See the plan | Not started |
+| 2c | Shaping, part 3: drag handles, the rule box drawn in 3D, glossary and tooltips | **Done** (v0.3.2.0) |
+| 3 | The tunnel: 3D lab, model mount, live sweep, force balance charts, smoke and tufts, run billing, run history | Next |
+| 4–14 | See the plan | Not started |
 
 ## Versions
+
+- **0.3.2.0** (PR 2c): pull the rider into shape. Six blue dots sit on the
+  rider (hands, both elbows, back, head and helmet tail); press one and drag
+  to reshape, or tap it to jump to its slider. A pull moves the same numbers
+  the sliders do, stops at their limits and lands on their steps. The TCF
+  rule box is drawn in 3D as see-through boxes around the hands and the
+  helmet, which go red when a part breaks out. A glossary arrives: tap any
+  dotted term (Reynolds number, drag, desk estimate, comfort and more) for a
+  plain explanation, or open the Glossary from the Shape sheet to search all
+  48 terms.
 
 - **0.3.1.0** (PR 2b): the Shape screen. The game now opens on a 3D rider
   and bike you can turn with a finger, drawn from the design (the helmet's

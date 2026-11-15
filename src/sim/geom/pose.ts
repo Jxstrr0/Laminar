@@ -5,9 +5,10 @@
  * all agree.
  */
 import type { CyclistDesign } from '../../data/cyclist'
-import { SKELETON } from '../../data/pose'
+import { HELMET_MOUNT, SKELETON } from '../../data/pose'
 import { detAtan2, detCos, detSin, PI } from '../det'
 import { DEG } from '../num'
+import { helmetLength } from './cyclist'
 
 export interface Point {
   x: number
@@ -22,6 +23,9 @@ export interface Pose {
   head: Point
   /** Helmet tilt, degrees, nose up (its tail lies down along the back). */
   headPitchDeg: number
+  /** Where the helmet is mounted, and the tip of its tail. */
+  helmet: Point
+  helmetTail: Point
   elbow: [Point, Point]
   hand: [Point, Point]
   knee: [Point, Point]
@@ -69,6 +73,11 @@ export function riderPose(design: CyclistDesign): Pose {
   // on the shoulders, a raised head lifts it into the wind (as the sim says).
   const headPitchDeg = s.helmetPitch.base + s.helmetPitch.perTorsoDeg * post.torsoDeg + s.helmetPitch.perHeadDrop * post.headDrop
 
+  const helmet = p(head.x + HELMET_MOUNT.offset.x, head.y + HELMET_MOUNT.offset.y, 0)
+  const pitch = headPitchDeg * DEG
+  const behind = (1 - HELMET_MOUNT.noseFraction) * helmetLength(design)
+  const helmetTail = p(helmet.x - behind * detCos(pitch), helmet.y - behind * detSin(pitch), 0)
+
   const handY = seat.y + post.handHeight
   const aw = post.armWidth / 2
   const hand: [Point, Point] = [p(bb.x + post.handReach, handY, -aw), p(bb.x + post.handReach, handY, aw)]
@@ -83,5 +92,5 @@ export function riderPose(design: CyclistDesign): Pose {
   ) as [Point, Point]
   const knee = foot.map((f, i) => twoBone(hip[i]!, f, s.thigh, s.shin, 1)) as [Point, Point]
 
-  return { hip, shoulder, neck, head, headPitchDeg, elbow, hand, knee, foot }
+  return { hip, shoulder, neck, head, headPitchDeg, helmet, helmetTail, elbow, hand, knee, foot }
 }

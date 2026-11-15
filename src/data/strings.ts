@@ -69,7 +69,7 @@ const STRINGS = {
   'opt.kamm': 'Kamm tail',
   'shape.reset': 'Start over',
   'shape.glossary': 'Glossary',
-  'hint.shape': 'Drag to turn the rider · pinch to zoom',
+  'hint.shape': 'Pull a blue dot to reshape · drag elsewhere to turn',
   'rule.helmetLength': 'Helmet is {value} m long; the {book} allows {limit} m.',
   'rule.handReach': 'Hands reach {value} m ahead; the {book} allows {limit} m.',
   'rule.handHeight': 'Hands sit {value} m above the saddle; the {book} allows {limit} m.',

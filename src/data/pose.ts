@@ -32,6 +32,12 @@ export const SKELETON = {
   crankDeg: [20, 200],
 }
 
+/** Where the helmet sits: its mount point from the head's centre, and how much of its length lies ahead of the mount. */
+export const HELMET_MOUNT = {
+  offset: { x: -0.02, y: 0.03 },
+  noseFraction: 0.3,
+}
+
 export const FRAME = {
   wheelRadius: 0.335,
   rearAxleX: -0.41,

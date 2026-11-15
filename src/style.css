@@ -323,7 +323,25 @@ html, body {
   font-size: 0.8rem;
   cursor: pointer;
 }
-.shape-sheet .sheet-foot { align-items: center; margin-top: 4px; }
+.shape-sheet .sheet-foot { align-items: center; justify-content: flex-start; margin-top: 4px; flex-wrap: wrap; column-gap: 12px; row-gap: 0; }
+.shape-sheet .sheet-foot .text-button { white-space: nowrap; }
+.shape-sheet .sheet-foot .version { margin-left: auto; }
+
+/* The handle hint, just above the sheet over the 3D view. */
+.shape-hint {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--sheet-h, 0px) + 10px);
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 80%, transparent);
+  color: var(--muted);
+  font-size: 0.72rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .control.flash { animation: none; outline: 2px solid var(--sep); }
