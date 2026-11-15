@@ -15,7 +15,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 3b | The tunnel, part 2: runs (fan-up to fan-down), run billing, live force charts | **Done** (v0.3.4.0) |
 | 3c | The tunnel, part 3: run history with A/B compare and noise bands | **Done** (v0.3.5.0) |
 | 3d | The tunnel, part 4: smoke wand and rake, tufts round the rider | **Done** (v0.3.6.0) |
-| 4 | See the plan (next) | Next |
+| 4 | Correlation: cycling-slice quirks, calibration and tare runs, model scale and quality, Reynolds trap and trip strips, repeat runs, pressure taps and the Cp map | Next |
 | 5–14 | See the plan | Not started |
 
 ## Versions
