@@ -18,10 +18,12 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 
 ## Setup notes
 
+- Repo: renamed from `Jxstrr0/Laminar-` to `Jxstrr0/Laminar` on
+  15 November 2026. Old links redirect.
 - DNS: `laminar.longlight.games` is a CNAME to `jxstrr0.github.io` in
   Cloudflare (added 15 November 2026, not proxied, like Quench).
-- GitHub Pages must be set to **Source: GitHub Actions** with the custom
-  domain `laminar.longlight.games` and **Enforce HTTPS** on.
+- GitHub Pages: **Source: GitHub Actions** (switched on 15 November 2026),
+  custom domain `laminar.longlight.games`, **Enforce HTTPS** on.
 
 ## Open questions for Kelbo
 

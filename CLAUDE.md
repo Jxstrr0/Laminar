@@ -32,10 +32,11 @@ plan and over `.github/LONGLIGHT-STUDIO.md` where they disagree.
 - TypeScript (strict), Vite, three.js from npm (0.187, same as Lombard and Quench), in its own chunk.
 - UI is plain DOM and CSS. No framework.
 - Vitest for the sim. ESLint plus `tsc`.
-- Hosting: GitHub Pages from Actions. Repo `Jxstrr0/Laminar-` (the trailing
-  hyphen is fine; Kelbo kept it). Address `https://laminar.longlight.games/`,
-  chosen in PR 0 and **never to move** (a new address strands players' saves).
-  Vite `base: './'` so the build also works at `jxstrr0.github.io/Laminar-/`.
+- Hosting: GitHub Pages from Actions. Repo `Jxstrr0/Laminar` (renamed from
+  `Laminar-` on 15 November 2026; GitHub redirects the old name).
+  Address `https://laminar.longlight.games/`, chosen in PR 0 and **never to
+  move** (a new address strands players' saves).
+  Vite `base: './'` so the build also works at `jxstrr0.github.io/Laminar/`.
 - No backend, accounts, analytics, ads or API keys.
 
 ## Folders
