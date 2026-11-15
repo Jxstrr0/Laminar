@@ -113,3 +113,46 @@ export const CP_VIZ = {
   /** Pressure coefficient deep in a separated wake (the base pressure). */
   wakeBase: -0.35,
 }
+
+/**
+ * The tunnel's smoke and tufts as drawn (PR 3d). Positions are in the
+ * full-size rider's metres (the drawing scales them down with the model);
+ * speeds are how fast the smoke moves on screen in those metres, slowed
+ * right down from the real air so you can follow it.
+ */
+export const SMOKE_VIZ = {
+  /** On-screen smoke speed at the fan's top speed, full-size m/s. */
+  speedAtTop: 1.6,
+  /** Smoke never crawls slower than this while the fan runs. */
+  minSpeed: 0.4,
+  /** How much the wake's churn adds, as a fraction of the gust the field gives. */
+  churn: 1,
+  /** Smoke goes no further than this downstream of the bike's middle, m. */
+  reach: 1.5,
+  /** Nor lives longer than this, s. */
+  life: 4,
+  /** Distance upstream of the bike's middle the rake and wand start, m. */
+  upstream: 1.1,
+  /** The rake: nozzles up the rider's centre line, from low to high, m. */
+  rake: { low: 0.2, high: 1.5, nozzles: 10, perSecond: 30 },
+  /** The wand puffs this many times a second. */
+  wandPerSecond: 45,
+  /** Most puffs alive at once (all instruments together). */
+  maxPuffs: 1200,
+}
+
+export const TUFT_VIZ = {
+  /** Tuft spacing on the surface, m (wider than the field's default keeps phones quick). */
+  spacing: 0.06,
+  /** Drawn length of a tuft, m. */
+  length: 0.07,
+  /** Lifted this far off the surface so it isn't hidden in the body, m. */
+  lift: 0.006,
+  /** A flailing tuft swings up to this angle either way, degrees. */
+  flail: 150,
+  /** A steady tuft still trembles this much, degrees, more when buffeted. */
+  tremble: 6,
+  buffet: 40,
+  /** Flailing speed, swings per second. */
+  rate: 7,
+}

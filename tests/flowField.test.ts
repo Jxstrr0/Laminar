@@ -310,3 +310,24 @@ describe('the flow the visuals show', () => {
     expect(Number.isFinite(sum)).toBe(true)
   })
 })
+
+describe('modelFlowField', () => {
+  it('reads the scale model at tunnel speed, in full-size coordinates', async () => {
+    const { modelFlowField, riderFlowField: full, tufts: tuftsOf } = await import('../src/sim/flow/field')
+    const { prepareModel } = await import('../src/sim/views')
+    const { cyclistShape } = await import('../src/sim/geom/cyclist')
+    const { STANDARD_MODEL } = await import('../src/data/model')
+    const { AIR } = await import('../src/data/air')
+    const { DEFAULT_CYCLIST } = await import('../src/data/cyclist')
+    const prepared = prepareModel(cyclistShape(DEFAULT_CYCLIST), { ...STANDARD_MODEL, seed: 1 })
+    const flow = { density: AIR.density, viscosity: AIR.viscosity, speed: 30, turbulence: 0.005 }
+    const field = modelFlowField(DEFAULT_CYCLIST, prepared.shape, flow, 0)
+    expect(field.bodies.length).toBe(full(DEFAULT_CYCLIST, flow, 0).bodies.length)
+    // Far upstream the air is the free stream, at the field's speed.
+    const v = field.velocity({ x: 5, y: 1, z: 0 })
+    expect(v.x).toBeCloseTo(-30, 1)
+    const list = tuftsOf(field)
+    expect(list.length).toBeGreaterThan(50)
+    expect(list.some((t) => t.separated)).toBe(true)
+  })
+})

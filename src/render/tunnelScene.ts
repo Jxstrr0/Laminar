@@ -8,12 +8,22 @@
  * the sim worked out and never decides anything itself.
  *
  * Axes: the air flows along +x. y is up. The sphere sits at the origin; the
- * rider stands on the turntable below it, facing upstream.
+ * rider stands on the turntable below it, facing upstream. Positive yaw
+ * turns the rider's nose to its right, so the air arrives from its left (the
+ * flow field's convention, src/sim/flow/field.ts).
+ *
+ * Round the rider, the flow instruments (src/render/flowViz.ts) draw smoke
+ * and tufts from the flow field. The smoke wand's tip is a cobalt dot: press
+ * near it to move it in a plane across the flow upstream of the model; a
+ * press anywhere else turns the camera.
  */
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { HANDLE_TOUCH } from '../data/handles'
 import { FRAME } from '../data/pose'
 import { UNIVERSITY_TUNNEL, REFERENCE_SPHERE } from '../data/tunnel'
+import type { FlowField, Tuft } from '../sim/flow/field'
+import { createFlowViz, type Instruments } from './flowViz'
 import { buildRider, disposeGroup, type RiderState } from './riderFigure'
 
 /** Scene colours: a bright, clean lab (plan section 11). */
@@ -34,7 +44,16 @@ const COLOURS = {
   accent: 0x2456e8,
   /** Separation line: the --sep colour from style.css. */
   separation: 0xd2462b,
+  wand: 0x5d6873,
+  wandTip: 0x2456e8,
+  /** The dark backdrop, for white smoke. */
+  darkBackground: 0x1b232b,
+  darkWall: 0x2a343e,
+  darkFloor: 0x222b33,
 } as const
+
+/** The smoke wand: where its tip starts (from the model's centre, m) and where it may go. */
+const WAND = { x: -0.75, startUp: 0.45, startZ: 0.04, minUp: 0.03, maxUp: 0.9, wallGap: 0.12 }
 
 /** How much slower than real life the smoke drifts, so 40 m/s is still visible. */
 const SMOKE_TIME_SCALE = 0.08
@@ -76,8 +95,12 @@ export interface TunnelView {
   setSeparation(deg: number): void
   /** Put the sphere or a rider model in the test section. */
   setModel(model: TunnelModel): void
-  /** Turn the turntable, degrees (positive: the air arrives from the rider's right). */
+  /** Turn the turntable, degrees (positive: the nose turns right, so the air arrives from the rider's left). */
   setYaw(deg: number): void
+  /** The air round the rider for the smoke and tufts (null: none yet). */
+  setFlow(field: FlowField | null, tufts: readonly Tuft[]): void
+  /** Which instruments are out, and whether the dark backdrop is up. */
+  setInstruments(on: Instruments & { dark: boolean }): void
   /** Keep the sphere clear of the bottom sheet: pass its height in CSS pixels. */
   setSheetHeight(px: number): void
   dispose(): void
@@ -130,10 +153,8 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   const box = new THREE.Mesh(new THREE.BoxGeometry(L, H, W), wallMat)
   scene.add(box)
 
-  const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(L, W),
-    new THREE.MeshStandardMaterial({ color: COLOURS.floor, roughness: 0.9 }),
-  )
+  const floorMat = new THREE.MeshStandardMaterial({ color: COLOURS.floor, roughness: 0.9 })
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(L, W), floorMat)
   floor.rotation.x = -Math.PI / 2
   floor.position.y = floorY + 0.001
   scene.add(floor)
@@ -422,6 +443,38 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   smokeShadow.renderOrder = -1
   sphereRig.add(smokeShadow)
 
+  // --- Flow instruments round the rider, and the smoke wand.
+  const flowViz = createFlowViz(dotTexture)
+  let instruments: Instruments & { dark: boolean } = { wand: false, rake: false, tufts: false, dark: false }
+  const wandTip = new THREE.Vector3(WAND.x, floorY + WAND.startUp, WAND.startZ)
+  const wandRod = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 1, 8), new THREE.MeshStandardMaterial({ color: COLOURS.wand, roughness: 0.5 }))
+  // The tip reads as a handle: a cobalt dot in a white ring, drawn on top.
+  const tipRing = new THREE.Mesh(new THREE.SphereGeometry(0.016, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, transparent: true }))
+  const tipDot = new THREE.Mesh(new THREE.SphereGeometry(0.011, 16, 12), new THREE.MeshBasicMaterial({ color: COLOURS.wandTip, depthTest: false, transparent: true }))
+  tipRing.renderOrder = 10
+  tipDot.renderOrder = 11
+  const wand = new THREE.Group()
+  wand.add(wandRod, tipRing, tipDot)
+  wand.visible = false
+  scene.add(wand)
+  const placeWand = () => {
+    // The rod comes up from the floor to the tip.
+    const h = wandTip.y - floorY
+    wandRod.scale.y = h
+    wandRod.position.set(wandTip.x, floorY + h / 2, wandTip.z)
+    tipRing.position.copy(wandTip)
+    tipDot.position.copy(wandTip)
+  }
+  placeWand()
+  const tmpLocal = new THREE.Vector3()
+  /** The wand's tip in the rider's own coordinates, for the smoke. */
+  const wandToRider = () => {
+    flowViz.group.updateWorldMatrix(true, false)
+    tmpLocal.copy(wandTip)
+    flowViz.group.worldToLocal(tmpLocal)
+    flowViz.setWandTip({ x: tmpLocal.x, y: tmpLocal.y, z: tmpLocal.z })
+  }
+
   // Puffs churning in the wake: they drift downstream slowly and tumble, so
   // you can see how wide the separated region is.
   type WakePuff = { u: number; angle: number; radius: number; spin: number; wobble: number }
@@ -499,6 +552,8 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   let modelKind: TunnelModel['kind'] = 'sphere'
   function clearRider() {
     if (!riderGroup) return
+    // The instruments outlive the model: take them off before it is thrown away.
+    riderGroup.remove(flowViz.group)
     mount.remove(riderGroup)
     disposeGroup(riderGroup)
     riderGroup = null
@@ -515,6 +570,8 @@ export function createTunnelView(host: HTMLElement): TunnelView {
       g.add(post)
     }
     g.add(figure)
+    flowViz.group.position.x = -RIDER_MID_X
+    g.add(flowViz.group)
     g.scale.setScalar(scale)
     // The rider's forward is +x; the air comes from −x, so turn it round.
     g.rotation.y = Math.PI
@@ -529,6 +586,63 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     camera.position.copy(target).add(offset)
     controls.update()
   }
+
+  // --- The wand: press near its tip to move it across the flow; anything else orbits.
+  const canvas = renderer.domElement
+  let dragging: number | null = null
+  const ray = new THREE.Raycaster()
+  const ndc = new THREE.Vector2()
+  const wandPlane = new THREE.Plane(new THREE.Vector3(1, 0, 0), -WAND.x)
+  const hit = new THREE.Vector3()
+  const tipOnScreen = () => {
+    const v = wandTip.clone().project(camera)
+    return { x: ((v.x + 1) / 2) * canvas.clientWidth, y: ((1 - v.y) / 2) * canvas.clientHeight }
+  }
+  const local = (e: PointerEvent) => {
+    const rect = canvas.getBoundingClientRect()
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top }
+  }
+  const nearTip = (at: { x: number; y: number }) => {
+    if (!wand.visible) return false
+    const s = tipOnScreen()
+    return Math.hypot(s.x - at.x, s.y - at.y) <= HANDLE_TOUCH.hitPx
+  }
+  host.addEventListener(
+    'pointerdown',
+    (e) => {
+      if (e.target !== canvas || !e.isPrimary || dragging !== null || !nearTip(local(e))) return
+      e.stopPropagation()
+      e.preventDefault()
+      canvas.setPointerCapture(e.pointerId)
+      dragging = e.pointerId
+    },
+    { capture: true },
+  )
+  canvas.addEventListener('pointermove', (e) => {
+    const at = local(e)
+    if (dragging === null) {
+      if (e.pointerType === 'mouse' && e.buttons === 0) canvas.style.cursor = nearTip(at) ? 'grab' : ''
+      return
+    }
+    if (e.pointerId !== dragging) return
+    canvas.style.cursor = 'grabbing'
+    ndc.set((at.x / canvas.clientWidth) * 2 - 1, -(at.y / canvas.clientHeight) * 2 + 1)
+    ray.setFromCamera(ndc, camera)
+    if (!ray.ray.intersectPlane(wandPlane, hit)) return
+    wandTip.set(
+      WAND.x,
+      Math.min(floorY + WAND.maxUp, Math.max(floorY + WAND.minUp, hit.y)),
+      Math.min(W / 2 - WAND.wallGap, Math.max(-W / 2 + WAND.wallGap, hit.z)),
+    )
+    placeWand()
+  })
+  const letGo = (e: PointerEvent) => {
+    if (dragging === null || e.pointerId !== dragging) return
+    dragging = null
+    canvas.style.cursor = ''
+  }
+  canvas.addEventListener('pointerup', letGo)
+  canvas.addEventListener('pointercancel', letGo)
 
   return {
     frame(speed, dt) {
@@ -552,8 +666,25 @@ export function createTunnelView(host: HTMLElement): TunnelView {
         placeWake((0.35 * speed * SMOKE_TIME_SCALE * step) / (WAKE_LENGTH * r))
       }
 
+      if (modelKind === 'rider') {
+        wandToRider()
+        flowViz.frame(step, speed / top)
+      }
+
       controls.update()
       renderer.render(scene, camera)
+    },
+    setFlow(field, list) {
+      flowViz.setField(field, list)
+    },
+    setInstruments(next) {
+      instruments = { ...next }
+      flowViz.setInstruments(next)
+      wand.visible = next.wand && modelKind === 'rider'
+      const dark = next.dark
+      ;(scene.background as THREE.Color).setHex(dark ? COLOURS.darkBackground : COLOURS.background)
+      wallMat.color.setHex(dark ? COLOURS.darkWall : COLOURS.wall)
+      floorMat.color.setHex(dark ? COLOURS.darkFloor : COLOURS.floor)
     },
     setModel(model) {
       const changed = model.kind !== modelKind
@@ -561,6 +692,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
       sphereRig.visible = model.kind === 'sphere'
       if (model.kind === 'rider') showRider(model.state, model.scale)
       else clearRider()
+      wand.visible = instruments.wand && model.kind === 'rider'
       renderer.domElement.setAttribute(
         'aria-label',
         model.kind === 'rider' ? 'The wind tunnel test section with your rider model on the yaw turntable' : 'The wind tunnel test section with a sphere on a sting',
@@ -568,7 +700,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
       if (changed) aim(model.kind, model.kind === 'rider' ? model.scale : 1)
     },
     setYaw(deg) {
-      yawTable.rotation.y = (deg * Math.PI) / 180
+      yawTable.rotation.y = (-deg * Math.PI) / 180
     },
     setSeparation(deg) {
       if (Number.isFinite(deg)) sepDeg = Math.min(170, Math.max(60, deg))
@@ -579,6 +711,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     },
     dispose() {
       clearRider()
+      flowViz.dispose()
       observer.disconnect()
       controls.dispose()
       renderer.dispose()

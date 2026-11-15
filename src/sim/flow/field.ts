@@ -468,6 +468,20 @@ export function riderFlowField(design: CyclistDesign, flow: Flow, yawDeg: number
   return flowField({ ellipsoids, shape, drag, speed: flow.speed, yawDeg, ...(options.seed !== undefined ? { seed: options.seed } : {}) })
 }
 
+/**
+ * The air round a tunnel model (PR 3d): the separation and wakes come from
+ * the scale model's own shape and drag at tunnel speed (so a small model's
+ * laminar flow shows in the smoke), while the field stays in the full-size
+ * rider's coordinates. The renderer draws it inside the scaled model, so
+ * the two line up. Only ratios of the drag result are read, so mixing the
+ * model's scale with full-size ellipsoids is safe.
+ */
+export function modelFlowField(design: CyclistDesign, modelShape: ShapeDescriptor, flow: Flow, yawDeg: number, options: RiderFlowOptions = {}): FlowField {
+  const ellipsoids = riderEllipsoids(design, riderPose(design))
+  const drag = shapeDrag(modelShape, flow)
+  return flowField({ ellipsoids, shape: modelShape, drag, speed: flow.speed, yawDeg, ...(options.seed !== undefined ? { seed: options.seed } : {}) })
+}
+
 // --- Tufts -----------------------------------------------------------------
 
 export interface Tuft {

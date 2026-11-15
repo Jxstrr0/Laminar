@@ -16,17 +16,24 @@
  * the readouts for live charts of this run against the last one, or for the
  * session's runs: tap two to compare them against the balance's noise.
  *
+ * Over the 3D view sit the flow instruments: a smoke wand, a smoke rake,
+ * tufts and a dark backdrop. They read a flow field built from the model's
+ * own drag at tunnel speed, rebuilt (at most four times a second) as the
+ * yaw, the air speed or the design changes.
+ *
  * The sim runs on a fixed 60 Hz step; the screen draws whenever the browser
  * gives it a frame and shows whatever the sim says.
  */
 import { AIR } from '../data/air'
 import type { GlossaryId } from '../data/glossary'
+import { TUFT_VIZ } from '../data/flowViz'
 import { DEMO_MODEL_SEED, STANDARD_MODEL } from '../data/model'
 import { REFERENCE_SPHERE, RUN_RECORDING, TUNNEL_BILLING, UNIVERSITY_TUNNEL } from '../data/tunnel'
 import { t, type StringKey } from '../data/strings'
 import { dynamicPressure, reynolds } from '../sim/air'
 import { bodyDrag, type Regime } from '../sim/aero/drag'
 import { fanAtRest, setFanTarget, stepFan, type FanState } from '../sim/fan'
+import { modelFlowField, tufts as tuftsOf } from '../sim/flow/field'
 import { describeBody } from '../sim/geom/body'
 import { cyclistShape } from '../sim/geom/cyclist'
 import { riderPose } from '../sim/geom/pose'
@@ -241,13 +248,37 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
 
   const foot = el('div', 'sheet-foot')
   const version = el('span', 'version', `v${__GAME_VERSION__} · ${__BUILD_SHA__} · ${__BUILD_DATE__}`)
-  foot.append(el('span', 'hint', t('hint.orbit')), version)
+  const footHint = el('span', 'hint', t('hint.orbit'))
+  foot.append(footHint, version)
+
+  // Flow instruments: toggle chips over the 3D view, just above the sheet.
+  type Inst = 'wand' | 'rake' | 'tufts' | 'dark'
+  const inst: Record<Inst, boolean> = { wand: false, rake: false, tufts: false, dark: false }
+  const instBar = el('div', 'instruments')
+  instBar.setAttribute('role', 'group')
+  instBar.setAttribute('aria-label', t('inst.label'))
+  for (const id of ['wand', 'rake', 'tufts', 'dark'] as const) {
+    const b = el('button', 'chip', t(`inst.${id}`))
+    b.type = 'button'
+    b.setAttribute('aria-pressed', 'false')
+    b.setAttribute('aria-label', t(`inst.${id}Name`))
+    b.title = t(`inst.${id}Name`)
+    b.addEventListener('click', () => {
+      inst[id] = !inst[id]
+      b.setAttribute('aria-pressed', String(inst[id]))
+      applyInstruments()
+    })
+    instBar.append(b)
+  }
 
   sheet.append(mountRow, fanCtl.row, yawCtl.row, runLine, viewBar, riderGrid, sphereGrid, chartBox, runsBox, foot)
-  app.append(header, sheet)
+  app.append(header, sheet, instBar)
 
   // Keep the 3D model centred in the space above the sheet.
-  const sheetObserver = new ResizeObserver(() => view.setSheetHeight(sheet.offsetHeight))
+  const sheetObserver = new ResizeObserver(() => {
+    view.setSheetHeight(sheet.offsetHeight)
+    app.style.setProperty('--sheet-h', `${sheet.offsetHeight}px`)
+  })
   sheetObserver.observe(sheet)
   view.setSheetHeight(sheet.offsetHeight)
 
@@ -295,6 +326,32 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
   const modelSpec = { ...STANDARD_MODEL, seed: DEMO_MODEL_SEED }
   const balanceRng = new Rng(DEMO_MODEL_SEED).fork('balance')
   const shown = { cdA: 0, dragN: 0, sideN: 0 }
+
+  // --- The air for the instruments.
+  let modelVersion = 0
+  let flowKey = ''
+  let flowAge = Infinity
+  const anyFlow = () => inst.wand || inst.rake || inst.tufts
+  function applyInstruments() {
+    view.setInstruments({ ...inst })
+    setText(footHint, t(inst.wand && mount === 'rider' ? 'hint.wand' : 'hint.orbit'))
+    flowKey = ''
+    flowAge = Infinity
+  }
+  /** Rebuild the field when the setting has moved on, no more than four times a second. */
+  function updateFlow(dt: number) {
+    flowAge += dt
+    if (mount !== 'rider' || !prepared || !anyFlow()) return
+    // Below reading speed the drag regime is the slow-air one; the drawing slows the smoke itself.
+    const speed = Math.max(spec.readFrom, fan.speed)
+    const key = `${modelVersion}|${Math.round(table.angle)}|${Math.round(speed / 2)}|${inst.tufts}`
+    if (key === flowKey || flowAge < 0.25) return
+    flowKey = key
+    flowAge = 0
+    const flow = { density: AIR.density, viscosity: AIR.viscosity, speed, turbulence: spec.turbulence }
+    const field = modelFlowField(designStore.get(), prepared.shape, flow, table.angle, { seed: DEMO_MODEL_SEED })
+    view.setFlow(field, inst.tufts ? tuftsOf(field, { spacing: TUFT_VIZ.spacing }) : [])
+  }
 
   // --- Runs: the recorder, the session's finished runs and the bill.
   let rec: Recorder = newRecorder()
@@ -488,6 +545,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     if (prepared) endRun()
     const design = designStore.get()
     prepared = prepareModel(cyclistShape(design), modelSpec)
+    modelVersion++
+    view.setFlow(null, [])
     view.setModel({ kind: 'rider', state: { design, pose: riderPose(design), broken: [], strained: [] }, scale: modelSpec.scale })
     designDirty = false
   }
@@ -502,6 +561,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
       b.tabIndex = on ? 0 : -1
     })
     yawCtl.row.hidden = mount !== 'rider'
+    instBar.hidden = mount !== 'rider'
     shownSpeed = -1
     placeModel()
     selectView(view_)
@@ -590,6 +650,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     if (mount === 'rider') {
       if (designDirty) placeModel()
       updateRider(dt)
+      updateFlow(dt)
     } else updateSphere()
     showRun()
     drawChart()
@@ -599,6 +660,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView): { setActi
     raf = requestAnimationFrame(loop)
   }
   setMount('rider')
+  applyInstruments()
   return {
     setActive(on) {
       if (on === active) return

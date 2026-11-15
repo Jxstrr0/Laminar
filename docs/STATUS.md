@@ -14,10 +14,26 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 3a | The tunnel, part 1: your design on the yaw turntable at 1:2, live balance readouts (model drag, side force, full-size CdA), Sphere / Your rider switch | **Done** (v0.3.3.0) |
 | 3b | The tunnel, part 2: runs (fan-up to fan-down), run billing, live force charts | **Done** (v0.3.4.0) |
 | 3c | The tunnel, part 3: run history with A/B compare and noise bands | **Done** (v0.3.5.0) |
-| 3d | The tunnel, part 4: smoke wand and rake, tufts round the rider | Next |
-| 4–14 | See the plan | Not started |
+| 3d | The tunnel, part 4: smoke wand and rake, tufts round the rider | **Done** (v0.3.6.0) |
+| 4 | See the plan (next) | Next |
+| 5–14 | See the plan | Not started |
 
 ## Versions
+
+- **0.3.6.0** (PR 3d): see the air. Four chips sit over the tunnel view
+  when your rider is on the turntable:
+  - **Rake:** a row of smoke streams up the rider's middle.
+  - **Wand:** one stream from a tip you drag with a finger.
+  - **Tufts:** wool tufts on the rider that lie flat where the air holds on
+    and flail red where it lets go.
+  - **Dark wall:** darkens the lab so the white smoke stands out.
+
+  The smoke follows a flow field built from the model's own drag at tunnel
+  speed, so it slows and churns in the wake exactly where the numbers say
+  the flow separates, and it swings with the yaw. The turntable now turns
+  the same way as the sim: positive yaw turns the rider's nose to its
+  right, so the wind comes from its left. Also recorded: Kelbo's -ize
+  spelling and the TCF name.
 
 - **0.3.5.0** (PR 3c): is it real, or is it noise? A new Runs tab lists
   the session's runs, each with its CdA and noise band. Tap two to compare
