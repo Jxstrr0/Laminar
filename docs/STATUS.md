@@ -132,6 +132,8 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 - GitHub Pages: **Source: GitHub Actions** (switched on 15 November 2026),
   custom domain `laminar.longlight.games`, **Enforce HTTPS** on.
 
-## Open questions for Kelbo
+## Decisions (15 November 2026)
 
-- Keep "Tarnovian Cycling Federation" as the cycling body's name?
+- Spelling: Canadian with **-ize** (organize, realize), as the Canadian
+  Oxford does. `tests/glossary.test.ts` flags -ise forms in glossary text.
+- The cycling body stays the **Tarnovian Cycling Federation** (TCF).
