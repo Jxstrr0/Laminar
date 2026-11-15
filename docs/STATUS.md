@@ -23,11 +23,30 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 5a | Contracts, part 1: the lab's state lifted out of the tunnel, and autosave (one slot) | **Done** (v0.5.0.0) |
 | 5b | Save slots, save code (`LAM1:`) and a Saves sheet | **Done** (v0.5.1.0) |
 | 5c | Briefs, money and the job clock: the Jobs screen, runs and models charged, days spent, deliver and get paid | **Done** (v0.5.2.0) |
-| 5d | The model follows the design: parts swap for a fee, a new position needs a new model (Kelbo's call) | Next |
-| 5e–5i | Promise and debrief, sealed bids, time-trial replay, velodrome, guided first job | Not started |
+| 5d | The model follows the design: parts swap for a fee, a new position needs a new model (Kelbo's call) | **Done** (v0.5.3.0) |
+| 5e | Promise and prediction, the debrief, payment and penalties | Next |
+| 5f–5i | Sealed bids, time-trial replay, velodrome, guided first job | Not started |
 | 6–14 | See the plan | Not started |
 
 ## Versions
+
+- **0.5.3.0** (PR 5d): the tunnel model is a real thing now (Kelbo's
+  "parts swap, position re-orders").
+  - The model on the mount keeps the design it was built of. Changing the
+    design on Shape no longer changes the model for free.
+  - **New parts** (helmet, skinsuit, bars, a wheel, the frame): the tunnel
+    shows a slim bar, e.g. "Model: old rear wheel · Swap · ₽1,500". Swapping
+    costs ₽ 1,500 a part and no days.
+  - **New position:** the bar says "Model: old position" with a **New
+    model** button that opens the shop. You can still swap the parts on the
+    old model if you only want to test those.
+  - Taking a job puts the client's setup on the bench, so the first thing a
+    job needs is a model of it.
+  - Run notes, the pooled crank-angle average and the flow pictures all
+    follow the model's design, not the bench's.
+  - The firm now starts with ₽ 150,000, enough for a model and a session
+    before the first fee.
+  - Fixed: the CdA readout named the old model's scale until the fan ran.
 
 - **0.5.2.0** (PR 5c): jobs, money and the days clock.
   - **Jobs screen:** a new first tab (Jobs · Shape · Tunnel). It shows your

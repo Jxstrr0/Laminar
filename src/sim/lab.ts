@@ -6,7 +6,7 @@
  */
 import { DEMO_MODEL_SEED, STANDARD_ORDER } from '../data/model'
 import { SKELETON } from '../data/pose'
-import type { CyclistDesign } from '../data/cyclist'
+import { DEFAULT_CYCLIST, type CyclistDesign } from '../data/cyclist'
 import type { ModelOrder } from './modelShop'
 import { Rng, type RngState } from './rng'
 import type { Run } from './run'
@@ -27,6 +27,8 @@ export interface LabState {
   notes: Record<number, RunNote>
   /** The model on the mount, as ordered. */
   order: ModelOrder
+  /** The design that model was built of (with any parts swapped since). */
+  modelDesign: CyclistDesign
   /** Builds ordered so far (0 is the model you start with). */
   build: number
   /** The model's crank angle now, degrees. */
@@ -37,11 +39,12 @@ export interface LabState {
   balanceRng: RngState
 }
 
-export function newLab(): LabState {
+export function newLab(modelDesign: CyclistDesign = DEFAULT_CYCLIST): LabState {
   return {
     runs: [],
     notes: {},
     order: { ...STANDARD_ORDER },
+    modelDesign: structuredClone(modelDesign),
     build: 0,
     crank: SKELETON.crankDeg[0]!,
     nextRunId: 1,

@@ -74,6 +74,7 @@ import { prepareExact, prepareModel, readBalance, readTare, tunnelTurbulence, ty
 import type { TunnelView } from '../render/tunnelScene'
 import { createChart, describeLast, type ChartPoint } from './chart'
 import { openModelShop, type ShopContext } from './modelShop'
+import { partChanges, postureChanged, swapCost, swapParts } from '../sim/remodel'
 import { createCpLegend } from './cpLegend'
 import { designStore } from './designStore'
 import { fixed, scientific } from './format'
@@ -180,6 +181,8 @@ export interface TunnelHooks {
   shop(): ShopContext
   /** A model was ordered: charge it and spend its days. */
   onOrder(price: number, days: number): void
+  /** Parts were swapped on the model: charge the fee. */
+  onSwap(price: number): void
 }
 
 export interface TunnelControl {
@@ -492,8 +495,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
 
   // --- The rider model: rebuilt when the design changes, read by the balance.
   let prepared: PreparedModel | null = null
-  let designDirty = true
-  designStore.subscribe(() => (designDirty = true))
+  /** The design the model on the mount was built of: it changes only with a new model or swapped parts. */
+  let modelDesign = structuredClone(saved.modelDesign)
   /** The model on order: what the shop built, and which build it is (each build has its own errors). */
   let order: ModelOrder = { ...saved.order }
   let build = saved.build
@@ -518,15 +521,58 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       const q = quote(next)
       hooks.onOrder(q.price, q.days)
       order = next
+      // The new model is built of the design on the bench now.
+      modelDesign = structuredClone(designStore.get())
       build++
       modelSpec = modelSpecOf(order, DEMO_MODEL_SEED + build)
       showOrder()
       showTapsChip()
       placeModel()
+      showStale()
       onChange()
     }),
   )
   showTapsChip()
+
+  // --- When the bench design has moved on from the model: swap parts, or order a new one.
+  const staleBox = el('div', 'model-note')
+  staleBox.setAttribute('role', 'status')
+  staleBox.title = t('model.noteName')
+  const staleText = el('p', 'model-note-text')
+  const staleActions = el('div', 'model-note-actions')
+  const swapBtn = el('button', 'save-btn')
+  swapBtn.type = 'button'
+  const newBtn = el('button', 'save-btn', t('model.newModel'))
+  newBtn.type = 'button'
+  staleActions.append(newBtn, swapBtn)
+  staleBox.append(staleText, staleActions)
+  app.append(staleBox)
+  function showStale() {
+    const bench = designStore.get()
+    const parts = partChanges(modelDesign, bench)
+    const moved = postureChanged(modelDesign, bench)
+    staleBox.hidden = mount !== 'rider' || (!moved && parts.length === 0)
+    if (staleBox.hidden) return
+    const list = parts.map((p) => t(`model.part.${p}` as StringKey)).join(', ')
+    setText(staleText, moved ? t('model.moved') : t('model.parts', { list }))
+    swapBtn.hidden = parts.length === 0
+    // A new position needs a new model first; swapping parts is the lesser fix.
+    swapBtn.classList.toggle('quiet', moved)
+    setText(swapBtn, t(parts.length === 1 ? 'model.swapOne' : 'model.swap', { n: parts.length, price: fixed(swapCost(parts), 0) }))
+    newBtn.hidden = !moved
+  }
+  swapBtn.addEventListener('click', () => {
+    const bench = designStore.get()
+    const parts = partChanges(modelDesign, bench)
+    if (!parts.length) return
+    hooks.onSwap(swapCost(parts))
+    modelDesign = swapParts(modelDesign, bench)
+    placeModel()
+    showStale()
+    onChange()
+  })
+  newBtn.addEventListener('click', () => shopBtn.click())
+  designStore.subscribe(() => showStale())
   const balanceRng = Rng.from(saved.balanceRng)
   const shown = { cdA: 0, dragN: 0, sideN: 0 }
 
@@ -557,7 +603,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     flowKey = key
     flowAge = 0
     const flow = { density: AIR.density, viscosity: AIR.viscosity, speed, turbulence: airTurbulence }
-    const field = modelFlowField(designStore.get(), prepared.shape, flow, table.angle, { seed: DEMO_MODEL_SEED, crankDeg: crank })
+    const field = modelFlowField(modelDesign, prepared.shape, flow, table.angle, { seed: DEMO_MODEL_SEED, crankDeg: crank })
     view.setFlow(field, inst.tufts ? tuftsOf(field, { spacing: TUFT_VIZ.spacing }) : [])
     if (inst.taps) {
       const taps = reading ? tapLayout(field) : []
@@ -661,7 +707,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     const live = rec.run
     const done = runs[runs.length - 1]
     if (live && live.model === 'rider' && !designs.has(live.id)) {
-      designs.set(live.id, structuredClone(designStore.get()))
+      designs.set(live.id, structuredClone(modelDesign))
       cranks.set(live.id, crank)
       builds.set(live.id, build)
     }
@@ -810,7 +856,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
 
   /** This design's runs, pooled at each crank angle, with corrections taken off. */
   function drawPool() {
-    const now = designStore.get()
+    const now = modelDesign
     const byCrank = new Map<number, Run[]>()
     for (const run of runs) {
       const d = designs.get(run.id)
@@ -878,15 +924,16 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       return
     }
     if (prepared) endRun()
-    const design = designStore.get()
+    const design = modelDesign
     prepared = prepareModel(cyclistShape(design, { crankDeg: crank, staticWheels: !spec.wheelDrive }), modelSpec)
     refreshCal()
+    // The CdA's note names the model's scale before any reading (it changes with a new order).
+    if (!fixWords(fix)) setText(rCdA.sub, t('read.cdaRaw', { scale: fixed(1 / modelSpec.scale, 0) }))
     modelVersion++
     view.setFlow(null, [])
     view.setTaps([], [])
     view.setModel({ kind: 'rider', state: { design, pose: riderPose(design, crank), broken: [], strained: [] }, scale: modelSpec.scale, tare })
     runsDirty = true
-    designDirty = false
   }
 
   /** Show the controls that fit what's on the mount. */
@@ -903,6 +950,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     instBar.hidden = !yawOpen()
     shown.cdA = shown.dragN = shown.sideN = 0
     placeModel()
+    showStale()
     selectView(view_)
   }
 
@@ -1156,7 +1204,6 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       }
       carry -= STEP
     }
-    if (mount === 'rider' && designDirty) placeModel()
     if (tare) updateTare(dt)
     else if (mount === 'rider') {
       updateRider(dt)
@@ -1191,7 +1238,16 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
         const b = builds.get(r.id)
         if (design && c !== undefined && b !== undefined) notes[r.id] = { design, crank: c, build: b }
       }
-      return { runs: [...runs], notes, order: { ...order }, build, crank, nextRunId: rec.nextId, balanceRng: balanceRng.state }
+      return {
+        runs: [...runs],
+        notes,
+        order: { ...order },
+        modelDesign: structuredClone(modelDesign),
+        build,
+        crank,
+        nextRunId: rec.nextId,
+        balanceRng: balanceRng.state,
+      }
     },
   }
 }

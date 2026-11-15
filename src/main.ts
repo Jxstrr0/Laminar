@@ -114,6 +114,7 @@ async function boot(): Promise<void> {
       return { event: currentEvent(career), block: (days) => orderBlock(career, days), daysLeft: career.job?.daysLeft ?? 0 }
     },
     onOrder: (price, days) => careerStore.set(orderModel(careerStore.get(), price, days)),
+    onSwap: (price) => careerStore.set(charge(careerStore.get(), price)),
   })
   const autosave = startAutosave(
     () => current(),
