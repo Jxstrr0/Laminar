@@ -6,11 +6,19 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | --- | --- | --- |
 | 0 | Scaffold, CI, deploy, loading screen, brand, look, address, grey tunnel with a sphere and a fan | **Done** (v0.1.0.0) |
 | 1a | Aero sim core, part 1: shape descriptors and drag (friction with transition, separation, front corners, interference, cavities); the sphere's drag crisis in the tunnel | **Done** (v0.2.0.0) |
-| 1b | Aero sim core, part 2: lift, stall, induced drag, ground effect, yaw forces | Next |
-| 1c | Aero sim core, part 3: truth / tunnel / field split, reference rider, node harness | Not started |
+| 1b | Aero sim core, part 2: lift, stall, induced drag, ground effect, yaw forces | **Done** (v0.2.1.0) |
+| 1c | Aero sim core, part 3: truth / tunnel / field split, reference rider, node harness | Next |
 | 2–14 | See the plan | Not started |
 
 ## Versions
+
+- **0.2.1.0** (PR 1b): lift and crosswinds in the aero model. Wings, fins,
+  disc wheels and diffusers make lift (or side force) with a stall, induced
+  drag and ground effect that collapses when a wing gets too close. Bodies
+  in a crosswind get side force and extra drag, and the model works out the
+  centre of pressure, so it can tell whether a shape settles into the wind
+  or gets pushed off line. Nothing new to see in the tunnel yet: the yaw
+  turntable comes with the live sweep controls (PR 3).
 
 - **0.2.0.0** (PR 1a): the aero model's drag. Bodies are described by their
   cross-sections; the model finds where the boundary layer goes turbulent

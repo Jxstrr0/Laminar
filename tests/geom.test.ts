@@ -39,6 +39,11 @@ describe('shape descriptors', () => {
     expect(model.bodies[0]?.roughness).toBe(0.0001)
     expect(model.bodies[0]?.trip?.height).toBe(0.001)
   })
+  it('scale wings with the rest of the model', () => {
+    const wing = { id: 'w', plane: 'horizontal' as const, span: 1, chord: 0.3, camber: 0.04, thickness: 0.12, angleDeg: 3, x: 2, rideHeight: 0.1 }
+    const scaled = scaleShape({ bodies: [], elements: [wing] }, 0.5).elements?.[0]
+    expect(scaled).toMatchObject({ span: 0.5, chord: 0.15, x: 1, rideHeight: 0.05, angleDeg: 3, camber: 0.04 })
+  })
   it('refuse a body with too few sections', () => {
     expect(() => describeBody({ id: 'x', stations: [{ x: 0, top: 0, bottom: 0, half: 0 }] })).toThrow()
   })
