@@ -127,6 +127,12 @@ export const CAVITY: Record<CavityKind, { peak: number; half: number }> = {
   spokes: { peak: 0.05, half: 0.5 },
 }
 
+/** Spokes on a wheel that isn't turning (plan section 7.2, static wheels). */
+export const SPOKES = {
+  /** A still wheel's spokes make this fraction of a spinning wheel's spoke drag. */
+  staticFactor: 0.5,
+}
+
 /** Wings, fins, discs and diffusers (plan section 6.3). */
 export const LIFT = {
   /** Endplates raise a wing's effective aspect ratio: × (1 + this × height / span). */

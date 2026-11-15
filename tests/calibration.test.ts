@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_CYCLIST } from '../src/data/cyclist'
 import { DEMO_MODEL_SEED, STANDARD_MODEL } from '../src/data/model'
 import { DEMO_TUNNEL_SEED, UNIVERSITY_QUIRKS, UNIVERSITY_TUNNEL } from '../src/data/tunnel'
-import { bookCurve, calibrate, correct, corrections, crisisRe, latestTare, tareModel } from '../src/sim/calibration'
+import { bookCurve, calibrate, correct, corrections, crisisRe, latestTare, NO_CORRECTIONS, tareModel } from '../src/sim/calibration'
 import { describeBody } from '../src/sim/geom/body'
 import { cyclistShape } from '../src/sim/geom/cyclist'
 import { sphere } from '../src/sim/geom/shapes'
@@ -116,6 +116,6 @@ describe('calibration', () => {
     const ideal = readBalance(prepared, { ...UNIVERSITY_TUNNEL, ...quiet, turbulence: quirks.turbulence }, run, new Rng(1)).modelCdA
     const raw = readBalance(prepared, { ...tunnel, ...quiet }, run, new Rng(1)).modelCdA
     expect(Math.abs(correct(raw, fix) / ideal - 1)).toBeLessThan(0.012)
-    expect(correct(raw, { tare: null, blockage: null })).toBe(raw)
+    expect(correct(raw, NO_CORRECTIONS)).toBe(raw)
   })
 })

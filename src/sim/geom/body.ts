@@ -91,6 +91,8 @@ export interface Cavity {
   area: number
   /** Depth over opening width (spoke count over 32 for spokes). */
   depth: number
+  /** Spokes only: false for a wheel held still, as on a tunnel model without a wheel drive. */
+  spinning?: boolean
 }
 
 /** A whole shape: bodies plus the joints and cavities between them. */

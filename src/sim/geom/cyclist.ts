@@ -15,6 +15,7 @@ import {
   type CyclistDesign,
   type WheelKind,
 } from '../../data/cyclist'
+import { REFERENCE_WHEEL } from '../../data/tunnel'
 import { detCos, detSin, PI } from '../det'
 import { clamp, clamp01, DEG, lerp } from '../num'
 import type { BodySpec, Cavity, LiftingElement, ShapeSpec } from './body'
@@ -52,6 +53,8 @@ export interface CyclistShapeOptions {
    * a pedalling rider, whose legs' drag averages over the stroke.
    */
   crankDeg?: number
+  /** Hold the wheels still, as on a tunnel model with no wheel drive. Leave it out for wheels that spin. */
+  staticWheels?: boolean
 }
 
 export function cyclistShape(design: CyclistDesign, options: CyclistShapeOptions = {}): ShapeSpec {
@@ -153,7 +156,7 @@ export function cyclistShape(design: CyclistDesign, options: CyclistShapeOptions
     const w = BIKE.wheels[id]
     bodies.push(pos(upright(`${id}-tyre`, BIKE.tyre.diameter, BIKE.tyre.height), w.x, w.wake))
     const open = kind === 'spoked' ? 1 : kind === 'deep' ? 1 - BIKE.deepSpokeCover : 0
-    if (open > 0) cavities.push({ kind: 'spokes', area: disc * open * (1 - w.wake), depth: w.spokes / 32 })
+    if (open > 0) cavities.push(spokeDisc(disc * open * (1 - w.wake), w.spokes, !options.staticWheels))
     if (kind !== 'spoked') {
       elements.push({
         id: `${id}-wheel`,
@@ -181,5 +184,22 @@ export function cyclistShape(design: CyclistDesign, options: CyclistShapeOptions
       { kind: 'wheel-frame', thickness: BIKE.forkThickness },
     ],
     cavities,
+  }
+}
+
+/** A wheel's spokes as the drag model sees them: a disc of churning air. */
+function spokeDisc(area: number, spokes: number, spinning: boolean): Cavity {
+  return { kind: 'spokes', area, depth: spokes / 32, ...(spinning ? {} : { spinning: false }) }
+}
+
+/**
+ * The lab's reference wheel (plan section 7.2): a plain spoked wheel on its
+ * own, whose spinning drag is in the book. Full size; scale it like a model.
+ */
+export function referenceWheel(spinning: boolean): ShapeSpec {
+  const disc = (PI * BIKE.wheelDiameter * BIKE.wheelDiameter) / 4
+  return {
+    bodies: [upright('reference-tyre', BIKE.tyre.diameter, BIKE.tyre.height)],
+    cavities: [spokeDisc(disc, REFERENCE_WHEEL.spokes, spinning)],
   }
 }

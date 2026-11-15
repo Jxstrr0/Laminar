@@ -17,13 +17,29 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 3d | The tunnel, part 4: smoke wand and rake, tufts round the rider | **Done** (v0.3.6.0) |
 | 4a | Correlation, part 1: the tunnel's hidden quirks (blockage, turbulent air, mount drag), tare runs, sphere calibration against the book, corrections on the rider's CdA | **Done** (v0.4.0.0) |
 | 4b | Correlation, part 2: static legs (crank-angle runs and the pedalling average), repeat runs pooled | **Done** (v0.4.1.0) |
-| 4c | Correlation, part 3: static wheels and a known-wheel calibration | Next |
-| 4d | Correlation, part 4: model shop (scale, finish, accuracy), the Reynolds trap and trip strips | Not started |
+| 4c | Correlation, part 3: static wheels and a known-wheel calibration | **Done** (v0.4.2.0) |
+| 4d | Correlation, part 4: model shop (scale, finish, accuracy), the Reynolds trap and trip strips | Next |
 | 4e | Correlation, part 5: pressure taps and the Cp map | Not started |
 | 5–14 | See the plan | Not started |
 
 ## Versions
 
+- **0.4.2.0** (PR 4c): the wheels stand still. The university tunnel has
+  no wheel drive, so the rider model's wheels don't spin. A spinning
+  wheel's spokes churn the air; still ones churn about half as much, so
+  spoked wheels read low (about 3 % of the whole rider) and a disc looks
+  less of a gain than it really is.
+  - **Wheel:** a third model on the posts, the lab's 32-spoke reference
+    wheel at 1:2, held still. Its readout shows its drag (with the posts
+    taken off once tared) beside the book's figure for it spinning.
+  - **Calibrate:** a new line holds the still wheel against the book and
+    says how much your rider's spokes miss. The rider's CdA readout and
+    the This design card then add it back, scaled by your own wheels
+    (nothing for discs, less for deep rims).
+
+  The corrected CdA's note now reads "Corrected · raw …" so it fits a
+  phone; the This design card still lists what was corrected. "Static
+  wheels" joins the glossary.
 - **0.4.1.0** (PR 4b): the legs go round. A scale model's legs are fixed
   at one crank angle, and the legs' drag swings with the cranks: most with
   a thigh up in the air, least with the cranks level. A pedalling rider

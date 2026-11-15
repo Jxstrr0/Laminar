@@ -28,6 +28,11 @@ export const UNIVERSITY_TUNNEL = {
    * (standard deviation). Repeat runs and average to beat it.
    */
   balanceNoise: 0.01,
+  /**
+   * No wheel drive: the rider model's wheels sit still, so their spokes read
+   * low (a quirk, plan section 7.2). The reference wheel shows by how much.
+   */
+  wheelDrive: false,
   /** The yaw turntable: range and steps in degrees, and how fast it turns (degrees per second). */
   turntable: { min: -20, max: 20, step: 1, rate: 6 },
   /**
@@ -76,6 +81,15 @@ export const RUN_RECORDING = {
 export const REFERENCE_SPHERE = {
   /** Diameter in metres. */
   diameter: 0.25,
+} as const
+
+/**
+ * The lab's reference wheel: a plain spoked wheel with its spinning drag in
+ * the book. Built at the model's scale and run on the posts with no rider,
+ * held still like the model's wheels, it shows what still wheels miss.
+ */
+export const REFERENCE_WHEEL = {
+  spokes: 32,
 } as const
 
 /**

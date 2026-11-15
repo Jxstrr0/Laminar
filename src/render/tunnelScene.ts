@@ -21,10 +21,10 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { HANDLE_TOUCH } from '../data/handles'
 import { FRAME } from '../data/pose'
-import { UNIVERSITY_TUNNEL, REFERENCE_SPHERE } from '../data/tunnel'
+import { UNIVERSITY_TUNNEL, REFERENCE_SPHERE, REFERENCE_WHEEL } from '../data/tunnel'
 import type { FlowField, Tuft } from '../sim/flow/field'
 import { createFlowViz, type Instruments } from './flowViz'
-import { buildRider, disposeGroup, type RiderState } from './riderFigure'
+import { buildReferenceWheel, buildRider, disposeGroup, type RiderState } from './riderFigure'
 
 /** Scene colours: a bright, clean lab (plan section 11). */
 const COLOURS = {
@@ -79,13 +79,17 @@ const WAKE_LENGTH = 4
 const WAKE_PUFFS = 90
 
 /** What stands in the test section. */
-export type TunnelModel = ({ kind: 'sphere' } | { kind: 'rider'; state: RiderState; scale: number }) & {
+export type TunnelModel = ({ kind: 'sphere' } | { kind: 'rider'; state: RiderState; scale: number } | { kind: 'wheel'; scale: number }) & {
   /** A tare run: the mount alone, with the model taken off. */
   tare?: boolean
 }
 
 /** Where the camera starts, from the model's centre (outside the near glass). */
-const CAMERA_OFFSET = { sphere: new THREE.Vector3(-0.85, 0.3, 1.65), rider: new THREE.Vector3(-1.1, 0.5, 2.1) }
+const CAMERA_OFFSET = {
+  sphere: new THREE.Vector3(-0.85, 0.3, 1.65),
+  rider: new THREE.Vector3(-1.1, 0.5, 2.1),
+  wheel: new THREE.Vector3(-1.1, 0.4, 1.9),
+}
 /** The rider model's centre, as a height above the floor at full scale, m. */
 const RIDER_CENTRE_Y = 0.65
 /** The rider bike's middle along its length at full scale (between the tyres' ends), m. */
@@ -562,7 +566,8 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     disposeGroup(riderGroup)
     riderGroup = null
   }
-  function showRider(state: RiderState, scale: number, tare: boolean) {
+  /** The posts with a rider on them, the reference wheel (null), or nothing for a tare run. */
+  function showRider(state: RiderState | null, scale: number, tare: boolean) {
     clearRider()
     const g = new THREE.Group()
     // Two posts clamp the axles to the balance under the floor.
@@ -572,7 +577,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
       g.add(post)
     }
     if (!tare) {
-      const figure = buildRider(state)
+      const figure = state ? buildRider(state) : buildReferenceWheel(REFERENCE_WHEEL.spokes)
       figure.position.x = -RIDER_MID_X
       g.add(figure)
     }
@@ -586,8 +591,13 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   }
   /** Point the camera at the model, keeping it on the observation-window side. */
   function aim(kind: TunnelModel['kind'], scale = 1) {
-    const target = kind === 'rider' ? new THREE.Vector3(0, floorY + RIDER_CENTRE_Y * scale, 0) : new THREE.Vector3(0, 0, 0)
-    const offset = CAMERA_OFFSET[kind].clone().multiplyScalar(kind === 'rider' ? scale * 2 : 1)
+    const target =
+      kind === 'rider'
+        ? new THREE.Vector3(0, floorY + RIDER_CENTRE_Y * scale, 0)
+        : kind === 'wheel'
+          ? new THREE.Vector3(0, floorY + FRAME.wheelRadius * scale, 0)
+          : new THREE.Vector3(0, 0, 0)
+    const offset = CAMERA_OFFSET[kind].clone().multiplyScalar(kind === 'sphere' ? 1 : scale * 2)
     controls.target.copy(target)
     camera.position.copy(target).add(offset)
     controls.update()
@@ -701,20 +711,23 @@ export function createTunnelView(host: HTMLElement): TunnelView {
       for (const part of [sphere, smoke, smokeShadow, wakeSmoke, wakeShadow]) part.visible = !tare
       if (sepRing) sepRing.visible = !tare
       if (model.kind === 'rider') showRider(model.state, model.scale, tare)
+      else if (model.kind === 'wheel') showRider(null, model.scale, tare)
       else clearRider()
       wand.visible = instruments.wand && model.kind === 'rider' && !tare
-      flowViz.group.visible = !tare
+      flowViz.group.visible = model.kind === 'rider' && !tare
       renderer.domElement.setAttribute(
         'aria-label',
         tare
-          ? model.kind === 'rider'
-            ? 'The wind tunnel test section with the empty rider posts, for a tare run'
-            : 'The wind tunnel test section with the empty sting, for a tare run'
+          ? model.kind === 'sphere'
+            ? 'The wind tunnel test section with the empty sting, for a tare run'
+            : 'The wind tunnel test section with the empty posts, for a tare run'
           : model.kind === 'rider'
             ? 'The wind tunnel test section with your rider model on the yaw turntable'
-            : 'The wind tunnel test section with a sphere on a sting',
+            : model.kind === 'wheel'
+              ? 'The wind tunnel test section with the reference wheel held still on the posts'
+              : 'The wind tunnel test section with a sphere on a sting',
       )
-      if (changed) aim(model.kind, model.kind === 'rider' ? model.scale : 1)
+      if (changed) aim(model.kind, model.kind === 'sphere' ? 1 : model.scale)
     },
     setYaw(deg) {
       yawTable.rotation.y = (-deg * Math.PI) / 180
