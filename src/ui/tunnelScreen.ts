@@ -61,7 +61,10 @@ import { describeShape, scaleShape } from '../sim/geom/body'
 import { referenceWheel } from '../sim/geom/cyclist'
 import { sphere } from '../sim/geom/shapes'
 import { Rng } from '../sim/rng'
-import { designPose, designShape, isBobsled, isJumper, type Design } from '../sim/design'
+import { designPose, designShape, isBobsled, isJumper, isTruck, type Design } from '../sim/design'
+import { forecastSaving, prepareTruck, readCurve, truckEvent } from '../sim/truckTunnel'
+import { FLEET_TRUCK, type TruckDesign } from '../data/truck'
+import { ROUTES } from '../data/routes'
 import { forecastRun, prepareSled, sledEvent } from '../sim/sledTunnel'
 import type { SledEvent } from '../sim/sledJob'
 import type { BobsledDesign } from '../data/bobsled'
@@ -216,6 +219,9 @@ export interface TunnelControl {
 }
 
 /** Start the tunnel from the lab's saved state. */
+/** A truck's forecast counts as swept once it has a reading at least this far off straight on, degrees. */
+const TRUCK_SWEEP_MIN = 5
+
 export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: LabState, hooks: TunnelHooks): TunnelControl {
   const onChange = hooks.onChange
   let setup = hooks.tunnel()
@@ -245,8 +251,15 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   const home = () => (jumper ? FLIGHT_ATTITUDE.hold : 0)
   /** The track a sled is forecast on (the job's from PR 8o; Belogor until then). */
   const sledTrack = () => hooks.sledRace().track
-  /** The event the model's Reynolds number is matched to: a sled's track at its usual speed, else the job's. */
-  const reEvent = (): EventSpec => (isBobsled(modelDesign) ? sledEvent(sledTrack()) : hooks.event())
+  /**
+   * The route a truck is forecast on, and the client's truck as it runs now
+   * (known from their fuel records). Truck jobs (PR 9e) bring their own;
+   * until then it's the fleet's plain rig on the Stavren–Mostograd highway.
+   */
+  const truckRun = (truck: TruckDesign) => ({ route: ROUTES['stavren-mostograd'], old: { ...FLEET_TRUCK, trailerTop: truck.trailerTop } })
+  /** The event the model's Reynolds number is matched to: a sled's track or a truck's route at its usual speed, else the job's. */
+  const reEvent = (): EventSpec =>
+    isBobsled(modelDesign) ? sledEvent(sledTrack()) : isTruck(modelDesign) ? truckEvent(truckRun(modelDesign).route) : hooks.event()
   /** What holds the model on the mount now. */
   const mountKind = (): MountKind => (mount === 'rider' && jumper ? 'sting' : MOUNT_KIND[mount])
   // The calibration sphere, made exactly: a reference body has no build errors.
@@ -586,8 +599,15 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   shopBtn.addEventListener('click', () => {
     const bench = designStore.get()
     const sled = isBobsled(bench)
-    // A sled's model is matched to the track's speed, and only a sled can sit on a ground board.
-    const ctx: ShopContext = { ...hooks.shop(), sled, ...(sled ? { event: sledEvent(sledTrack()) } : {}) }
+    const truck = isTruck(bench)
+    // A sled's model is matched to the track's speed and a truck's to the route's; only they sit on a ground board.
+    const ctx: ShopContext = {
+      ...hooks.shop(),
+      sled,
+      truck,
+      ...(sled ? { event: sledEvent(sledTrack()) } : {}),
+      ...(truck ? { event: truckEvent(truckRun(bench).route) } : {}),
+    }
     openModelShop(order, ctx, (next) => {
       const q = quote(next, ctx.hand)
       hooks.onOrder(q.price, q.days)
@@ -716,7 +736,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     breakSheet ??= createSheet({ cls: 'breaks', title: t('fail.sheetTitle'), closeLabel: t('fail.close') })
     const r = repairTerms(f)
     const head = el('p', 'fail-head', t('fail.headline', { what: t(`fail.title.${f.part}` as StringKey), speed: fixed(speed, 1) }))
-    const why = el('p', 'fail-why', t(`fail.why.${f.part}` as StringKey))
+    // A truck's posts are its own stouter struts.
+    const why = el('p', 'fail-why', t(f.part === 'posts' && isTruck(modelDesign) ? 'fail.why.truckPosts' : (`fail.why.${f.part}` as StringKey)))
     const cost = el('p', 'fail-cost', r.screens ? t('fail.costScreens', { price: fixed(r.price, 0), days: r.days, screens: fixed(r.screens, 0) }) : t('fail.cost', { price: fixed(r.price, 0), days: r.days }))
     const actions = el('div', 'job-actions')
     const again = el('button', 'shop-order', t('fail.repairBtn', { price: fixed(r.total, 0), days: r.days }))
@@ -1040,7 +1061,9 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
         const badge = el('span', 'run-badge', slot === 0 ? 'A' : slot === 1 ? 'B' : '')
         const text = el('span', 'run-text')
         const jumped = isJumperRun(run)
-        const model = t(jumped ? 'mount.jumper' : (RUN_MODEL[run.model] ?? 'mount.rider'))
+        const runDesign = designs.get(run.id)
+        const trucked = run.model === 'rider' && runDesign !== undefined && isTruck(runDesign)
+        const model = t(jumped ? 'mount.jumper' : trucked ? 'mount.truck' : (RUN_MODEL[run.model] ?? 'mount.rider'))
         text.append(
           el('span', 'run-title', t('runs.row', { id: run.id, model, time: clock(run.duration), cost: fixed(runCost(run), 0) }) + (run.failure ? ` · ${t('fail.runTag')}` : '')),
           el('span', 'run-sub', groupWords(headlineGroup(yawGroups(run)), run.model.startsWith('tare') || run.model === WHEEL_RUN ? TARE_DIGITS : 4, jumped)),
@@ -1134,6 +1157,18 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     const time = sledPoolTime(sled, byCrank)
     sledForecast.set(sled, sledTrack().id, time === null ? null : { time, board: order.board === true })
   }
+  /**
+   * A truck's runs, pooled angle by angle (PR 9d): each yaw's settled
+   * reading, corrected, in order of angle. A truck is the same either side.
+   */
+  function truckGroups(byCrank: Map<number, Run[]>) {
+    if (!prepared) return []
+    const s2 = prepared.scale * prepared.scale
+    return poolRuns([...byCrank.values()].flat())
+      .filter((p) => p.trusted)
+      .map((p) => ({ ...p, cdA: correct(p.mean * s2, fix) / s2 }))
+      .sort((a, b) => Math.abs(a.yawDeg) - Math.abs(b.yawDeg) || a.yawDeg - b.yawDeg)
+  }
   function drawPool() {
     if (jumper) {
       drawForecast()
@@ -1175,6 +1210,38 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     )
     setText(poolTitle, cycle ? t('pool.titleAt', { yaw: fixed(cycle.yawDeg, 0), speed: fixed(cycle.speed, 0) }) : t('pool.title'))
     const more = cycle ? Math.max(0, RUN_STATS.legAngles - cycle.angles.length) : 0
+    if (isTruck(now)) {
+      // A truck has no legs to crank: its readings, angle by angle, make the drag curve the route is run on.
+      const groups = truckGroups(byCrank)
+      setText(poolTitle, t('pool.titleTruck'))
+      poolRows.replaceChildren(
+        ...groups.map((p) => {
+          const row = el('p', 'compare-detail')
+          row.textContent =
+            t('pool.rowTruck', {
+              yaw: fixed(p.yawDeg, 0),
+              cda: fixed(p.cdA, 3),
+              band: fixed(fixBand(p.band), 3),
+              runs: p.runs === 1 ? t('pool.run') : t('pool.runs', { n: p.runs }),
+            }) + (p.spread !== null ? t('pool.spread', { spread: fixed(fixBand(p.spread), 3) }) : '')
+          return row
+        }),
+      )
+      const { route, old } = truckRun(now)
+      const lines: string[] = []
+      if (groups.length === 0) lines.push(t('runs.rowNone'))
+      else {
+        const saving = forecastSaving(readCurve(groups.map((g) => ({ yawDeg: g.yawDeg, cdA: g.cdA }))), now, old, route)
+        lines.push(t('pool.truckSaving', { pct: `${saving < 0 ? '−' : ''}${fixed(Math.abs(saving), 1)}`, route: t(`route.${route.id}`) }))
+        // The two traps (PR 9c): a curve read straight on only, and the still floor.
+        if (!groups.some((g) => Math.abs(g.yawDeg) >= TRUCK_SWEEP_MIN)) lines.push(t('pool.truckStraight'))
+      }
+      if (!order.board) lines.push(t('pool.truckFloor'))
+      setText(poolCycle, lines.join(' '))
+      const words = fixWords(fix)
+      setText(poolFix, words ? t('pool.fixed', { list: words }) : t('pool.raw'))
+      return
+    }
     if (isBobsled(now)) {
       // A sled has no legs to crank: the pooled reading flies the reference run instead.
       const track = sledTrack()
@@ -1217,9 +1284,15 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     if (prepared) endRun()
     const design = modelDesign
     setJumper(isJumper(design))
+    // The first mount button names what's on it: a truck isn't a rider.
+    if (!jumper) setText(mountButtons[0]!, t(isTruck(design) ? 'mount.truckShort' : 'mount.riderShort'))
     jumperModel = isJumper(design) ? prepareJumper(design, modelSpec) : null
     forecastDirty = true
-    prepared = isBobsled(design) ? prepareSled(design, modelSpec) : prepareModel(designShape(design, { crankDeg: crank, staticWheels: !spec.wheelDrive }), modelSpec)
+    prepared = isBobsled(design)
+      ? prepareSled(design, modelSpec)
+      : isTruck(design)
+        ? prepareTruck(design, modelSpec)
+        : prepareModel(designShape(design, { crankDeg: crank, staticWheels: !spec.wheelDrive }), modelSpec)
     rYaw.box.hidden = isBobsled(design)
     rRun.box.hidden = !isBobsled(design)
     refreshCal()
@@ -1374,7 +1447,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     shown.cdA = shown.dragN = shown.sideN = 0
     placeModel()
     yawCtl.row.hidden = !yawOpen()
-    crankBox.hidden = !yawOpen() || modelDesign.sport === 'skating' || isBobsled(modelDesign) || jumper
+    crankBox.hidden = !yawOpen() || modelDesign.sport === 'skating' || isBobsled(modelDesign) || isTruck(modelDesign) || jumper
     shopBtn.hidden = !yawOpen()
     instBar.hidden = !yawOpen() || jumper
     showStale()

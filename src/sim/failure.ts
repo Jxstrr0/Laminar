@@ -7,7 +7,7 @@
  * break at the same moment.
  */
 import type { CyclistDesign } from '../data/cyclist'
-import { isCyclist, isJumper, type Design } from './design'
+import { isCyclist, isJumper, isTruck, type Design } from './design'
 import type { JumperDesign } from '../data/jumper'
 import type { SkaterDesign } from '../data/skater'
 import { FAILURE } from '../data/failure'
@@ -65,6 +65,7 @@ export function strains(model: MountedModel, speed: number, loadN: number, mount
     if (v !== null) out.push({ mode: 'flutter', part, level: speed / v })
   }
   if (isJumper(model.design)) out.push({ mode: 'mount', part: 'sting', level: loadN / (FAILURE.stingN * mountStrength) })
+  else if (isTruck(model.design)) out.push({ mode: 'mount', part: 'posts', level: loadN / (FAILURE.truckMountN * mountStrength) })
   else out.push({ mode: 'mount', part: 'posts', level: loadN / (FAILURE.mountN * mountStrength) })
   if (model.order.finish === 'printed' && isCyclist(model.design)) out.push({ mode: 'detach', part: 'helmet', level: speed / FAILURE.detachSpeed })
   return out

@@ -225,6 +225,8 @@ export const TRUCK_TUNNEL = {
   /** The parts' yaw-dependent drag is carried with the model at this step, degrees, out to `maxYaw`. */
   stepDeg: 2.5,
   maxYaw: 30,
+  /** The ground board's height above the tunnel floor, full scale, m (for the 3D view). */
+  boardHeight: 0.3,
 } as const
 
 /** The Shape sheet tints the fairing amber when its top misses the trailer's roof by more than this, m. */

@@ -7,9 +7,9 @@
  * Models are built for a job (Kelbo, PR 5): the price is charged to it and
  * the lead time comes off its days, all at once when the order is placed.
  */
-import { MAKERS, MAKER_IDS, MODEL_FINISH, MODEL_GRADE, MODEL_SCALES, type MakerId, type ModelFinish, type ModelGrade, type ModelScale } from '../data/model'
+import { ALL_SCALES, MAKERS, MAKER_IDS, MODEL_FINISH, MODEL_GRADE, type MakerId, type ModelFinish, type ModelGrade, type ModelScale } from '../data/model'
 import { t, type StringKey } from '../data/strings'
-import { forMaker, makerOf, matchedSpeed, quote, type MakerHand, type ModelOrder } from '../sim/modelShop'
+import { forMaker, isTruckScale, makerOf, matchedSpeed, quote, type MakerHand, type ModelOrder } from '../sim/modelShop'
 import type { OrderBlock } from '../sim/career'
 import type { EventSpec } from '../sim/views'
 import { fixed } from './format'
@@ -28,7 +28,7 @@ function choice<T extends string | number>(
   label: string,
   options: readonly { value: T; text: string }[],
   onPick: (value: T) => void,
-): { box: HTMLElement; note: HTMLElement; set(value: T): void; allow(values: readonly T[]): void } {
+): { box: HTMLElement; note: HTMLElement; set(value: T): void; allow(values: readonly T[]): void; only(values: readonly T[]): void } {
   const box = el('div', 'shop-group')
   const head = el('p', 'shop-label', label)
   head.id = `shop-${label.toLowerCase().replace(/\W+/g, '-')}`
@@ -70,6 +70,10 @@ function choice<T extends string | number>(
     allow(values) {
       options.forEach((o, i) => (buttons[i]!.disabled = !values.includes(o.value)))
     },
+    /** Show only these options (the rest aren't for this model at all). */
+    only(values) {
+      options.forEach((o, i) => (buttons[i]!.hidden = !values.includes(o.value)))
+    },
   }
 }
 
@@ -89,6 +93,8 @@ export interface ShopContext {
   hand: MakerHand
   /** The model is a bobsled, so the ground board is on offer (PR 8n). */
   sled?: boolean
+  /** The model is a truck: the small scales and the ground board (PR 9d). */
+  truck?: boolean
 }
 
 interface Shop {
@@ -114,6 +120,9 @@ function buildShop(): Shop {
     maker.allow(context.makers)
     maker.set(makerOf(order))
     maker.note.textContent = t(`shop.makerNote.${makerOf(order)}`)
+    // A truck's scales and a rider's are different lists; the maker may not build them all.
+    const truck = context.truck === true
+    scale.only(ALL_SCALES.filter((s) => isTruckScale(s) === truck))
     scale.allow(m.scales)
     finish.allow(m.finishes)
     grade.allow(m.grades)
@@ -122,7 +131,8 @@ function buildShop(): Shop {
     grade.set(order.grade)
     trips.set(order.trips ? 'on' : 'off')
     taps.set(order.taps ? 'on' : 'off')
-    board.box.hidden = context.sled !== true
+    board.box.hidden = context.sled !== true && !truck
+    boardText.data = t(truck ? 'shop.boardNoteTruck' : 'shop.boardNote')
     board.set(order.board ? 'on' : 'off')
     const speed = matchedSpeed(1 / order.scale, context.event)
     const top = context.topSpeed
@@ -156,7 +166,7 @@ function buildShop(): Shop {
   )
   const scale = choice<ModelScale>(
     t('shop.scale'),
-    MODEL_SCALES.map((s) => ({ value: s, text: t('shop.scaleLabel', { scale: s }) })),
+    ALL_SCALES.map((s) => ({ value: s, text: t('shop.scaleLabel', { scale: s }) })),
     (s) => pick({ scale: s }),
   )
   // The Reynolds note keeps "Reynolds number" as a glossary term that leads to the trap.
@@ -198,7 +208,8 @@ function buildShop(): Shop {
     ],
     (v) => pick({ board: v === 'on' }),
   )
-  board.note.append(t('shop.boardNote'), ' ', glossaryTerm('groundBoard', t('shop.boardLink')))
+  const boardText = document.createTextNode(t('shop.boardNote'))
+  board.note.append(boardText, ' ', glossaryTerm('groundBoard', t('shop.boardLink')))
 
   const bill = el('div', 'shop-bill')
   const price = el('p', 'shop-price')
@@ -221,8 +232,10 @@ function buildShop(): Shop {
     show(current, ctx, onOrder) {
       // Start from the model on the mount, at a maker you still have.
       order = ctx.makers.includes(makerOf(current)) ? { ...current } : forMaker(current, 'shop')
-      // Only a sled sits on a ground board.
-      if (!ctx.sled) delete order.board
+      // Only a sled or a truck sits on a ground board.
+      if (!ctx.sled && !ctx.truck) delete order.board
+      // A truck's model comes at a truck's scale, and a rider's at a rider's.
+      if (isTruckScale(order.scale) !== (ctx.truck === true)) order = forMaker({ ...order, scale: ctx.truck ? 8 : 2 }, makerOf(order))
       context = ctx
       place = onOrder
       update()
