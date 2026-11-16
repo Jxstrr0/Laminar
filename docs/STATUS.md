@@ -87,10 +87,13 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 9y | The jet car in the tunnel: the forecast keeps Kelbo's "read low, learn the trap" (it never sees the squeeze), but now says when it ran past it: the Record forecast readout turns amber with its Mach number, the Runs tab says where the squeeze starts and that the car will run slower, and near Mach 1 warns of the shock under the nose. The Deliver sheet repeats the warning. Only when the hidden drag would be 3 % or more, so the streamliner's forecasts are unchanged | **Done** (v0.9.24.0) |
 | 9z | Jet car jobs: Tikhon Shatrov's Ognivo (a fighter engine in a fuel-tank body, reputation 75) and Raisa Belova's Proryv Project (reputation 85), whose target is a two-way mean just over the speed of sound. Speed week's debrief names the squeeze (the drag the tunnel can't see) with a jump to the waist, says when the shock under the nose lifted it, and says when a car went through the sound barrier both ways. Fixes found on the way: the Deliver sheet took no speed over 1,300 km/h and wrote its starting speed with a thousands comma it couldn't read back; a record bid can now promise up to 180 km/h (other jobs keep 30 points); and a missed promise costs at most 20 reputation for the points short, so one jet car that pulls its chutes can't wipe out a career | **Done** (v0.9.25.0) |
 | 9z+ | The sound barrier in the record replay: a jet car's run shows its Mach number, the replay slows from the moment it goes through the barrier, the commentator calls it with a white flash (none with reduced motion), and past Mach 1 its shock trails across the salt from the nose as a V of lines. The land-speed record (PR 9) is finished | **Done** (v0.9.26.0) |
-| 10–14 | See the plan | Next: PR 10, air and defence (drones, light aircraft, defence contracts, PIV). |
+| 10a | The racing quad in the sim (Kelbo's PR 10 answers in the plan): the body pod's length, rake and vents and the arm fairings; drag at the quad's tilt, thrust falling with speed and lost to the downwash on the arms, the controllers overheating with too few vents, corners flown on the spare thrust, and the pod's twist tumbling the quad (hardest on the brakes); a race of five laps of the Lugovoy meadow gate course | **Done** (v0.10.0.0) |
+| 10b–14 | See the plan | Next: the racing quad on Shape (10b). |
 
 ## Versions
 
+- **0.10.0.0** (PR 10a): the racing quad, in the sim only. Nothing to see
+  on a phone yet; Shape gets it in 10b.
 - **0.9.26.0** (PR 9z+): the sonic boom. Deliver a jet car that goes
   through the sound barrier and watch the replay: a Mach box counts up,
   the screen flashes white as it passes Mach 1, the commentator calls it,
