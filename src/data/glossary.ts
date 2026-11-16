@@ -472,6 +472,42 @@ export const GLOSSARY = defineGlossary({
     aliases: ['board', 'raised floor', 'splitter plate'],
     seeAlso: ['fixedFloor', 'tripStrip'],
   },
+  // --- Trucks (PR 9) -------------------------------------------------------
+  fuelSaving: {
+    term: 'Fuel saving',
+    short: 'How much less diesel a truck burns on its route, as a share of what it burned before.',
+    long: 'A fleet pays for litres, so that is the promise. The saving is worked out over a whole day on the client’s highway: every climb, every bend, and the wind from all round the compass in turn, then averaged. Drag is about half a loaded truck’s fuel at highway speed, so cutting drag by a fifth saves about a tenth.',
+    aliases: ['fuel', 'wind-averaged fuel', 'litres per 100 km', 'diesel'],
+    seeAlso: ['windAveragedCda', 'cda', 'yaw'],
+  },
+  boatTail: {
+    term: 'Boat-tail',
+    short: 'Panels that fold in from a trailer’s back doors, closing the box’s blunt end.',
+    long: 'A flat back leaves a big, low-pressure wake that drags on the whole truck. Folding the top and sides in shrinks that wake. Too shallow an angle closes little; too steep and the air comes off the panels and they pull back instead. The road code caps how far they may stick out.',
+    aliases: ['tail', 'rear fairing', 'trailer tail', 'boat tail'],
+    seeAlso: ['kammTail', 'wake', 'roadCode'],
+  },
+  skirts: {
+    term: 'Side skirts',
+    short: 'Panels hung down a trailer’s sides to keep air out from under it.',
+    long: 'Under a trailer is a jumble of axles, tanks and spare wheels. In a crosswind the air pours in from the side and drags on all of it. Skirts close that door, so they save most in a crosswind. The road code makes them clear the road by a set height, for kerbs and ramps.',
+    aliases: ['skirt', 'trailer skirts', 'side skirt'],
+    seeAlso: ['yaw', 'roadCode'],
+  },
+  tractorGap: {
+    term: 'Cab–trailer gap',
+    short: 'The space between the back of the cab and the front of the trailer.',
+    long: 'Straight on, the air jumps the gap. In a crosswind it blows into it and hits the trailer’s flat front, and a wider gap catches more. Side extenders on the cab and a filler on the trailer’s front keep it out. The trucker still needs room to turn.',
+    aliases: ['gap', 'tractor gap', 'trailer gap', 'extenders', 'gap filler'],
+    seeAlso: ['yaw', 'cavityDrag'],
+  },
+  roadCode: {
+    term: 'Road code',
+    short: 'The Tarnovian Road Code, which sets what may be bolted onto a truck.',
+    long: 'For the parts Laminar works on it caps how far a boat-tail may stick out past the doors (1.2 m) and how close skirts may come to the road (25 cm). Like everything in Tarnovia, it is made up for Laminar.',
+    aliases: ['tarnovian road code', 'road rules', 'highway code'],
+    seeAlso: ['ruleBox', 'boatTail', 'skirts'],
+  },
 })
 
 /** Every glossary id, checked by TypeScript wherever one is written. */

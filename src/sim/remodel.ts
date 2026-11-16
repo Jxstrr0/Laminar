@@ -5,17 +5,19 @@
  * days; a new position needs a new model from the shop. A ski jumper's suit
  * is cut into the model's body, so any change to a jumper is a new model;
  * a bobsled model is one moulded shell with its crew, so the same goes for it.
+ * A truck model (PR 9b) is treated the same for now: its bolt-on parts come
+ * with the truck's tunnel work.
  */
 import { MODEL_SHOP } from '../data/model'
 import type { Design } from './design'
-import { isBobsled, isJumper, isSkater } from './design'
+import { isBobsled, isJumper, isSkater, isTruck } from './design'
 
 export type PartName = 'helmet' | 'suit' | 'bars' | 'frontWheel' | 'rearWheel' | 'frame' | 'hood'
 
 /** The bolt-on parts that differ between the model and the bench design. */
 export function partChanges(model: Design, bench: Design): PartName[] {
   const out: PartName[] = []
-  if (isJumper(model) || isJumper(bench) || isBobsled(model) || isBobsled(bench)) return out
+  if (isJumper(model) || isJumper(bench) || isBobsled(model) || isBobsled(bench) || isTruck(model) || isTruck(bench)) return out
   if (isSkater(model) || isSkater(bench)) {
     if (!isSkater(model) || !isSkater(bench)) return out
     if (model.hood !== bench.hood) out.push('hood')
@@ -38,7 +40,8 @@ export function partChanges(model: Design, bench: Design): PartName[] {
  * arms are part of the body; a design for another sport is a new model.
  */
 export function postureChanged(model: Design, bench: Design): boolean {
-  if (isSkater(model) !== isSkater(bench) || isJumper(model) !== isJumper(bench) || isBobsled(model) !== isBobsled(bench)) return true
+  if (isSkater(model) !== isSkater(bench) || isJumper(model) !== isJumper(bench) || isBobsled(model) !== isBobsled(bench) || isTruck(model) !== isTruck(bench)) return true
+  if (isTruck(model) || isTruck(bench)) return JSON.stringify(model) !== JSON.stringify(bench)
   if (isBobsled(model) || isBobsled(bench)) {
     if (!isBobsled(model) || !isBobsled(bench)) return true
     const a = model.sled
@@ -54,7 +57,7 @@ export function postureChanged(model: Design, bench: Design): boolean {
 
 /** The model with the bench design's parts bolted on, its position unchanged (same sport only). */
 export function swapParts(model: Design, bench: Design): Design {
-  if (isJumper(model) || isJumper(bench) || isBobsled(model) || isBobsled(bench)) return structuredClone(model)
+  if (isJumper(model) || isJumper(bench) || isBobsled(model) || isBobsled(bench) || isTruck(model) || isTruck(bench)) return structuredClone(model)
   if (isSkater(bench)) return isSkater(model) ? structuredClone({ ...bench, posture: model.posture, arms: model.arms }) : structuredClone(model)
   return isSkater(model) ? structuredClone(model) : structuredClone({ ...bench, posture: model.posture })
 }

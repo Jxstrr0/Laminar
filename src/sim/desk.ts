@@ -8,6 +8,10 @@ import { referenceJump, type JumpEvent } from './jumper'
 import { BOB_DESK, type BobsledDesign } from '../data/bobsled'
 import type { Track } from '../data/tracks'
 import { dayDrag, referenceConditions, runWith, type SledDrag } from './bobsled'
+import { TRUCK_DESK, type TruckDesign } from '../data/truck'
+import type { Route } from '../data/routes'
+import { truckCurve, truckFlow, truckMass, windAveragedFuel, windAveragedFuelWith } from './truck'
+import { cdAAt } from './aero/windAverage'
 import type { ShapeSpec } from './geom/body'
 import { gaussian } from './noise'
 import { hashString, Rng } from './rng'
@@ -71,4 +75,26 @@ export function bobDeskEstimate(design: BobsledDesign, track: Track, jobSeed: nu
   const k = 1 + bias + jitter
   const guess: SledDrag = { hull: drag.hull * k, nose: drag.nose * k, runners: drag.runners * k, crew: drag.crew * k, cdA }
   return { value: time(cdA), low: time(cdA * (1 - spread)), high: time(cdA * (1 + spread)), cdA, drag: guess }
+}
+
+/**
+ * The desk's guess at a truck's fuel saving, per cent (PR 9b): the design's
+ * drag curve through the job's bias and a design's jitter, then the
+ * wind-averaged fuel run on the client's route against their current truck
+ * (known from their records). `low` is the small-saving end (more drag),
+ * `high` the big one. `cdA` is the desk's straight-on drag area, `cdA10` the
+ * same at 10° of crosswind, and `fuel` its litres per 100 km.
+ */
+export function truckDeskEstimate(design: TruckDesign, old: TruckDesign, route: Route, jobSeed: number, designKey: string, analystLevel = 0): DeskEstimate & { cdA: number; cdA10: number; fuel: number } {
+  const curve = truckCurve(design, truckFlow(route.temperature, route.altitude, route.speed))
+  const narrow = Math.max(DESK.floor, 1 - DESK.perLevel * analystLevel)
+  const bias = TRUCK_DESK.bias * narrow * gaussian(new Rng(jobSeed).fork('desk-bias'))
+  const jitter = TRUCK_DESK.jitter * narrow * gaussian(new Rng(jobSeed ^ hashString(designKey)).fork('desk-jitter'))
+  const k = 1 + bias + jitter
+  const spread = Math.sqrt(TRUCK_DESK.bias * TRUCK_DESK.bias + TRUCK_DESK.jitter * TRUCK_DESK.jitter) * narrow * DESK.bars
+  const theirs = windAveragedFuel(old, route)
+  const mass = truckMass(design)
+  const fuelAt = (f: number) => windAveragedFuelWith((y) => cdAAt(curve, y) * f, mass, route)
+  const saving = (f: number) => (1 - fuelAt(f) / theirs) * 100
+  return { value: saving(k), low: saving(k * (1 + spread)), high: saving(k * (1 - spread)), cdA: cdAAt(curve, 0) * k, cdA10: cdAAt(curve, 10) * k, fuel: fuelAt(k) }
 }

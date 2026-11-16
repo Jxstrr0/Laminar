@@ -52,6 +52,8 @@ export const TRUCK_RANGE = {
   skirts: { min: 0, max: 1.1, step: 0.05 },
   tail: { min: 0, max: 1.6, step: 0.05 },
   tailAngle: { min: 4, max: 24, step: 1 },
+  /** Not a slider: the trailers fleets run, for checking saves. */
+  trailerTop: { min: 3.6, max: 4.1, step: 0.05 },
 } as const
 
 /** A fleet's working truck as it comes: square corners, no fairing, a wide gap, nothing on the trailer. */
@@ -196,6 +198,20 @@ export const FUEL = {
   /** How many wind directions the wind-averaged fuel figure takes. */
   windSamples: 12,
 } as const
+
+/**
+ * The desk's guess at a truck (PR 9b): the drag curve with a job-wide bias
+ * and a small per-design jitter (fractions, standard deviations). The
+ * client's current truck is known from their own fuel records, so only the
+ * new design's figure is guessed.
+ */
+export const TRUCK_DESK = {
+  bias: 0.06,
+  jitter: 0.02,
+}
+
+/** The Shape sheet tints the fairing amber when its top misses the trailer's roof by more than this, m. */
+export const FAIRING_MISS = 0.15
 
 /** The truck's body is read at highway speed (and the model's Reynolds number matched to it), m/s. */
 export const TRUCK_SPEED = 25
