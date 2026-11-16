@@ -10,6 +10,7 @@ import { JUMPER_RANGE, type JumperDesign } from '../data/jumper'
 import { BOBSLED_RANGE, type BobsledDesign } from '../data/bobsled'
 import { TRUCK_RANGE, type TruckDesign } from '../data/truck'
 import { CAR_RANGE, type CarDesign } from '../data/car'
+import { RECORD_RANGE, type RecordDesign } from '../data/record'
 import type { Design } from '../sim/design'
 import { ALL_SCALES, MACHINE_IDS, MAKER_IDS, MODEL_FINISH, MODEL_GRADE, type MachineId } from '../data/model'
 import { CRANK_DIAL, DEMO_TUNNEL_SEED } from '../data/tunnel'
@@ -57,6 +58,7 @@ export function soundDesign(x: unknown): Design | null {
   if (x.sport === 'bobsled') return soundBobsled(x)
   if (x.sport === 'truck') return soundTruck(x)
   if (x.sport === 'car') return soundCar(x)
+  if (x.sport === 'record') return soundRecordCar(x)
   if (x.sport !== undefined && x.sport !== 'cycling') return null
   return soundCyclist(x)
 }
@@ -119,6 +121,22 @@ function soundCar(x: Obj): CarDesign | null {
     diffuser: n(x.diffuser, R.diffuser),
     floorEdge: n(x.floorEdge, R.floorEdge),
     inlet: n(x.inlet, R.inlet),
+  }
+}
+
+function soundRecordCar(x: Obj): RecordDesign | null {
+  if (!oneOf(x.class, ['streamliner'] as const) || !isObj(x.nose)) return null
+  const { length, droop } = x.nose
+  if (![length, droop, x.canopy, x.fin, x.fairings].every(isNum)) return null
+  const R = RECORD_RANGE[x.class]
+  const n = (v: unknown, r: { min: number; max: number }) => clampTo(v as number, r)
+  return {
+    sport: 'record',
+    class: x.class,
+    nose: { length: n(length, R.length), droop: n(droop, R.droop) },
+    canopy: n(x.canopy, R.canopy),
+    fin: n(x.fin, R.fin),
+    fairings: n(x.fairings, R.fairings),
   }
 }
 

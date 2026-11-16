@@ -145,15 +145,44 @@ export interface RecordRun {
   speeds: number[]
 }
 
-/** One run in this air. */
-export function recordRun(design: RecordDesign, air: RunAir): RecordRun {
+/** Scales on the car's drag and lift, for a guess at them rather than the truth (the desk's estimate, PR 9q). */
+export interface RecordTrim {
+  drag: number
+  lift: number
+}
+export const NO_RECORD_TRIM: RecordTrim = { drag: 1, lift: 1 }
+
+/** The aero through a trim. */
+function trimmed(design: RecordDesign, trim: RecordTrim): RecordAero {
+  const a = recordAero(design)
+  return { ...a, cdA: a.cdA * trim.drag, liftFront: a.liftFront * trim.lift, liftRear: a.liftRear * trim.lift }
+}
+
+/** The share of the front axle's static load the nose keeps at this air speed (1: all of it; under RUN.frontKeep the driver aborts). */
+export function frontKept(design: RecordDesign, airSpeed: number, density: number, trim: RecordTrim = NO_RECORD_TRIM): number {
+  const c = RECORD_CLASS[design.class]
+  const front = c.mass * ATMOSPHERE.gravity * c.massFront
+  return 1 - (0.5 * density * airSpeed * airSpeed * trimmed(design, trim).liftFront) / front
+}
+
+/** The steadiest crosswind the driver can hold the car straight in, m/s (0 or less: it wanders even in still air). */
+export function crossHeld(design: RecordDesign): number {
+  return (sideCentre(design).margin - S.margin) / S.perCross
+}
+
+/**
+ * One run in this air. `holdStraight` pretends the driver holds a wandering
+ * car straight (the desk uses it to check the nose of a car that would
+ * otherwise wander before it got fast).
+ */
+export function recordRun(design: RecordDesign, air: RunAir, trim: RecordTrim = NO_RECORD_TRIM, holdStraight = false): RecordRun {
   const c = RECORD_CLASS[design.class]
   const g = ATMOSPHERE.gravity
   const weight = c.mass * g
   const frontStatic = weight * c.massFront
-  const aero = recordAero(design)
+  const aero = trimmed(design, trim)
   const power = c.power * (1 - sightLoss(design))
-  const stable = sideCentre(design).margin >= marginNeeded(air.cross)
+  const stable = holdStraight || sideCentre(design).margin >= marginNeeded(air.cross)
   const sound = soundSpeed(air.temperature)
   const end = RUN.runUp + RUN.timed
   const speeds = [0]
@@ -203,6 +232,11 @@ export interface RecordDay {
   shift: number
 }
 
+/** The air's density on the salt, kg/m³. */
+export function flatDensity(flat: SaltFlat, temperature = flat.temperature): number {
+  return densityAt(temperature, flat.altitude)
+}
+
 /** The salt flat's usual day: still air. */
 export function stillDay(flat: SaltFlat): RecordDay {
   return { temperature: flat.temperature, along: 0, cross: 0, shift: 0 }
@@ -227,10 +261,10 @@ export interface RecordAttempt {
 }
 
 /** The attempt on this day: out into the wind along, back with it (shifted a little) behind. */
-export function twoWay(design: RecordDesign, flat: SaltFlat, day: RecordDay): RecordAttempt {
-  const density = densityAt(day.temperature, flat.altitude)
-  const out = recordRun(design, { temperature: day.temperature, density, head: day.along, cross: day.cross })
-  const back = recordRun(design, { temperature: day.temperature, density, head: -(day.along + day.shift), cross: day.cross })
+export function twoWay(design: RecordDesign, flat: SaltFlat, day: RecordDay, trim: RecordTrim = NO_RECORD_TRIM): RecordAttempt {
+  const density = flatDensity(flat, day.temperature)
+  const out = recordRun(design, { temperature: day.temperature, density, head: day.along, cross: day.cross }, trim)
+  const back = recordRun(design, { temperature: day.temperature, density, head: -(day.along + day.shift), cross: day.cross }, trim)
   const mean = out.time !== null && back.time !== null ? (2 * RUN.timed) / (out.time + back.time) : null
   return { runs: [out, back], mean }
 }

@@ -15,8 +15,10 @@ import { BOB_SKELETON, FRAME, HELMET_MOUNT, SKATER_SKELETON, SKELETON } from '..
 import { SK_HEAD, type SkaterDesign } from '../../data/skater'
 import { JUMP_PARTS, JUMP_SKIS, type JumperDesign } from '../../data/jumper'
 import { SLED, type BobsledDesign } from '../../data/bobsled'
-import { isBobsled, isCar, isJumper, isSkater, isTruck, type Design } from '../design'
+import { isBobsled, isCar, isJumper, isRecord, isSkater, isTruck, type Design } from '../design'
 import { CAR_BODY, type CarDesign } from '../../data/car'
+import { RECORD_BODY, RECORD_CLASS, type RecordDesign } from '../../data/record'
+import { recordAxis, recordLength } from '../geom/record'
 import { RIG, type TruckDesign } from '../../data/truck'
 import { truckLength } from '../geom/truck'
 import { sledLength } from '../geom/bobsled'
@@ -306,12 +308,38 @@ export function carEllipsoids(design: CarDesign): Ellipsoid[] {
   ]
 }
 
+/**
+ * The record car (PR 9q): its long body as one slender oval, centred where
+ * the figure is (the car's middle at x = 0), and the canopy as a small one
+ * on top.
+ */
+export function recordEllipsoids(design: RecordDesign): Ellipsoid[] {
+  const b = RECORD_BODY[design.class]
+  const len = recordLength(design)
+  const axis = recordAxis(design)
+  const half = RECORD_CLASS[design.class].body.height / 2
+  const canopyMid = design.nose.length + (b.canopyFrom + b.canopyTo) / 2
+  return [
+    { id: 'record', bodyId: 'record', centre: { x: 0, y: axis, z: 0 }, axes: { a: len / 2, b: half, c: b.half }, pitchRad: 0, wrap: 'oval', part: 'rider' },
+    {
+      id: 'canopy',
+      bodyId: 'record',
+      centre: { x: len / 2 - canopyMid, y: axis + half, z: 0 },
+      axes: { a: (b.canopyTo - b.canopyFrom) / 2, b: Math.max(0.02, design.canopy), c: b.half * 0.5 },
+      pitchRad: 0,
+      wrap: 'oval',
+      part: 'rider',
+    },
+  ]
+}
+
 /** The ellipsoids for any design in its pose. */
 export function designEllipsoids(design: Design, pose: Pose): Ellipsoid[] {
   if (isJumper(design)) return jumperEllipsoids(design, pose)
   if (isBobsled(design)) return bobsledEllipsoids(design, pose)
   if (isTruck(design)) return truckEllipsoids(design)
   if (isCar(design)) return carEllipsoids(design)
+  if (isRecord(design)) return recordEllipsoids(design)
   return isSkater(design) ? skaterEllipsoids(design, pose) : riderEllipsoids(design, pose)
 }
 

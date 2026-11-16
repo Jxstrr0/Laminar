@@ -149,6 +149,31 @@ export const RECORD_RUN = {
   windShift: 0.8,
 } as const
 
+/**
+ * The streamliner's shell as drawn and as the drag model's outline reads it
+ * (PR 9q), m: the body's half-width, its height and how high its floor
+ * rides, where the canopy sits along the body (from where the nose cone
+ * joins), how long the tail tapers, and the wheels.
+ */
+export const RECORD_BODY = {
+  streamliner: { half: 0.55, ride: 0.12, canopyFrom: 1.6, canopyTo: 3, taper: 2.2, tailHalf: 0.18, wheel: 0.38, track: 0.62 },
+} as const
+
+/**
+ * The desk's guess at a record car (PR 9q): a job-wide bias and a design's
+ * jitter on its drag, and a bias on its lift (the nose's lift near the
+ * salt is hard to guess on paper), as shares of the truth. The desk checks
+ * the nose with a moderate headwind blowing.
+ */
+export const RECORD_DESK = {
+  dragBias: 0.04,
+  liftBias: 0.1,
+  jitter: 0.015,
+  headwind: 2.5,
+  /** The sheet warns while the nose keeps less than this share of its weight at the desk's top speed. */
+  liftWarn: 0.62,
+}
+
 /** A client's car as the team runs it now. */
 export const STOCK_RECORD: Record<RecordClass, RecordDesign> = {
   streamliner: {

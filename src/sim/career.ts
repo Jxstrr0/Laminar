@@ -19,6 +19,8 @@
  * - Delivering runs the event, pays the fee, jumps the calendar to the
  *   event and refreshes the board.
  */
+import { STOCK_RECORD, type RecordClass, type RecordDesign } from '../data/record'
+import { SALT_FLATS, type SaltFlat } from '../data/saltFlats'
 import { BID, BRIEFS, CAREER, CAR_JOBS, JUMP_JOBS, PROMISE, SLED_JOBS, TRUCK_JOBS, type BriefTemplate } from '../data/briefs'
 import type { BobsledDesign } from '../data/bobsled'
 import { dayDrag, referenceConditions, referenceRun, runWith, type BobRun, type RunConditions } from './bobsled'
@@ -387,6 +389,15 @@ export function currentCarEvent(state: CareerState): CarEvent {
 export function currentCarRun(state: CareerState, cls: CarClass): { circuit: Circuit; old: CarDesign } {
   const setup = state.job ? template(state.job.brief.id).setup : null
   return { circuit: currentCarEvent(state).circuit, old: setup && setup.sport === 'car' && setup.class === cls ? setup : STOCK_CAR[cls] }
+}
+
+/**
+ * The salt flat a record car is forecast on and the team's car it's
+ * measured against (PR 9q): the team's streamliner as it runs now at Lake
+ * Sukhoye. Record jobs come in a later PR.
+ */
+export function currentRecordRun(_state: CareerState, cls: RecordClass): { flat: SaltFlat; old: RecordDesign } {
+  return { flat: SALT_FLATS.sukhoye, old: STOCK_RECORD[cls] }
 }
 
 /** Take a brief off the board at its suggested fee and the client's ask. Only one job at a time. */
