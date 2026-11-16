@@ -25,7 +25,7 @@ import { STOCK_PLANE } from './data/plane'
 import { STOCK_AIRCRAFT } from './data/aircraft'
 import type { Design } from './data/sport'
 import { careerStore, freshSeed } from './ui/careerStore'
-import { charge, currentCarRun, currentDroneRun, currentPlaneRun, currentRecordRun, currentEvent, currentJumpEvent, currentSledEvent, currentTruckRun, newCareer, orderBlock, orderModel, repairModel } from './sim/career'
+import { charge, currentAircraftRun, currentCarRun, currentDroneRun, currentPlaneRun, currentRecordRun, currentEvent, currentJumpEvent, currentSledEvent, currentTruckRun, newCareer, orderBlock, orderModel, repairModel } from './sim/career'
 import { makersOwned, tunnelSetup } from './sim/facility'
 import { crewEffects } from './sim/staff'
 import { afterDesign, afterOrder, afterRun, afterSwap, currentStep } from './sim/guide'
@@ -170,6 +170,7 @@ async function boot(): Promise<void> {
     droneRun: (cls) => currentDroneRun(careerStore.get(), cls),
     // A survey drone is forecast at the client's site against their own plane (PR 10l).
     planeRun: (cls) => currentPlaneRun(careerStore.get(), cls),
+    aircraftRun: (cls) => currentAircraftRun(careerStore.get(), cls),
     shop: () => {
       const career = careerStore.get()
       return {
