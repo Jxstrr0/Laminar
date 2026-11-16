@@ -62,7 +62,7 @@ import { referenceWheel } from '../sim/geom/cyclist'
 import { sphere } from '../sim/geom/shapes'
 import { Rng } from '../sim/rng'
 import { designPose, designShape, isBobsled, isCar, isJumper, isRecord, isTruck, type Design } from '../sim/design'
-import type { RecordClass, RecordDesign } from '../data/record'
+import { COMPRESSIBILITY, type RecordClass, type RecordDesign } from '../data/record'
 import type { SaltFlat } from '../data/saltFlats'
 import { correctRecord, forecastRecord, isRecordRun, prepareRecord, readRecord, recordEvent, recordReadings, type PreparedRecord, type RecordFix, type RecordForecast } from '../sim/recordTunnel'
 import { sideCentre } from '../sim/record'
@@ -1712,7 +1712,11 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     recordCast = forecastRecord(readings, modelDesign, old, flat)
     // Kept for the Deliver sheet (PR 9u), with the floor it was read over.
     const f = recordCast
-    recordForecast.set(modelDesign, flat.id, f ? { speed: f.speed, gain: f.gain, abort: f.abort?.cause ?? null, floor: model.floor, swept: f.crossHeld !== null } : null)
+    recordForecast.set(
+      modelDesign,
+      flat.id,
+      f ? { speed: f.speed, gain: f.gain, abort: f.abort?.cause ?? null, floor: model.floor, swept: f.crossHeld !== null, mach: f.topMach, squeezeMach: f.squeezeMach, squeezed: f.squeezed } : null,
+    )
     runsDirty = true
   }
   const kmh = (v: number) => fixed(v * 3.6, 0)
@@ -1730,7 +1734,10 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     }
     setText(lFc.value, `${kmh(f.speed)} km/h`)
     const gain = f.gain * 3.6
-    setText(lFc.sub, t('read.recGain', { gain: `${gain > 0 ? '+' : gain < 0 ? '−' : ''}${fixed(Math.abs(gain), 0)}` }))
+    // Past the squeeze (PR 9y), the readout says so: the number is too fast, by how much the tunnel can't see.
+    const over = f.squeezed
+    setText(lFc.sub, over ? t('read.recSqueezed', { mach: fixed(f.topMach, 2) }) : t('read.recGain', { gain: `${gain > 0 ? '+' : gain < 0 ? '−' : ''}${fixed(Math.abs(gain), 0)}` }))
+    lFc.value.classList.toggle('warn', over)
   }
   /** The Runs tab's record for a land-speed car: the forecast in full, and what the floor under the model does to it. */
   function drawRecordForecast() {
@@ -1749,8 +1756,10 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
           : t(f.abort?.cause === 'lift' ? 'rec.light' : 'rec.wanders', { speed: kmh(f.top) }),
         t('rec.nose', { pct: fixed(Math.max(0, f.noseKept) * 100, 0), speed: kmh(f.top) }),
         f.crossHeld === null ? t('rec.sweep') : t('rec.cross', { cross: fixed(f.crossHeld, 1) }),
-        t('rec.squeeze'),
+        // Past the squeeze, say how far (PR 9y); near Mach 1, the shock under the nose too.
+        f.squeezed ? t('rec.squeezed', { mach: fixed(f.topMach, 2), from: fixed(f.squeezeMach, 2) }) : t('rec.squeeze'),
       )
+      if (f.topMach > 1 - COMPRESSIBILITY.shock.width) lines.push(t('rec.shock'))
     }
     const floor = recordModel?.floor ?? 'still'
     lines.push(t(floor === 'rolling' ? 'rec.floorRolling' : floor === 'board' ? 'rec.floorBoard' : 'rec.floorStill'))

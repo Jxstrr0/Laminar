@@ -84,10 +84,16 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 9v | The record-run replay: record day on the salt from behind your car, the team's old car as a slate twin, both runs (north, then back south), the run-up fast and the timed kilometre slower. Chutes at the end of each run, or early where the nose lifted or the car swung off the line; a readout of the run, the speed and the timed kilometre, and a commentator. Ends on record day's two-way means and the declared speed against the still day's, then speed week; "Watch the replay" brings it back | **Done** (v0.9.21.0) |
 | 9w | The jet car in the sim: a second record class pushed by thrust on a 14 km run-up, with a waist (area rule) that lets the air squeeze later and less until it crowds the engine, a peak drag that also shrinks with a finer nose, drag easing off past Mach 1, and a shock under the nose at Mach 1 that can lift it (Kelbo: "through the sound barrier", "a waist"). The team's stock jet tops out near Mach 0.9; a well-shaped one breaks the barrier. Saves from before keep a straight body | **Done** (v0.9.22.0) |
 | 9x | The jet car on Shape (`?try=jet` to preview): its own set of sliders with the waist added on the Body tab, a wider fin range, drawn at its own scale with the waist pinched in cobalt, intakes either side and the engine's nozzle. The desk's record speed shows its Mach number; amber warnings for a car short of the barrier (change the waist), a waist past the engine's room, and a nose that goes light at the barrier | **Done** (v0.9.23.0) |
-| 9y–14 | See the plan | Next: the jet car in the tunnel (9y), its jobs (9z), and the sonic boom in the replay. |
+| 9y | The jet car in the tunnel: the forecast keeps Kelbo's "read low, learn the trap" (it never sees the squeeze), but now says when it ran past it: the Record forecast readout turns amber with its Mach number, the Runs tab says where the squeeze starts and that the car will run slower, and near Mach 1 warns of the shock under the nose. The Deliver sheet repeats the warning. Only when the hidden drag would be 3 % or more, so the streamliner's forecasts are unchanged | **Done** (v0.9.24.0) |
+| 9z–14 | See the plan | Next: jet car jobs (9z) and the sonic boom in the replay. |
 
 ## Versions
 
+- **0.9.24.0** (PR 9y): the jet car in the tunnel. Open
+  `laminar.longlight.games/?try=jet`, go to Tunnel, run the fan: the
+  record forecast turns amber with "Mach 1.05 · too fast". The tunnel
+  can't run near the speed of sound, so it can't see the drag climb; the
+  Runs tab explains, and warns about the shock under the nose.
 - **0.9.23.0** (PR 9x): the jet car on Shape. Open
   `laminar.longlight.games/?try=jet` and tap Shape: a long jet car with a
   new Waist slider. Try a 4.5 m nose, 3.5° of droop, a 25 cm canopy, a
