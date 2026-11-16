@@ -48,7 +48,7 @@ export const HILLS: Record<Hill['id'], Hill> = {
     k: 120,
     hs: 134,
     tableDeg: 11,
-    takeoffSpeed: 26.7,
+    takeoffSpeed: 27.0,
     jumpSpeed: 2.5,
     drop: 3,
     knollDeg: 6,

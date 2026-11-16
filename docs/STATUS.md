@@ -50,13 +50,27 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 8e | Ski jump in the tunnel, part 1: readings and the distance forecast (sim) | **Done** (v0.8.4.0) |
 | 8f | Ski jump in the tunnel, part 2: the pitch dial, readings and forecast on screen | **Done** (v0.8.5.0) |
 | 8g | Ski-jump jobs in the career (sim): briefs, the promise in metres, delivering a jumper | **Done** (v0.8.6.0) |
-| 8h | Ski-jump jobs on screen: the board, declaring a distance, the debrief and the flight replay | Next |
-| 8i | The large hill, balance (landings past the hill size), a sting that can break | Not started |
-| 8j–8k | Bobsled | Not started |
+| 8h | Ski-jump balance: the cap at the hill size, a retune, the large-hill job (sim) | **Done** (v0.8.7.0) |
+| 8i | Ski-jump jobs on screen: the board, declaring a distance, the debrief and the flight replay | Next |
+| 8j | A sting that can break, and a fairer read on the helmet and boots | Not started |
+| 8k–8l | Bobsled | Not started |
 | 9–14 | See the plan | Not started |
 
 ## Versions
 
+- **0.8.7.0** (PR 8h): ski-jump balance, sim side.
+  - Kelbo chose (16 November 2026) to cap jumps at the hill size: metres past
+    HS don't count, and a jumper heading past it bails out to a safe landing
+    there (a "long" landing on the day, which the report doesn't blame on
+    the suit). The tunnel's forecast says what would count and flags it.
+  - Retune: a flat lean (under 20°) and a wide V now pull the lift back
+    towards the hips and cost stability, and the body's vortex lift is lower.
+    Only a near-perfect stable design reaches HS now: about 101 m best on the
+    98 m normal hill (was 117 m), about 137 m on the 134 m large hill.
+  - The default jumper's suit is a little tighter (bagginess 0.2) so it stays
+    stable on the large hill, whose take-off speed is now 27.0 m/s.
+  - A third job: Yaroslav Kuzmenko on the Belogor large hill (HS 134), from
+    reputation 45, asking for 8 m. Still off the board until PR 8i.
 - **0.8.6.0** (PR 8g): ski-jump jobs in the career, sim side.
   - Two normal-hill briefs at Belogor (HS 98): Kirill Zorin's junior cup
     (from reputation 15, asks for 6 m) and Polina Vetrova's winter cup (from
@@ -117,6 +131,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
     tunnel still shows the last model (the pitch dial is PR 8f).
   - To revisit with the briefs (8g): a flat lean, a wide V and a roomy suit
     reach about 116 m on the 98 m normal hill in still air, past the hill size.
+    (Done in PR 8h: capped at HS and retuned.)
 - **0.8.2.0** (PR 8c): the ski jumper in the sim.
   - A jumper's design: body lean, ski V-angle and suit bagginess
     (`src/data/jumper.ts`). No suit rules: bagginess trades lift for stability.

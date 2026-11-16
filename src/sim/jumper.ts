@@ -80,7 +80,7 @@ export function jumperForces(design: JumperDesign, alphaDeg: number, partsCdA: n
   const spread = detSin((design.posture.vAngleDeg / 2) * DEG)
   const skiC = plate(sk.kpBase + sk.kpPerSpread * spread, sk.kv, sk.cd0, alpha)
   const hipsAhead = JUMP_BODY.hipToBoot * detCos(lean * DEG)
-  const skiX = sk.tipAhead - (sk.cpFromTip + sk.cpPerDeg * alphaDeg) * sk.length - hipsAhead
+  const skiX = sk.tipAhead - (sk.cpFromTip - sk.cpPerSpread * spread + sk.cpPerDeg * alphaDeg) * sk.length - hipsAhead
   const skis: PlateForces = { clA: skiC.cl * skiArea, cdA: skiC.cd * skiArea, x: skiX }
 
   // Body: a stubby plate, mostly vortex lift; a baggy suit widens it and moves its lift forward.
@@ -89,7 +89,8 @@ export function jumperForces(design: JumperDesign, alphaDeg: number, partsCdA: n
   const bodyArea = span * b.length
   const aspect = span / b.length
   const bodyC = plate(b.kpPerAspect * aspect, b.kv * (1 + b.kvPerBag * bag), b.cd0, bodyAlpha)
-  const bodyX = b.headAhead - (b.cpFromHead + b.cpPerBag * bag) * b.length
+  const flat = Math.max(0, b.flatFrom - lean)
+  const bodyX = b.headAhead - (b.cpFromHead + b.cpPerBag * bag - b.cpPerFlat * flat) * b.length
   const body: PlateForces = { clA: bodyC.cl * bodyArea, cdA: bodyC.cd * bodyArea, x: bodyX }
 
   const clA = skis.clA + body.clA
@@ -318,9 +319,23 @@ export interface JumpEvent {
  * hill's own take-off speed, so the day's wind doesn't decide it. It counts
  * only if the margin stays above the floor the whole way.
  */
-export function referenceJump(design: JumperDesign, event: JumpEvent): { distance: number; minMargin: number; stable: boolean } {
+export function referenceJump(design: JumperDesign, event: JumpEvent): ReferenceJump {
   const f = fly(design, event.hill, { temperature: event.temperature, altitude: event.altitude, headwind: 0, takeoffSpeed: event.hill.takeoffSpeed, mass: event.mass }, false)
-  return { distance: f.distance, minMargin: f.minMargin, stable: f.minMargin >= PITCH.floor }
+  return { distance: f.distance, counted: Math.min(f.distance, event.hill.hs), pastHs: f.distance > event.hill.hs, minMargin: f.minMargin, stable: f.minMargin >= PITCH.floor }
+}
+
+/** The reference jump: its flight, and what of it counts. */
+export interface ReferenceJump {
+  /** Where the flight would land, m. */
+  distance: number
+  /**
+   * What counts (Kelbo, 16 November 2026): no more than the hill size. A
+   * jumper heading past HS bails out to a safe landing there.
+   */
+  counted: number
+  pastHs: boolean
+  minMargin: number
+  stable: boolean
 }
 
 export interface JumpResult {
@@ -329,7 +344,8 @@ export interface JumpResult {
   /** The same flight with no pitch trouble, m. */
   clean: number
   lostToPitch: number
-  trouble: 'pitch' | 'wobble' | null
+  /** A pitch-forward, a wobbly landing, or a flight past the hill size that bailed out at HS. */
+  trouble: 'pitch' | 'wobble' | 'long' | null
   flight: Flight
   /** The day: air temperature, wind along the hill and the take-off speed. */
   temperature: number
@@ -348,12 +364,15 @@ export function jumpDay(design: JumperDesign, event: JumpEvent, seed: number): J
   const clean = flight.pitchedAt === null ? flight.distance : fly(design, event.hill, air, false).distance
   const wobble = flight.pitchedAt === null ? wobbleLoss(flight.minMargin) : 0
   // A pitch-forward costs at least a full wobble, even one that comes just before the landing.
-  const distance = flight.pitchedAt === null ? flight.distance - wobble : Math.min(flight.distance, clean - wobbleLoss(0))
+  const flown = flight.pitchedAt === null ? flight.distance - wobble : Math.min(flight.distance, clean - wobbleLoss(0))
+  // Heading past the hill size, the jumper bails out to a safe landing at HS.
+  const long = flown > event.hill.hs
+  const distance = Math.min(flown, event.hill.hs)
   return {
     distance,
     clean,
     lostToPitch: clean - distance,
-    trouble: flight.pitchedAt !== null ? 'pitch' : wobble > 0 ? 'wobble' : null,
+    trouble: flight.pitchedAt !== null ? 'pitch' : wobble > 0 ? 'wobble' : long ? 'long' : null,
     flight,
     temperature,
     headwind,

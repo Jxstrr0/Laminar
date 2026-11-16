@@ -129,6 +129,7 @@ quirks you have to learn.
 | Ski-jump suit rules | **None**: bagginess only trades lift against stability. *(16 Nov 2026, for PR 8)* |
 | Ski-jump declaration | **Predicted distance**: you declare the reference jump's length, forecast from the tunnel's lift and drag. *(16 Nov 2026, for PR 8)* |
 | Ski-jump hills | **A normal hill and a large hill**; the large hill comes later, at higher reputation. *(16 Nov 2026, for PR 8)* |
+| Jumps past the hill size | **Capped at HS**: tuned so only a near-perfect stable design reaches HS, and metres past it don't count (the jumper bails out to a safe landing). *(16 Nov 2026, for PR 8)* |
 | Speed skating venues | **Indoor 400 m oval, plus one outdoor marathon** on natural lake ice. *(16 Nov 2026, for PR 8)* |
 | Firm name | **Asked at career start**, with a ready-made name to keep; renamable. *(16 Nov 2026, for PR 7)* |
 

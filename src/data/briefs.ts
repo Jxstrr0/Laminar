@@ -141,7 +141,7 @@ export const TRACK = {
  * The declared number is the reference jump's distance. A promised metre is
  * weighed like a promised point of cut, and missed the same way.
  *
- * The board offers them from PR 8h, when the board and debrief can show
+ * The board offers them from PR 8i, when the board and debrief can show
  * them; until then they stay off it.
  */
 export const JUMP_JOBS = {
@@ -458,5 +458,28 @@ export const BRIEFS: readonly BriefTemplate[] = [
     days: 20,
     minRep: 30,
     target: 4,
+  },
+  {
+    id: 'kuzmenko-large',
+    client: 'Yaroslav Kuzmenko',
+    who: 'Experienced jumper moving up to the large hill',
+    goal: 'On the big hill my old suit gets me down safely and that is all. I want to be near the hill size, not at the bottom of the table.',
+    event: {
+      name: 'Tarnovian Large Hill Championship',
+      place: 'Belogor large hill (HS 134)',
+      temperature: -9,
+      altitude: 640,
+      windSpeed: 0.2,
+      riderSpeed: 27,
+      spread: { temperature: 4, wind: 1.3, power: 0 },
+      course: [],
+      jump: { hill: 'large', mass: 63, speedSpread: 0.35 },
+    },
+    rider: { power: 0, mass: 63 },
+    setup: jumper(14, 32, 0.35),
+    fee: { min: 140000, max: 180000 },
+    days: 22,
+    minRep: 45,
+    target: 8,
   },
 ]
