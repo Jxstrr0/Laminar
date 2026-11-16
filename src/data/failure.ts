@@ -41,6 +41,8 @@ export const FAILURE = {
    * 20° it wants the fan down near 30 m/s, where a truck's side force bites.
    */
   truckMountN: 250,
+  /** A racing car model hangs from a stout strut through its roof (PR 9l): it has its downforce to carry as well as its drag, N. */
+  carMountN: 1500,
   /**
    * The sting a ski jumper's model hangs on (PR 8k): the most load it takes,
    * lift and drag together. A 1:2 model reads the whole sweep at 30 m/s; push

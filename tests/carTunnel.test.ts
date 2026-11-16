@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { CAR_AERO, CAR_TUNNEL, STOCK_CAR, type CarDesign } from '../src/data/car'
 import { CIRCUITS } from '../src/data/circuits'
 import { lapGain, lapTime } from '../src/sim/car'
-import { aeroMap, carFloor, forecastLap, heightsAt, maxDrop, prepareCar, readCar, type CarFloor } from '../src/sim/carTunnel'
+import { aeroMap, carFloor, carReadings, correctCar, forecastLap, isCarRun, heightsAt, maxDrop, prepareCar, readCar, type CarFloor } from '../src/sim/carTunnel'
 import { Rng } from '../src/sim/rng'
 import type { ModelSpec, TunnelSpec } from '../src/sim/views'
+import { isJumperRun } from '../src/sim/jumpTunnel'
+import type { RunSample } from '../src/sim/run'
 
 const TOURING: CarDesign = { sport: 'car', class: 'touring', ride: { front: 0.065, rear: 0.095 }, frontWing: 14, rearWing: { angle: 21, chord: 0.28 }, diffuser: 15, floorEdge: 0.9, inlet: 0.85 }
 const OPEN: CarDesign = { sport: 'car', class: 'open', ride: { front: 0.06, rear: 0.07 }, frontWing: 20, rearWing: { angle: 20, chord: 0.27 }, diffuser: 16, floorEdge: 0.95, inlet: 0.8 }
@@ -12,7 +14,7 @@ const OPEN: CarDesign = { sport: 'car', class: 'open', ride: { front: 0.06, rear
 const LOW: CarDesign = { ...OPEN, ride: { front: 0.035, rear: 0.045 } }
 
 const IDEAL: TunnelSpec = { turbulence: 0, balanceNoise: 0 }
-const MODEL: ModelSpec = { scale: CAR_TUNNEL.scale, finish: 'sanded', accuracy: 0, seed: 1 }
+const MODEL: ModelSpec = { scale: 0.25, finish: 'sanded', accuracy: 0, seed: 1 }
 const DROPS = [0, 0.01, 0.02, 0.03, 0.04]
 
 /** Read a car at each drop over a floor and forecast its lap. */
@@ -98,5 +100,30 @@ describe('the lap forecast', () => {
     expect(top.need).toBeGreaterThan(top.have)
     expect(forecast(OPEN, 'rolling', 'dolgo-ring').covered).toBe(true)
     expect(forecastLap([], OPEN, STOCK_CAR.open, CIRCUITS['dolgo-ring'])).toBeNull()
+  })
+})
+
+describe('car runs on the Tunnel screen', () => {
+  const sample = (over: Partial<RunSample>): RunSample => ({ t: 0, speed: 40, yawDeg: 20, cdA: 0.9, cyA: 0, dragN: 50, steady: true, clA: 3, clAFront: 1.2, ...over })
+
+  it('keep the drop (in mm, in the yaw’s place) and the downforce at each axle', () => {
+    const run = { samples: [sample({}), sample({ steady: false }), sample({ clAFront: undefined, clA: undefined })] }
+    expect(isCarRun(run)).toBe(true)
+    expect(isJumperRun(run)).toBe(false)
+    const r = carReadings([run])
+    expect(r).toHaveLength(1)
+    expect(r[0]!.drop).toBeCloseTo(0.02, 9)
+    expect(r[0]!.clAFront).toBe(1.2)
+    expect(r[0]!.clARear).toBeCloseTo(1.8, 9)
+  })
+
+  it('take off the strut’s tare and the blockage when calibration has found them', () => {
+    const p = prepareCar(TOURING, MODEL, 'still')
+    const r = { cdA: 1, clAFront: 1, clARear: 2 }
+    expect(correctCar(r, { tare: null, blockageK: null }, p, 4.32)).toEqual(r)
+    const fixed = correctCar(r, { tare: 0.01, blockageK: 1 }, p, 4.32)
+    expect(fixed.cdA).toBeLessThan(1)
+    expect(fixed.clAFront).toBeLessThan(1)
+    expect(fixed.clAFront / fixed.clARear).toBeCloseTo(0.5, 9)
   })
 })

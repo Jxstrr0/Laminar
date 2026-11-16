@@ -221,8 +221,6 @@ export const CAR_TUNNEL = {
   },
   /** Wheels standing still read this much extra drag area, full scale, m². */
   staticWheels: 0.04,
-  /** A car model is built at this scale. */
-  scale: 0.4,
   /** The mount lowers the model by up to this much below its static ride height, full scale, m, in steps. */
   drop: { touring: 0.07, open: 0.04, step: 0.005 },
   /** Readings within this much drop are pooled, m. */

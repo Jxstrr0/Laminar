@@ -173,7 +173,8 @@ function soundSample(x: unknown): x is RunSample {
     isNum(x.dragN) &&
     typeof x.steady === 'boolean' &&
     (x.clA === undefined || isNum(x.clA)) &&
-    (x.pitchA === undefined || isNum(x.pitchA))
+    (x.pitchA === undefined || isNum(x.pitchA)) &&
+    (x.clAFront === undefined || isNum(x.clAFront))
   )
 }
 

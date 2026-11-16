@@ -61,7 +61,10 @@ import { describeShape, scaleShape } from '../sim/geom/body'
 import { referenceWheel } from '../sim/geom/cyclist'
 import { sphere } from '../sim/geom/shapes'
 import { Rng } from '../sim/rng'
-import { designPose, designShape, isBobsled, isJumper, isTruck, type Design } from '../sim/design'
+import { designPose, designShape, isBobsled, isCar, isJumper, isTruck, type Design } from '../sim/design'
+import { CAR_CLASS, STOCK_CAR, type CarDesign } from '../data/car'
+import { CIRCUITS } from '../data/circuits'
+import { carFloor, carReadings, correctCar, forecastLap, heightsAt, isCarRun, maxDrop, prepareCar, readCar, type CarFix, type LapForecast, type PreparedCar } from '../sim/carTunnel'
 import { forecastSaving, frictionScaleUp, prepareTruck, readCurve, truckEvent } from '../sim/truckTunnel'
 import { truckMass, windAveragedFuelWith } from '../sim/truck'
 import type { TruckDesign } from '../data/truck'
@@ -249,10 +252,20 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   let jumperModel: PreparedJumper | null = null
   /** The sting's pitch dial: the same turning control as the turntable, on its own range. */
   const pitchSpec: TurntableSpec = { ...JUMP_TUNNEL.pitch, rate: JUMP_TUNNEL.rate }
-  /** The dial the angle row drives: yaw for a rider, pitch for a jumper. */
-  const dial = () => (jumper ? pitchSpec : spec.turntable)
-  /** Where the angle row's "level" button goes: square on, or the flight angle. */
+  /** A racing car is on the bench model (PR 9l): it hangs from a strut, and the angle row lowers it (the drop, in mm). */
+  let racing = false
+  let carModel: PreparedCar | null = null
+  /** The strut's drop dial, mm below the car's static ride height: its range is the class's. */
+  let dropSpec: TurntableSpec = { min: 0, max: 40, step: 5, rate: 10 }
+  /** The dial the angle row drives: yaw for a rider, pitch for a jumper, the drop for a car. */
+  const dial = () => (racing ? dropSpec : jumper ? pitchSpec : spec.turntable)
+  /** Where the angle row's "level" button goes: square on, the flight angle, or the static height. */
   const home = () => (jumper ? FLIGHT_ATTITUDE.hold : 0)
+  /**
+   * The circuit a car is forecast on and the team's car as it runs now:
+   * the Dolgo Ring and the class's stock setup until car jobs arrive.
+   */
+  const carRun = (car: CarDesign) => ({ circuit: CIRCUITS['dolgo-ring'], old: STOCK_CAR[car.class] })
   /** The track a sled is forecast on (the job's from PR 8o; Belogor until then). */
   const sledTrack = () => hooks.sledRace().track
   /**
@@ -372,6 +385,15 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   const jLD = readout(t('read.ld'), 'liftToDrag')
   const jFc = readout(t('read.forecast'), 'staticMargin')
   jumperGrid.append(jSpeed.box, jPitch.box, jLD.box, jFc.box)
+
+  // Readouts for a racing car on its strut (PR 9l).
+  const carGrid = el('div', 'readouts')
+  const cSpeed = readout(t('read.speed'), 'airSpeed')
+  const cDrop = readout(t('read.carDrop'), 'aeroMap')
+  const cDown = readout(t('read.carDownArea'), 'downforce')
+  const cDrag = readout(t('read.cda'), 'cda')
+  const cFc = readout(t('read.carLap'), 'lapGain')
+  carGrid.append(cSpeed.box, cDrop.box, cDown.box, cDrag.box, cFc.box)
 
   // Readouts for the sphere.
   const sphereGrid = el('div', 'readouts')
@@ -521,7 +543,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   tapsChip.hidden = true
   const cpLegend = createCpLegend()
 
-  sheet.append(mountRow, fanCtl.row, yawCtl.row, runLine, viewBar, riderGrid, jumperGrid, sphereGrid, wheelGrid, tareGrid, chartBox, calBox, runsBox, foot)
+  sheet.append(mountRow, fanCtl.row, yawCtl.row, runLine, viewBar, riderGrid, jumperGrid, carGrid, sphereGrid, wheelGrid, tareGrid, chartBox, calBox, runsBox, foot)
   app.append(header, sheet, instBar, cpLegend.root)
 
   // Keep the 3D model centred in the space above the sheet.
@@ -537,8 +559,9 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     setText(fanCtl.target, t('fan.target', { target: `${fixed(fan.target, 1)} m/s` }))
     fanCtl.input.setAttribute('aria-valuetext', `${fixed(fan.target, 1)} metres per second`)
     offBtn.disabled = fan.target === 0
-    setText(yawCtl.target, t('fan.target', { target: `${fixed(table.target, 0)}°` }))
-    yawCtl.input.setAttribute('aria-valuetext', `${fixed(table.target, 0)} degrees`)
+    // A car's dial is its drop in mm, shown in cm.
+    setText(yawCtl.target, t('fan.target', { target: racing ? `${fixed(table.target / 10, 1)} cm` : `${fixed(table.target, 0)}°` }))
+    yawCtl.input.setAttribute('aria-valuetext', racing ? `${fixed(table.target / 10, 1)} centimetres lower` : `${fixed(table.target, 0)} degrees`)
     squareBtn.disabled = table.target === home()
   }
   fanCtl.input.addEventListener('input', () => {
@@ -604,11 +627,12 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     const bench = designStore.get()
     const sled = isBobsled(bench)
     const truck = isTruck(bench)
-    // A sled's model is matched to the track's speed and a truck's to the route's; only they sit on a ground board.
+    // A sled's model is matched to the track's speed and a truck's to the route's; they and a car sit on a ground board.
     const ctx: ShopContext = {
       ...hooks.shop(),
       sled,
       truck,
+      car: isCar(bench),
       ...(sled ? { event: sledEvent(sledTrack()) } : {}),
       ...(truck ? { event: truckEvent(truckRun(bench).route) } : {}),
     }
@@ -741,7 +765,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     const r = repairTerms(f)
     const head = el('p', 'fail-head', t('fail.headline', { what: t(`fail.title.${f.part}` as StringKey), speed: fixed(speed, 1) }))
     // A truck's posts are its own stouter struts.
-    const why = el('p', 'fail-why', t(f.part === 'posts' && isTruck(modelDesign) ? 'fail.why.truckPosts' : (`fail.why.${f.part}` as StringKey)))
+    const why = el('p', 'fail-why', t(f.part === 'posts' && isTruck(modelDesign) ? 'fail.why.truckPosts' : f.part === 'posts' && isCar(modelDesign) ? 'fail.why.carPosts' : (`fail.why.${f.part}` as StringKey)))
     const cost = el('p', 'fail-cost', r.screens ? t('fail.costScreens', { price: fixed(r.price, 0), days: r.days, screens: fixed(r.screens, 0) }) : t('fail.cost', { price: fixed(r.price, 0), days: r.days }))
     const actions = el('div', 'job-actions')
     const again = el('button', 'shop-order', t('fail.repairBtn', { price: fixed(r.total, 0), days: r.days }))
@@ -796,7 +820,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     const mapping = inst.taps && mount === 'rider' && !tare && !!prepared
     if (cpLegend.root.hidden === mapping) cpLegend.root.hidden = !mapping
     // The instruments read a rider's air; a jumper's plates come later.
-    if (mount !== 'rider' || tare || !prepared || broken || jumper || !anyFlow()) return
+    if (mount !== 'rider' || tare || !prepared || broken || jumper || racing || !anyFlow()) return
     // Below reading speed the drag regime is the slow-air one; the drawing slows the smoke itself.
     const speed = Math.max(spec.readFrom, fan.speed)
     // The taps read only once there's air enough for the scanner (Cp is pressure over the dynamic pressure).
@@ -897,6 +921,10 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     x: { label: t('axis.pitch'), unit: '°', digits: 0, min: JUMP_TUNNEL.pitch.min, max: JUMP_TUNNEL.pitch.max },
     y: { label: t('axis.cla'), unit: 'm²', digits: 3 },
   }
+  const dropAxes = {
+    x: { label: t('axis.drop'), unit: 'cm', digits: 1, min: 0, max: 4 },
+    y: { label: t('axis.down'), unit: 'm²', digits: 2 },
+  }
   const yawAxes = {
     x: { label: t('axis.yaw'), unit: '°', digits: 0, min: spec.turntable.min, max: spec.turntable.max },
     y: { label: t('axis.cda'), unit: 'm²', digits: 3 },
@@ -950,6 +978,12 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       const w = shake()
       return { speed: fan.speed, yawDeg: table.angle, cdA: j.cdA * w, cyA: 0, dragN: j.dragN * w, clA: j.clA * w, pitchA: j.pitchA * w, steady }
     }
+    if (racing && carModel) {
+      // The strut's drop goes where a rider's yaw would, in mm; the downforce at each axle rides along.
+      const c = readCar(carModel, tunnel, { speed: fan.speed, drop: table.angle / 1000, mount: 'posts' }, balanceRng)
+      const w = shake()
+      return { speed: fan.speed, yawDeg: table.angle, cdA: c.cdA * w, cyA: 0, dragN: c.dragN * w, clA: (c.clAFront + c.clARear) * w, clAFront: c.clAFront * w, steady }
+    }
     const r = readBalance(prepared, tunnel, { speed: fan.speed, yawDeg: table.angle, mount: 'posts' }, balanceRng)
     // A buzzing part shakes the balance: the trace wobbles before anything breaks.
     const w = shake()
@@ -983,10 +1017,11 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       viewButtons[i]!.tabIndex = on ? 0 : -1
     })
     viewButtons[2]!.hidden = !yawOpen()
-    setText(viewButtons[2]!, t(jumper ? 'view.pitch' : 'view.yaw'))
+    setText(viewButtons[2]!, t(jumper ? 'view.pitch' : racing ? 'view.drop' : 'view.yaw'))
     const reading = view_ === 'readouts'
-    riderGrid.hidden = !(reading && mount === 'rider' && !tare && !jumper)
+    riderGrid.hidden = !(reading && mount === 'rider' && !tare && !jumper && !racing)
     jumperGrid.hidden = !(reading && mount === 'rider' && !tare && jumper)
+    carGrid.hidden = !(reading && mount === 'rider' && !tare && racing)
     sphereGrid.hidden = !(reading && mount === 'sphere' && !tare)
     wheelGrid.hidden = !(reading && mount === 'wheel' && !tare)
     tareGrid.hidden = !(reading && tare)
@@ -1019,6 +1054,15 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
         ...axes,
         series: [{ points: pts(faint), mark: 'faint' }, { points: pts(bold), mark: 'dot', latest: true }],
         caption: describeLast(axes, pts(bold), t('chart.emptyTime')),
+      })
+    } else if (racing) {
+      // Only points taken with the fan and strut settled: downforce area against the drop, cm.
+      const pts = (s: RunSample[]): ChartPoint[] => s.filter((p) => p.steady && p.clA !== undefined).map((p) => ({ x: p.yawDeg / 10, y: p.clA! }))
+      dropAxes.x.max = dropSpec.max / 10
+      chart.draw({
+        ...dropAxes,
+        series: [{ points: pts(faint), mark: 'faint' }, { points: pts(bold), mark: 'dot', latest: true }],
+        caption: describeLast(dropAxes, pts(bold), t('chart.emptyDrop')),
       })
     } else if (jumper) {
       // Only points taken with the fan and sting settled: lift area against pitch.
@@ -1067,7 +1111,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
         const jumped = isJumperRun(run)
         const runDesign = designs.get(run.id)
         const trucked = run.model === 'rider' && runDesign !== undefined && isTruck(runDesign)
-        const model = t(jumped ? 'mount.jumper' : trucked ? 'mount.truck' : (RUN_MODEL[run.model] ?? 'mount.rider'))
+        const raced = isCarRun(run)
+        const model = t(jumped ? 'mount.jumper' : raced ? 'mount.car' : trucked ? 'mount.truck' : (RUN_MODEL[run.model] ?? 'mount.rider'))
         text.append(
           el('span', 'run-title', t('runs.row', { id: run.id, model, time: clock(run.duration), cost: fixed(runCost(run), 0) }) + (run.failure ? ` · ${t('fail.runTag')}` : '')),
           el('span', 'run-sub', groupWords(headlineGroup(yawGroups(run)), run.model.startsWith('tare') || run.model === WHEEL_RUN ? TARE_DIGITS : 4, jumped)),
@@ -1208,6 +1253,10 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       drawForecast()
       return
     }
+    if (racing) {
+      drawCarForecast()
+      return
+    }
     const now = modelDesign
     const byCrank = poolable(now)
     poolBox.hidden = byCrank.size === 0 || !prepared
@@ -1320,10 +1369,11 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     }
     if (prepared) endRun()
     const design = modelDesign
-    setJumper(isJumper(design))
-    // The first mount button names what's on it: a truck isn't a rider.
-    if (!jumper) setText(mountButtons[0]!, t(isTruck(design) ? 'mount.truckShort' : 'mount.riderShort'))
+    setDial(isJumper(design) ? 'pitch' : isCar(design) ? 'drop' : 'yaw', design)
+    // The first mount button names what's on it: a truck or a car isn't a rider.
+    setText(mountButtons[0]!, t(jumper ? 'mount.jumperShort' : racing ? 'mount.carShort' : isTruck(design) ? 'mount.truckShort' : 'mount.riderShort'))
     jumperModel = isJumper(design) ? prepareJumper(design, modelSpec) : null
+    carModel = isCar(design) ? prepareCar(design, modelSpec, carFloor(spec.rollingRoad, order.board === true)) : null
     forecastDirty = true
     prepared = isBobsled(design)
       ? prepareSled(design, modelSpec)
@@ -1338,28 +1388,43 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     modelVersion++
     view.setFlow(null, [])
     view.setTaps([], [])
-    view.setModel({ kind: 'rider', state: { design, pose: designPose(design, crank), broken: [], strained: [] }, scale: modelSpec.scale, tare, board: order.board === true })
+    view.setModel({
+      kind: 'rider',
+      state: { design, pose: designPose(design, crank), broken: [], strained: [] },
+      scale: modelSpec.scale,
+      tare,
+      board: order.board === true,
+      ...(carModel ? { floor: carModel.floor } : {}),
+    })
     // A model that broke before comes back with its part missing.
     if (broken && !tare) view.breakPart(broken.part, false)
     runsDirty = true
   }
 
+  /** What the angle row turns: the turntable's yaw, a jumper's sting pitch, or a car's drop on its strut. */
+  let dialKind: 'yaw' | 'pitch' | 'drop' = 'yaw'
   /**
    * A jumper on the bench model swaps the posts for the sting: the angle row
    * pitches instead of yawing, and the readouts read lift and the forecast.
+   * A racing car hangs from a strut: the angle row lowers it (PR 9l).
    */
-  function setJumper(on: boolean) {
-    if (on === jumper) return
-    jumper = on
-    table = on ? { target: JUMP_TUNNEL.start, angle: JUMP_TUNNEL.start } : turntableAtRest()
+  function setDial(kind: 'yaw' | 'pitch' | 'drop', design: Design) {
+    // A car's drop range is its class's: set it even when a car follows a car.
+    if (kind === 'drop' && isCar(design)) dropSpec = { ...dropSpec, max: Math.round(maxDrop(design) * 1000) }
+    if (kind === dialKind && kind !== 'drop') return
+    const changed = kind !== dialKind
+    dialKind = kind
+    jumper = kind === 'pitch'
+    racing = kind === 'drop'
+    if (changed) table = jumper ? { target: JUMP_TUNNEL.start, angle: JUMP_TUNNEL.start } : turntableAtRest()
+    else table = setYawTarget(table, table.target, dial())
     const d = dial()
     yawCtl.input.min = String(d.min)
     yawCtl.input.max = String(d.max)
     yawCtl.input.step = String(d.step)
     yawCtl.input.value = String(table.target)
-    setText(yawLabel, t(on ? 'pitch.label' : 'yaw.label'))
-    setText(squareBtn, t(on ? 'pitch.hold' : 'yaw.square'))
-    setText(mountButtons[0]!, t(on ? 'mount.jumperShort' : 'mount.riderShort'))
+    setText(yawLabel, t(jumper ? 'pitch.label' : racing ? 'drop.label' : 'yaw.label'))
+    setText(squareBtn, t(jumper ? 'pitch.hold' : racing ? 'drop.home' : 'yaw.square'))
     showTargets()
     applyInstruments()
   }
@@ -1472,6 +1537,107 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     setText(jLD.sub, t('read.ldNote', { cla: fixed(shown.sideN, 2), cda: fixed(shown.cdA, 2) }))
   }
 
+  // --- The car's forecast (PR 9l): this model's settled readings, corrected, lapped on the circuit.
+  let carForecast: LapForecast | null = null
+  const carFix = (): CarFix => ({ tare: cal.tare?.trusted ? cal.tare.mean : null, blockageK: cal.blockage?.k ?? null })
+  function updateCarForecast(dt: number) {
+    forecastAge += dt
+    if (!forecastDirty || forecastAge < 0.5 || !carModel || !isCar(modelDesign)) return
+    forecastDirty = false
+    forecastAge = 0
+    const fix = carFix()
+    const model = carModel
+    const readings = carReadings(modelRuns()).map((r) => correctCar(r, fix, model, sectionArea))
+    const { circuit, old } = carRun(modelDesign)
+    carForecast = forecastLap(readings, modelDesign, old, circuit)
+    runsDirty = true
+  }
+  const signedS = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${fixed(Math.abs(v), 2)}`
+  function showCarForecast() {
+    const f = carForecast
+    if (!f || !isCar(modelDesign)) {
+      setText(cFc.value, '–')
+      setText(cFc.sub, t('read.carLapNone'))
+      return
+    }
+    setText(cFc.value, `${signedS(f.gain)} s`)
+    const circuit = carRun(modelDesign).circuit
+    setText(
+      cFc.sub,
+      f.porpoise !== null
+        ? t('read.carLapPorpoise', { speed: fixed(f.porpoise * 3.6, 0) })
+        : f.covered
+          ? t('read.carLapNote', { circuit: t(`circuit.${circuit.id}`) })
+          : t('read.carLapLower', { cm: fixed(f.need * 100, 1) }),
+    )
+  }
+  /** The Runs tab's record for a car: the lap forecast in full, and what the floor under the model does to it. */
+  function drawCarForecast() {
+    poolBox.hidden = !prepared || !isCar(modelDesign)
+    if (poolBox.hidden || !isCar(modelDesign)) return
+    const car = modelDesign
+    const circuit = carRun(car).circuit
+    setText(poolTitle, t('car.title', { circuit: t(`circuit.${circuit.id}`) }))
+    const f = carForecast
+    const lines: string[] = []
+    if (!f) lines.push(t('car.none'))
+    else {
+      const w = CAR_CLASS[car.class].window
+      lines.push(
+        t('car.gain', { time: fixed(f.time, 2), gain: signedS(f.gain) }),
+        t('car.balance', { pct: fixed(f.balance * 100, 0), low: fixed(w.low * 100, 0), high: fixed(w.high * 100, 0) }),
+        t(f.covered ? 'car.cover' : 'car.lower', { have: fixed(f.have * 100, 1), need: fixed(f.need * 100, 1) }),
+      )
+      if (f.porpoise !== null) lines.push(t('car.porpoise', { speed: fixed(f.porpoise * 3.6, 0) }))
+    }
+    const floor = carModel?.floor ?? 'still'
+    lines.push(t(floor === 'rolling' ? 'car.floorRolling' : floor === 'board' ? 'car.floorBoard' : 'car.floorStill'))
+    poolRows.replaceChildren(...lines.map((line) => el('p', 'compare-detail', line)))
+    setText(poolCycle, '')
+    poolCycle.hidden = true
+    const words = jumperFixWords(carFix())
+    setText(poolFix, words ? t('car.fixed', { list: words }) : t('car.raw'))
+  }
+  const updateCar = (dt: number) => {
+    if (!carModel || !isCar(modelDesign)) return
+    updateCarForecast(dt)
+    showCarForecast()
+    const reading = fan.speed >= spec.readFrom && !broken
+    showSpeed(cSpeed)
+    const drop = table.angle / 1000
+    const h = heightsAt(modelDesign, drop)
+    setText(cDrop.value, `${fixed(table.angle / 10, 1)} cm`)
+    setText(cDrop.sub, t('read.carDropNote', { front: fixed(h.front * 100, 1), rear: fixed(h.rear * 100, 1) }))
+    if (!reading) {
+      shown.cdA = shown.dragN = shown.sideN = 0
+      setText(cDown.value, '–')
+      setText(cDown.sub, t('read.carDownAreaNote', { pct: '–', force: '–' }))
+      setText(cDrag.value, '–')
+      setText(cDrag.sub, t('read.cdaRaw', { scale: fixed(1 / carModel.scale, 0) }))
+      return
+    }
+    const r = readCar(carModel, tunnel, { speed: fan.speed, drop, mount: 'posts' }, balanceRng)
+    const s2 = carModel.scale * carModel.scale
+    // The load on the strut per pascal: downforce and drag together, at model size.
+    loadArea = Math.hypot(r.clAFront + r.clARear, r.cdA) * s2
+    const c = correctCar(r, carFix(), carModel, sectionArea)
+    // shown: dragN holds the model's downforce, N; sideN the front share; cdA the drag area. A buzzing part shakes it.
+    const k = settle(dt)
+    const w = shake()
+    const down = c.clAFront + c.clARear
+    shown.dragN += (r.downN * w - shown.dragN) * k
+    shown.sideN += ((down > 0 ? c.clAFront / down : 0.5) - shown.sideN) * k
+    shown.cdA += (c.cdA * w - shown.cdA) * k
+    carShownDown += (down * w - carShownDown) * k
+    setText(cDown.value, `${fixed(carShownDown, 2)} m²`)
+    setText(cDown.sub, t('read.carDownAreaNote', { pct: fixed(shown.sideN * 100, 0), force: fixed(shown.dragN, 0) }))
+    setText(cDrag.value, `${fixed(shown.cdA, 3)} m²`)
+    const words = jumperFixWords(carFix())
+    setText(cDrag.sub, words ? t('read.fixedFor', { list: words }) : t('read.cdaRaw', { scale: fixed(1 / carModel.scale, 0) }))
+  }
+  /** The car's downforce area as shown, settled like the other readouts. */
+  let carShownDown = 0
+
   /** Show the controls that fit what's on the mount. */
   function showMount() {
     mountButtons.forEach((b, i) => {
@@ -1484,9 +1650,9 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     shown.cdA = shown.dragN = shown.sideN = 0
     placeModel()
     yawCtl.row.hidden = !yawOpen()
-    crankBox.hidden = !yawOpen() || modelDesign.sport === 'skating' || isBobsled(modelDesign) || isTruck(modelDesign) || jumper
+    crankBox.hidden = !yawOpen() || modelDesign.sport === 'skating' || isBobsled(modelDesign) || isTruck(modelDesign) || jumper || racing
     shopBtn.hidden = !yawOpen()
-    instBar.hidden = !yawOpen() || jumper
+    instBar.hidden = !yawOpen() || jumper || racing
     showStale()
     showBroken()
     selectView(view_)
@@ -1678,6 +1844,10 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       updateJumper(dt)
       return
     }
+    if (racing) {
+      updateCar(dt)
+      return
+    }
     if (!prepared) return
     showSpeed(rSpeed)
     setText(rYaw.value, `${fixed(table.angle, 1)}°`)
@@ -1740,7 +1910,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     syncTunnel()
     while (carry >= STEP) {
       fan = stepFan(fan, STEP, spec)
-      table = stepTurntable(table, STEP, spec.turntable)
+      table = stepTurntable(table, STEP, dial())
       // The model's weak points, checked every fixed step (the tunnel always warns first).
       // A jumper's model hangs on a sting, which takes its lift as well as its drag.
       if (mount === 'rider' && !tare && prepared && !broken) {
@@ -1783,8 +1953,9 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     updateSledForecast(dt)
     drawRuns()
     drawCal()
-    view.setYaw(yawOpen() && !jumper ? table.angle : 0)
+    view.setYaw(yawOpen() && !jumper && !racing ? table.angle : 0)
     if (jumper) view.setPitch(table.angle)
+    if (racing) view.setDrop(table.angle / 1000)
     view.frame(fan.speed, dt)
     raf = requestAnimationFrame(loop)
   }

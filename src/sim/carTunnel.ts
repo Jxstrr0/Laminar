@@ -25,6 +25,7 @@ import { gaussian } from './noise'
 import { interp } from './num'
 import { blockageFactor, type MountKind } from './quirks'
 import { Rng } from './rng'
+import type { Run } from './run'
 import type { ModelSpec, TunnelSpec } from './views'
 
 /** The floor under a car model: still, the model shop's ground board, or your tunnel's rolling road. */
@@ -213,3 +214,29 @@ export function forecastLap(readings: readonly Pick<CarReading, 'drop' | 'cdA' |
     balance: at(CAR_DESK.readSpeed).balance,
   }
 }
+
+/** What the calibration runs let you take off a car's readings: the strut's tare and the blockage. */
+export interface CarFix {
+  tare: number | null
+  blockageK: number | null
+}
+
+/** A reading with the strut's tare and the blockage taken off (as far as the calibration runs found them). */
+export function correctCar<R extends Pick<CarReading, 'cdA' | 'clAFront' | 'clARear'>>(r: R, fix: CarFix, prepared: PreparedCar, sectionArea: number): R {
+  const s2 = prepared.scale * prepared.scale
+  const b = fix.blockageK !== null ? blockageFactor(fix.blockageK, CAR_CLASS[prepared.design.class].frontal * s2, sectionArea) : 1
+  const tare = (fix.tare ?? 0) / s2
+  return { ...r, cdA: (r.cdA - tare) / b, clAFront: r.clAFront / b, clARear: r.clARear / b }
+}
+
+/** A car run's settled readings: fan and mount at rest, with the downforce at each axle. The drop rides in yawDeg, in mm. */
+export function carReadings(runs: readonly Pick<Run, 'samples'>[]): Pick<CarReading, 'drop' | 'cdA' | 'clAFront' | 'clARear'>[] {
+  const out: Pick<CarReading, 'drop' | 'cdA' | 'clAFront' | 'clARear'>[] = []
+  for (const run of runs)
+    for (const s of run.samples)
+      if (s.steady && s.clA !== undefined && s.clAFront !== undefined) out.push({ drop: s.yawDeg / 1000, cdA: s.cdA, clAFront: s.clAFront, clARear: s.clA - s.clAFront })
+  return out
+}
+
+/** True if a run read a racing car. */
+export const isCarRun = (run: Pick<Run, 'samples'>): boolean => run.samples.some((s) => s.clAFront !== undefined)

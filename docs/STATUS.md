@@ -71,10 +71,22 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 9i | Racing cars in the sim: touring cars and single-seaters, front and rear wings, the floor in ground effect (stall and porpoising), ride heights that squash at speed, the balance window, the cooling inlet, the Tarnovian Motor Racing Federation's rulebook, and a flying lap on two circuits | **Done** (v0.9.8.0) |
 | 9j | The racing car on Shape: a 3D touring car and single-seater drawn from the drag model's own shell, Floor and Wings tabs, the desk's lap-time gain on the Dolgo Ring, downforce and drag at 200 km/h, the balance against the drivers' window, the Motor Racing Federation's rule box, and amber warnings for porpoising, heat and balance. Try it with `?try=car` and `?try=car-open` | **Done** (v0.9.9.0) |
 | 9k | The racing car in the tunnel, in the sim: the mount lowers the model to read an aero map (the model can't squat as the real car does), the floor read through the tunnel's floor (still floor, ground board, or the new rolling road upgrade at ₽900,000 and 30 days), standing wheels read draggy, and the lap forecast on the map, porpoising and all | **Done** (v0.9.10.0) |
-| 9l–14 | See the plan | Next: PR 9l, the car on the Tunnel screen (the drop control, downforce and balance readouts, the map and the forecast). Then car jobs, the lap replay, then the land-speed record. |
+| 9l | The racing car on the Tunnel screen: it hangs from a strut over the bare floor, the shop's ground board or the rolling road; the angle row becomes the ride drop; readouts for downforce, balance, drag and the lap forecast; the ride sweep chart (downforce against drop); the forecast in full on the Runs tab; the strut breaks past 1,500 N | **Done** (v0.9.11.0) |
+| 9m–14 | See the plan | Next: car jobs (a touring team and an open-wheel series, the promise in tenths, scrutineering, balance and porpoising in the debrief). Then the lap replay, then the land-speed record. |
 
 ## Versions
 
+- **0.9.11.0** (PR 9l): the racing car on the Tunnel screen. Try it with
+  `?try=car` or `?try=car-open`, then the Tunnel tab. The car hangs from
+  a strut through its roof, over the bare floor, the model shop's ground
+  board (now offered for cars) or your own tunnel's rolling road (its belt
+  runs with the air). The angle row is the ride drop: lower the car step
+  by step with the fan steady to build its aero map. The readouts show
+  the downforce area with the front share and the force on the model,
+  the drag area, and the lap forecast on the Dolgo Ring; the Ride sweep
+  chart plots downforce against the drop, so the floor's stall shows as
+  the line falling away. The Runs tab has the forecast in full and says
+  what the floor under the model does to it. The strut takes 1,500 N.
 - **0.9.10.0** (PR 9k): the racing car in the tunnel, in the sim (on
   screen in PR 9l). A tunnel model is held still on its posts, so it
   can't squat at speed as the real car does: the mount lowers it in
