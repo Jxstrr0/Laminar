@@ -172,3 +172,48 @@ export const SURVEY_SITES: Record<SurveySite['id'], SurveySite> = {
   /** The Ozimka fields east of Stavren: a farm co-operative's wheat, flat and open to the wind. */
   ozimka: { id: 'ozimka', altitude: 180, temperature: 16, gust: 2 },
 }
+
+/**
+ * The survey drone's build, for its outline and its drawing (PR 10j): a
+ * slim fuselage, a high wing, a pusher motor on a pylon behind it, a
+ * conventional tail at the tail cone's end, and the camera pod under the
+ * belly. The aero above uses its own areas; these only place the parts.
+ */
+export const PLANE_BODY = {
+  /** The fuselage's half-width and half-height, m (its front is about bodyFront). */
+  half: 0.055,
+  halfHeight: 0.065,
+  /** The straight middle behind the nose, m, and the tail cone behind it, m. */
+  mid: 0.36,
+  cone: 0.62,
+  /** The tail cone's end as a share of the full body: blunt (taper 0) and to a point (taper 1). */
+  endBlunt: 0.7,
+  endPoint: 0.08,
+  /** The wing's chord, m (its area over its span), how far behind the nose it starts, m, and its dihedral, degrees. */
+  chord: 0.26,
+  wingFrom: 0.04,
+  dihedral: 3,
+  wingThick: 0.03,
+  /** The maker's tail: the tailplane's span and chord, m, and the fin's height and chord, m (all grow with the square root of the tail's size). */
+  tailSpan: 0.62,
+  tailChord: 0.15,
+  finHeight: 0.22,
+  finChord: 0.18,
+  /** The camera pod: its length, width and height, m, how far it moves along the belly per unit of `at`, m, and how far its mount drops it on its full mount, m. */
+  pod: { length: 0.16, width: 0.09, height: 0.07, slide: 0.12, mount: 0.025 },
+  /** A full fairing adds a rounded nose and tail this long, m. */
+  fairing: 0.07,
+  /** The pusher prop's radius, m, and its pylon's height above the wing, m. */
+  prop: 0.15,
+  pylon: 0.1,
+  /** Where the plane sits on its stand on the Shape stage, m above the floor (drawn only). */
+  stand: 1.05,
+}
+
+/** The desk's guess at a survey drone (PR 10j): how far off its drag can be, shared by a job and per design. */
+export const PLANE_DESK = {
+  dragBias: 0.04,
+  jitter: 0.012,
+  /** Riding out less than this times the site's usual gust on a turn is an amber warning on the sheet. */
+  gustClose: 1.15,
+}

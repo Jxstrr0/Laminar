@@ -20,6 +20,8 @@ import type { SaltFlat } from '../data/saltFlats'
 import { criticalMach, flatDensity, frontKept, recordRun, soundSpeed, stillDay, twoWay, type RecordAbort } from './record'
 import { DRONE_CLASS, DRONE_DESK, type DroneCourse, type DroneDesign } from '../data/drone'
 import { courseDensity, droneRace, heatLoss, steadyTilt, topSpeed, type DroneRace } from './drone'
+import { PLANE_DESK, type PlaneDesign, type SurveySite } from '../data/plane'
+import { cameraTooHigh, gustLimit, gustTurn, planeMass, planeRange, staticMargin } from './plane'
 import type { ShapeSpec } from './geom/body'
 import { gaussian } from './noise'
 import { hashString, Rng } from './rng'
@@ -247,5 +249,53 @@ export function droneDeskEstimate(design: DroneDesign, old: DroneDesign, course:
     tumble: mid.tumble,
     hotAt: mid.hotAt,
     heat: mid.hotAt === null ? 0 : heatLoss(design),
+  }
+}
+
+/** The desk's guess at a survey drone (PR 10j). */
+export interface PlaneDeskEstimate {
+  /** Range on a charge at the site on its usual day, km; `low` the short end (more drag), `high` the long one. */
+  value: number
+  low: number
+  high: number
+  /** The client's plane as they fly it now (their own logs, so known), km. */
+  old: number
+  /** How firmly it holds its nose: the static margin, a share of the wing's chord. */
+  margin: number
+  /** The strongest gust it rides out on a turn, m/s (the full-size wing's stall: the desk knows no other), the site's usual gust, m/s, and whether that stalls it. */
+  gustLimit: number
+  gust: number
+  stalls: boolean
+  /** All-up mass, kg, and whether the camera sits higher than the client allows. */
+  mass: number
+  cameraHigh: boolean
+}
+
+/**
+ * The desk's guess at a survey drone (PR 10j): range on a charge at the
+ * site on its usual day, with its drag through the job's bias and a
+ * design's jitter, against the client's plane as they fly it, and whether a
+ * turn in the usual gust stalls it. The desk counts the camera where the
+ * client would hang it (no lower than their rule): the sheet flags a camera
+ * shaped higher than that apart.
+ */
+export function planeDeskEstimate(design: PlaneDesign, old: PlaneDesign, site: SurveySite, jobSeed: number, designKey: string, analystLevel = 0): PlaneDeskEstimate {
+  const narrow = Math.max(DESK.floor, 1 - DESK.perLevel * analystLevel)
+  const job = new Rng(jobSeed)
+  const mine = new Rng(jobSeed ^ hashString(designKey))
+  const drag = 1 + narrow * (PLANE_DESK.dragBias * gaussian(job.fork('desk-drag')) + PLANE_DESK.jitter * gaussian(mine.fork('desk-jitter')))
+  const sd = Math.sqrt(PLANE_DESK.dragBias * PLANE_DESK.dragBias + PLANE_DESK.jitter * PLANE_DESK.jitter) * narrow * DESK.bars
+  const at = (dg: number) => planeRange(design, site, site.temperature, { drag: dg })
+  return {
+    value: at(drag),
+    low: at(drag * (1 + sd)),
+    high: at(drag * (1 - sd)),
+    old: planeRange(old, site),
+    margin: staticMargin(design),
+    gustLimit: gustLimit(design, site),
+    gust: site.gust,
+    stalls: gustTurn(design, site).stalls,
+    mass: planeMass(design),
+    cameraHigh: cameraTooHigh(design),
   }
 }

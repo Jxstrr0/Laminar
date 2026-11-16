@@ -398,8 +398,8 @@ export const GLOSSARY = defineGlossary({
   staticMargin: {
     term: 'Stability margin',
     short: 'How far behind the centre of mass the lift adds up, as a share of body length.',
-    long: 'A ski jumper is balanced on their own lift. If the extra lift from a nose-up wobble acts behind the hips, it pushes the nose back down and the flight settles. If it acts ahead, the wobble grows and the jumper pitches forward. A baggy suit lifts more, but moves that point forward.',
-    aliases: ['static margin', 'stability', 'pitch stability', 'neutral point'],
+    long: 'A ski jumper, or a plane, is balanced on its lift. If the extra lift from a nose-up wobble acts behind the centre of mass, it pushes the nose back down and the flight settles; if it acts ahead, the wobble grows. A jumper’s baggy suit lifts more but moves that point forward. A plane’s tail sets its margin: a smaller tail drags less but holds the nose more loosely, and a long nose takes margin away too.',
+    aliases: ['static margin', 'stability', 'pitch stability', 'neutral point', 'pitch margin', 'tail size'],
     seeAlso: ['lift', 'centreOfPressure', 'angleOfAttack'],
   },
   comfort: {
@@ -598,6 +598,27 @@ export const GLOSSARY = defineGlossary({
     long: 'A prop holds a quad up by throwing air down. Under the props sit the arms, and the downwash beating on them pushes back up, so some of the thrust is wasted. A thin wing-shaped fairing over each arm lets that air slip past, and cuts the arms’ drag in forward flight too, at a little weight. A quad model in the tunnel with its props stopped has no downwash at all, so it shows a fairing’s drag but not what it saves under the props: the forecast takes the motor maker’s figure, measured on bare arms, and reads a faired quad slow.',
     aliases: ['prop wash', 'arm fairings', 'fairing', 'arms', 'props stopped'],
     seeAlso: ['quadTilt', 'drag'],
+  },
+  surveyRange: {
+    term: 'Range on a charge',
+    short: 'How far a survey drone flies its lines on one battery, at the speed its camera needs.',
+    long: 'A mapping plane flies at a fixed speed, set by how much each photo must overlap the last. At that speed its range is simply the battery’s usable energy, through the motor and prop, divided by the drag. Every part that drags less, and every gram saved (less lift to make, so less induced drag), flies it further. The client keeps a reserve for landing, so the range counts only the share flown before it.',
+    aliases: ['range', 'endurance', 'battery', 'survey speed', 'survey drone', 'mapping plane'],
+    seeAlso: ['inducedDrag', 'winglets', 'cda'],
+  },
+  winglets: {
+    term: 'Winglets',
+    short: 'Small fins turned up at the wingtips that weaken the tip vortices.',
+    long: 'Air spilling round a wingtip rolls up into a vortex, and that costs induced drag. A winglet stands in the way of the spill, so the wing behaves as if it were a little longer. It saves most on a slow plane making lots of lift, but it adds its own skin drag and weight, so past a point a taller winglet costs more than it saves.',
+    aliases: ['winglet', 'wingtip', 'tip vortex', 'tip vortices', 'span efficiency', 'oswald'],
+    seeAlso: ['inducedDrag', 'aspectRatio'],
+  },
+  gustStall: {
+    term: 'Gust stall',
+    short: 'A gust lifts a wing that is already working hard, past its stall.',
+    long: 'Banking round at the end of each survey line, the wing already makes more lift than in level flight, and a gust from below tips its angle of attack up further. If together they pass the most lift the wing can make, it stalls, drops a wing and spins. A plane held firmly in pitch takes the gust as it comes; one with too little margin noses up into it and takes even more. The drone lands broken in the crop, and nobody is hurt.',
+    aliases: ['gust', 'gusts', 'stall on a turn', 'spin', 'bank', 'turn'],
+    seeAlso: ['stall', 'staticMargin', 'angleOfAttack'],
   },
   tmrf: {
     term: 'Motor Racing Federation',

@@ -12,6 +12,7 @@ import type { TruckDesign } from '../data/truck'
 import { CAR_CLASS, type CarDesign } from '../data/car'
 import { RECORD_CLASS, type RecordDesign } from '../data/record'
 import type { DroneDesign } from '../data/drone'
+import type { PlaneDesign } from '../data/plane'
 import type { Design, Sport } from '../data/sport'
 import { ICE } from '../data/skater'
 import { comfort, readouts, riderEvent, type Comfort, type Readouts } from './cyclist'
@@ -35,6 +36,8 @@ import { carPose, carShape } from './geom/car'
 import { recordPose, recordShape } from './geom/record'
 import { dronePose, droneShape } from './geom/drone'
 import { droneMass } from './drone'
+import { planePose, planeShape } from './geom/plane'
+import { planeMass } from './plane'
 import { describeShape } from './geom/body'
 import type { EventSpec } from './views'
 import type { RiderSpec } from './field/timeTrial'
@@ -74,9 +77,13 @@ export function isDrone(design: Design): design is DroneDesign {
   return design.sport === 'drone'
 }
 
-/** A design with no athlete's comfort or pedals: a jumper, a sled, a truck, a car, a record car or a drone. */
-function noPedals(design: Design): design is JumperDesign | BobsledDesign | TruckDesign | CarDesign | RecordDesign | DroneDesign {
-  return isJumper(design) || isBobsled(design) || isTruck(design) || isCar(design) || isRecord(design) || isDrone(design)
+export function isPlane(design: Design): design is PlaneDesign {
+  return design.sport === 'plane'
+}
+
+/** A design with no athlete's comfort or pedals: a jumper, a sled, a truck, a car, a record car, a drone or a plane. */
+function noPedals(design: Design): design is JumperDesign | BobsledDesign | TruckDesign | CarDesign | RecordDesign | DroneDesign | PlaneDesign {
+  return isJumper(design) || isBobsled(design) || isTruck(design) || isCar(design) || isRecord(design) || isDrone(design) || isPlane(design)
 }
 
 export function isCyclist(design: Design): design is CyclistDesign {
@@ -94,6 +101,7 @@ export function designShape(design: Design, options: CyclistShapeOptions = {}): 
   if (isCar(design)) return carShape(design)
   if (isRecord(design)) return recordShape(design)
   if (isDrone(design)) return droneShape(design)
+  if (isPlane(design)) return planeShape(design)
   return isSkater(design) ? skaterShape(design) : cyclistShape(design, options)
 }
 
@@ -105,6 +113,7 @@ export function designPose(design: Design, crankDeg?: number): Pose {
   if (isCar(design)) return carPose(design)
   if (isRecord(design)) return recordPose(design)
   if (isDrone(design)) return dronePose(design)
+  if (isPlane(design)) return planePose(design)
   return isSkater(design) ? skaterPose(design) : riderPose(design, crankDeg)
 }
 
@@ -140,10 +149,14 @@ export function designReadouts(design: Design, rules: CyclingRules, limit?: numb
     // A racing quad (PR 10b) flies in the club's open class: its sheet warns about the twist and the heat itself.
     return { frontalArea: describeShape(droneShape(design)).frontalArea, mass: droneMass(design), price: 0, comfort: jumperComfort(), breaks: [] }
   }
+  if (isPlane(design)) {
+    // A survey drone (PR 10j) has the client's camera rule, not a rulebook: its sheet warns about the camera, the margin and gusts itself.
+    return { frontalArea: describeShape(planeShape(design)).frontalArea, mass: planeMass(design), price: 0, comfort: jumperComfort(), breaks: [] }
+  }
   return isSkater(design) ? skaterReadouts(design, limit) : readouts(design, rules, limit)
 }
 
-/** The event as this design meets it: the athlete's power through their comfort meter (a jumper, a sled crew, a truck, a car, a record car or a drone has no pedals to push). */
+/** The event as this design meets it: the athlete's power through their comfort meter (a jumper, a sled crew, a truck, a car, a record car, a drone or a plane has no pedals to push). */
 export function designEvent(design: Design, event: EventSpec, limit?: number): EventSpec {
   if (noPedals(design)) return event
   return isSkater(design) ? skaterEvent(design, event, limit) : riderEvent(design, event, limit)
