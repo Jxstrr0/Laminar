@@ -85,6 +85,7 @@ import { sledForecast } from './sledForecast'
 import { truckForecast } from './truckForecast'
 import { carForecast } from './carForecast'
 import { droneForecast } from './droneForecast'
+import { planeForecast } from './planeForecast'
 import { recordForecast } from './recordForecast'
 import { FLIGHT_ATTITUDE, JUMP_TUNNEL, PITCH } from '../data/jumper'
 import { correctJumper, forecastJump, isJumperRun, jumperReadings, prepareJumper, readJumper, type JumperFix, type JumpForecast, type PreparedJumper } from '../sim/jumpTunnel'
@@ -2068,6 +2069,13 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     const readings = planeReadings(modelRuns()).map((r) => correctPlane(r, fix, model, sectionArea))
     const { site, old } = planeRun(modelDesign)
     planeCast = forecastPlane(readings, modelDesign, old, site)
+    // Kept for the Deliver sheet: the declared range starts from it.
+    const f = planeCast
+    planeForecast.set(
+      modelDesign,
+      site.id,
+      f ? { range: f.range, gain: f.gain, stalls: f.stalls, re: f.re, fieldRe: f.fieldRe, trips: model.trips, calibrated: fix.tare !== null && fix.blockageK !== null } : null,
+    )
     runsDirty = true
   }
   const kmhOf = (v: number) => fixed(v * 3.6, 0)

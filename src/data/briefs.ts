@@ -303,10 +303,11 @@ export const DRONE_JOBS = {
  * comes somewhere along the flight. A plane that can't ride that gust out
  * lands in the crop there.
  *
- * Closed to the board until PR 10n puts them on it.
+ * On the board since PR 10n. The switch stays so a test (or a later change)
+ * can close them.
  */
 export const PLANE_JOBS = {
-  open: false,
+  open: true,
   /** Kilometres in one promised point. */
   pointKm: 1,
   /** A survey bid's promise moves in these points: a kilometre. */

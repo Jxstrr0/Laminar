@@ -100,10 +100,17 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 10k | The survey drone in the tunnel, in the sim: a plane model (1:2.5 or 1:1.5, its own scales in the model shop) read on the sting with its wing pitched to an angle of attack: drag area, lift and pitching moment, through the blockage, the sting's tare and the balance's noise. A smaller, slower model's wing flies at a lower Reynolds number: it drags more and stalls sooner, so a 1:2.5 model at survey speed says the sorted plane stalls in the usual gust (Kelbo's "small-model wing stall" trap). Trip strips, the bigger model or a faster fan (about 40 m/s matches) get out of it. The forecast reads the range from the readings at survey-like lift, the margin from the moment against the lift, and the wing's most lift only from a reading past the stall; without both it can't judge a gust | **Done** (v0.10.10.0) |
 | 10l | The survey drone on the Tunnel screen (`?try=plane`): the model on a sting, a wing-angle slider in place of yaw, readouts of air speed with the model's Reynolds number against the plane's, wing angle, drag area, lift (CL) and pitch moment, plus range. The Angle sweep tab plots lift against wing angle. A run's record gives the range on a charge against the client's plane, the pitch margin, the most lift and whether the usual gust on a turn stalls it, and warns when the model's wing flew at a much lower Reynolds number than the plane's. The model shop offers the plane's scales and trip strips, with no pressure taps | **Done** (v0.10.11.0) |
 | 10m | Survey jobs in the sim: Daria Kolos (the co-op's stock plane), Pashnya Mapping (a bigger camera hung bare on its full mount) and Vekha Geodata (a cut-down tail and stretched nose that spins in on the turns), all at the Ozimka fields. The promise is kilometres on one charge on the usual day over the client's plane on paper; a plane the usual gust stalls on a turn gains nothing. Seeded survey day: its air and its strongest gust on a turn, somewhere along the flight. The read is judged on drag; the debrief names a stall (tail or nose) or a camera tucked past the rule. Closed to the board until 10n | **Done** (v0.10.12.0) |
-| 10n–14 | See the plan | Next: survey jobs on the board (10n). |
+| 10n | Survey jobs on the board (reputation 30 and up): bids move a kilometre at a time, the job card says "Shape the plane" and "Survey day", and the brief card shows the site's usual gust and the client's range. The Deliver sheet declares the range on a charge, filled in from the tunnel's forecast for this design (a new planeForecast store) or the desk estimate, with warnings when the forecast stalls in the usual gust (or may have stalled early on a small slow wing), couldn't judge the gust, was read raw or below the plane's Reynolds number, or the camera sits past the client's rule. The survey-day debrief shows both flights, the read on drag, and a stall or a camera past the rule with a "change this" jump | **Done** (v0.10.13.0) |
+| 10o–14 | See the plan | Next: the survey-day replay (10o). |
 
 ## Versions
 
+- **0.10.13.0** (PR 10n): survey jobs on the board. In a career with
+  reputation 30 or more, look for Daria Kolos, Pashnya Mapping or Vekha
+  Geodata on the Jobs tab. Bid, shape the plane, pitch a model through a few
+  angles in the tunnel, then Deliver: the range fills in from the tunnel's
+  forecast. Survey day shows both planes' flights, and a stall says what to
+  change.
 - **0.10.12.0** (PR 10m): survey jobs in the sim only. Nothing new to see on a
   phone yet; they come to the board in 10n.
 - **0.10.11.0** (PR 10l): the survey drone in the tunnel. Open

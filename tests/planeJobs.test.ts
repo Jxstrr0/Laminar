@@ -47,9 +47,10 @@ describe('survey briefs (PR 10m)', () => {
     expect(isPlaneBrief('shmel-quad')).toBe(false)
   })
 
-  it('stay off the board until it can show them (PR 10n), and bid a kilometre at a time', () => {
-    expect(PLANE_JOBS.open).toBe(false)
-    for (const b of planeBriefs) expect(openTo(b, 100)).toBe(false)
+  it('are on the board (PR 10n) once the firm is known, and bid a kilometre at a time', () => {
+    expect(PLANE_JOBS.open).toBe(true)
+    for (const b of planeBriefs) expect(openTo(b, 100)).toBe(true)
+    expect(openTo(briefTemplate('kolos-survey')!, 0)).toBe(false)
     expect(clampBid('kolos-survey', { price: 100000, promise: 15.4 }).promise).toBe(15)
   })
 
