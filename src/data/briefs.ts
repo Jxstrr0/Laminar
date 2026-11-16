@@ -248,6 +248,10 @@ export const RECORD_JOBS = {
   pointKmh: 2,
   /** A record bid's promise moves in these points: 2 km/h. */
   promiseStep: 1,
+  /** The most a record bid can promise, points (180 km/h: a jet car's ask runs past other jobs' 30, PR 9z). */
+  promiseMax: 90,
+  /** The speeds the Deliver sheet takes for a record car, km/h (a jet car can run past 1,300: PR 9z). */
+  declared: { min: 200, max: 2000 },
 }
 
 /** The indoor 400 m ice oval (PR 8b): longer straights than the velodrome, skated anticlockwise too. */
@@ -320,6 +324,7 @@ const sled = (crew: Crew, nose: number, tail: number, cowl: number, tuck: number
 const car = (cls: CarClass, change: Partial<Omit<CarDesign, 'sport' | 'class'>> = {}): CarDesign => ({ ...STOCK_CAR[cls], ...change })
 
 const streamliner = (change: Partial<Omit<RecordDesign, 'sport' | 'class'>> = {}): RecordDesign => ({ ...STOCK_RECORD.streamliner, ...change })
+const jetCar = (change: Partial<Omit<RecordDesign, 'sport' | 'class'>> = {}): RecordDesign => ({ ...STOCK_RECORD.jet, ...change })
 
 const jumper = (leanDeg: number, vAngleDeg: number, bagginess: number): JumperDesign => ({
   sport: 'skijump',
@@ -859,5 +864,52 @@ export const BRIEFS: readonly BriefTemplate[] = [
     days: 34,
     minRep: 70,
     target: 8,
+  },
+  {
+    id: 'ognivo-jet',
+    client: 'Tikhon Shatrov',
+    who: 'Built Ognivo, a jet car, round an old fighter engine',
+    goal: 'Ognivo has a fighter’s engine and the shape of a fuel tank. Make her slip through the air, and keep her pointing straight.',
+    event: {
+      name: 'Sukhoye Speed Week',
+      place: 'Lake Sukhoye',
+      temperature: 28,
+      altitude: 420,
+      windSpeed: 0,
+      riderSpeed: 303,
+      spread: { temperature: 4, wind: 0, power: 0 },
+      course: [],
+      record: { flat: 'sukhoye' },
+    },
+    rider: { power: 0, mass: 0 },
+    setup: jetCar({ nose: { length: 2.6, droop: 2 }, canopy: 0.4, fin: 2.4, fairings: 0.3 }),
+    fee: { min: 420000, max: 540000 },
+    days: 36,
+    minRep: 75,
+    target: 30,
+  },
+  {
+    id: 'proryv-jet',
+    client: 'Raisa Belova',
+    who: 'Lead engineer of the Proryv Project, out to take a car through the sound barrier',
+    goal: 'Proryv is the fastest car in Tarnovia and still stops short of the sound barrier, where the air piles up in front of her. Take her through, both ways.',
+    event: {
+      name: 'Sukhoye Speed Week',
+      place: 'Lake Sukhoye',
+      temperature: 28,
+      altitude: 420,
+      windSpeed: 0,
+      riderSpeed: 318,
+      spread: { temperature: 4, wind: 0, power: 0 },
+      course: [],
+      record: { flat: 'sukhoye' },
+    },
+    rider: { power: 0, mass: 0 },
+    setup: jetCar({ nose: { length: 3.2, droop: 2.5 }, canopy: 0.32, fin: 2.6, fairings: 0.7 }),
+    fee: { min: 520000, max: 680000 },
+    days: 40,
+    minRep: 85,
+    // 108 km/h on their car: a two-way mean just over the speed of sound on the salt's usual day.
+    target: 54,
   },
 ]

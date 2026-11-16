@@ -15,7 +15,7 @@ import {
   recordEventOf,
   type CareerState,
 } from '../src/sim/career'
-import { recordAero, recordDayAir, sightLoss } from '../src/sim/record'
+import { recordAero, recordDayAir, sightLoss, soundSpeed } from '../src/sim/record'
 import { dragScaleForSpeed, PRACTICE_FLAT, speedIfRun, stillAttempt } from '../src/sim/recordJob'
 import { legacyOf } from '../src/sim/legacy'
 
@@ -34,6 +34,11 @@ const GOOD: RecordDesign = { ...STOCK_RECORD.streamliner, nose: { length: 2, dro
 const LIGHT: RecordDesign = { ...GOOD, nose: { length: 2.7, droop: 0 }, fin: 1.1 }
 /** Hardly any fin: it wanders. */
 const WANDERS: RecordDesign = { ...GOOD, fin: 0.1 }
+/** A jet car shaped for the barrier (as in jet.test.ts), and the same car with a straight body and a short nose, held back by the squeeze. */
+const GOOD_JET: RecordDesign = { ...STOCK_RECORD.jet, nose: { length: 4.5, droop: 3.5 }, canopy: 0.25, fin: 2.9, fairings: 1, waist: 0.6 }
+const SQUEEZED_JET: RecordDesign = { ...GOOD_JET, nose: { length: 3.4, droop: 3.5 }, waist: 0 }
+const goodFor = (b: { setup: unknown }) => ((b.setup as RecordDesign).class === 'jet' ? GOOD_JET : GOOD)
+const sound = soundSpeed(flat.temperature)
 
 const setupOf = (id: string) => briefTemplate(id)!.setup as RecordDesign
 const pointsOf = (ms: number) => (ms * 3.6) / RECORD_JOBS.pointKmh
@@ -43,8 +48,9 @@ afterEach(() => {
 })
 
 describe('record briefs', () => {
-  it('are a home-built streamliner and a record team whose driver can’t see, at Lake Sukhoye', () => {
-    expect(recordBriefs.map((b) => b.id)).toEqual(['kalina-streamliner', 'zarya-streamliner'])
+  it('are two streamliners, then two jet cars, at Lake Sukhoye', () => {
+    expect(recordBriefs.map((b) => b.id)).toEqual(['kalina-streamliner', 'zarya-streamliner', 'ognivo-jet', 'proryv-jet'])
+    expect(recordBriefs.map((b) => (b.setup as RecordDesign).class)).toEqual(['streamliner', 'streamliner', 'jet', 'jet'])
     for (const b of recordBriefs) {
       expect(isRecordBrief(b.id)).toBe(true)
       const event = recordEventOf(b)!
@@ -75,8 +81,8 @@ describe('record briefs', () => {
   })
 
   it('ask for a gain a well-sorted car makes with room to spare', () => {
-    const good = stillAttempt(GOOD, flat).mean!
     for (const b of recordBriefs) {
+      const good = stillAttempt(goodFor(b), flat).mean!
       const gain = pointsOf(good - stillAttempt(b.setup as RecordDesign, flat).mean!)
       expect(gain, b.id).toBeGreaterThan(b.target + 2)
     }
@@ -165,5 +171,64 @@ describe('delivering a record car', () => {
     const best = legacyOf(d.state).best!
     expect(best.unit).toBe('kmh')
     expect(best.cut).toBeCloseTo(d.debrief.achieved * RECORD_JOBS.pointKmh, 6)
+  })
+})
+
+describe('jet car jobs (PR 9z)', () => {
+  it('come after the streamliners, Proryv last', () => {
+    expect(openTo(briefTemplate('ognivo-jet')!, 70)).toBe(false)
+    expect(openTo(briefTemplate('ognivo-jet')!, 80)).toBe(true)
+    expect(openTo(briefTemplate('proryv-jet')!, 80)).toBe(false)
+    expect(openTo(briefTemplate('proryv-jet')!, 90)).toBe(true)
+  })
+
+  it('run cars worse than the stock jet, short of the sound barrier', () => {
+    for (const id of ['ognivo-jet', 'proryv-jet']) {
+      const team = stillAttempt(setupOf(id), flat)
+      expect(team.mean!, id).toBeLessThan(stillAttempt(STOCK_RECORD.jet, flat).mean! + 30 / 3.6)
+      expect(team.runs[0].topMach, id).toBeLessThan(0.95)
+    }
+  })
+
+  it('Proryv wants its car through the sound barrier, and a car that stops short of it can’t do it', () => {
+    const b = briefTemplate('proryv-jet')!
+    const needed = stillAttempt(setupOf('proryv-jet'), flat).mean! + (b.target * RECORD_JOBS.pointKmh) / 3.6
+    expect(needed).toBeGreaterThan(sound)
+    // Only just: the target is the barrier, not a long way past it.
+    expect(needed).toBeLessThan(sound + 5 / 3.6)
+    expect(stillAttempt(SQUEEZED_JET, flat).mean!).toBeLessThan(sound)
+  })
+
+  it('names the squeeze when a jet car misses short of the barrier, with a jump to the waist', () => {
+    const d = deliverRecord(onJob('proryv-jet', 54, 600000), SQUEEZED_JET, stillAttempt(SQUEEZED_JET, flat).mean!)!
+    expect(d.debrief.met).toBe(false)
+    expect(d.debrief.cause).toBe('squeeze')
+    expect(d.debrief.squeeze).toMatchObject({ fix: 'waist' })
+    expect(d.debrief.squeeze!.mach).toBeGreaterThan(0.9)
+    expect(d.debrief.squeeze!.extra).toBeGreaterThan(0.5)
+    expect(d.debrief.meanMach!).toBeLessThan(1)
+  })
+
+  it('keeps Proryv’s promise through the barrier, and says so', () => {
+    const d = deliverRecord(onJob('proryv-jet', 54, 600000), GOOD_JET, stillAttempt(GOOD_JET, flat).mean!)!
+    expect(d.debrief.met).toBe(true)
+    expect(d.debrief.cause).toBeNull()
+    expect(d.debrief.meanMach!).toBeGreaterThan(1)
+  })
+
+  it('let a bid promise Proryv’s ask, and the Deliver sheet take a speed past the barrier', () => {
+    const b = briefTemplate('proryv-jet')!
+    expect(clampBid('proryv-jet', { price: b.fee.min, promise: b.target }).promise).toBe(b.target)
+    expect(clampBid('proryv-jet', { price: b.fee.min, promise: 999 }).promise).toBe(RECORD_JOBS.promiseMax)
+    // Other jobs keep their cap.
+    expect(clampBid('belan-sport', { price: 1, promise: 999 }).promise).toBe(30)
+    const best = stillAttempt(GOOD_JET, flat).mean! * 3.6
+    expect(RECORD_JOBS.declared.max).toBeGreaterThan(best + 100)
+  })
+
+  it('never says a streamliner squeezed', () => {
+    const d = deliverRecord(onJob('kalina-streamliner', 10), GOOD, stillAttempt(GOOD, flat).mean!)!
+    expect(d.debrief.squeeze).toBeNull()
+    expect(d.debrief.meanMach!).toBeLessThan(0.6)
   })
 })

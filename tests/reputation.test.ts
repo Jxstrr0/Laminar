@@ -25,6 +25,8 @@ describe('reputation', () => {
   })
 
   it('falls more the further a promise is missed', () => {
+    // However far short, the miss costs no more than the cap (a jet car's chutes can leave it 54 points short).
+    expect(reputationChange(job(60, 0, 0))).toBe(REPUTATION.missed + REPUTATION.shortCap + REPUTATION.read.good)
     const small = reputationChange(job(5, 4, 0))
     const big = reputationChange(job(5, 1, 0))
     expect(small).toBeLessThan(0 + REPUTATION.read.good)
@@ -62,7 +64,7 @@ describe('a good name brings bigger clients', () => {
     }
     // With a top name, every client can turn up.
     const seen = new Set<string>()
-    for (let round = 1; round < 40; round++) for (const b of boardFor(3, round, false, REPUTATION.max)) seen.add(b.id)
+    for (let round = 1; round < 80; round++) for (const b of boardFor(3, round, false, REPUTATION.max)) seen.add(b.id)
     for (const b of BRIEFS.filter((x) => !x.tutorial)) expect(seen.has(b.id), b.id).toBe(true)
     expect(BRIEFS.every((b) => openTo(b, REPUTATION.max))).toBe(true)
   })

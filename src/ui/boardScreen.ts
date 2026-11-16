@@ -12,7 +12,7 @@ import { OWN_BILLING, OWN_TUNNEL_BUILD, TUNNEL_UPGRADES, UPGRADE_IDS } from '../
 import { buildBlock, machineBlock, ownReadyDay, upgradeBlock, upgradeReadyDay } from '../sim/facility'
 import { MACHINE_IDS, MACHINE_PRICE } from '../data/model'
 import { designShape, isBobsled, isCar, isJumper, isRecord, isSkater, isTruck, type Design } from '../sim/design'
-import type { RecordDesign } from '../data/record'
+import { COMPRESSIBILITY, type RecordDesign } from '../data/record'
 import { recordForecast } from './recordForecast'
 import { CAR_CLASS, type CarDesign } from '../data/car'
 import { checkCarRules, lapTime, scrutineered } from '../sim/car'
@@ -74,6 +74,7 @@ import {
   type SledDelivery,
   type TruckDelivery,
   type CarDelivery,
+  promiseLimits,
 } from '../sim/career'
 import { bobDeskEstimate, carDeskEstimate, deskEstimate, jumpDeskEstimate, recordDeskEstimate, truckDeskEstimate } from '../sim/desk'
 import { crewEffects, wagesPerDay } from '../sim/staff'
@@ -84,6 +85,7 @@ import { DESK } from '../data/cyclist'
 import { correlationScore } from '../sim/reputation'
 import { rivalRecord } from '../sim/rivals'
 import type { FixTarget } from '../sim/failure'
+import { soundSpeed } from '../sim/record'
 import { careerStore } from './careerStore'
 import { designStore } from './designStore'
 import { careerDate, fixed, pct, raceTime, rubles, rublesShort, shortTime } from './format'
@@ -836,13 +838,14 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     const oldSpeed = desk.old ?? 0
     // Start from the tunnel's speed, else the desk's; a forecast that pulled its chutes starts from the team's own car.
     const start = (forecast ? forecast.speed : desk.value) ?? oldSpeed
-    const box = stepper('deliver-record', kmh(start), 'km/h', t('deliver.lessRecord'), t('deliver.moreRecord'), (dir) => {
+    // A plain number in the box (no thousands comma: a jet car's 1314 km/h must read back as a number).
+    const box = stepper('deliver-record', String(Math.round(start * 3.6)), 'km/h', t('deliver.lessRecord'), t('deliver.moreRecord'), (dir) => {
       const v = Number(box.input.value) || Math.round(start * 3.6)
       box.input.value = String(Math.round(v) + dir)
     })
     box.input.step = '1'
-    box.input.min = '200'
-    box.input.max = '1300'
+    box.input.min = String(RECORD_JOBS.declared.min)
+    box.input.max = String(RECORD_JOBS.declared.max)
     const label = el('label', 'shop-label', t('deliver.predictRecord'))
     label.htmlFor = box.input.id
     // A gain as words: "24 km/h faster" or "6 km/h slower".
@@ -862,9 +865,10 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     status.setAttribute('aria-live', 'polite')
     const go = button('shop-order', t('deliver.car'))
     go.addEventListener('click', () => {
-      const predicted = Number(box.input.value)
-      if (!Number.isFinite(predicted) || predicted < 200 || predicted > 1300) {
-        status.textContent = t('deliver.badRecord')
+      // Forgive a comma typed between the thousands.
+      const predicted = Number(box.input.value.replace(/,/g, ''))
+      if (!Number.isFinite(predicted) || predicted < RECORD_JOBS.declared.min || predicted > RECORD_JOBS.declared.max) {
+        status.textContent = t('deliver.badRecord', { min: fixed(RECORD_JOBS.declared.min, 0), max: fixed(RECORD_JOBS.declared.max, 0) })
         return
       }
       const d = deliverRecord(careerStore.get(), car, predicted / 3.6)
@@ -931,7 +935,16 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     const parts: HTMLElement[] = [el('p', 'shop-intro', t('rd.intro', { client: b.client, event: b.event.name })), verdict, facts]
     if (db.cause) parts.push(el('p', 'shop-note', t(`rd.cause.${db.cause}`)))
     const sheet = () => recordSheet
-    if (db.abort) parts.push(troubleBox(t(db.abort.cause === 'lift' ? 'rd.light' : 'rd.wander', { speed: fixed(db.abort.speed, 0) }), t(db.abort.cause === 'lift' ? 'rd.fixDroop' : 'rd.fixFin'), db.abort.fix, sheet))
+    if (db.abort) {
+      // A nose that went light right at the sound barrier: the shock under it did that (PR 9z).
+      const mach = db.abort.speed / 3.6 / soundSpeed(d.event.flat.temperature)
+      const shock = db.abort.cause === 'lift' && mach > 1 - COMPRESSIBILITY.shock.width
+      const text = shock ? t('rd.lightShock', { speed: fixed(db.abort.speed, 0), mach: fixed(mach, 2) }) : t(db.abort.cause === 'lift' ? 'rd.light' : 'rd.wander', { speed: fixed(db.abort.speed, 0) })
+      parts.push(troubleBox(text, t(db.abort.cause === 'lift' ? 'rd.fixDroop' : 'rd.fixFin'), db.abort.fix, sheet))
+    }
+    if (db.squeeze && !db.met) parts.push(troubleBox(t('rd.squeeze', { mach: fixed(db.squeeze.mach, 2), pct: fixed(db.squeeze.extra * 100, 0) }), t('rd.fixWaist'), db.squeeze.fix, sheet))
+    else if (db.squeeze) parts.push(el('p', 'shop-note', t('rd.squeezeKept', { mach: fixed(db.squeeze.mach, 2), pct: fixed(db.squeeze.extra * 100, 0) })))
+    if (db.meanMach !== null && db.meanMach > 1) parts.push(el('p', 'shop-note', t('rd.barrier', { mach: fixed(db.meanMach, 3) })))
     if (db.sight) parts.push(troubleBox(t('rd.sight', { pct: fixed(db.sight.share * 100, 0), kmh: fixed(db.sight.lost, 0) }), t('rd.fixCanopy'), db.sight.fix, sheet))
     // Record day can pull the chutes on a car that ran clean in still air: the wind found it out.
     if (db.attempt.mean === null && db.actual !== null) parts.push(el('p', 'shop-note', t('rd.dayChutes')))
@@ -1183,16 +1196,17 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     const shown = sled ? SLED_JOBS.pointSeconds : car ? CAR_JOBS.pointSeconds : record ? RECORD_JOBS.pointKmh : 1
     const step = (sled ? SLED_JOBS.promiseStep : car ? CAR_JOBS.promiseStep : record ? RECORD_JOBS.promiseStep : BID.promiseStep) * shown
     const digits = sled ? 2 : 1
+    const limits = promiseLimits(b.id)
     const promise = stepper('bid-promise', sled ? seconds(b.target) : car ? tenths(b.target) : record ? kmhOf(b.target) : String(b.target), timed ? 's' : jump ? 'm' : record ? 'km/h' : '%', t(`bid.promiseLess${kind}`), t(`bid.promiseMore${kind}`), (dir) => {
       const v = Number(promise.input.value) || b.target * shown
       const next = Math.round(v / step) * step + dir * step
-      const clamped = Math.min(BID.promiseMax * shown, Math.max(BID.promiseMin * shown, next))
+      const clamped = Math.min(limits.max * shown, Math.max(limits.min * shown, next))
       promise.input.value = timed ? clamped.toFixed(digits) : String(Math.round(clamped * 10) / 10)
       update()
     })
     promise.input.step = String(step)
-    promise.input.min = String(BID.promiseMin * shown)
-    promise.input.max = String(BID.promiseMax * shown)
+    promise.input.min = String(limits.min * shown)
+    promise.input.max = String(limits.max * shown)
     const priceLabel = el('label', 'shop-label', t('bid.price'))
     priceLabel.htmlFor = price.input.id
     const promiseLabel = el('label', 'shop-label', t(`bid.promise${kind}`))

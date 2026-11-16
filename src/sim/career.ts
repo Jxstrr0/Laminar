@@ -19,10 +19,10 @@
  * - Delivering runs the event, pays the fee, jumps the calendar to the
  *   event and refreshes the board.
  */
-import { STOCK_RECORD, type RecordClass, type RecordDesign } from '../data/record'
+import { RECORD_TUNNEL, STOCK_RECORD, type RecordClass, type RecordDesign } from '../data/record'
 import type { SaltFlat } from '../data/saltFlats'
 import { BID, BRIEFS, CAREER, CAR_JOBS, JUMP_JOBS, PROMISE, RECORD_JOBS, SLED_JOBS, TRUCK_JOBS, type BriefTemplate } from '../data/briefs'
-import { recordAero, recordDayAir, sightLoss, twoWay, type RecordAttempt, type RecordDay } from './record'
+import { recordAero, recordDayAir, sightLoss, soundSpeed, twoWay, type RecordAttempt, type RecordDay } from './record'
 import { dragScaleForSpeed, PRACTICE_FLAT, recordEventFrom, sightCost, stillAttempt, type RecordEvent } from './recordJob'
 import type { BobsledDesign } from '../data/bobsled'
 import { dayDrag, referenceConditions, referenceRun, runWith, type BobRun, type RunConditions } from './bobsled'
@@ -478,12 +478,18 @@ export function bidScore(id: string, bid: Bid, reputation = 0): number {
 const roundTo = (x: number, step: number) => (step < 1 ? Math.round(x / step) / Math.round(1 / step) : Math.round(x / step) * step)
 
 /** A bid brought inside the brief's fee range and the promise limits, on the steps. */
+/** The smallest and largest promise a bid for this brief can make, points (a record car's runs higher: PR 9z). */
+export function promiseLimits(id: string): { min: number; max: number } {
+  return { min: BID.promiseMin, max: isRecordBrief(id) ? RECORD_JOBS.promiseMax : BID.promiseMax }
+}
+
 export function clampBid(id: string, bid: Bid): Bid {
   const b = template(id)
   const price = Math.min(b.fee.max, Math.max(b.fee.min, roundTo(bid.price, BID.priceStep)))
   // A sled's promise moves in hundredths of a second, a car's in tenths, a record car's 2 km/h at a time.
   const step = isSledBrief(id) ? SLED_JOBS.promiseStep : isCarBrief(id) ? CAR_JOBS.promiseStep : isRecordBrief(id) ? RECORD_JOBS.promiseStep : BID.promiseStep
-  const promise = Math.min(BID.promiseMax, Math.max(BID.promiseMin, roundTo(bid.promise, step)))
+  const limits = promiseLimits(id)
+  const promise = Math.min(limits.max, Math.max(limits.min, roundTo(bid.promise, step)))
   return { price, promise }
 }
 
@@ -1178,13 +1184,23 @@ export interface RecordDebrief {
    * Why a miss happened: not enough speed ('design'), the nose going light
    * ('lift') or the car wandering ('wander') so the chutes came out, or
    * enough but for the power the driver gave up behind a low canopy
-   * ('sight').
+   * ('sight'), or a jet car held back by the air squeezing round it near
+   * the speed of sound ('squeeze', PR 9z).
    */
-  cause: 'design' | 'lift' | 'wander' | 'sight' | null
+  cause: 'design' | 'lift' | 'wander' | 'sight' | 'squeeze' | null
   /** Where the chutes came out on the still day, km/h, with the slider to change; null if they didn't. */
   abort: { cause: 'lift' | 'wander'; speed: number; fix: FixTarget } | null
   /** The share of power given up behind a low canopy and the km/h it cost, with the slider; null if none. */
   sight: { share: number; lost: number; fix: FixTarget } | null
+  /**
+   * How hard the air squeezed round the car at its fastest on the still day
+   * (the drag rise the tunnel can't see): its Mach number there and the
+   * extra drag, a share (0.5: half as much again), with the slider to
+   * change. Null if the air hardly squeezed, or the chutes came out.
+   */
+  squeeze: { mach: number; extra: number; fix: FixTarget } | null
+  /** The still day's two-way mean as a Mach number (over 1: through the sound barrier both ways); null if the chutes came out. */
+  meanMach: number | null
   reputation: { before: number; after: number }
 }
 
@@ -1223,7 +1239,10 @@ export function deliverRecord(state: CareerState, design: RecordDesign, predicte
   const first = still.runs[0].abort ?? still.runs[1].abort
   const sight = sightCost(design, flat)
   const keeps = (mean: number | null) => penaltyFor(job.brief.fee, job.promise, gainOf(mean)).shortfall === 0
-  const cause = met ? null : first ? first.cause : sight && keeps(sight.mean) ? 'sight' : 'design'
+  // The air squeezing near the speed of sound, read off the out run (the still day's two runs are alike).
+  const top = still.runs[0]
+  const squeeze = !first && top.rise >= RECORD_TUNNEL.squeezeWarn ? { mach: top.topMach, extra: top.rise - 1, fix: 'waist' as const } : null
+  const cause = met ? null : first ? first.cause : sight && keeps(sight.mean) ? 'sight' : squeeze ? 'squeeze' : 'design'
   const debrief: RecordDebrief = {
     promised: job.promise,
     achieved,
@@ -1244,6 +1263,8 @@ export function deliverRecord(state: CareerState, design: RecordDesign, predicte
     cause,
     // A light nose wants more droop; a wandering car more fin.
     abort: first ? { cause: first.cause, speed: first.speed * 3.6, fix: first.cause === 'lift' ? 'noseDroop' : 'fin' } : null,
+    squeeze,
+    meanMach: still.mean === null ? null : still.mean / soundSpeed(flat.temperature),
     sight: sight && sightLoss(design) > 0 ? { share: sight.share, lost: sight.mean !== null && still.mean !== null ? (sight.mean - still.mean) * 3.6 : 0, fix: 'canopy' } : null,
     reputation: { before: firmReputation(state), after: 0 },
   }
