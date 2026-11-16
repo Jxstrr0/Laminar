@@ -5,6 +5,7 @@
  * university's power rate, plus a fee per run.
  */
 import { AIR } from '../data/air'
+import type { Failure } from './failure'
 import { RUN_RECORDING, TUNNEL_BILLING, UNIVERSITY_TUNNEL } from '../data/tunnel'
 
 export interface RunSample {
@@ -32,6 +33,8 @@ export interface Run {
   energyKWh: number
   /** Fastest air speed reached, m/s. */
   topSpeed: number
+  /** The model broke during this run (plan section 8). */
+  failure?: Failure
 }
 
 export interface Recorder {

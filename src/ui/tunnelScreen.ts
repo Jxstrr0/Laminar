@@ -69,6 +69,7 @@ import { compareRuns, headlineCompare, headlineGroup, legCycle, poolRuns, yawGro
 import { addSample, newRecorder, runCost, stepRecorder, type Recorder, type Run, type RunSample } from '../sim/run'
 import { setYawTarget, stepTurntable, turntableAtRest, type TurntableState } from '../sim/turntable'
 import { rollQuirks, type MountKind } from '../sim/quirks'
+import type { Failure } from '../sim/failure'
 import { modelSpecOf, quote, reynoldsRatio, type ModelOrder } from '../sim/modelShop'
 import { prepareExact, prepareModel, readBalance, readTare, tunnelTurbulence, type EventSpec, type PreparedModel, type TunnelSpec } from '../sim/views'
 import type { TunnelView } from '../render/tunnelScene'
@@ -500,6 +501,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   /** The model on order: what the shop built, and which build it is (each build has its own errors). */
   let order: ModelOrder = { ...saved.order }
   let build = saved.build
+  // How the model broke, until it's repaired (PR 6b puts this on screen).
+  const broken: Failure | null = saved.broken
   let modelSpec = modelSpecOf(order, DEMO_MODEL_SEED + build)
   const showOrder = () => {
     const words = t('shop.open', { scale: order.scale })
@@ -1247,6 +1250,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
         crank,
         nextRunId: rec.nextId,
         balanceRng: balanceRng.state,
+        broken,
       }
     },
   }

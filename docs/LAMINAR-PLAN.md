@@ -105,6 +105,10 @@ quirks you have to learn.
 | Rivals in PR 5 | **One unnamed firm** bids against you (seeded); the named rivals come in PR 7. |
 | First job guide | **Partner's cards plus a highlighted checklist**, skippable. |
 | Re-modelling | **Parts swap, position re-orders.** Swapping a helmet, wheels, bars, frame or suit on the model costs a small fee (about ₽1,500 a part) and no days; changing the rider's position needs a new model from the shop (money and days). *(15 Nov 2026, for PR 5)* |
+| Model breaks | **Repair: half the model's price and half its build days**, plus the university's bill for the screens if it tore off the mount. *(16 Nov 2026, for PR 6)* |
+| Break warnings | **Always warn first**: the part buzzes, the trace wobbles, the partner shouts; a model breaks only if the fan stays past the limit. *(16 Nov 2026, for PR 6)* |
+| Crosswind steer | **Loses time in gusts**: the rider eases off to stay on line; never a stop, never hurt. *(16 Nov 2026, for PR 6)* |
+| Unholdable position | **Fades in the last third**: power drops late as the rider sits up, instead of a flat loss all race. *(16 Nov 2026, for PR 6)* |
 
 ---
 

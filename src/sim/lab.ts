@@ -7,6 +7,7 @@
 import { DEMO_MODEL_SEED, STANDARD_ORDER } from '../data/model'
 import { SKELETON } from '../data/pose'
 import { DEFAULT_CYCLIST, type CyclistDesign } from '../data/cyclist'
+import type { Failure } from './failure'
 import type { ModelOrder } from './modelShop'
 import { Rng, type RngState } from './rng'
 import type { Run } from './run'
@@ -37,6 +38,8 @@ export interface LabState {
   nextRunId: number
   /** Where the balance's noise stream has got to. */
   balanceRng: RngState
+  /** How the model on the mount broke, until it's repaired or replaced (plan section 8). */
+  broken: Failure | null
 }
 
 export function newLab(modelDesign: CyclistDesign = DEFAULT_CYCLIST): LabState {
@@ -49,5 +52,6 @@ export function newLab(modelDesign: CyclistDesign = DEFAULT_CYCLIST): LabState {
     crank: SKELETON.crankDeg[0]!,
     nextRunId: 1,
     balanceRng: new Rng(DEMO_MODEL_SEED).fork('balance').state,
+    broken: null,
   }
 }
