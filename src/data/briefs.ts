@@ -108,9 +108,10 @@ export interface EventTemplate {
    * A truck fleet's fuel trial (PR 9e): the route its trucks run. The air and
    * wind are the route's own usual day (`temperature`, `windSpeed` and
    * `riderSpeed`, the speed limit, copy it for the brief card), and `spread`
-   * says how far the trial day strays from it.
+   * says how far the trial day strays from it. `gravel` marks a fleet whose
+   * yard is gravel (PR 9g): skirts lower than GRAVEL_YARD allows crack there.
    */
-  truck?: { route: Route['id'] }
+  truck?: { route: Route['id']; gravel?: boolean }
 }
 
 export interface BriefTemplate {
@@ -673,14 +674,14 @@ export const BRIEFS: readonly BriefTemplate[] = [
     goal: 'The coast road is wind from the sea all day, side-on. Our tall boxes catch it like sails. I want the fuel bill down where the wind is.',
     event: {
       name: 'Prichal Logistics fuel trial',
-      place: 'Prichal’s yard at the Kosa port',
+      place: 'Prichal’s shingle yard on the Kosa spit',
       temperature: 14,
       altitude: 5,
       windSpeed: 8,
       riderSpeed: 25,
       spread: { temperature: 4, wind: 2.5, power: 0 },
       course: [],
-      truck: { route: 'kosa-coast' },
+      truck: { route: 'kosa-coast', gravel: true },
     },
     rider: { power: 0, mass: 0 },
     setup: truck(4.1, { nose: 0.2, fairing: 1.1, extenders: 0.3 }, { length: 1 }),

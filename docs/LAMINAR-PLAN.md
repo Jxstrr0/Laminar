@@ -137,6 +137,7 @@ quirks you have to learn.
 | PR 9 order | **Trucks first**: regional truck fleets (fuel saving %), then touring and open-wheel cars, the land-speed record last. *(16 Nov 2026, for PR 9)* |
 | Truck rules | **A road-code cap**: a fictional Tarnovian Road Code caps the boat-tail's length and the skirts' ground gap; Shape shows the box and flags a break, like the cycling and bobsled rules. *(16 Nov 2026, for PR 9)* |
 | Truck floor | **A ground board now**: trucks sit on the model shop's ground board, like the bobsled. A rolling road (an own-tunnel upgrade) comes with race cars and fixes all of the floor's error. *(16 Nov 2026, for PR 9)* |
+| Gravel skirts | **Costs the promise**: some fleets' yards are gravel; skirts below a set height crack there, the trucks run without them, and the saving is judged that way. The brief says which yards are gravel, and the debrief names the skirts with a fix. *(16 Nov 2026, for PR 9)* |
 | Race-car promise | **Lap-time gain**: tenths off a reference lap. Downforce and drag both feed the lap, and a balance window must hold. *(16 Nov 2026, for PR 9)* |
 | Firm name | **Asked at career start**, with a ready-made name to keep; renamable. *(16 Nov 2026, for PR 7)* |
 

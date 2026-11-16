@@ -23,10 +23,10 @@ import { BID, BRIEFS, CAREER, JUMP_JOBS, PROMISE, SLED_JOBS, TRUCK_JOBS, type Br
 import type { BobsledDesign } from '../data/bobsled'
 import { dayDrag, referenceConditions, referenceRun, runWith, type BobRun, type RunConditions } from './bobsled'
 import { cdAForTime, PRACTICE_RUN, raceConditions, sledEventFrom, type SledEvent } from './sledJob'
-import { FLEET_TRUCK, type TruckDesign } from '../data/truck'
+import { FLEET_TRUCK, GRAVEL_YARD, type TruckDesign } from '../data/truck'
 import type { Route } from '../data/routes'
-import { checkTruckRules, fuelRun, fuelSaving, windAveragedFuel, type FuelRun, type RouteDay, type TruckRuleBreak } from './truck'
-import { dragScaleForFuel, PRACTICE_ROUTE, roadLegal, straightOnCdA, trialDay, truckEventFrom, type TruckEvent } from './truckJob'
+import { checkTruckRules, fuelRun, skirtGap, fuelSaving, windAveragedFuel, type FuelRun, type RouteDay, type TruckRuleBreak } from './truck'
+import { asRun, dragScaleForFuel, PRACTICE_ROUTE, roadLegal, straightOnCdA, trialDay, truckEventFrom, type TruckEvent } from './truckJob'
 import { HILLS, PRACTICE_JUMP } from '../data/hills'
 import type { JumperDesign } from '../data/jumper'
 import { jumpDay, referenceJump, type JumpEvent, type JumpResult, type ReferenceJump } from './jumper'
@@ -894,8 +894,14 @@ export interface TruckDebrief {
   baselineRun: FuelRun
   /** Parts the road code made the depot cut back before the truck went out (none if it was legal). */
   cutBack: TruckRuleBreak[]
-  /** Why a miss happened: not enough saving ('design'), or enough until the depot cut a part back ('roadCode'). */
-  cause: 'design' | 'roadCode' | null
+  /** The skirts cracked on the fleet's gravel yard and the trucks ran without them (PR 9g): their gap above the road, and the yard's limit, m. */
+  cracked: { gap: number; limit: number } | null
+  /**
+   * Why a miss happened: not enough saving ('design'), enough until the
+   * skirts cracked on the gravel yard ('gravel'), or enough until the depot
+   * cut a part back ('roadCode').
+   */
+  cause: 'design' | 'roadCode' | 'gravel' | null
   reputation: { before: number; after: number }
 }
 
@@ -908,7 +914,8 @@ export interface TruckDelivery extends Closed {
 /**
  * Deliver a truck with a declared wind-averaged fuel figure. The fleet fits
  * the parts the road code allows (anything past a limit is cut back to it),
- * and the promise is judged on that truck's wind-averaged saving on the
+ * skirts too low for a gravel yard crack there and come off, and the
+ * promise is judged on that truck's wind-averaged saving on the
  * route, the same for any day. The trial day, your truck and the old one in
  * the same air and wind, is the show. The firm's record keeps the read on
  * drag, like every other job. Null if there's no job or it isn't a truck job.
@@ -921,17 +928,21 @@ export function deliverTruck(state: CareerState, design: TruckDesign, predicted:
   if (!event || setup.sport !== 'truck') return null
   const route = event.route
   const cutBack = checkTruckRules(design)
-  const fitted = roadLegal(design)
-  const achieved = fuelSaving(fitted, setup, route)
+  const legal = roadLegal(design)
+  // What went out of the yard: the legal truck, without its skirts if they cracked on the gravel.
+  const { truck: ran, cracked } = asRun(design, event)
+  const achieved = fuelSaving(ran, setup, route)
   const { shortfall, penalty } = penaltyFor(job.brief.fee, job.promise, achieved)
   const met = shortfall === 0
   const day = trialDay(event, daySeed(job.brief))
-  const actual = windAveragedFuel(fitted, route)
-  const actualCdA = straightOnCdA(fitted, route)
-  const predictedCdA = dragScaleForFuel(predicted, fitted, route) * actualCdA
+  // The read is on the truck that ran, like the saving: the brief says which yards are gravel.
+  const actual = windAveragedFuel(ran, route)
+  const actualCdA = straightOnCdA(ran, route)
+  const predictedCdA = dragScaleForFuel(predicted, ran, route) * actualCdA
   const readError = (predictedCdA - actualCdA) / actualCdA
-  // Would the truck as drawn have kept the promise? Then the road code cost it.
-  const asDrawn = cutBack.length > 0 ? fuelSaving(design, setup, route) : achieved
+  // Would it have kept the promise with its skirts on? Then the gravel cost it. Failing that, as drawn? Then the road code.
+  const keeps = (truck: TruckDesign) => penaltyFor(job.brief.fee, job.promise, fuelSaving(truck, setup, route)).shortfall === 0
+  const cause = met ? null : cracked && keeps(legal) ? 'gravel' : cutBack.length > 0 && keeps(design) ? 'roadCode' : 'design'
   const debrief: TruckDebrief = {
     promised: job.promise,
     achieved,
@@ -946,10 +957,11 @@ export function deliverTruck(state: CareerState, design: TruckDesign, predicted:
     readError,
     read: readOf(readError),
     day,
-    run: fuelRun(fitted, route, day),
+    run: fuelRun(ran, route, day),
     baselineRun: fuelRun(setup, route, day),
     cutBack,
-    cause: met ? null : cutBack.length > 0 && penaltyFor(job.brief.fee, job.promise, asDrawn).shortfall === 0 ? 'roadCode' : 'design',
+    cracked: cracked ? { gap: skirtGap(legal), limit: GRAVEL_YARD.minSkirtGap } : null,
+    cause,
     reputation: { before: firmReputation(state), after: 0 },
   }
   const closed = closeJob(state, job, penalty, { achieved, predicted: predictedCdA, actual: actualCdA })

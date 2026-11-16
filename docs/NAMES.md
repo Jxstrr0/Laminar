@@ -32,7 +32,7 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Stavren Ice Oval | An indoor 400 m speed-skating oval in Stavren. | PR 8b |
 | Stavren–Mostograd highway | A truck route across the plain and over a low ridge; the first fleet's run. | PR 9a |
 | Kosa coast road | A flat, windy truck route along the sea from Stavren to the Kosa port. | PR 9e |
-| Kosa port | The port at the Kosa spit; home of Prichal Logistics. | PR 9e |
+| Kosa port | The port at the Kosa spit; home of Prichal Logistics, whose yard on the spit is shingle (gravel). | PR 9e, 9g |
 | Belogor | A ski-jump venue with a normal hill (HS 98) and a large hill (HS 134), and a sliding track on the same mountain. | PR 8g, 8h, 8l |
 
 ## Bodies

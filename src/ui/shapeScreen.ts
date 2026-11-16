@@ -16,7 +16,7 @@ import { DEFAULT_SKATER, SKATER_RANGE, type SkaterDesign } from '../data/skater'
 import { DEFAULT_JUMPER, FLIGHT_ATTITUDE, JUMPER_RANGE, PITCH, type JumperDesign } from '../data/jumper'
 import { BOBSLED_RANGE, DEFAULT_BOBSLED, SLED, type BobsledDesign } from '../data/bobsled'
 import { TRACKS } from '../data/tracks'
-import { DEFAULT_TRUCK, FAIRING_MISS, FLEET_TRUCK, TRUCK_RANGE, type TruckDesign } from '../data/truck'
+import { DEFAULT_TRUCK, FAIRING_MISS, FLEET_TRUCK, GRAVEL_YARD, TRUCK_RANGE, type TruckDesign } from '../data/truck'
 import { checkTruckRules, roofMismatch, skirtGap, truckParts, type TruckRuleBreak } from '../sim/truck'
 import { truckLength } from '../sim/geom/truck'
 import { checkSledRules, sightMargin, type SledRuleBreak } from '../sim/bobsled'
@@ -31,7 +31,8 @@ import { crewEffects } from '../sim/staff'
 import { designPose, designReadouts, designShape, isBobsled, isCyclist, isJumper, isSkater, isTruck, type Design } from '../sim/design'
 import { availableHandles, dragHandle, handleDef, handlePoint } from '../sim/geom/handles'
 import { ruleVolumes } from '../sim/geom/ruleBox'
-import { briefTemplate, currentEvent, currentJumpEvent, currentTruckRun } from '../sim/career'
+import { briefTemplate, currentEvent, currentJumpEvent, currentTruckEvent, currentTruckRun } from '../sim/career'
+import { cracksOnGravel, roadLegal } from '../sim/truckJob'
 import type { Highlight, ShapeView } from '../render/shapeScene'
 import type { GlossaryId } from '../data/glossary'
 import type { HandleId, HandleParam } from '../data/handles'
@@ -722,12 +723,24 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
         return li
       }),
     )
+    // Skirts too low for the client's gravel yard (PR 9g): legal on the road, but they'd crack there.
+    const gravel = job !== null && cracksOnGravel(roadLegal(truck), currentTruckEvent(career))
+    if (gravel) {
+      const li = el('li', 'break warn')
+      const client = briefTemplate(job.brief.id)?.client ?? ''
+      li.append(el('span', 'break-text', t('rule.gravel', { client, limit: fixed(GRAVEL_YARD.minSkirtGap, 2), value: fixed(skirtGap(roadLegal(truck)), 2) })))
+      const fix = el('button', 'break-fix', t('rule.fix'))
+      fix.type = 'button'
+      fix.addEventListener('click', () => jumpToControl({ tab: 'kit', id: TRUCK_BREAK['trailer.skirts'].id }))
+      li.append(fix)
+      breaks.append(li)
+    }
     view.show({
       design: truck,
       pose: designPose(truck),
-      // A part outside the road code glows red; a fairing that misses the trailer's roof amber.
+      // A part outside the road code glows red; a fairing that misses the trailer's roof, or skirts too low for a gravel yard, amber.
       broken: rules.map((b) => TRUCK_BREAK[b.part].look),
-      strained: Math.abs(miss) > FAIRING_MISS ? ['fairing'] : [],
+      strained: [...(Math.abs(miss) > FAIRING_MISS ? (['fairing'] as const) : []), ...(gravel ? (['skirts'] as const) : [])],
       handles: [],
       selected: null,
       volumes: [],

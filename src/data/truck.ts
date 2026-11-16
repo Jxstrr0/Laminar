@@ -84,6 +84,17 @@ export const ROAD_CODE = {
   minSkirtGap: 0.25,
 } as const
 
+/**
+ * A fleet's gravel yard (PR 9g): stones and ruts crack skirts that hang
+ * lower than this above the road, m. The trucks then run without them, and
+ * the saving is judged that way (Kelbo, 16 November 2026). It sits higher
+ * than the road code's gap, so a legal skirt can still be too low for a
+ * gravel yard: the brief says which yards are gravel.
+ */
+export const GRAVEL_YARD = {
+  minSkirtGap: 0.45,
+} as const
+
 /** The parts of the rig the shaper doesn't change. */
 export const RIG = {
   /** Cab front to its back wall, m. */

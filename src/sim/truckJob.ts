@@ -15,33 +15,39 @@
  * - The fleet runs the truck on public roads, so a part the road code
  *   forbids is cut back to the limit before it goes out (roadLegal), and the
  *   saving is what the legal truck makes.
+ * - Some fleets' yards are gravel (PR 9g): skirts that hang too low crack
+ *   there, the trucks run without them, and the saving and the read are
+ *   judged on the truck as it ran (asRun).
  */
 import type { BriefTemplate } from '../data/briefs'
-import { ROAD_CODE, RIG, type TruckDesign } from '../data/truck'
+import { GRAVEL_YARD, ROAD_CODE, RIG, type TruckDesign } from '../data/truck'
 import { ROUTES, type Route } from '../data/routes'
 import { cdAAt } from './aero/windAverage'
 import { gaussian } from './noise'
 import { Rng } from './rng'
-import { truckCurve, truckFlow, truckMass, windAveragedFuelWith, type RouteDay } from './truck'
+import { skirtGap, truckCurve, truckFlow, truckMass, windAveragedFuelWith, type RouteDay } from './truck'
 
 /** A truck brief's route, ready for the fuel run. */
 export interface TruckEvent {
   route: Route
   /** Day-to-day spread (standard deviations): air °C and wind m/s. */
   spread: { temperature: number; wind: number }
+  /** The fleet's yard is gravel: skirts lower than GRAVEL_YARD allows crack there. */
+  gravel: boolean
 }
 
 /** A brief's fuel trial, or null if it isn't a truck brief. */
 export function truckEventFrom(b: Pick<BriefTemplate, 'event' | 'setup'>): TruckEvent | null {
   const e = b.event
   if (!e.truck || b.setup.sport !== 'truck') return null
-  return { route: ROUTES[e.truck.route], spread: { temperature: e.spread.temperature, wind: e.spread.wind } }
+  return { route: ROUTES[e.truck.route], spread: { temperature: e.spread.temperature, wind: e.spread.wind }, gravel: e.truck.gravel === true }
 }
 
 /** The route between jobs: the Stavren–Mostograd highway on its usual day. */
 export const PRACTICE_ROUTE: TruckEvent = {
   route: ROUTES['stavren-mostograd'],
   spread: { temperature: 0, wind: 0 },
+  gravel: false,
 }
 
 /** The trial day on the route, seeded: the same air and wind for both trucks. The wind may come from anywhere. */
@@ -61,6 +67,21 @@ export function roadLegal(design: TruckDesign): TruckDesign {
   const skirts = Math.min(design.trailer.skirts, RIG.floor - ROAD_CODE.minSkirtGap)
   if (tail === design.trailer.tail && skirts === design.trailer.skirts) return design
   return { ...design, trailer: { ...design.trailer, tail, skirts } }
+}
+
+/** True if this truck's skirts hang low enough to crack on the fleet's gravel yard. */
+export function cracksOnGravel(design: TruckDesign, event: Pick<TruckEvent, 'gravel'>): boolean {
+  return event.gravel && design.trailer.skirts > 0 && skirtGap(design) < GRAVEL_YARD.minSkirtGap - 1e-9
+}
+
+/**
+ * The truck as the fleet ran it: cut back to the road code, then without
+ * its skirts if they cracked in the yard.
+ */
+export function asRun(design: TruckDesign, event: Pick<TruckEvent, 'gravel'>): { truck: TruckDesign; cracked: boolean } {
+  const legal = roadLegal(design)
+  if (!cracksOnGravel(legal, event)) return { truck: legal, cracked: false }
+  return { truck: { ...legal, trailer: { ...legal.trailer, skirts: 0 } }, cracked: true }
 }
 
 /** The search's bounds on a drag scale, and how many halvings it makes. */

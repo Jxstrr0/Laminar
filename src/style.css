@@ -327,6 +327,12 @@ html, body {
   font-size: 0.8rem;
   cursor: pointer;
 }
+/* A warning rather than a broken rule (a truck's skirts too low for a gravel yard): amber, dark ink on the button. */
+.break.warn {
+  border-color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 12%, var(--panel));
+}
+.break.warn .break-fix { background: var(--warn); color: #13202B; }
 
 .tabs { display: flex; gap: 4px; margin-top: 10px; border-bottom: 1px solid var(--line); }
 .tab {
