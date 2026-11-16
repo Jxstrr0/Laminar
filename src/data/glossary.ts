@@ -578,6 +578,27 @@ export const GLOSSARY = defineGlossary({
     aliases: ['mach', 'mach number', 'speed of sound', 'sound barrier', 'squeeze'],
     seeAlso: ['recordSpeed', 'drag'],
   },
+  quadTilt: {
+    term: 'Flying tilted',
+    short: 'A quad goes forward by tipping nose-down, so its props push forward as well as up.',
+    long: 'Four props hold a racing quad up and drive it along at once. The faster it flies, the further it tips, until flat out it can lean past 60°, and the air meets its body at that angle. Tipping the camera pod up on the frame (its rake) lets the pod point into the wind at full speed, where it has the least drag.',
+    aliases: ['quad', 'quadcopter', 'drone', 'tilt', 'pod rake', 'top speed'],
+    seeAlso: ['angleOfAttack', 'pitchTwist', 'downwash'],
+  },
+  pitchTwist: {
+    term: 'Twist (pitching moment)',
+    short: 'A long body met by the air at an angle is turned further off the wind: it twists.',
+    long: 'Air meeting a slender body at an angle pushes its front one way and its back the other, so it tries to turn side-on. The longer the body and the faster the air, the harder it twists, and it’s worst when the air meets it well off its nose. A quad’s motors fight the twist by speeding up some props and slowing others; if the twist beats them, the quad tumbles and crashes.',
+    aliases: ['pitching moment', 'munk moment', 'tumble', 'tumbling', 'twist'],
+    seeAlso: ['quadTilt', 'angleOfAttack', 'staticMargin'],
+  },
+  downwash: {
+    term: 'Downwash',
+    short: 'The air a prop or wing pushes down behind it, and whatever it beats on in the way.',
+    long: 'A prop holds a quad up by throwing air down. Under the props sit the arms, and the downwash beating on them pushes back up, so some of the thrust is wasted. A thin wing-shaped fairing over each arm lets that air slip past, and cuts the arms’ drag in forward flight too, at a little weight.',
+    aliases: ['prop wash', 'arm fairings', 'fairing', 'arms'],
+    seeAlso: ['quadTilt', 'drag'],
+  },
   tmrf: {
     term: 'Motor Racing Federation',
     short: 'The Tarnovian Motor Racing Federation, which writes Tarnovia’s racing car rules.',

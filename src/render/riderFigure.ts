@@ -1,6 +1,6 @@
 /**
  * The rider and bike (or the skater, PR 8b) as a three.js group, drawn from
- * a design and its pose. A truck (PR 9b) is drawn by truckFigure.ts, a car (PR 9j) by carFigure.ts, a record car (PR 9q) by recordFigure.ts.
+ * a design and its pose. A truck (PR 9b) is drawn by truckFigure.ts, a car (PR 9j) by carFigure.ts, a record car (PR 9q) by recordFigure.ts, a drone (PR 10b) by droneFigure.ts.
  * Shared by the Shape screen and the tunnel (where it stands on the mount at
  * model scale). Limbs come from the pose (src/sim/geom/pose.ts); the aero
  * helmet's outline is the very cross-section stack the aero model reads, so a
@@ -25,6 +25,7 @@ import type { Point, Pose } from '../sim/geom/pose'
 import { buildTruck } from './truckFigure'
 import { buildCar } from './carFigure'
 import { buildRecord } from './recordFigure'
+import { buildDrone } from './droneFigure'
 
 const COLOURS = {
   suit: 0x2b3a4a,
@@ -48,13 +49,15 @@ const COLOURS = {
 }
 
 /** Which drawn groups a rule break or a strained posture lights up. */
-export type Highlight = 'helmet' | 'hands' | 'front-wheel' | 'frame' | 'torso' | 'head' | 'arms' | 'legs' | 'fairing' | 'skirts' | 'boat-tail' | 'floor' | 'rear-wing' | 'front-wing' | 'inlet' | 'nose' | 'canopy' | 'fin' | 'fairings' | 'waist'
+export type Highlight = 'helmet' | 'hands' | 'front-wheel' | 'frame' | 'torso' | 'head' | 'arms' | 'legs' | 'fairing' | 'skirts' | 'boat-tail' | 'floor' | 'rear-wing' | 'front-wing' | 'inlet' | 'nose' | 'canopy' | 'fin' | 'fairings' | 'waist' | 'pod' | 'vents'
 
 export interface RiderState {
   design: Design
   pose: Pose
   broken: Highlight[]
   strained: Highlight[]
+  /** A drone's lean, radians nose-down, as it flies flat out (PR 10b); nothing else reads it. */
+  tilt?: number
 }
 
 export const v3 = (p: Point) => new THREE.Vector3(p.x, p.y, p.z)
@@ -164,6 +167,7 @@ export function buildRider(state: RiderState): THREE.Group {
   if (state.design.sport === 'truck') return buildTruck(state.design, state)
   if (state.design.sport === 'car') return buildCar(state.design, state)
   if (state.design.sport === 'record') return buildRecord(state.design, state)
+  if (state.design.sport === 'drone') return buildDrone(state.design, state)
   const design = state.design
   const g = new THREE.Group()
   const isBroken = (h: Highlight) => state.broken.includes(h)

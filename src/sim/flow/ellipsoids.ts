@@ -15,7 +15,9 @@ import { BOB_SKELETON, FRAME, HELMET_MOUNT, SKATER_SKELETON, SKELETON } from '..
 import { SK_HEAD, type SkaterDesign } from '../../data/skater'
 import { JUMP_PARTS, JUMP_SKIS, type JumperDesign } from '../../data/jumper'
 import { SLED, type BobsledDesign } from '../../data/bobsled'
-import { isBobsled, isCar, isJumper, isRecord, isSkater, isTruck, type Design } from '../design'
+import { isBobsled, isCar, isDrone, isJumper, isRecord, isSkater, isTruck, type Design } from '../design'
+import { DRONE_AERO, DRONE_BODY, type DroneDesign } from '../../data/drone'
+import { podEnds, podHeight } from '../geom/drone'
 import { CAR_BODY, type CarDesign } from '../../data/car'
 import { RECORD_BODY, RECORD_CLASS, type RecordDesign } from '../../data/record'
 import { recordAxis, recordLength } from '../geom/record'
@@ -333,6 +335,35 @@ export function recordEllipsoids(design: RecordDesign): Ellipsoid[] {
   ]
 }
 
+/**
+ * The racing quad (PR 10b): the pod as one oval tipped up by its rake, and
+ * the frame plate as a flat one, where the figure draws them.
+ */
+export function droneEllipsoids(design: DroneDesign): Ellipsoid[] {
+  const { back, nose } = podEnds(design)
+  const y = DRONE_BODY.hover
+  return [
+    {
+      id: 'pod',
+      bodyId: 'pod',
+      centre: { x: (back.x + nose.x) / 2, y: y + (back.y + nose.y) / 2, z: 0 },
+      axes: { a: design.pod.length / 2, b: podHeight() / 2, c: DRONE_AERO.podWidth / 2 },
+      pitchRad: design.pod.rake * DEG,
+      wrap: 'oval',
+      part: 'rider',
+    },
+    {
+      id: 'plate',
+      bodyId: 'plate',
+      centre: { x: 0, y, z: 0 },
+      axes: { a: DRONE_BODY.plate / 2, b: DRONE_BODY.plateThick, c: DRONE_BODY.plateWidth / 2 },
+      pitchRad: 0,
+      wrap: 'oval',
+      part: 'rider',
+    },
+  ]
+}
+
 /** The ellipsoids for any design in its pose. */
 export function designEllipsoids(design: Design, pose: Pose): Ellipsoid[] {
   if (isJumper(design)) return jumperEllipsoids(design, pose)
@@ -340,6 +371,7 @@ export function designEllipsoids(design: Design, pose: Pose): Ellipsoid[] {
   if (isTruck(design)) return truckEllipsoids(design)
   if (isCar(design)) return carEllipsoids(design)
   if (isRecord(design)) return recordEllipsoids(design)
+  if (isDrone(design)) return droneEllipsoids(design)
   return isSkater(design) ? skaterEllipsoids(design, pose) : riderEllipsoids(design, pose)
 }
 

@@ -18,6 +18,8 @@ import { carAero, circuitDensity, downforceKg, lapTime } from './car'
 import { RECORD_DESK, type RecordDesign } from '../data/record'
 import type { SaltFlat } from '../data/saltFlats'
 import { criticalMach, flatDensity, frontKept, recordRun, soundSpeed, stillDay, twoWay, type RecordAbort } from './record'
+import { DRONE_CLASS, DRONE_DESK, type DroneCourse, type DroneDesign } from '../data/drone'
+import { courseDensity, droneRace, heatLoss, steadyTilt, topSpeed, type DroneRace } from './drone'
 import type { ShapeSpec } from './geom/body'
 import { gaussian } from './noise'
 import { hashString, Rng } from './rng'
@@ -192,5 +194,58 @@ export function recordDeskEstimate(
     squeeze: criticalMach(design) * soundSpeed(flat.temperature),
     abort: first.abort,
     noseLight: straight.abort?.cause === 'lift' ? straight.abort : null,
+  }
+}
+
+/** The desk's guess at a racing quad (PR 10b). */
+export interface DroneDeskEstimate {
+  /** The race's time, s, or null if the desk's quad tumbles; `low` the quick end (less drag), `high` the slow one. */
+  value: number | null
+  low: number | null
+  high: number | null
+  /** The club's quad as they fly it now (their own lap times, so known), s, or null if it tumbles. */
+  old: number | null
+  /** Top speed, m/s, the tilt that holds it, radians, and the angle the pod meets the air there, degrees (0 is head-on). */
+  top: number
+  tilt: number
+  podAngle: number
+  /** The hardest the air twists the quad over the race, as a share of what its motors hold, and where. */
+  twist: DroneRace['twist'] & { share: number }
+  /** Where it tumbles, if it does. */
+  tumble: DroneRace['tumble']
+  /** When the speed controllers overheat, s into the race, and the thrust they lose then, share; null and 0 if they don't. */
+  hotAt: number | null
+  heat: number
+}
+
+/**
+ * The desk's guess at a racing quad (PR 10b): the race at the club's
+ * course on a usual day, with its drag through the job's bias and a
+ * design's jitter, against the club's quad as they fly it.
+ */
+export function droneDeskEstimate(design: DroneDesign, old: DroneDesign, course: DroneCourse, jobSeed: number, designKey: string, analystLevel = 0): DroneDeskEstimate {
+  const narrow = Math.max(DESK.floor, 1 - DESK.perLevel * analystLevel)
+  const job = new Rng(jobSeed)
+  const mine = new Rng(jobSeed ^ hashString(designKey))
+  const drag = 1 + narrow * (DRONE_DESK.dragBias * gaussian(job.fork('desk-drag')) + DRONE_DESK.jitter * gaussian(mine.fork('desk-jitter')))
+  const sd = Math.sqrt(DRONE_DESK.dragBias * DRONE_DESK.dragBias + DRONE_DESK.jitter * DRONE_DESK.jitter) * narrow * DESK.bars
+  const at = (dg: number) => droneRace(design, course, course.temperature, { trim: { drag: dg } })
+  const mid = at(drag)
+  const density = courseDensity(course)
+  const top = topSpeed(design, density, { drag })
+  const tilt = steadyTilt(design, top, density, { drag })
+  const authority = DRONE_CLASS[design.class].authority
+  return {
+    value: mid.time,
+    low: at(drag * (1 - sd)).time,
+    high: at(drag * (1 + sd)).time,
+    old: droneRace(old, course).time,
+    top,
+    tilt,
+    podAngle: (tilt * 180) / Math.PI - design.pod.rake,
+    twist: { ...mid.twist, share: mid.twist.moment / authority },
+    tumble: mid.tumble,
+    hotAt: mid.hotAt,
+    heat: mid.hotAt === null ? 0 : heatLoss(design),
   }
 }

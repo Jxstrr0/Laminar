@@ -20,6 +20,8 @@ import { DEFAULT_TRUCK, FAIRING_MISS, FLEET_TRUCK, GRAVEL_YARD, TRUCK_RANGE, typ
 import { CAR_CLASS, CAR_DESK, CAR_RANGE, STOCK_CAR, type CarClass, type CarDesign } from '../data/car'
 import { RECORD_DESK, RECORD_RANGE, STOCK_RECORD, type RecordClass, type RecordDesign } from '../data/record'
 import { crossHeld, sideCentre, sightLoss, thrustKept } from '../sim/record'
+import { DRONE_DESK, DRONE_RANGE, STOCK_DRONE, type DroneDesign } from '../data/drone'
+import { courseDensity, droneMass, steadyTilt, topSpeed } from '../sim/drone'
 import { carAero, checkCarRules, circuitDensity, heatLoss, porpoiseSpeed, type CarRuleBreak } from '../sim/car'
 import { checkTruckRules, roofMismatch, skirtGap, truckParts, type TruckRuleBreak } from '../sim/truck'
 import { truckLength } from '../sim/geom/truck'
@@ -29,13 +31,13 @@ import { TCF_TIME_TRIAL } from '../data/rules'
 import { t, type StringKey } from '../data/strings'
 import type { RuleBreak } from '../sim/cyclist'
 import type { FixTarget } from '../sim/failure'
-import { bobDeskEstimate, carDeskEstimate, deskEstimate, jumpDeskEstimate, recordDeskEstimate, truckDeskEstimate } from '../sim/desk'
+import { bobDeskEstimate, carDeskEstimate, deskEstimate, droneDeskEstimate, jumpDeskEstimate, recordDeskEstimate, truckDeskEstimate } from '../sim/desk'
 import { jumperReadouts } from '../sim/jumper'
 import { crewEffects } from '../sim/staff'
-import { designPose, designReadouts, designShape, isBobsled, isCar, isCyclist, isJumper, isRecord, isSkater, isTruck, type Design } from '../sim/design'
+import { designPose, designReadouts, designShape, isBobsled, isCar, isCyclist, isDrone, isJumper, isRecord, isSkater, isTruck, type Design } from '../sim/design'
 import { availableHandles, dragHandle, handleDef, handlePoint } from '../sim/geom/handles'
 import { ruleVolumes } from '../sim/geom/ruleBox'
-import { briefTemplate, currentCarRun, currentRecordRun, currentEvent, currentJumpEvent, currentTruckEvent, currentTruckRun } from '../sim/career'
+import { briefTemplate, currentCarRun, currentDroneRun, currentRecordRun, currentEvent, currentJumpEvent, currentTruckEvent, currentTruckRun } from '../sim/career'
 import { cracksOnGravel, roadLegal } from '../sim/truckJob'
 import type { Highlight, ShapeView } from '../render/shapeScene'
 import type { GlossaryId } from '../data/glossary'
@@ -166,6 +168,9 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   const rec = (cls: RecordClass): RecordDesign => (isRecord(design) && design.class === cls ? design : spareRecord[cls])
   /** A record slider's id in the set for this car's class. */
   const rcId = (name: string) => `rc-${isRecord(design) ? design.class : 'streamliner'}-${name}`
+  // A racing quad's sliders (PR 10b); hidden ones write to a spare.
+  const spareDrone = structuredClone(STOCK_DRONE.racer)
+  const dn = (): DroneDesign => (isDrone(design) ? design : spareDrone)
   let selected: HandleId | null = null
 
   // --- Header
@@ -177,7 +182,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   const showPlace = () => {
     const job = careerStore.get().job
     const who = job ? briefTemplate(job.brief.id)?.client : undefined
-    const plain = isRecord(design) ? (design.class === 'jet' ? 'shape.placeRecordJet' : 'shape.placeRecord') : isCar(design) ? (design.class === 'open' ? 'shape.placeCarOpen' : 'shape.placeCar') : isTruck(design) ? 'shape.placeTruck' : isJumper(design) ? 'shape.placeJumper' : isBobsled(design) ? (design.crew === 4 ? 'shape.placeBobsled4' : 'shape.placeBobsled') : 'shape.place'
+    const plain = isDrone(design) ? 'shape.placeDrone' : isRecord(design) ? (design.class === 'jet' ? 'shape.placeRecordJet' : 'shape.placeRecord') : isCar(design) ? (design.class === 'open' ? 'shape.placeCarOpen' : 'shape.placeCar') : isTruck(design) ? 'shape.placeTruck' : isJumper(design) ? 'shape.placeJumper' : isBobsled(design) ? (design.crew === 4 ? 'shape.placeBobsled4' : 'shape.placeBobsled') : 'shape.place'
     place.textContent = who ? t('shape.placeJob', { client: who }) : t(plain)
   }
   showPlace()
@@ -225,7 +230,17 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   const noseR = readout(t('read.noseWeight'), 'noseLift')
   const straightR = readout(t('read.straight'), 'pointingStraight')
   const recBoxes = [recDeskR.box, noseR.box, straightR.box]
-  grid.append(deskR.box, jumpDeskR.box, bobDeskR.box, truckDeskR.box, carDeskR.box, recDeskR.box, comfortR.box, liftR.box, sledDragR.box, truckDragR.box, carDownR.box, noseR.box, frontalR.box, marginR.box, sightR.box, partsR.box, carBalR.box, straightR.box, rulesR.box)
+  // A racing quad's sheet (PR 10b): the desk's race time, its top speed and tilt, and how hard the air twists it.
+  const dnDeskR = readout(t('read.droneDesk'), 'deskEstimate')
+  const dnTopR = readout(t('read.droneTop'), 'quadTilt')
+  const twistR = readout(t('read.twist'), 'pitchTwist')
+  const droneBoxes = [dnDeskR.box, dnTopR.box, twistR.box]
+  grid.append(
+    deskR.box, jumpDeskR.box, bobDeskR.box, truckDeskR.box, carDeskR.box, recDeskR.box, dnDeskR.box,
+    comfortR.box, liftR.box, sledDragR.box, truckDragR.box, carDownR.box, noseR.box, dnTopR.box,
+    frontalR.box, marginR.box, sightR.box, partsR.box, carBalR.box, straightR.box, twistR.box,
+    rulesR.box,
+  )
 
   const breaks = el('ul', 'breaks')
   breaks.setAttribute('aria-live', 'polite')
@@ -468,6 +483,17 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     slider(b.kit, id('fairings'), t('ctl.fairings'), RR.fairings, () => rec(cls).fairings, (v) => (rec(cls).fairings = v), (v) => (v <= 0 ? t('opt.off') : `${fixed(v * 100, 0)} %`))
   }
 
+  // The racing quad (PR 10b): the pod on the first tab, the arm fairings on the second.
+  const dnBox = { position: box(panels.position), kit: box(panels.kit) }
+  {
+    const R = DRONE_RANGE.racer
+    const offPct = (v: number) => (v <= 0 ? t('opt.off') : `${fixed(v * 100, 0)} %`)
+    slider(dnBox.position, 'dn-podLength', t('ctl.podLength'), R.length, () => dn().pod.length, (v) => (dn().pod.length = v), (v) => `${fixed(v * 100, 0)} cm`)
+    slider(dnBox.position, 'dn-podRake', t('ctl.podRake'), R.rake, () => dn().pod.rake, (v) => (dn().pod.rake = v), (v) => `${fixed(v, 0)}°`)
+    slider(dnBox.position, 'dn-podVents', t('ctl.podVents'), R.vents, () => dn().pod.vents, (v) => (dn().pod.vents = v), offPct)
+    slider(dnBox.kit, 'dn-armFairings', t('ctl.armFairings'), R.arms, () => dn().arms, (v) => (dn().arms = v), offPct)
+  }
+
   /** Jump to a car slider by its name, in the set for the car's class. */
   const jumpToCar = (tab: Tab, control: string) => jumpToControl({ tab, id: `cr-${isCar(design) ? design.class : 'touring'}-${control}` })
 
@@ -503,7 +529,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     // Back to where the job started: the client's setup (or the plain starting design between jobs).
     const job = careerStore.get().job
     // A sled keeps its crew size: that's the job's, not a shape.
-    const plain = isRecord(design) ? STOCK_RECORD[design.class] : isCar(design) ? STOCK_CAR[design.class] : isTruck(design) ? { ...FLEET_TRUCK, trailerTop: design.trailerTop } : isJumper(design) ? DEFAULT_JUMPER : isBobsled(design) ? { ...DEFAULT_BOBSLED, crew: design.crew } : isSkater(design) ? DEFAULT_SKATER : DEFAULT_CYCLIST
+    const plain = isDrone(design) ? STOCK_DRONE[design.class] : isRecord(design) ? STOCK_RECORD[design.class] : isCar(design) ? STOCK_CAR[design.class] : isTruck(design) ? { ...FLEET_TRUCK, trailerTop: design.trailerTop } : isJumper(design) ? DEFAULT_JUMPER : isBobsled(design) ? { ...DEFAULT_BOBSLED, crew: design.crew } : isSkater(design) ? DEFAULT_SKATER : DEFAULT_CYCLIST
     design = structuredClone((job && briefTemplate(job.brief.id)?.setup) || plain)
     selected = null
     syncAll()
@@ -519,7 +545,8 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     const trucking = isTruck(design)
     const racing = isCar(design)
     const recording = isRecord(design)
-    const riding = !skating && !jumping && !sliding && !trucking && !racing && !recording
+    const flying = isDrone(design)
+    const riding = !skating && !jumping && !sliding && !trucking && !racing && !recording && !flying
     for (const b of Object.values(cycBox)) b.hidden = !riding
     for (const b of Object.values(skBox)) b.hidden = !skating
     for (const b of Object.values(jpBox)) b.hidden = !jumping
@@ -527,20 +554,22 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     for (const b of Object.values(tkBox)) b.hidden = !trucking
     for (const cls of ['touring', 'open'] as const) for (const b of Object.values(crBox[cls])) b.hidden = !(isCar(design) && design.class === cls)
     for (const cls of ['streamliner', 'jet'] as const) for (const b of Object.values(rcBox[cls])) b.hidden = !(isRecord(design) && design.class === cls)
-    for (const b of bodyBoxes) b.hidden = jumping || sliding || trucking || racing || recording
+    for (const b of Object.values(dnBox)) b.hidden = !flying
+    for (const b of bodyBoxes) b.hidden = jumping || sliding || trucking || racing || recording || flying
+    for (const b of droneBoxes) b.hidden = !flying
     for (const b of carBoxes) b.hidden = !racing
     for (const b of recBoxes) b.hidden = !recording
     for (const b of truckBoxes) b.hidden = !trucking
     for (const b of jumpBoxes) b.hidden = !jumping
     for (const b of bobBoxes) b.hidden = !sliding
-    tabButtons.position.textContent = t(trucking ? 'tab.cab' : racing ? 'tab.floor' : recording ? 'tab.body' : 'tab.position')
-    tabButtons.kit.textContent = t(sliding ? 'tab.sled' : trucking ? 'tab.trailer' : racing ? 'tab.wings' : recording ? 'tab.finWheels' : 'tab.kit')
+    tabButtons.position.textContent = t(trucking ? 'tab.cab' : racing ? 'tab.floor' : recording ? 'tab.body' : flying ? 'tab.pod' : 'tab.position')
+    tabButtons.kit.textContent = t(sliding ? 'tab.sled' : trucking ? 'tab.trailer' : racing ? 'tab.wings' : recording ? 'tab.finWheels' : flying ? 'tab.arms' : 'tab.kit')
     // Only riders have a bike: the tab goes for the others, and the sheet falls back to Position if it was open.
     tabButtons.bike.hidden = !riding
     if (!riding && currentTab === 'bike') selectTab('position')
     tailRow.hidden = cyc().helmet.kind !== 'aero'
-    hint.textContent = t(recording ? (rec('jet') === design ? 'hint.shapeRecordJet' : 'hint.shapeRecord') : racing ? 'hint.shapeCar' : trucking ? 'hint.shapeTruck' : jumping ? 'hint.shapeJumper' : sliding ? 'hint.shapeBobsled' : skating ? 'hint.shapeSkater' : 'hint.shape')
-    if (!jumping && !sliding && !trucking && !racing && !recording) rulesR.sub.textContent = t(skating ? 'book.skating' : 'book.tcf-tt')
+    hint.textContent = t(flying ? 'hint.shapeDrone' : recording ? (rec('jet') === design ? 'hint.shapeRecordJet' : 'hint.shapeRecord') : racing ? 'hint.shapeCar' : trucking ? 'hint.shapeTruck' : jumping ? 'hint.shapeJumper' : sliding ? 'hint.shapeBobsled' : skating ? 'hint.shapeSkater' : 'hint.shape')
+    if (riding || skating) rulesR.sub.textContent = t(skating ? 'book.skating' : 'book.tcf-tt')
   }
   syncAll()
   // A new job puts the client's setup on the bench: take it up.
@@ -562,6 +591,14 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   // "Change this" after a model broke in the tunnel, or after trouble on race day (plan sections 7 and 8).
   window.addEventListener('laminar:fix', (e) => {
     const where = (e as CustomEvent<FixTarget>).detail
+    if (isDrone(design)) {
+      // A quad's fixes (PR 10b): the vents for heat, the fairings for the arms, the length if named, otherwise the pod's rake.
+      if (where === 'podVents') jumpToControl({ tab: 'position', id: 'dn-podVents' })
+      else if (where === 'armFairings') jumpToControl({ tab: 'kit', id: 'dn-armFairings' })
+      else if (where === 'podLength') jumpToControl({ tab: 'position', id: 'dn-podLength' })
+      else jumpToControl({ tab: 'position', id: 'dn-podRake' })
+      return
+    }
     if (isRecord(design)) {
       // A record car's fixes (PR 9q): the fin when it wandered, the canopy when the driver couldn't see, otherwise the nose's droop.
       if (where === 'fin') jumpToControl({ tab: 'kit', id: rcId('fin') })
@@ -645,6 +682,10 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     }
     if (isRecord(design)) {
       showRecord(design)
+      return
+    }
+    if (isDrone(design)) {
+      showDrone(design)
       return
     }
     const r = designReadouts(design, TCF_TIME_TRIAL)
@@ -993,6 +1034,70 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
       pose: designPose(r),
       broken: [],
       strained,
+      handles: [],
+      selected: null,
+      volumes: [],
+    })
+  }
+
+  /**
+   * The racing quad's sheet (PR 10b): the desk's race time at the club's
+   * course against the club's quad, its top speed and the tilt it flies at
+   * (and the angle its pod meets the air there), and the hardest the air
+   * twists it over the race against what its motors hold. A tumble, a twist
+   * close to the limit and closed vents are amber warnings with a "change
+   * this" each. The quad is drawn tilted as it flies flat out.
+   */
+  function showDrone(q: DroneDesign) {
+    const career = careerStore.get()
+    const { course, old } = currentDroneRun(career, q.class)
+    const desk = droneDeskEstimate(q, old, course, career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(q), crewEffects(career.crew).deskLevel)
+    const kmh = (v: number) => fixed(v * 3.6, 0)
+    const signedDeg = (v: number) => `${v > 0.5 ? '+' : v < -0.5 ? '−' : ''}${fixed(Math.abs(v), 0)}`
+    const oldText = desk.old === null ? t('read.droneTumbles') : `${fixed(desk.old, 1)} s`
+    if (desk.value === null) {
+      dnDeskR.value.textContent = t('read.droneTumbles')
+      dnDeskR.sub.textContent = t('read.droneTumblesNote', { speed: kmh(desk.tumble?.speed ?? 0) })
+    } else {
+      dnDeskR.value.textContent = `${fixed(desk.value, 1)} s`
+      const spread = desk.low !== null && desk.high !== null ? (desk.high - desk.low) / 2 : 0
+      dnDeskR.sub.textContent = t('read.deskDroneNote', { spread: fixed(spread, 1), old: oldText })
+    }
+    dnDeskR.value.classList.toggle('warn', desk.value === null)
+    dnTopR.value.textContent = `${kmh(desk.top)} km/h`
+    dnTopR.sub.textContent = t('read.droneTopNote', { tilt: fixed((desk.tilt * 180) / Math.PI, 0), angle: signedDeg(desk.podAngle) })
+    const share = desk.twist.share
+    twistR.value.textContent = `${fixed(Math.min(share, 9.99) * 100, 0)} %`
+    twistR.sub.textContent = t('read.twistNote', { speed: kmh(desk.twist.speed), when: t(desk.twist.braking ? 'read.twistBraking' : 'read.twistFlying') })
+    twistR.value.classList.toggle('warn', share >= DRONE_DESK.twistWarn)
+    rulesR.value.textContent = t('read.droneRules')
+    rulesR.value.classList.remove('over')
+    rulesR.sub.textContent = t('read.droneRulesNote', { mass: fixed(droneMass(q) * 1000, 0) })
+
+    // Warnings, in amber: each costs the race, or the quad.
+    breaks.replaceChildren()
+    const strained: Highlight[] = []
+    const warn = (text: string, id: string, tab: Tab, look: Highlight) => {
+      const li = el('li', 'break warn')
+      li.append(el('span', 'break-text', text))
+      const fix = el('button', 'break-fix', t('rule.fix'))
+      fix.type = 'button'
+      fix.addEventListener('click', () => jumpToControl({ tab, id }))
+      li.append(fix)
+      breaks.append(li)
+      if (!strained.includes(look)) strained.push(look)
+    }
+    if (desk.tumble) warn(t(desk.twist.braking ? 'rule.tumbleBraking' : 'rule.tumbleFlying', { speed: kmh(desk.tumble.speed) }), 'dn-podRake', 'position', 'pod')
+    else if (share >= DRONE_DESK.twistWarn) warn(t('rule.twistClose', { pct: fixed(share * 100, 0) }), 'dn-podRake', 'position', 'pod')
+    if (desk.hotAt !== null) warn(t('rule.droneHot', { at: fixed(desk.hotAt, 0), pct: fixed(desk.heat * 100, 0) }), 'dn-podVents', 'position', 'vents')
+    // Drawn as it truly flies flat out (the sim's tilt, not the desk's guess at it).
+    const density = courseDensity(course)
+    view.show({
+      design: q,
+      pose: designPose(q),
+      broken: [],
+      strained,
+      tilt: steadyTilt(q, topSpeed(q, density), density),
       handles: [],
       selected: null,
       volumes: [],
