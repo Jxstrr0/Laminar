@@ -8,7 +8,7 @@ import { packSave, parseSave, soundCareer, SAVE_VERSION } from '../src/persist/s
 
 /** A career with its own tunnel open and money to spend. */
 function opened(seed = 5): CareerState {
-  const built = buildOwnTunnel({ ...newCareer(seed), money: OWN_TUNNEL_BUILD.price + 2_000_000, day: 10 })
+  const built = buildOwnTunnel({ ...newCareer(seed), money: OWN_TUNNEL_BUILD.price + 3_000_000, day: 10 })
   return { ...built, day: ownReadyDay(built.facility)! }
 }
 
@@ -39,6 +39,7 @@ describe('tunnel upgrades', () => {
     expect(after.key).not.toBe(before.key)
     expect(after.build.topSpeed).toBe(TUNNEL_UPGRADES.fan.topSpeed)
     expect(after.build.wheelDrive).toBe(true)
+    expect(after.build.rollingRoad).toBe(true)
     expect(after.build.turntable.max).toBe(TUNNEL_UPGRADES.turntable.yawRange)
     expect(after.build.turntable.min).toBe(-TUNNEL_UPGRADES.turntable.yawRange)
     expect(after.quirks.turbulence).toBeCloseTo(tunnelQuirks('own', o.seed).turbulence * TUNNEL_UPGRADES.screens.turbulenceShare, 12)
@@ -51,6 +52,7 @@ describe('tunnel upgrades', () => {
     const s = tunnelSetup(c.seed, c.facility, 500)
     expect(s.id).toBe('university')
     expect(s.build.wheelDrive).toBe(false)
+    expect(s.build.rollingRoad).toBe(false)
     expect(s.build.topSpeed).toBe(UNIVERSITY_TUNNEL.topSpeed)
     expect(s.quirks).toEqual(tunnelQuirks('university', c.seed))
   })

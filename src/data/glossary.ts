@@ -460,10 +460,10 @@ export const GLOSSARY = defineGlossary({
   },
   fixedFloor: {
     term: 'Still floor',
-    short: 'The tunnel floor stands still; the ice under a sled doesn’t.',
-    long: 'On the track the ice slides past under the sled at its own speed. In the tunnel the floor stays put and grows a slow layer of air, and the runners and axles sit in it. The balance misses some of their drag, so a sled on the bare floor reads too slippery and its forecast run too quick. A ground board fixes most of it.',
+    short: 'The tunnel floor stands still; the ice or the road under a real one doesn’t.',
+    long: 'On the track the ice slides past under the sled at its own speed, and the road under a truck or a car. In the tunnel the floor stays put and grows a slow layer of air: a sled’s runners and a truck’s underside sit in it and read too slippery. Under a race car it is worse: its floor pulls less and stalls too soon. A ground board fixes much of it, a rolling road all of it.',
     aliases: ['fixed floor', 'floor effect', 'moving ground', 'ground plane'],
-    seeAlso: ['groundBoard', 'boundaryLayer'],
+    seeAlso: ['groundBoard', 'rollingRoad', 'boundaryLayer'],
   },
   groundBoard: {
     term: 'Ground board',
@@ -471,6 +471,20 @@ export const GLOSSARY = defineGlossary({
     long: 'The model shop builds it into the order, like trip strips. The sharp edge starts a fresh, thin layer of air just ahead of the sled instead of the floor’s thick old one, so the runners meet air much as they do over the ice. It takes away most of the still floor’s error; a rolling road under the model would take it all.',
     aliases: ['board', 'raised floor', 'splitter plate'],
     seeAlso: ['fixedFloor', 'tripStrip'],
+  },
+  rollingRoad: {
+    term: 'Rolling road',
+    short: 'A belt under the model that runs at the air’s speed, with the wheels spinning on it.',
+    long: 'The road moves under a real car, so the air under its floor is never slowed by it. A belt that runs as fast as the tunnel’s air does the same for a model, and turns its wheels too. It is the only way a race car’s floor reads true: over a still floor, even on a ground board, its downforce and stall read wrong. Laminar’s is an upgrade for your own tunnel.',
+    aliases: ['moving belt', 'rolling floor', 'moving floor'],
+    seeAlso: ['fixedFloor', 'groundBoard', 'groundEffect'],
+  },
+  aeroMap: {
+    term: 'Aero map',
+    short: 'A car’s downforce, balance and drag read at many ride heights.',
+    long: 'A tunnel model is held still on its posts, but the real car squats lower the faster it goes as the downforce squashes its springs. So the mount lowers the model step by step and the balance reads it at each drop. The lap forecast reads that map at however low the car sits at each speed. Read lower than the car will squat, or the forecast can’t see what happens down there.',
+    aliases: ['ride height map', 'ride height sweep', 'drop'],
+    seeAlso: ['rideHeight', 'porpoising', 'rollingRoad'],
   },
   // --- Trucks (PR 9) -------------------------------------------------------
   fuelSaving: {
