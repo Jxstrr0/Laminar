@@ -8,10 +8,11 @@
  */
 import * as THREE from 'three'
 import { FIELD_TROUBLE, type CourseSegment } from '../data/field'
-import { CAR_REPLAY, DRONE_REPLAY, DRONE_SCENE, RECORD_SCENE, REPLAY_SCENE as S } from '../data/replay'
+import { CAR_REPLAY, DRONE_REPLAY, DRONE_SCENE, RECORD_SCENE, REPLAY_SCENE as S, SURVEY_SCENE } from '../data/replay'
 import { DRONE_BODY } from '../data/drone'
 import { designPose, type Design } from '../sim/design'
 import { recordAxis, recordLength } from '../sim/geom/record'
+import type { PlanePose } from '../sim/planeReplay'
 import type { TrackPoint } from '../sim/replay'
 import { buildRider, disposeGroup } from './riderFigure'
 
@@ -39,6 +40,9 @@ const COLOURS = {
   /** The drone club's mown line through the meadow, and its gates (PR 10h). */
   mown: 0xb3bf9e,
   gate: 0xe08a00,
+  /** The survey fields (PR 10o): ripe wheat, and its rows. */
+  wheat: 0xd9c98c,
+  rows: 0x9c8546,
   saltGrid: 0xd6cfbf,
   saltCourse: 0xe2dccd,
   saltLine: 0x1d242b,
@@ -82,6 +86,8 @@ export interface ReplayOptions {
   record?: boolean
   /** A quad race (PR 10h): the meadow's mown line, gates and close camera of DRONE_SCENE, the quads flying at gate height. */
   drone?: boolean
+  /** A survey flight (PR 10o): the wheat of SURVEY_SCENE with no road, the planes flying their lines over it and a chase camera at their height. */
+  survey?: boolean
 }
 
 /** A rider as drawn: tucked as designed, and (built the first time it's needed) sitting up. */
@@ -115,6 +121,8 @@ export interface ReplayView {
   setMach(mine: number, old: number): void
   /** Each quad's lean and fall now (PR 10h), for the next `place`. */
   setQuads(mine: QuadState, old: QuadState): void
+  /** Each plane's height, bank, pitch and spin now (PR 10o), for the next `place`. */
+  setPlanes(mine: PlanePose, old: PlanePose): void
   /** Put both riders where the race clock says, and move the camera (dt in seconds). */
   place(mine: TrackPoint, old: TrackPoint, dt: number): void
   /** The readout panel covers this many pixels at the bottom: the picture centres above it. */
@@ -129,8 +137,11 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
   const circuit = opts.car === true
   const salt = opts.record === true
   const meadow = opts.drone === true
+  const fields = opts.survey === true
   const lay = salt
     ? RECORD_SCENE
+    : fields
+      ? { roadWidth: 0, laneMine: SURVEY_SCENE.laneMine, laneOld: SURVEY_SCENE.laneOld, flagEvery: 1e9, flagSide: 0, camera: { ...SURVEY_SCENE.camera, lookUp: 0 } }
     : meadow
       ? DRONE_SCENE
       : circuit
@@ -162,10 +173,13 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     m.depthWrite = false
     return o
   }
-  const ground = flat(new THREE.Mesh(new THREE.PlaneGeometry(S.gridSize * 2, S.gridSize * 2), new THREE.MeshLambertMaterial({ color: salt ? COLOURS.salt : COLOURS.ground })), -4)
+  // Over the wheat (PR 10o) the camera is high: the ground and its rows reach to the fog.
+  const groundSize = fields ? S.fogFar * 2 : S.gridSize
+  const ground = flat(new THREE.Mesh(new THREE.PlaneGeometry(groundSize * 2, groundSize * 2), new THREE.MeshLambertMaterial({ color: salt ? COLOURS.salt : fields ? COLOURS.wheat : COLOURS.ground })), -4)
   ground.rotation.x = -Math.PI / 2
-  const gridColour = salt ? COLOURS.saltGrid : COLOURS.grid
-  const grid = flat(new THREE.GridHelper(S.gridSize, S.gridSize / S.gridCell, gridColour, gridColour), -3)
+  const gridColour = salt ? COLOURS.saltGrid : fields ? COLOURS.rows : COLOURS.grid
+  const gridCell = fields ? SURVEY_SCENE.rows : S.gridCell
+  const grid = flat(new THREE.GridHelper(groundSize, Math.round(groundSize / gridCell), gridColour, gridColour), -3)
   scene.add(ground, grid)
 
   const course = new THREE.Group()
@@ -202,7 +216,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
   const ghostMat = new THREE.MeshStandardMaterial({
     color: salt ? COLOURS.markOld : COLOURS.ghost,
     transparent: true,
-    opacity: salt ? RECORD_SCENE.ghostOpacity : meadow ? DRONE_SCENE.ghostOpacity : S.ghostOpacity,
+    opacity: salt ? RECORD_SCENE.ghostOpacity : meadow ? DRONE_SCENE.ghostOpacity : fields ? SURVEY_SCENE.ghostOpacity : S.ghostOpacity,
     depthWrite: false,
     roughness: 0.8,
   })
@@ -213,11 +227,17 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
   /** The quads' lean and fall, set before each `place` (PR 10h). */
   let quadMine: QuadState = { lean: 0, fall: 0 }
   let quadOld: QuadState = { lean: 0, fall: 0 }
+  /** The planes' height, bank, pitch and spin, set before each `place` (PR 10o). */
+  const level: PlanePose = { height: SURVEY_SCENE.flyHeight, bank: 0, pitch: 0, spin: 0 }
+  let planeMine: PlanePose = level
+  let planeOld: PlanePose = level
 
   function build(design: Design, ghost: boolean): THREE.Group {
-    const g = buildRider({ design, pose: designPose(design), broken: [], strained: [] })
+    const g = buildRider({ design, pose: designPose(design), broken: [], strained: [], noStand: true })
     // Heading first, then the roll about the rider's own forward line.
     g.rotation.order = 'YXZ'
+    // A plane (PR 10o) banks and pitches about its own fuselage, not its stage stand's foot: bring its axis down to the group's origin.
+    if (design.sport === 'plane') for (const child of g.children) child.position.y = 0
     if (ghost)
       g.traverse((o) => {
         if (o instanceof THREE.Mesh) o.material = ghostMat
@@ -342,6 +362,18 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       g.rotation.z = -q.lean + Math.PI * DRONE_REPLAY.tumble.halfTurns * q.fall
       return g
     }
+    // A survey plane (PR 10o) flies its lines at its height, banked into the turns; one that stalled spins down into the wheat.
+    if (f.design.sport === 'plane') {
+      const g = f.tucked
+      const p = f.ghost ? planeOld : planeMine
+      stand(g, at, lane)
+      g.position.y = Math.max(p.height, 0.15)
+      g.rotation.y += p.spin
+      // Built nose along +x: the bank rolls it about x (right wing down), the pitch about z.
+      g.rotation.x = p.bank
+      g.rotation.z = p.pitch
+      return g
+    }
     if (at.faded > 0) f.sitting ??= build(sitUp(f.design), f.ghost)
     const g = at.faded > 0 && f.sitting ? f.sitting : f.tucked
     for (const other of [f.tucked, f.sitting]) if (other) other.visible = other === g
@@ -464,11 +496,13 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       grid.visible = !opts.lap
       boardsMat.color.setHex(opts.ice ? COLOURS.ice : COLOURS.boards)
       roadMat.color.setHex(salt ? COLOURS.saltCourse : meadow ? COLOURS.mown : opts.ice ? COLOURS.ice : COLOURS.road)
-      ;(ground.material as THREE.MeshLambertMaterial).color.setHex(salt ? COLOURS.salt : opts.lap ? COLOURS.infield : opts.ice ? COLOURS.snow : COLOURS.ground)
+      ;(ground.material as THREE.MeshLambertMaterial).color.setHex(salt ? COLOURS.salt : fields ? COLOURS.wheat : opts.lap ? COLOURS.infield : opts.ice ? COLOURS.snow : COLOURS.ground)
       if (opts.lap) {
         layTrack(segs, opts.lap)
         return
       }
+      // Over the wheat there's no road to lay: the rows are the ground's own grid (PR 10o).
+      if (fields) return
       const downwind = (90 - (opts.windFromDeg + 180)) * DEG
       const total = segs.reduce((sum, seg) => sum + seg.length, 0)
       let x = 0
@@ -526,6 +560,10 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       old = figure(oldDesign, true)
       camReady = false
     },
+    setPlanes(minePlane, oldPlane) {
+      planeMine = minePlane
+      planeOld = oldPlane
+    },
     setQuads(mineQuad, oldQuad) {
       quadMine = mineQuad
       quadOld = oldQuad
@@ -561,6 +599,18 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       const { fx, fz, rx, rz } = axes(camHeading)
       const c = lay.camera
       const p = gMine.position
+      // Over the wheat (PR 10o): behind your plane at its own height, sinking with it as it comes down, never into the crop.
+      if (fields) {
+        const v = SURVEY_SCENE.camera
+        const y = Math.max(SURVEY_SCENE.cameraLow, p.y + v.up)
+        camera.position.set(p.x - fx * v.back + rx * v.side, y, p.z - fz * v.back + rz * v.side)
+        camera.lookAt(p.x + fx * v.ahead, Math.max(0, p.y - v.below), p.z + fz * v.ahead)
+        grid.position.x = Math.round(p.x / gridCell) * gridCell
+        grid.position.z = Math.round(p.z / gridCell) * gridCell
+        ground.position.x = grid.position.x
+        ground.position.z = grid.position.z
+        return
+      }
       // A quad falling from a tumble (PR 10h): the camera sinks with it and looks down at where it lands.
       const fall = meadow ? quadMine.fall : 0
       const sink = meadow ? Math.min(c.up - DRONE_SCENE.cameraLow, DRONE_SCENE.flyHeight - DRONE_BODY.hover - p.y) : 0

@@ -1494,15 +1494,15 @@ export function deliverPlane(state: CareerState, design: PlaneDesign, predicted:
   const setup = template(job.brief.id).setup
   if (!event || setup.sport !== 'plane' || design.class !== setup.class) return null
   const site = event.site
-  const usual = surveyFlight(design, site, usualDay(site))
+  const usual = surveyFlight(design, site, usualDay(site, setup.class))
   const actual = usual.stall ? null : usual.range
   // Their plane on paper: the range it would fly, stall or not (Vekha's spins in, and that's why they called).
-  const baseline = surveyFlight(setup, site, usualDay(site)).range
+  const baseline = surveyFlight(setup, site, usualDay(site, setup.class)).range
   const gainOf = (range: number | null) => (range === null ? 0 : (range - baseline) / PLANE_JOBS.pointKm)
   const achieved = gainOf(actual)
   const { shortfall, penalty } = penaltyFor(job.brief.fee, job.promise, achieved)
   const met = shortfall === 0
-  const day = surveyDay(event, daySeed(job.brief))
+  const day = surveyDay(event, daySeed(job.brief), setup.class)
   // The read is on drag: the drag at survey speed the declared range is worth.
   const actualCdA = surveyDragArea(design, site)
   const predictedCdA = dragScaleForRange(predicted, design, site) * actualCdA

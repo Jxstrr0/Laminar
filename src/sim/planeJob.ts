@@ -13,7 +13,9 @@
  *   declared range turns straight back into a drag area.
  */
 import { PLANE_JOBS, type BriefTemplate } from '../data/briefs'
-import { PLANE_AERO as A, PLANE_CLASS, SURVEY_SITES, type PlaneDesign, type SurveySite } from '../data/plane'
+import { ATMOSPHERE } from '../data/field'
+import { PLANE_AERO as A, PLANE_CLASS, SURVEY_PATTERN, SURVEY_SITES, type PlaneClass, type PlaneDesign, type SurveySite } from '../data/plane'
+import { detCos, detSin, PI } from './det'
 import { gaussian } from './noise'
 import { gustLimit, gustTurn, planeDrag, planeRange, siteDensity } from './plane'
 import { Rng } from './rng'
@@ -36,18 +38,43 @@ export function planeEventFrom(b: Pick<BriefTemplate, 'event' | 'setup'>): Plane
 /** The site between jobs: the Ozimka fields on their usual day. */
 export const PRACTICE_SITE: PlaneEvent = { site: SURVEY_SITES.ozimka, spread: { temperature: 0 } }
 
-/** Survey day, seeded: its air, its strongest gust on a turn, m/s, and how far through the flight it comes (a share). The same for both planes. */
+/** The radius of a survey plane's turns at each line's end, m: its survey speed, banked as its class says. */
+export function turnRadius(cls: PlaneClass): number {
+  const c = PLANE_CLASS[cls]
+  const bank = (c.bank * PI) / 180
+  return (c.survey * c.survey * detCos(bank)) / (ATMOSPHERE.gravity * detSin(bank))
+}
+
+/** Where the turn after line `n` starts (0: the first turn, after the first line), km along the flight. */
+export function turnStart(cls: PlaneClass, n: number): number {
+  return (SURVEY_PATTERN.line * (n + 1) + PI * turnRadius(cls) * n) / 1000
+}
+
+/** The first turn's start at or past `km` along the flight, km. */
+export function nextTurn(cls: PlaneClass, km: number): number {
+  const lap = SURVEY_PATTERN.line + PI * turnRadius(cls)
+  // A hair of slack, so a turn's own start (worked out the other way round) finds itself.
+  const n = Math.max(0, Math.ceil((km * 1000 - SURVEY_PATTERN.line) / lap - 1e-9))
+  return turnStart(cls, n)
+}
+
+/**
+ * Survey day, seeded: its air, its strongest gust on a turn, m/s, and where
+ * along the lines it comes, km (the start of a turn: a moment in the day,
+ * the same for both planes, which fly side by side). The same for both
+ * planes.
+ */
 export interface SurveyDay {
   temperature: number
   gust: number
   gustAt: number
 }
 
-export function surveyDay(event: PlaneEvent, seed: number): SurveyDay {
+export function surveyDay(event: PlaneEvent, seed: number, cls: PlaneClass = 'survey'): SurveyDay {
   const rng = new Rng(seed).fork('survey-day')
   const temperature = event.site.temperature + event.spread.temperature * gaussian(rng)
   const gust = Math.max(0, event.site.gust + PLANE_JOBS.gustSpread * gaussian(rng))
-  return { temperature, gust, gustAt: rng.range(PLANE_JOBS.gustAt.min, PLANE_JOBS.gustAt.max) }
+  return { temperature, gust, gustAt: nextTurn(cls, rng.range(PLANE_JOBS.gustKm.min, PLANE_JOBS.gustKm.max)) }
 }
 
 /** One plane's survey flight: the range it would fly, what it did fly, km, and where it stalled, if it did. */
@@ -60,18 +87,17 @@ export interface SurveyFlight {
   limit: number
 }
 
-/** A plane's survey flight on a day: it flies its range unless the day's gust on a turn stalls it first. */
+/** A plane's survey flight on a day: it flies its range unless the day's gust on a turn stalls it first (one that has landed by then misses it). */
 export function surveyFlight(design: PlaneDesign, site: SurveySite, day: SurveyDay): SurveyFlight {
   const range = planeRange(design, site, day.temperature)
   const limit = gustLimit(design, site, day.temperature)
-  const stalls = gustTurn(design, site, day.gust, day.temperature).stalls
-  const at = range * day.gustAt
-  return { range, flown: stalls ? at : range, stall: stalls ? { gust: day.gust, at } : null, limit }
+  const stalls = range > day.gustAt && gustTurn(design, site, day.gust, day.temperature).stalls
+  return { range, flown: stalls ? day.gustAt : range, stall: stalls ? { gust: day.gust, at: day.gustAt } : null, limit }
 }
 
-/** The site's usual day, with its usual strongest gust coming halfway: what the promise is judged on. */
-export function usualDay(site: SurveySite): SurveyDay {
-  return { temperature: site.temperature, gust: site.gust, gustAt: 0.5 }
+/** The site's usual day, its usual strongest gust on the very first turn: what the promise is judged on. */
+export function usualDay(site: SurveySite, cls: PlaneClass = 'survey'): SurveyDay {
+  return { temperature: site.temperature, gust: site.gust, gustAt: turnStart(cls, 0) }
 }
 
 /** The plane's drag area at survey speed on the site's usual day, m²: the number the read is judged on. */
