@@ -8,7 +8,8 @@
  */
 import * as THREE from 'three'
 import { FIELD_TROUBLE, type CourseSegment } from '../data/field'
-import { CAR_REPLAY, DRONE_REPLAY, DRONE_SCENE, RECORD_SCENE, REPLAY_SCENE as S, SURVEY_SCENE } from '../data/replay'
+import { AIRCRAFT_REPLAY, AIRFIELD_SCENE, CAR_REPLAY, DRONE_REPLAY, DRONE_SCENE, RECORD_SCENE, REPLAY_SCENE as S, SURVEY_SCENE } from '../data/replay'
+import { AIRCRAFT_BODY } from '../data/aircraft'
 import { DRONE_BODY } from '../data/drone'
 import { designPose, type Design } from '../sim/design'
 import { recordAxis, recordLength } from '../sim/geom/record'
@@ -88,6 +89,8 @@ export interface ReplayOptions {
   drone?: boolean
   /** A survey flight (PR 10o): the wheat of SURVEY_SCENE with no road, the planes flying their lines over it and a chase camera at their height. */
   survey?: boolean
+  /** Test day for a light aircraft (PR 10v): Belyanka's grass and runway with its timing masts, and a camera flying alongside your plane. */
+  airfield?: boolean
 }
 
 /** A rider as drawn: tucked as designed, and (built the first time it's needed) sitting up. */
@@ -123,6 +126,8 @@ export interface ReplayView {
   setQuads(mine: QuadState, old: QuadState): void
   /** Each plane's height, bank, pitch and spin now (PR 10o), for the next `place`. */
   setPlanes(mine: PlanePose, old: PlanePose): void
+  /** Show or hide each plane (PR 10v: their plane sits out the stall check). */
+  setShown(mine: boolean, old: boolean): void
   /** Put both riders where the race clock says, and move the camera (dt in seconds). */
   place(mine: TrackPoint, old: TrackPoint, dt: number): void
   /** The readout panel covers this many pixels at the bottom: the picture centres above it. */
@@ -138,8 +143,11 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
   const salt = opts.record === true
   const meadow = opts.drone === true
   const fields = opts.survey === true
+  const airfield = opts.airfield === true
   const lay = salt
     ? RECORD_SCENE
+    : airfield
+      ? { roadWidth: 0, laneMine: AIRFIELD_SCENE.laneMine, laneOld: AIRFIELD_SCENE.laneOld, flagEvery: 1e9, flagSide: 0, camera: { back: 0, up: 0, side: 0, ahead: 0, lookUp: 0, fov: AIRFIELD_SCENE.camera.fov } }
     : fields
       ? { roadWidth: 0, laneMine: SURVEY_SCENE.laneMine, laneOld: SURVEY_SCENE.laneOld, flagEvery: 1e9, flagSide: 0, camera: { ...SURVEY_SCENE.camera, lookUp: 0 } }
     : meadow
@@ -174,7 +182,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     return o
   }
   // Over the wheat (PR 10o) the camera is high: the ground and its rows reach to the fog.
-  const groundSize = fields ? S.fogFar * 2 : S.gridSize
+  const groundSize = fields || airfield ? S.fogFar * 2 : S.gridSize
   const ground = flat(new THREE.Mesh(new THREE.PlaneGeometry(groundSize * 2, groundSize * 2), new THREE.MeshLambertMaterial({ color: salt ? COLOURS.salt : fields ? COLOURS.wheat : COLOURS.ground })), -4)
   ground.rotation.x = -Math.PI / 2
   const gridColour = salt ? COLOURS.saltGrid : fields ? COLOURS.rows : COLOURS.grid
@@ -216,7 +224,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
   const ghostMat = new THREE.MeshStandardMaterial({
     color: salt ? COLOURS.markOld : COLOURS.ghost,
     transparent: true,
-    opacity: salt ? RECORD_SCENE.ghostOpacity : meadow ? DRONE_SCENE.ghostOpacity : fields ? SURVEY_SCENE.ghostOpacity : S.ghostOpacity,
+    opacity: salt ? RECORD_SCENE.ghostOpacity : meadow ? DRONE_SCENE.ghostOpacity : fields ? SURVEY_SCENE.ghostOpacity : airfield ? AIRFIELD_SCENE.ghostOpacity : S.ghostOpacity,
     depthWrite: false,
     roughness: 0.8,
   })
@@ -238,6 +246,8 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     g.rotation.order = 'YXZ'
     // A plane (PR 10o) banks and pitches about its own fuselage, not its stage stand's foot: bring its axis down to the group's origin.
     if (design.sport === 'plane') for (const child of g.children) child.position.y = 0
+    // So does a kit plane (PR 10v), built standing on its wheels with its axis above them.
+    if (design.sport === 'aircraft') for (const child of g.children) child.position.y -= AIRCRAFT_BODY.axis
     if (ghost)
       g.traverse((o) => {
         if (o instanceof THREE.Mesh) o.material = ghostMat
@@ -363,11 +373,12 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       return g
     }
     // A survey plane (PR 10o) flies its lines at its height, banked into the turns; one that stalled spins down into the wheat.
-    if (f.design.sport === 'plane') {
+    if (f.design.sport === 'plane' || f.design.sport === 'aircraft') {
       const g = f.tucked
       const p = f.ghost ? planeOld : planeMine
       stand(g, at, lane)
-      g.position.y = Math.max(p.height, 0.15)
+      // A kit plane's height is its wheels' (PR 10v): parked, it stands on them.
+      g.position.y = f.design.sport === 'aircraft' ? p.height + AIRCRAFT_BODY.axis : Math.max(p.height, 0.15)
       g.rotation.y += p.spin
       // Built nose along +x: the bank rolls it about x (right wing down), the pitch about z.
       g.rotation.x = p.bank
@@ -488,6 +499,37 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     broadcast = { at: new THREE.Vector3(cx - c.back * k, c.up * k, cz), look: new THREE.Vector3(cx + c.ahead * k, 0, cz) }
   }
 
+  /** Belyanka's runway (PR 10v): the strip and its centre line along x, and a timing mast each side at each marker of the measured course. */
+  function layRunway() {
+    const W = AIRFIELD_SCENE.runway
+    const len = W.to - W.from
+    const strip = new THREE.Mesh(new THREE.PlaneGeometry(len, W.width), roadMat)
+    strip.renderOrder = -2
+    strip.rotation.x = -Math.PI / 2
+    strip.position.set((W.from + W.to) / 2, 0, 0)
+    course.add(strip)
+    const count = Math.floor(len / S.dashEvery)
+    const dashes = new THREE.InstancedMesh(dashGeo, dashMat, count)
+    dashes.renderOrder = -1
+    const m = new THREE.Matrix4().makeRotationY(-Math.PI / 2)
+    for (let k = 0; k < count; k++) {
+      m.setPosition(W.from + (k + 0.25) * S.dashEvery, 0, 0)
+      dashes.setMatrixAt(k, m)
+    }
+    dashes.computeBoundingSphere()
+    course.add(dashes)
+    const M = AIRFIELD_SCENE.mast
+    for (const x of [0, AIRCRAFT_REPLAY.pass.course])
+      for (const side of [-1, 1]) {
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, M.height, 8), poleMat)
+        pole.position.set(x, M.height / 2, side * M.out)
+        const board = new THREE.Mesh(new THREE.BoxGeometry(0.1, M.boardHeight, M.board), flagMat)
+        board.position.set(x, M.height - M.boardHeight / 2, side * M.out)
+        course.add(pole, board)
+      }
+  }
+  if (airfield) layRunway()
+
   return {
     setCourse(segs, opts) {
       clearCourse()
@@ -564,6 +606,10 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       planeMine = minePlane
       planeOld = oldPlane
     },
+    setShown(showMine, showOld) {
+      if (mine) mine.tucked.visible = showMine
+      if (old) old.tucked.visible = showOld
+    },
     setQuads(mineQuad, oldQuad) {
       quadMine = mineQuad
       quadOld = oldQuad
@@ -599,6 +645,26 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       const { fx, fz, rx, rz } = axes(camHeading)
       const c = lay.camera
       const p = gMine.position
+      // At the airfield (PR 10v): side-on to your plane through the stall check; on the passes, from a camera plane ahead of the pair, looking back.
+      if (airfield) {
+        const v = AIRFIELD_SCENE.camera
+        if (old?.tucked.visible) {
+          const y = Math.max(AIRFIELD_SCENE.cameraLow, p.y + v.front.up)
+          // On the line midway between the two lanes.
+          const mid = lay.laneMine - (lay.laneMine + lay.laneOld) / 2
+          camera.position.set(p.x + fx * v.front.ahead - rx * mid, y, p.z + fz * v.front.ahead - rz * mid)
+          camera.lookAt(p.x - fx * v.front.lookBack - rx * mid, p.y, p.z - fz * v.front.lookBack - rz * mid)
+        } else {
+          const y = Math.max(AIRFIELD_SCENE.cameraLow, p.y + v.side.up)
+          camera.position.set(p.x + fx * v.side.ahead + rx * v.side.out, y, p.z + fz * v.side.ahead + rz * v.side.out)
+          camera.lookAt(p.x, p.y, p.z)
+        }
+        grid.position.x = Math.round(p.x / S.gridCell) * S.gridCell
+        grid.position.z = Math.round(p.z / S.gridCell) * S.gridCell
+        ground.position.x = grid.position.x
+        ground.position.z = grid.position.z
+        return
+      }
       // Over the wheat (PR 10o): behind your plane at its own height, sinking with it as it comes down, never into the crop.
       if (fields) {
         const v = SURVEY_SCENE.camera
