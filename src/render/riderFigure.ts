@@ -165,8 +165,13 @@ export function buildRider(state: RiderState): THREE.Group {
   const seat = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.03, 0.12), M.tyre)
   seat.position.copy(saddle).add(new THREE.Vector3(0.02, 0.015, 0))
   g.add(seat)
-  g.add(wheel(FRAME.rearAxleX, design.wheels.rear))
-  g.add(wheel(FRAME.frontAxleX, design.wheels.front, isBroken('front-wheel') ? M.broken : undefined))
+  // Named so a break in the tunnel can find them (PR 6b).
+  const rearWheel = wheel(FRAME.rearAxleX, design.wheels.rear)
+  rearWheel.name = 'wheel-rear'
+  g.add(rearWheel)
+  const frontWheel = wheel(FRAME.frontAxleX, design.wheels.front, isBroken('front-wheel') ? M.broken : undefined)
+  frontWheel.name = 'wheel-front'
+  g.add(frontWheel)
   // Cranks.
   for (const f of pose.foot) g.add(rod(bb.clone().setZ(f.z), v3(f), 0.012, M.bars))
 
@@ -237,6 +242,7 @@ export function buildRider(state: RiderState): THREE.Group {
   const helmet = design.helmet.kind === 'aero' ? helmetMesh(design, helmetMat) : roadHelmet(helmetMat)
   helmet.position.copy(v3(pose.helmet))
   helmet.rotation.z = (pose.headPitchDeg * Math.PI) / 180
+  helmet.name = 'helmet'
   g.add(helmet)
   const visor = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 8, -0.9, 1.8, 1.2, 0.7), M.visor)
   visor.rotation.y = Math.PI / 2

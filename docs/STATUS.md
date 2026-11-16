@@ -30,11 +30,24 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 5h | Velodrome | **Done** (v0.5.7.0) |
 | 5i | Guided first job | **Done** (v0.5.8.0) |
 | 6a | Failures: the tunnel's failure model (sim, saves) | **Done** (v0.6.0.0) |
-| 6b | Failures on the tunnel screen | Next |
-| 6c | Failures in the field: crosswind steer, fading position | |
+| 6b | Failures on the tunnel screen | **Done** (v0.6.1.0) |
+| 6c | Failures in the field: crosswind steer, fading position | Next |
 | 7–14 | See the plan | Not started |
 
 ## Versions
+
+- **0.6.1.0** (PR 6b): failures you can see in the tunnel.
+  - Push a weak part too hard and a red warning flashes at the top ("The
+    tail is fluttering!") while the model buzzes and the readings jitter.
+    Ease the fan or the yaw and it calms down.
+  - Hold it there and the part breaks: the tail, the disc cover or the
+    helmet flies down the tunnel and lands by the end screen, or the whole
+    model tears off its posts.
+  - A sheet says what broke, why, and the repair price and days. Repair
+    from the sheet or the red note at the top, or jump straight to the part
+    on the Shape screen (or the model shop) to change it.
+  - The fan is locked on a broken model; the run that broke it shows
+    "broke" in the runs list.
 
 - **0.6.0.0** (PR 6a): the tunnel's failure model, under the hood.
   - Kelbo's calls: a broken model is repaired for half its price and half its

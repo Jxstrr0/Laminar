@@ -16,7 +16,7 @@ import { lastSlot, readSlot, setLastSlot, writeSlot } from './persist/db'
 import { packSave, parseSave, SAVE_VERSION, type SaveFile } from './persist/save'
 import { DEFAULT_CYCLIST } from './data/cyclist'
 import { careerStore, freshSeed } from './ui/careerStore'
-import { charge, currentEvent, newCareer, orderBlock, orderModel } from './sim/career'
+import { charge, currentEvent, newCareer, orderBlock, orderModel, repairModel } from './sim/career'
 import { afterDesign, afterOrder, afterRun, afterSwap, currentStep } from './sim/guide'
 import { runCost } from './sim/run'
 import { rublesShort } from './ui/format'
@@ -117,6 +117,16 @@ async function boot(): Promise<void> {
     },
     onOrder: (price, days) => careerStore.set(afterOrder(orderModel(careerStore.get(), price, days))),
     onSwap: (price) => careerStore.set(afterSwap(charge(careerStore.get(), price))),
+    onRepair: (price, days) => {
+      const before = careerStore.get()
+      if (orderBlock(before, days) === 'noDays') return false
+      careerStore.set(repairModel(before, price, days))
+      return true
+    },
+    goFix: (where) => {
+      show('shape')
+      window.dispatchEvent(new CustomEvent('laminar:fix', { detail: where }))
+    },
   })
   const autosave = startAutosave(
     () => current(),
