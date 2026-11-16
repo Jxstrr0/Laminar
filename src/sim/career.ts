@@ -260,6 +260,17 @@ export function orderModel(state: CareerState, price: number, days: number): Car
   return { ...paid, day: paid.day + days, job: { ...paid.job!, daysLeft: paid.job!.daysLeft - days } }
 }
 
+/**
+ * Send a broken model for repair (plan section 8): pay the repair and the
+ * screens if it tore off the mount, and let the repair days pass. With no
+ * job there's no clock to spend; with too few days left it can't be done.
+ */
+export function repairModel(state: CareerState, price: number, days: number): CareerState {
+  if (state.job && days > state.job.daysLeft) return state
+  const paid = charge(state, price)
+  return paid.job ? { ...paid, day: paid.day + days, job: { ...paid.job, daysLeft: paid.job.daysLeft - days } } : paid
+}
+
 /** How close a declared CdA was to the road's. */
 export type Read = 'good' | 'fair' | 'poor'
 

@@ -115,6 +115,17 @@ describe('the save file', () => {
     expect(parseSave(JSON.stringify(raw))).toBeNull()
   })
 
+  it('keeps a broken model and a run that broke one, and accepts labs from before failures', () => {
+    const broken = { mode: 'flutter' as const, part: 'tail' as const }
+    const back = roundTrip(file({ broken, runs: [{ ...run(1, 'sphere'), failure: { mode: 'mount', part: 'posts' } }, run(2)] }))!
+    expect(back.lab.broken).toEqual(broken)
+    expect(back.lab.runs[0]!.failure).toEqual({ mode: 'mount', part: 'posts' })
+    expect(roundTrip(file({ broken: { mode: 'flutter', part: 'posts' } as never }))).toBeNull()
+    const raw = JSON.parse(packSave(file())) as { lab: Record<string, unknown> }
+    delete raw.lab.broken
+    expect(parseSave(JSON.stringify(raw))!.lab.broken).toBeNull()
+  })
+
   it('brings a v1 save up to date with a career on the old tunnel seed', () => {
     const { career: _drop, ...rest } = file()
     const old = JSON.stringify({ ...rest, v: 1 })

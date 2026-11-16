@@ -9,6 +9,7 @@ import { MODEL_FINISH, MODEL_GRADE, MODEL_SCALES } from '../data/model'
 import { CRANK_DIAL, DEMO_TUNNEL_SEED } from '../data/tunnel'
 import { briefTemplate, newCareer, type Brief, type CareerState, type Job, type JobRecord } from '../sim/career'
 import { GUIDE_STEPS, type GuideStep } from '../sim/guide'
+import type { Failure, FailureMode, FailurePart } from '../sim/failure'
 import type { LabState, RunNote } from '../sim/lab'
 import type { ModelOrder } from '../sim/modelShop'
 import type { Run, RunSample } from '../sim/run'
@@ -86,8 +87,18 @@ function soundRun(x: unknown): x is Run {
     x.samples.every(soundSample) &&
     isNum(x.duration) &&
     isNum(x.energyKWh) &&
-    isNum(x.topSpeed)
+    isNum(x.topSpeed) &&
+    (x.failure === undefined || soundFailure(x.failure) !== null)
   )
+}
+
+const FAILURE_PARTS: Record<FailureMode, readonly FailurePart[]> = { flutter: ['tail', 'disc'], mount: ['posts'], detach: ['helmet'] }
+
+/** A failure the game could have written, or null. */
+function soundFailure(x: unknown): Failure | null {
+  if (!isObj(x) || typeof x.mode !== 'string' || !(x.mode in FAILURE_PARTS)) return null
+  const mode = x.mode as FailureMode
+  return FAILURE_PARTS[mode].includes(x.part as FailurePart) ? { mode, part: x.part as FailurePart } : null
 }
 
 const soundCrank = (x: unknown): x is number =>
@@ -125,6 +136,9 @@ export function soundLab(x: unknown, modelFallback: CyclistDesign): LabState | n
   }
   const modelDesign = x.modelDesign === undefined ? structuredClone(modelFallback) : soundDesign(x.modelDesign)
   if (!modelDesign) return null
+  // Saves from before PR 6a have no broken model.
+  const broken = x.broken === undefined || x.broken === null ? null : soundFailure(x.broken)
+  if (x.broken && !broken) return null
   return {
     runs,
     notes,
@@ -134,6 +148,7 @@ export function soundLab(x: unknown, modelFallback: CyclistDesign): LabState | n
     crank: x.crank,
     nextRunId: x.nextRunId,
     balanceRng: x.balanceRng,
+    broken,
   }
 }
 

@@ -29,10 +29,25 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 5g | Time-trial replay | **Done** (v0.5.6.0) |
 | 5h | Velodrome | **Done** (v0.5.7.0) |
 | 5i | Guided first job | **Done** (v0.5.8.0) |
-| 6 | Failures | Next |
+| 6a | Failures: the tunnel's failure model (sim, saves) | **Done** (v0.6.0.0) |
+| 6b | Failures on the tunnel screen | Next |
+| 6c | Failures in the field: crosswind steer, fading position | |
 | 7–14 | See the plan | Not started |
 
 ## Versions
+
+- **0.6.0.0** (PR 6a): the tunnel's failure model, under the hood.
+  - Kelbo's calls: a broken model is repaired for half its price and half its
+    build days (plus the screens if it tore off the mount); the tunnel always
+    warns before a break.
+  - Weak points on a rider model: a long aero-helmet tail and a disc wheel's
+    cover can flutter (bigger and printed models flutter sooner); the mount's
+    posts take at most 60 N; a printed model's glued helmet lets go past
+    36 m/s.
+  - A part past its limit for a moment is forgiven; held there for a couple of
+    seconds, it breaks.
+  - Saves remember a broken model and which run broke it. Nothing shows on
+    screen yet: that's PR 6b.
 
 - **0.5.8.0** (PR 5i): the guided first job.
   - **Irina Talova**, your partner, has a card at the top of Jobs during the
