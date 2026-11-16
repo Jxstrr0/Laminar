@@ -19,6 +19,7 @@ import type { FixTarget } from '../sim/failure'
 import { deskEstimate } from '../sim/desk'
 import { crewEffects } from '../sim/staff'
 import { cyclistShape } from '../sim/geom/cyclist'
+import { asCyclist } from '../sim/design'
 import { availableHandles, dragHandle, handleDef, handlePoint } from '../sim/geom/handles'
 import { riderPose } from '../sim/geom/pose'
 import { ruleVolumes } from '../sim/geom/ruleBox'
@@ -97,7 +98,7 @@ export interface ScreenControl {
 }
 
 export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenControl {
-  let design: CyclistDesign = structuredClone(designStore.get())
+  let design: CyclistDesign = structuredClone(asCyclist(designStore.get()))
   let dirty = true
   /** The copy last handed to the tunnel, so a design set from elsewhere (a new job) can be told apart. */
   let sent: CyclistDesign | null = null
@@ -325,7 +326,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   reset.addEventListener('click', () => {
     // Back to where the job started: the client's setup (or the plain starting design between jobs).
     const job = careerStore.get().job
-    design = structuredClone((job && briefTemplate(job.brief.id)?.setup) || DEFAULT_CYCLIST)
+    design = structuredClone(asCyclist((job && briefTemplate(job.brief.id)?.setup) || DEFAULT_CYCLIST))
     selected = null
     syncAll()
     changed()
@@ -339,7 +340,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   // A new job puts the client's setup on the bench: take it up.
   designStore.subscribe((d) => {
     if (d === sent) return
-    design = structuredClone(d)
+    design = structuredClone(asCyclist(d))
     selected = null
     syncAll()
     dirty = true

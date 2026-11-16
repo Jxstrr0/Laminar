@@ -43,11 +43,24 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 7h | Backup file and reminder | **Done** (v0.7.7.0) |
 | 7i | The 2040 ending and legacy card | **Done** (v0.7.8.0) |
 | 7j | The legacy card as a picture to share | **Done** (v0.7.9.0) |
-| 8 | See the plan | Next |
+| 8a | Sports in the sim: the speed skater | **Done** (v0.8.0.0) |
+| 8b | The skater on screen, skating briefs | Next |
+| 8c–8f | Ski jump, bobsled | Not started |
 | 9–14 | See the plan | Not started |
 
 ## Versions
 
+- **0.8.0.0** (PR 8a): sports in the sim.
+  - A design can now be for a sport other than cycling (`src/data/sport.ts`,
+    `src/sim/design.ts`). Old saves are cyclists, as before.
+  - The speed skater: back angle, knee bend, head drop, arms (on the back
+    or swinging), cap or hood, suit fabric and shin trip strips
+    (`src/data/skater.ts`, `src/sim/geom/skater.ts`, `src/sim/skater.ts`).
+    A racing crouch reads near 0.17 m²; standing tall near 0.22 m².
+  - Skaters glide on ice (blade friction, no drivetrain) and have no kit rules.
+  - Saves, model part swaps, run comparisons and tunnel weak points all
+    understand skaters. Nothing changes on screen yet: PR 8b adds the
+    skater's figure, controls and briefs.
 - **0.7.9.0** (PR 7j): the legacy picture.
   - "Share as a picture" on the legacy card draws it as a 1080 × 1350 PNG in
     the game's look (light or dark, as the screen is): streamlines over a

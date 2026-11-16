@@ -6,7 +6,8 @@
  */
 import { DEMO_MODEL_SEED, STANDARD_ORDER } from '../data/model'
 import { SKELETON } from '../data/pose'
-import { DEFAULT_CYCLIST, type CyclistDesign } from '../data/cyclist'
+import { DEFAULT_CYCLIST } from '../data/cyclist'
+import type { Design } from './design'
 import type { Failure } from './failure'
 import type { ModelOrder } from './modelShop'
 import { Rng, type RngState } from './rng'
@@ -14,7 +15,7 @@ import type { Run } from './run'
 
 /** What a rider run tested, so the run report can say what changed. */
 export interface RunNote {
-  design: CyclistDesign
+  design: Design
   /** The model's fixed crank angle, degrees. */
   crank: number
   /** Which build of the model (each build has its own small errors). */
@@ -29,7 +30,7 @@ export interface LabState {
   /** The model on the mount, as ordered. */
   order: ModelOrder
   /** The design that model was built of (with any parts swapped since). */
-  modelDesign: CyclistDesign
+  modelDesign: Design
   /** Builds ordered so far (0 is the model you start with). */
   build: number
   /** The model's crank angle now, degrees. */
@@ -42,7 +43,7 @@ export interface LabState {
   broken: Failure | null
 }
 
-export function newLab(modelDesign: CyclistDesign = DEFAULT_CYCLIST): LabState {
+export function newLab(modelDesign: Design = DEFAULT_CYCLIST): LabState {
   return {
     runs: [],
     notes: {},

@@ -124,6 +124,10 @@ quirks you have to learn.
 | The 2040 end | **Legacy card, then the career closes**; start a new one from Saves. *(16 Nov 2026, for PR 7)* |
 | Retiring early | **Ends it, two taps**, the same legacy card. *(16 Nov 2026, for PR 7)* |
 | Sharing the legacy | **A picture to share** (PR 7j). *(16 Nov 2026, for PR 7)* |
+| Bobsled bid | **Run time gain**: hundredths of a second off a run. *(16 Nov 2026, for PR 8)* |
+| Bobsled crews | **Two-man and four-man**; four-man comes later, at higher reputation. *(16 Nov 2026, for PR 8)* |
+| Ski-jump suit rules | **None**: bagginess only trades lift against stability. *(16 Nov 2026, for PR 8)* |
+| Speed skating venues | **Indoor 400 m oval, plus one outdoor marathon** on natural lake ice. *(16 Nov 2026, for PR 8)* |
 | Firm name | **Asked at career start**, with a ready-made name to keep; renamable. *(16 Nov 2026, for PR 7)* |
 
 ---

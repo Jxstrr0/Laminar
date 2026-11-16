@@ -5,6 +5,8 @@
  * newer version) is turned away rather than half loaded.
  */
 import { DESIGN_CHOICES, PART_RANGE, POSTURE_RANGE, type CyclistDesign } from '../data/cyclist'
+import { SKATER_CHOICES, SKATER_RANGE, type SkaterDesign } from '../data/skater'
+import type { Design } from '../sim/design'
 import { MACHINE_IDS, MAKER_IDS, MODEL_FINISH, MODEL_GRADE, MODEL_SCALES, type MachineId } from '../data/model'
 import { CRANK_DIAL, DEMO_TUNNEL_SEED } from '../data/tunnel'
 import { briefTemplate, newCareer, tidyFirmName, type Brief, type CareerState, type Ending, type Job, type JobRecord } from '../sim/career'
@@ -28,7 +30,7 @@ export interface SaveFile {
   v: typeof SAVE_VERSION
   /** When it was written, ms since 1970 (the device's clock: only for "saved at" lines). */
   savedAt: number
-  design: CyclistDesign
+  design: Design
   lab: LabState
   career: CareerState
 }
@@ -40,9 +42,33 @@ const isCount = (x: unknown): x is number => Number.isInteger(x) && (x as number
 const oneOf = <T extends string>(x: unknown, list: readonly T[]): x is T => typeof x === 'string' && (list as readonly string[]).includes(x)
 const clampTo = (x: number, r: { min: number; max: number }) => Math.min(r.max, Math.max(r.min, x))
 
-/** A design, with every number pulled inside its slider's range; null if anything is missing or unknown. */
-export function soundDesign(x: unknown): CyclistDesign | null {
-  if (!isObj(x) || !isObj(x.posture) || !isObj(x.helmet) || !isObj(x.suit) || !isObj(x.wheels)) return null
+/**
+ * A design, with every number pulled inside its slider's range; null if
+ * anything is missing or unknown. No `sport` (or "cycling") is a cyclist.
+ */
+export function soundDesign(x: unknown): Design | null {
+  if (!isObj(x)) return null
+  if (x.sport === 'skating') return soundSkater(x)
+  if (x.sport !== undefined && x.sport !== 'cycling') return null
+  return soundCyclist(x)
+}
+
+function soundSkater(x: Obj): SkaterDesign | null {
+  if (!isObj(x.posture) || !isObj(x.suit)) return null
+  const posture = {} as SkaterDesign['posture']
+  for (const k of Object.keys(SKATER_RANGE) as (keyof typeof SKATER_RANGE)[]) {
+    const v = x.posture[k]
+    if (!isNum(v)) return null
+    posture[k] = clampTo(v, SKATER_RANGE[k])
+  }
+  const { fabric, legTrips } = x.suit
+  if (!oneOf(x.arms, SKATER_CHOICES.arms) || !oneOf(x.hood, SKATER_CHOICES.hood)) return null
+  if (!oneOf(fabric, SKATER_CHOICES.fabric) || typeof legTrips !== 'boolean') return null
+  return { sport: 'skating', posture, arms: x.arms, hood: x.hood, suit: { fabric, legTrips } }
+}
+
+function soundCyclist(x: Obj): CyclistDesign | null {
+  if (!isObj(x.posture) || !isObj(x.helmet) || !isObj(x.suit) || !isObj(x.wheels)) return null
   const p = x.posture
   const posture = {} as CyclistDesign['posture']
   for (const k of Object.keys(POSTURE_RANGE) as (keyof typeof POSTURE_RANGE)[]) {
@@ -126,7 +152,7 @@ function soundOrder(x: unknown): ModelOrder | null {
  * doesn't say what the model was built of; then it was `modelFallback`
  * (back then the model always matched the bench design).
  */
-export function soundLab(x: unknown, modelFallback: CyclistDesign): LabState | null {
+export function soundLab(x: unknown, modelFallback: Design): LabState | null {
   if (!isObj(x) || !Array.isArray(x.runs) || !x.runs.every(soundRun) || !isObj(x.notes)) return null
   if (!isCount(x.build) || !soundCrank(x.crank) || !isCount(x.nextRunId) || !isCount(x.balanceRng) || x.balanceRng > 0xffffffff) return null
   const order = soundOrder(x.order)

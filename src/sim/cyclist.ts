@@ -10,7 +10,7 @@ import { cyclistShape, helmetLength, tubeAspect } from './geom/cyclist'
 import { describeShape } from './geom/body'
 import type { EventSpec } from './views'
 
-export interface Comfort {
+export interface Comfort<Part extends string = keyof CyclistDesign['posture']> {
   /** 0 is easy; past `limit` the rider can't hold it. */
   strain: number
   limit: number
@@ -20,7 +20,7 @@ export interface Comfort {
   /** Share of the rider's power lost when they sit up for the last third (0 if they can hold it). */
   fade: number
   /** Which part of the posture strains most (for the "change this" jump). */
-  worst: keyof CyclistDesign['posture'] | null
+  worst: Part | null
 }
 
 export function comfort(design: CyclistDesign, limit: number = COMFORT.riderLimit): Comfort {
@@ -71,14 +71,14 @@ export function checkRules(design: CyclistDesign, rules: CyclingRules): RuleBrea
   return out
 }
 
-export interface Readouts {
+export interface Readouts<Part extends string = keyof CyclistDesign['posture']> {
   /** Frontal area, m² (the sum of the parts' outlines). */
   frontalArea: number
   /** Bike and kit mass, kg. */
   mass: number
   /** Parts price, ₽. */
   price: number
-  comfort: Comfort
+  comfort: Comfort<Part>
   breaks: RuleBreak[]
 }
 

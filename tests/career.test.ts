@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { designShape } from '../src/sim/design'
 import { reputationOf } from '../src/sim/reputation'
 import { BRIEFS, CAREER } from '../src/data/briefs'
 import { DEFAULT_CYCLIST } from '../src/data/cyclist'
@@ -24,7 +25,6 @@ import {
 } from '../src/sim/career'
 import { BID, PROMISE } from '../src/data/briefs'
 import { fieldResult, truth } from '../src/sim/views'
-import { cyclistShape } from '../src/sim/geom/cyclist'
 
 describe('the career', () => {
   it('starts with money, the tutorial first and one small brief on the board', () => {
@@ -92,7 +92,7 @@ describe('the career', () => {
       const e = eventOf(b)
       expect(e.rider.power).toBe(b.rider.power)
       expect(e.spread).toEqual(b.event.spread)
-      const shape = cyclistShape(b.setup)
+      const shape = designShape(b.setup)
       expect(truth(shape, e).cdA).toBeGreaterThan(0.15)
       const day = fieldResult(shape, e, 1)
       // Plausible amateur-to-pro average speeds.

@@ -3,19 +3,20 @@
  * shape it on one, test it on the other. The autosave (src/persist) keeps it
  * between visits.
  */
-import { DEFAULT_CYCLIST, type CyclistDesign } from '../data/cyclist'
+import { DEFAULT_CYCLIST } from '../data/cyclist'
+import type { Design } from '../data/sport'
 
-type Listener = (design: CyclistDesign) => void
+type Listener = (design: Design) => void
 
-let current: CyclistDesign = structuredClone(DEFAULT_CYCLIST)
+let current: Design = structuredClone(DEFAULT_CYCLIST)
 const listeners = new Set<Listener>()
 
 export const designStore = {
-  get(): CyclistDesign {
+  get(): Design {
     return current
   },
   /** Replace the design (pass a fresh object; it isn't copied). */
-  set(design: CyclistDesign): void {
+  set(design: Design): void {
     current = design
     for (const l of listeners) l(current)
   },

@@ -6,6 +6,7 @@ import { riderEvent } from '../src/sim/cyclist'
 import { cyclistShape } from '../src/sim/geom/cyclist'
 import { gapAt, replayNotes, rideTime, timeAt, trackAt, turnAngle, windFeel, type Ride } from '../src/sim/replay'
 import { fieldResult } from '../src/sim/views'
+import { designEvent, designShape } from '../src/sim/design'
 
 function rides() {
   const brief = newCareer(5).board[0]!
@@ -13,7 +14,7 @@ function rides() {
   const event = eventOf(brief)
   const seed = daySeed(brief)
   const mine = fieldResult(cyclistShape(DEFAULT_CYCLIST), riderEvent(DEFAULT_CYCLIST, event), seed)
-  const old = fieldResult(cyclistShape(t.setup), riderEvent(t.setup, event), seed)
+  const old = fieldResult(designShape(t.setup), designEvent(t.setup, event), seed)
   return { mine: { course: event.course, segments: mine.segments } as Ride, old: { course: event.course, segments: old.segments } as Ride, mine$: mine, old$: old }
 }
 
@@ -62,7 +63,7 @@ describe('the race replay', () => {
     expect(event.windSpeed).toBe(0)
     const seed = daySeed(brief)
     const mine$ = fieldResult(cyclistShape(DEFAULT_CYCLIST), riderEvent(DEFAULT_CYCLIST, event), seed)
-    const old$ = fieldResult(cyclistShape(t.setup), riderEvent(t.setup, event), seed)
+    const old$ = fieldResult(designShape(t.setup), designEvent(t.setup, event), seed)
     expect(mine$.windSpeed).toBe(0)
     const mine: Ride = { course: event.course, segments: mine$.segments }
     const old: Ride = { course: event.course, segments: old$.segments }
