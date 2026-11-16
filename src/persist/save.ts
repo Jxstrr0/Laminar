@@ -138,7 +138,7 @@ function soundRun(x: unknown): x is Run {
   )
 }
 
-const FAILURE_PARTS: Record<FailureMode, readonly FailurePart[]> = { flutter: ['tail', 'disc'], mount: ['posts'], detach: ['helmet'] }
+const FAILURE_PARTS: Record<FailureMode, readonly FailurePart[]> = { flutter: ['tail', 'disc'], mount: ['posts', 'sting'], detach: ['helmet'] }
 
 /** A failure the game could have written, or null. */
 function soundFailure(x: unknown): Failure | null {

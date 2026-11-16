@@ -34,6 +34,12 @@ export const FAILURE = {
   },
   /** The two posts that clamp a rider model's axles: the most load they take, drag and side force together. */
   mountN: 60,
+  /**
+   * The sting a ski jumper's model hangs on (PR 8k): the most load it takes,
+   * lift and drag together. A 1:2 model reads the whole sweep at 30 m/s; push
+   * it near 35 m/s at a steep pitch and it gives.
+   */
+  stingN: 170,
   /** Printed models have their helmet glued on: it lets go past this air speed. */
   detachSpeed: 36,
   repair: {

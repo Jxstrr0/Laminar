@@ -551,7 +551,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   /** Seconds each weak point has spent past its limit, and the worst one warning now. */
   let strainClock: StrainClock = {}
   let warn: Strain | null = null
-  /** The model's drag and side-force areas together at the last reading, m² at model size (the load on the posts per pascal). */
+  /** The model's load areas together at the last reading, m² at model size (the load on the mount per pascal): drag and side force on the posts, lift and drag on a jumper's sting. */
   let loadArea = 0
   let modelSpec = modelSpecOf(order, DEMO_MODEL_SEED + build)
   const showOrder = () => {
@@ -904,7 +904,9 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     if (jumper && jumperModel) {
       // The sting's angle goes where a rider's yaw would; lift and the pitch moment ride along.
       const j = readJumper(jumperModel, tunnel, { speed: fan.speed, alphaDeg: table.angle, mount: 'sting' }, balanceRng)
-      return { speed: fan.speed, yawDeg: table.angle, cdA: j.cdA, cyA: 0, dragN: j.dragN, clA: j.clA, pitchA: j.pitchA, steady }
+      // A groaning sting shakes the balance too.
+      const w = shake()
+      return { speed: fan.speed, yawDeg: table.angle, cdA: j.cdA * w, cyA: 0, dragN: j.dragN * w, clA: j.clA * w, pitchA: j.pitchA * w, steady }
     }
     const r = readBalance(prepared, tunnel, { speed: fan.speed, yawDeg: table.angle, mount: 'posts' }, balanceRng)
     // A buzzing part shakes the balance: the trace wobbles before anything breaks.
@@ -1253,6 +1255,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
         t(f.minMargin < 0 ? 'jump.marginBad' : f.stable ? 'jump.margin' : 'jump.marginLow', slots),
         t(f.covered ? 'jump.cover' : 'jump.wider', range),
       )
+      // The trap a jumper model does fall into (PR 8k): the helmet and boots, untaped.
+      if (!order.trips) lines.push(t('jump.untaped'))
     }
     poolRows.replaceChildren(...lines.map((line) => el('p', 'compare-detail', line)))
     setText(poolCycle, '')
@@ -1264,7 +1268,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     if (!jumperModel) return
     updateForecast(dt)
     showForecastReadout()
-    const reading = fan.speed >= spec.readFrom
+    const reading = fan.speed >= spec.readFrom && !broken
     setText(jSpeed.value, `${fixed(fan.speed, 1)} m/s`)
     // The helmet and boots' Reynolds number against the hill's: the plates hardly care, they do.
     const pct = (fan.speed * jumperModel.scale * 100) / hooks.jumpEvent().hill.takeoffSpeed
@@ -1278,6 +1282,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       return
     }
     const r = readJumper(jumperModel, tunnel, { speed: fan.speed, alphaDeg: table.angle, mount: 'sting' }, balanceRng)
+    // The load on the sting per pascal: lift and drag together, at model size.
+    loadArea = Math.hypot(r.clA, r.cdA) * jumperModel.scale * jumperModel.scale
     const c = correctJumper(r, jumperFix(), jumperModel, sectionArea)
     // shown: dragN holds the model's lift, N; sideN the lift area; cdA the drag area.
     const k = settle(dt)
@@ -1548,8 +1554,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       fan = stepFan(fan, STEP, spec)
       table = stepTurntable(table, STEP, spec.turntable)
       // The model's weak points, checked every fixed step (the tunnel always warns first).
-      // A jumper on the sting has no weak points yet (they come with the ski-jump briefs).
-      if (mount === 'rider' && !tare && prepared && !broken && !jumper) {
+      // A jumper's model hangs on a sting, which takes its lift as well as its drag.
+      if (mount === 'rider' && !tare && prepared && !broken) {
         const loadN = dynamicPressure(AIR.density, fan.speed) * loadArea
         const step = stepStrain(strainClock, strains({ order, design: modelDesign }, fan.speed, loadN, setup.mountStrength), STEP)
         strainClock = step.clock

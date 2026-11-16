@@ -122,6 +122,8 @@ describe('the save file', () => {
     expect(back.lab.broken).toEqual(broken)
     expect(back.lab.runs[0]!.failure).toEqual({ mode: 'mount', part: 'posts' })
     expect(roundTrip(file({ broken: { mode: 'flutter', part: 'posts' } as never }))).toBeNull()
+    // A jumper's broken sting (PR 8k) keeps too.
+    expect(roundTrip(file({ broken: { mode: 'mount', part: 'sting' } }))!.lab.broken).toEqual({ mode: 'mount', part: 'sting' })
     const raw = JSON.parse(packSave(file())) as { lab: Record<string, unknown> }
     delete raw.lab.broken
     expect(parseSave(JSON.stringify(raw))!.lab.broken).toBeNull()

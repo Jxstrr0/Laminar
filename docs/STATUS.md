@@ -53,12 +53,24 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 8h | Ski-jump balance: the cap at the hill size, a retune, the large-hill job (sim) | **Done** (v0.8.7.0) |
 | 8i | Ski-jump jobs on screen: the board, the bid in metres, declaring a distance, the jump-day debrief | **Done** (v0.8.8.0) |
 | 8j | The flight replay on the hill | **Done** (v0.8.9.0) |
-| 8k | A sting that can break, and a fairer read on the helmet and boots | Next |
-| 8l–8m | Bobsled | Not started |
+| 8k | A sting that can break, and a fairer read on the helmet and boots | **Done** (v0.8.10.0) |
+| 8l–8m | Bobsled | Next |
 | 9–14 | See the plan | Not started |
 
 ## Versions
 
+- **0.8.10.0** (PR 8k): the jumper's sting, and trip strips that fix its read.
+  - A jumper's model hangs on a sting that takes its lift as well as its
+    drag, up to 170 N. Past that it groans first (the warning, the shaking
+    balance), then the jumper snaps off and flies down the section. A 1:2
+    model sweeps 6–44° safely at 30 m/s; near 35 m/s at a steep pitch it
+    gives. Repair as for a model torn off its posts, screens included.
+  - The read: the open air on a hill trips the helmet and boots' boundary
+    layer, the tunnel's quiet air doesn't, so untaped they read draggy and
+    the forecast came out about 5 % short at any size or speed. Trip strips
+    from the shop now go round the helmet and boots too, and a taped model
+    reads the reference jump within half a metre. The forecast says so
+    when the model is untaped.
 - **0.8.9.0** (PR 8j): the jump replay on the hill.
   - Delivering a jumper now plays the day's jump side-on, in slow motion:
     the in-run, the table, the landing slope with the K line (cobalt) and

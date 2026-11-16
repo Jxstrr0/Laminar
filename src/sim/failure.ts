@@ -7,7 +7,7 @@
  * break at the same moment.
  */
 import type { CyclistDesign } from '../data/cyclist'
-import { isCyclist, type Design } from './design'
+import { isCyclist, isJumper, type Design } from './design'
 import type { JumperDesign } from '../data/jumper'
 import type { SkaterDesign } from '../data/skater'
 import { FAILURE } from '../data/failure'
@@ -15,8 +15,8 @@ import { MAKERS, MODEL_SHOP } from '../data/model'
 import { makerOf, quote, type MakerHand, type ModelOrder, type Quote } from './modelShop'
 
 export type FailureMode = 'flutter' | 'mount' | 'detach'
-/** The part that gives: the helmet tail, a disc wheel's cover, the mount's posts or a glued-on helmet. */
-export type FailurePart = 'tail' | 'disc' | 'posts' | 'helmet'
+/** The part that gives: the helmet tail, a disc wheel's cover, the mount's posts, a jumper's sting or a glued-on helmet. */
+export type FailurePart = 'tail' | 'disc' | 'posts' | 'sting' | 'helmet'
 
 export interface Failure {
   mode: FailureMode
@@ -53,9 +53,10 @@ export function flutterSpeed(model: MountedModel, part: 'tail' | 'disc'): number
 
 /**
  * How close each weak point is to its limit at this air speed and total
- * load on the posts (drag and side force together, N). A tunnel tech who's
- * good with mounts makes the posts hold more (`mountStrength`). Only rider models
- * have weak points; the sphere and the wheel are the tunnel's own.
+ * load on the mount (N): drag and side force on a rider's posts, lift and
+ * drag on a jumper's sting. A tunnel tech who's good with mounts makes the
+ * mount hold more (`mountStrength`). Only rider models have weak points; the
+ * sphere and the wheel are the tunnel's own.
  */
 export function strains(model: MountedModel, speed: number, loadN: number, mountStrength = 1): Strain[] {
   const out: Strain[] = []
@@ -63,7 +64,8 @@ export function strains(model: MountedModel, speed: number, loadN: number, mount
     const v = flutterSpeed(model, part)
     if (v !== null) out.push({ mode: 'flutter', part, level: speed / v })
   }
-  out.push({ mode: 'mount', part: 'posts', level: loadN / (FAILURE.mountN * mountStrength) })
+  if (isJumper(model.design)) out.push({ mode: 'mount', part: 'sting', level: loadN / (FAILURE.stingN * mountStrength) })
+  else out.push({ mode: 'mount', part: 'posts', level: loadN / (FAILURE.mountN * mountStrength) })
   if (model.order.finish === 'printed' && isCyclist(model.design)) out.push({ mode: 'detach', part: 'helmet', level: speed / FAILURE.detachSpeed })
   return out
 }
