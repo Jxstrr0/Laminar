@@ -188,8 +188,8 @@ describe('the career', () => {
       const bt = BRIEFS.find((x) => x.id === b.id)!
       s = placeBid(s, b.id, { price: bt.fee.max, promise: BID.promiseMin })!.state
     }
-    // Every brief the board can offer, less the tutorial.
-    expect(s.lost.length).toBe(BRIEFS.filter((b) => openTo(b, 100)).length - 1)
+    // Every brief the board can offer a firm with this name, less the tutorial (the record teams want a bigger name).
+    expect(s.lost.length).toBe(BRIEFS.filter((b) => openTo(b, reputationOf(history))).length - 1)
     const w = waitForBriefs(s)
     expect(w.day).toBe(s.day + BID.waitDays)
     expect(w.round).toBe(s.round + 1)

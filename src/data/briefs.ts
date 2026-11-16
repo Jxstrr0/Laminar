@@ -239,10 +239,11 @@ export const CAR_JOBS = {
  * no time and gains nothing. One point is 2 km/h, and bids move a point at
  * a time. The declared number is the new car's two-way mean.
  *
- * Closed until PR 9u puts them on the board and the debrief.
+ * Open since PR 9u put them on the board. The switch stays so a test (or a
+ * later change) can close them.
  */
 export const RECORD_JOBS = {
-  open: false,
+  open: true,
   /** km/h in one promised point. */
   pointKmh: 2,
   /** A record bid's promise moves in these points: 2 km/h. */

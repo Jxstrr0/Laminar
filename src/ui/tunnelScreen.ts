@@ -79,6 +79,7 @@ import type { BobsledDesign } from '../data/bobsled'
 import { sledForecast } from './sledForecast'
 import { truckForecast } from './truckForecast'
 import { carForecast } from './carForecast'
+import { recordForecast } from './recordForecast'
 import { FLIGHT_ATTITUDE, JUMP_TUNNEL, PITCH } from '../data/jumper'
 import { correctJumper, forecastJump, isJumperRun, jumperReadings, prepareJumper, readJumper, type JumperFix, type JumpForecast, type PreparedJumper } from '../sim/jumpTunnel'
 import type { JumpEvent } from '../sim/jumper'
@@ -1695,7 +1696,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   let carShownDown = 0
 
   // --- The land-speed car's forecast (PR 9s): this model's settled readings, corrected, run on the salt.
-  let recordForecast: RecordForecast | null = null
+  let recordCast: RecordForecast | null = null
   const recordFix = (): RecordFix => ({ tare: cal.tare?.trusted ? cal.tare.mean : null, blockageK: cal.blockage?.k ?? null })
   /** The posts' and the blockage's names, as far as the calibration runs took them off. */
   const recordFixWords = (f: RecordFix) => [f.tare !== null ? t('fix.tare') : '', f.blockageK !== null ? t('fix.blockage') : ''].filter(Boolean).join(t('fix.and'))
@@ -1708,12 +1709,15 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     const model = recordModel
     const readings = recordReadings(modelRuns()).map((r) => correctRecord(r, fix, model, sectionArea))
     const { flat, old } = recordRun(modelDesign)
-    recordForecast = forecastRecord(readings, modelDesign, old, flat)
+    recordCast = forecastRecord(readings, modelDesign, old, flat)
+    // Kept for the Deliver sheet (PR 9u), with the floor it was read over.
+    const f = recordCast
+    recordForecast.set(modelDesign, flat.id, f ? { speed: f.speed, gain: f.gain, abort: f.abort?.cause ?? null, floor: model.floor, swept: f.crossHeld !== null } : null)
     runsDirty = true
   }
   const kmh = (v: number) => fixed(v * 3.6, 0)
   function showRecordForecast() {
-    const f = recordForecast
+    const f = recordCast
     if (!f || !isRecord(modelDesign)) {
       setText(lFc.value, '–')
       setText(lFc.sub, t('read.carLapNone'))
@@ -1735,7 +1739,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     const car = modelDesign
     const { flat } = recordRun(car)
     setText(poolTitle, t('rec.title', { flat: t(`flat.${flat.id}`) }))
-    const f = recordForecast
+    const f = recordCast
     const lines: string[] = []
     if (!f) lines.push(t('rec.none'))
     else {
