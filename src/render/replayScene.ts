@@ -2,11 +2,13 @@
  * The race-day replay's 3D view: the course as a road across open country,
  * your design on it with the client's old setup as a see-through twin in
  * the next lane, wind flags along the verge, and a chase camera. Every
- * position comes from src/sim/replay.ts; this file only draws them.
+ * position comes from src/sim/replay.ts; this file only draws them. A
+ * rider the field model says eased off in the gusts rocks now and then;
+ * one it says sat up is drawn sitting up.
  */
 import * as THREE from 'three'
 import type { CyclistDesign } from '../data/cyclist'
-import type { CourseSegment } from '../data/field'
+import { FIELD_TROUBLE, type CourseSegment } from '../data/field'
 import { REPLAY_SCENE as S } from '../data/replay'
 import { riderPose } from '../sim/geom/pose'
 import type { TrackPoint } from '../sim/replay'
@@ -45,6 +47,25 @@ export interface CourseOptions {
   lap?: number
 }
 
+export interface ReplayOptions {
+  /** Reduced motion: nobody rocks in the gusts (they still sit up). */
+  still?: boolean
+}
+
+/** A rider as drawn: tucked as designed, and (built the first time it's needed) sitting up. */
+interface Figure {
+  design: CyclistDesign
+  ghost: boolean
+  tucked: THREE.Group
+  sitting: THREE.Group | null
+}
+
+/** The same rider sitting up: back up to the trouble table's angle, head up. */
+function sitUp(design: CyclistDesign): CyclistDesign {
+  const p = design.posture
+  return { ...design, posture: { ...p, torsoDeg: Math.max(p.torsoDeg, S.trouble.sitUpTorso), headDrop: 0 } }
+}
+
 export interface ReplayView {
   /** Lay out the course and the wind (blowing from `windFromDeg`). */
   setCourse(course: readonly CourseSegment[], opts: CourseOptions): void
@@ -57,7 +78,7 @@ export interface ReplayView {
   dispose(): void
 }
 
-export function createReplayView(host: HTMLElement): ReplayView {
+export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): ReplayView {
   const renderer = new THREE.WebGLRenderer({ antialias: true })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
   renderer.outputColorSpace = THREE.SRGBColorSpace
@@ -118,8 +139,58 @@ export function createReplayView(host: HTMLElement): ReplayView {
   /** The fixed broadcast camera on the track, or null for the chase camera. */
   let broadcast: { at: THREE.Vector3; look: THREE.Vector3 } | null = null
   const ghostMat = new THREE.MeshStandardMaterial({ color: COLOURS.ghost, transparent: true, opacity: S.ghostOpacity, depthWrite: false, roughness: 0.8 })
-  let mine: THREE.Group | null = null
-  let old: THREE.Group | null = null
+  let mine: Figure | null = null
+  let old: Figure | null = null
+  /** Seconds of replay so far, for the gusts' rhythm. */
+  let clock = 0
+
+  function build(design: CyclistDesign, ghost: boolean): THREE.Group {
+    const g = buildRider({ design, pose: riderPose(design), broken: [], strained: [] })
+    // Heading first, then the roll about the rider's own forward line.
+    g.rotation.order = 'YXZ'
+    if (ghost)
+      g.traverse((o) => {
+        if (o instanceof THREE.Mesh) o.material = ghostMat
+      })
+    scene.add(g)
+    return g
+  }
+
+  function figure(design: CyclistDesign, ghost: boolean): Figure {
+    const tucked = build(design, ghost)
+    return { design, ghost, tucked, sitting: null }
+  }
+
+  function dropFigure(f: Figure | null) {
+    if (!f) return
+    for (const g of [f.tucked, f.sitting]) {
+      if (!g) continue
+      scene.remove(g)
+      disposeGroup(g)
+    }
+  }
+
+  /** Roll, degrees, for a rider who gave up `eased` of their power in the gusts: a rock now and then. */
+  function rollFor(eased: number, phase: number): number {
+    if (opts.still || eased <= 0) return 0
+    const T = S.trouble
+    const u = (clock + phase) % T.every
+    if (u >= T.lasts) return 0
+    const k = T.rollFloor + (1 - T.rollFloor) * Math.min(1, eased / FIELD_TROUBLE.ease.max)
+    // Two rocks per gust, swelling and dying away.
+    return T.rollDeg * k * Math.sin((4 * Math.PI * u) / T.lasts) * Math.sin((Math.PI * u) / T.lasts)
+  }
+
+  /** Show the figure the race clock calls for and put it in its lane. */
+  function pose(f: Figure, at: TrackPoint, lane: number, phase: number): THREE.Group {
+    if (at.faded > 0) f.sitting ??= build(sitUp(f.design), f.ghost)
+    const g = at.faded > 0 && f.sitting ? f.sitting : f.tucked
+    for (const other of [f.tucked, f.sitting]) if (other) other.visible = other === g
+    const roll = rollFor(at.eased, phase)
+    stand(g, at, lane + (S.trouble.swayM * roll) / S.trouble.rollDeg)
+    g.rotation.x = roll * DEG
+    return g
+  }
   // The camera swings round after a turn at its own pace; along the road it never lags.
   let camHeading = 0
   let camReady = false
@@ -254,25 +325,20 @@ export function createReplayView(host: HTMLElement): ReplayView {
       }
     },
     setRiders(mineDesign, oldDesign) {
-      for (const g of [mine, old]) {
-        if (!g) continue
-        scene.remove(g)
-        disposeGroup(g)
-      }
-      mine = buildRider({ design: mineDesign, pose: riderPose(mineDesign), broken: [], strained: [] })
-      old = buildRider({ design: oldDesign, pose: riderPose(oldDesign), broken: [], strained: [] })
-      old.traverse((o) => {
-        if (o instanceof THREE.Mesh) o.material = ghostMat
-      })
-      scene.add(mine, old)
+      dropFigure(mine)
+      dropFigure(old)
+      mine = figure(mineDesign, false)
+      old = figure(oldDesign, true)
       camReady = false
     },
     place(me, them, dt) {
       if (!mine || !old) return
-      stand(mine, me, S.laneMine)
-      stand(old, them, S.laneOld)
-      ringMine.position.set(mine.position.x, 0.01, mine.position.z)
-      ringOld.position.set(old.position.x, 0.01, old.position.z)
+      clock += Math.min(dt, 0.1)
+      const gMine = pose(mine, me, S.laneMine, 0)
+      // The old setup meets its gusts out of step with yours.
+      const gOld = pose(old, them, S.laneOld, S.trouble.every / 2)
+      ringMine.position.set(gMine.position.x, 0.01, gMine.position.z)
+      ringOld.position.set(gOld.position.x, 0.01, gOld.position.z)
       if (broadcast) {
         if (camera.fov !== S.track.camera.fov) {
           camera.fov = S.track.camera.fov
@@ -291,12 +357,12 @@ export function createReplayView(host: HTMLElement): ReplayView {
       camReady = true
       const { fx, fz, rx, rz } = axes(camHeading)
       const c = S.camera
-      const p = mine.position
+      const p = gMine.position
       camera.position.set(p.x - fx * c.back + rx * c.side, c.up, p.z - fz * c.back + rz * c.side)
       camera.lookAt(p.x + fx * c.ahead, c.lookUp, p.z + fz * c.ahead)
       // The ground grid follows the camera in whole cells, so it never seems to jump.
-      grid.position.x = Math.round(mine.position.x / S.gridCell) * S.gridCell
-      grid.position.z = Math.round(mine.position.z / S.gridCell) * S.gridCell
+      grid.position.x = Math.round(p.x / S.gridCell) * S.gridCell
+      grid.position.z = Math.round(p.z / S.gridCell) * S.gridCell
       ground.position.x = grid.position.x
       ground.position.z = grid.position.z
     },
@@ -311,7 +377,8 @@ export function createReplayView(host: HTMLElement): ReplayView {
     dispose() {
       watcher.disconnect()
       clearCourse()
-      for (const g of [mine, old]) if (g) disposeGroup(g)
+      dropFigure(mine)
+      dropFigure(old)
       for (const geo of [poleGeo, flagGeo, coneGeo, dashGeo, ringGeo, ground.geometry]) geo.dispose()
       grid.dispose()
       for (const m of [roadMat, dashMat, poleMat, flagMat, coneMat, ghostMat, boardsMat, lineMat, ringMine.material, ringOld.material, ground.material as THREE.Material])

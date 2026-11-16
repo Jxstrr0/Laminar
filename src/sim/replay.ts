@@ -30,6 +30,9 @@ export interface TrackPoint {
   yawDeg: number
   segment: number
   done: boolean
+  /** Trouble on this stretch (from the field model): power given up in gusts, and to sitting up. */
+  eased: number
+  faded: number
 }
 
 const unit = (heading: number) => ({ dx: detSin(heading * DEG), dz: -detCos(heading * DEG) })
@@ -47,7 +50,7 @@ export function trackAt(ride: Ride, t: number): TrackPoint {
     const { dx, dz } = unit(seg.heading)
     if (t < elapsed + r.time) {
       const along = Math.max(0, t - elapsed) * r.speed
-      return { distance: distance + along, x: x + dx * along, z: z + dz * along, heading: seg.heading, speed: r.speed, yawDeg: r.yawDeg, segment: i, done: false }
+      return { distance: distance + along, x: x + dx * along, z: z + dz * along, heading: seg.heading, speed: r.speed, yawDeg: r.yawDeg, segment: i, done: false, eased: r.eased, faded: r.faded }
     }
     elapsed += r.time
     distance += seg.length
@@ -56,7 +59,7 @@ export function trackAt(ride: Ride, t: number): TrackPoint {
   }
   const seg = ride.course[last]!
   const r = ride.segments[last]!
-  return { distance, x, z, heading: seg.heading, speed: r.speed, yawDeg: r.yawDeg, segment: last, done: true }
+  return { distance, x, z, heading: seg.heading, speed: r.speed, yawDeg: r.yawDeg, segment: last, done: true, eased: 0, faded: r.faded }
 }
 
 /** The race-clock time the rider reaches `distance` metres (their finish time past the end). */
