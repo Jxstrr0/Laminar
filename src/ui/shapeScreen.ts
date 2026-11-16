@@ -512,7 +512,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     slider(dnBox.kit, 'dn-armFairings', t('ctl.armFairings'), R.arms, () => dn().arms, (v) => (dn().arms = v), offPct)
   }
 
-  // The survey drone (PR 10j): the fuselage and the tail on the first tab, the camera pod and the winglets on the second.
+  // The survey drone (PR 10j): the fuselage and the tail on the first tab, the camera pod, the winglets and the wing's span (PR 10w) on the second.
   const plBox = { position: box(panels.position), kit: box(panels.kit) }
   {
     const R = PLANE_RANGE.survey
@@ -529,6 +529,8 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     slider(plBox.kit, 'pl-cameraFairing', t('ctl.cameraFairing'), R.fairing, () => pl().camera.fairing, (v) => (pl().camera.fairing = v), offPct)
     slider(plBox.kit, 'pl-cameraAt', t('ctl.cameraAt'), R.at, () => pl().camera.at, (v) => (pl().camera.at = v), slide)
     slider(plBox.kit, 'pl-winglets', t('ctl.winglets'), R.winglets, () => pl().winglets, (v) => (pl().winglets = v), (v) => (v <= 0 ? t('opt.off') : cm(v)))
+    // The span in metres, tip to tip: the maker's is 2.1 m.
+    slider(plBox.kit, 'pl-wingSpan', t('ctl.wingSpan'), R.span, () => pl().span, (v) => (pl().span = v), (v) => `${fixed(v * PLANE_CLASS.survey.span, 2)} m`)
   }
 
   // The kit plane (PR 10q): the nose and wheels on the first tab, the wing, struts and pod on the second.

@@ -48,6 +48,12 @@ export interface PlaneDesign {
   winglets: number
   /** The tail's size, a share of the maker's tail. */
   tail: number
+  /**
+   * The wing's span, a share of the maker's (PR 10w, Kelbo, 16 November
+   * 2026). The chord stays the same, so a longer wing has more area: less
+   * drag from making lift, but more wing to drag and to carry.
+   */
+  span: number
 }
 
 /** Slider ranges. */
@@ -60,12 +66,13 @@ export const PLANE_RANGE = {
     at: { min: -1, max: 1, step: 0.1 },
     winglets: { min: 0, max: 0.2, step: 0.01 },
     tail: { min: 0.6, max: 1.4, step: 0.05 },
+    span: { min: 0.8, max: 1.25, step: 0.05 },
   },
 }
 
 /** The survey drone as the makers sell it: a short nose, a blunt tail cone, the camera on its full mount, no winglets, the maker's tail. */
 export const STOCK_PLANE: Record<PlaneClass, PlaneDesign> = {
-  survey: { sport: 'plane', class: 'survey', fuselage: { nose: 0.2, taper: 0.3 }, camera: { drop: 0.7, fairing: 0, at: 0 }, winglets: 0, tail: 1 },
+  survey: { sport: 'plane', class: 'survey', fuselage: { nose: 0.2, taper: 0.3 }, camera: { drop: 0.7, fairing: 0, at: 0 }, winglets: 0, tail: 1, span: 1 },
 }
 
 export interface PlaneClassSpec {
@@ -131,6 +138,16 @@ export const PLANE_AERO = {
   wingletGain: 2.5,
   wingletCdA: 0.002,
   wingletMass: 0.3,
+  /**
+   * The span slider (PR 10w). Span is added or cut at the tips, which taper:
+   * each metre brings this share of the chord's area. Each metre added
+   * weighs `spanMass` kg (a cut saves it), plus `spanBend` kg × the metres
+   * added, squared: a longer wing bends harder at the root, so its spar
+   * must be stiffer all the way along.
+   */
+  tipArea: 0.5,
+  spanMass: 0.1,
+  spanBend: 1.4,
   /** A full fairing's weight, kg, and the nose's per metre over the stock length, kg/m. */
   fairingMass: 0.08,
   noseMass: 0.4,

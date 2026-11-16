@@ -27,7 +27,7 @@ export type ControlId =
   | 'rideFront' | 'rideRear' | 'frontWing' | 'rearAngle' | 'rearChord' | 'diffuser' | 'floorEdge' | 'inlet'
   | 'noseLength' | 'noseDroop' | 'canopy' | 'fin' | 'fairings' | 'waist'
   | 'podLength' | 'podRake' | 'podVents' | 'armFairings'
-  | 'planeNose' | 'tailCone' | 'tailSize' | 'cameraDrop' | 'cameraFairing' | 'cameraAt' | 'winglets'
+  | 'planeNose' | 'tailCone' | 'tailSize' | 'cameraDrop' | 'cameraFairing' | 'cameraAt' | 'winglets' | 'wingSpan'
   | 'acCowling' | 'spats' | 'wingtips' | 'strutFairing' | 'strutToe' | 'acPodFairing' | 'acPodAt'
 
 const bike = (f: (d: CyclistDesign) => unknown) => (d: Design) => (isCyclist(d) ? f(d) : undefined)
@@ -102,6 +102,7 @@ const READ: Record<ControlId, (d: Design) => unknown> = {
   cameraFairing: plane((d) => d.camera.fairing),
   cameraAt: plane((d) => d.camera.at),
   winglets: plane((d) => d.winglets),
+  wingSpan: plane((d) => d.span),
   acCowling: kit((d) => d.cowling),
   spats: kit((d) => d.spats),
   wingtips: kit((d) => d.wingtips),

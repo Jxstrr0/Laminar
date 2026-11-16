@@ -25,7 +25,7 @@ import { describeShape } from './geom/body'
 import { planeShape } from './geom/plane'
 import { gaussian } from './noise'
 import { DEG } from './num'
-import { dragAtLift, gustLimit, gustTurn, planeRange, siteDensity, staticMargin } from './plane'
+import { dragAtLift, gustLimit, gustTurn, planeRange, siteDensity, staticMargin, wingArea } from './plane'
 import { blockageFactor, type MountKind } from './quirks'
 import { Rng } from './rng'
 import type { Run } from './run'
@@ -45,7 +45,7 @@ export interface PreparedPlane {
 }
 
 /** The wing's edge-on front, m²: span times thickness (its area times the section's thickness share). */
-const wingFront = (design: PlaneDesign) => PLANE_CLASS[design.class].wingArea * T.wingThickness
+const wingFront = (design: PlaneDesign) => wingArea(design) * T.wingThickness
 
 export function preparePlane(design: PlaneDesign, model: ModelSpec): PreparedPlane {
   const rng = new Rng(model.seed).fork('plane-build')
@@ -60,7 +60,7 @@ export function preparePlane(design: PlaneDesign, model: ModelSpec): PreparedPla
   }
 }
 
-/** The wing's chord, m, at full size. */
+/** The wing's chord, m, at full size: the maker's at the root (the span slider only changes the tapered tips). */
 const chord = (design: PlaneDesign) => PLANE_CLASS[design.class].wingArea / PLANE_CLASS[design.class].span
 
 /** The model wing's Reynolds number on its chord in the tunnel at `speed`. */

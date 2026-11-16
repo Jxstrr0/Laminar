@@ -64,7 +64,8 @@ import { Rng } from '../sim/rng'
 import { designPose, designShape, isAircraft, isBobsled, isCar, isDrone, isJumper, isPlane, isRecord, isTruck, type Design } from '../sim/design'
 import { AIRCRAFT_CLASS, type AircraftClass, type AircraftDesign, type Airfield } from '../data/aircraft'
 import { aircraftEvent, aircraftReadings, aircraftReynolds, correctAircraft, forecastAircraft, isAircraftRun, prepareAircraft, readAircraft, type AircraftFix, type AircraftForecast, type PreparedAircraft } from '../sim/aircraftTunnel'
-import { PLANE_CLASS, PLANE_TUNNEL, type PlaneClass, type PlaneDesign, type SurveySite } from '../data/plane'
+import { PLANE_TUNNEL, type PlaneClass, type PlaneDesign, type SurveySite } from '../data/plane'
+import { wingArea } from '../sim/plane'
 import { correctPlane, fieldReynolds, forecastPlane, isPlaneRun, modelReynolds, planeEvent, planeReadings, preparePlane, readPlane, type PlaneFix, type PlaneForecast, type PreparedPlane } from '../sim/planeTunnel'
 import { DRONE_RACE, DRONE_TUNNEL, type DroneClass, type DroneCourse, type DroneDesign } from '../data/drone'
 import { correctDrone, droneEvent, droneReadings, forecastDrone, isDroneRun, prepareDrone, readDrone, type DroneFix, type DroneForecast, type PreparedDrone } from '../sim/droneTunnel'
@@ -2178,7 +2179,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     }
     const r = readPlane(planeModel, tunnel, { speed: fan.speed, pitchDeg: table.angle, mount: 'sting' }, balanceRng)
     const s2 = planeModel.scale * planeModel.scale
-    const wing = PLANE_CLASS[design.class].wingArea
+    const wing = wingArea(design)
     // The load on the sting per pascal: the model's lift and drag together.
     loadArea = Math.hypot(r.cl * wing, r.cdA) * s2
     const c = correctPlane(r, planeFix(), planeModel, sectionArea)
