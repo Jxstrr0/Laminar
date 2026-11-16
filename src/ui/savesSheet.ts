@@ -2,7 +2,7 @@
  * The Saves sheet (plan section 13): three career slots, a new career in
  * any of them, and save codes to carry a career to another phone.
  * Switching careers reloads the page, so every screen starts clean from the
- * new save.
+ * new save. A backup file (PR 7h) holds the same save code as a text file.
  */
 import { t, type StringKey } from '../data/strings'
 import { decodeSave, encodeSave } from '../persist/code'
@@ -11,6 +11,7 @@ import { parseSave, type SaveFile } from '../persist/save'
 import { createSheet, type Sheet } from './sheet'
 import { twoTap } from './twoTap'
 import { rubles } from './format'
+import { backupDue, backupFileName, downloadText, markBackedUp, readMarks } from '../persist/backup'
 
 export interface SavesActions {
   /** The slot in play. */
@@ -23,6 +24,8 @@ export interface SavesActions {
   startOver(slot: number): Promise<void>
   /** Replace the slot in play with this career. */
   load(save: SaveFile): Promise<void>
+  /** A backup was just made (a file saved or the code copied). */
+  backedUp(): void
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
@@ -49,6 +52,7 @@ export async function openSaves(actions: SavesActions): Promise<void> {
   sheet ??= createSheet({ cls: 'saves', title: t('saves.title'), closeLabel: t('saves.close') })
   const body = sheet.body
   body.replaceChildren(el('p', 'shop-intro', t('saves.intro')))
+  if (backupDue(Date.now(), readMarks())) body.append(el('p', 'save-due', t('backup.due')))
 
   // Each slot as one row: its name and state, a summary, and what you can do with it.
   const list = el('ul', 'save-slots')
@@ -102,12 +106,18 @@ export async function openSaves(actions: SavesActions): Promise<void> {
   const loadStatus = el('p', 'shop-note')
   loadStatus.setAttribute('aria-live', 'polite')
 
+  const backedUp = () => {
+    markBackedUp(Date.now())
+    actions.backedUp()
+    showLast()
+  }
   copy.addEventListener('click', async () => {
     status.textContent = t('saves.busy')
     const text = await encodeSave(actions.current())
     try {
       await navigator.clipboard.writeText(text)
       status.textContent = t('saves.copied', { size: sizeOf(text) })
+      backedUp()
     } catch {
       // No clipboard (an old browser or a blocked permission): hand over the code to copy by hand.
       box.value = text
@@ -127,7 +137,53 @@ export async function openSaves(actions: SavesActions): Promise<void> {
     await actions.load(got.save)
   })
 
-  code.append(el('h3', 'save-code-title', t('saves.codeTitle')), el('p', 'shop-note', t('saves.codeNote')), copy, status, boxLabel, box, load, loadStatus)
-  body.append(code)
+  // A backup file to restore from: its code goes in the box, ready for Load.
+  const file = el('input', 'save-file')
+  file.type = 'file'
+  file.accept = '.txt,text/plain'
+  file.id = 'save-file'
+  const fileLabel = el('label', 'save-btn quiet save-file-label', t('backup.restore'))
+  fileLabel.htmlFor = file.id
+  file.addEventListener('change', async () => {
+    const picked = file.files?.[0]
+    file.value = ''
+    if (!picked) return
+    box.value = (await picked.text().catch(() => '')).trim()
+    loadStatus.textContent = box.value ? t('backup.read', { n: actions.slot }) : t('backup.unreadable')
+  })
+
+  code.append(
+    el('h3', 'save-code-title', t('saves.codeTitle')),
+    el('p', 'shop-note', t('saves.codeNote')),
+    copy,
+    status,
+    boxLabel,
+    box,
+    fileLabel,
+    file,
+    load,
+    loadStatus,
+  )
+
+  // The backup file: the save code in a text file, saved to the phone's downloads.
+  const backup = el('div', 'save-code')
+  const last = el('p', 'shop-note')
+  const showLast = () => {
+    const at = readMarks().backedUpAt
+    last.textContent = at ? t('backup.last', { when: savedAt(at) }) : t('backup.never')
+  }
+  showLast()
+  const save = button('shop-order', t('backup.download'))
+  const saveStatus = el('p', 'shop-note')
+  saveStatus.setAttribute('aria-live', 'polite')
+  save.addEventListener('click', async () => {
+    saveStatus.textContent = t('saves.busy')
+    const name = backupFileName(new Date())
+    downloadText(name, await encodeSave(actions.current()))
+    saveStatus.textContent = t('backup.saved', { name })
+    backedUp()
+  })
+  backup.append(el('h3', 'save-code-title', t('backup.title')), el('p', 'shop-note', t('backup.note')), last, save, saveStatus)
+  body.append(backup, code)
   sheet.open()
 }
