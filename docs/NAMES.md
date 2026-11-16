@@ -28,6 +28,7 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Stavren | The town where the firm starts; home of the university tunnel and the regional time trial. | PR 5c |
 | Lake Dolgo | A lake and ridge loop, site of a hill time trial. | PR 5c |
 | Kosa spit | A coastal spit with a sea-wall road, site of a windy time trial. | PR 5c |
+| Stavren Velodrome | An indoor 250 m track in Stavren. | PR 5h |
 
 ## Bodies
 
@@ -44,7 +45,8 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Oleg Brusnik | Veteran climber (Lake Dolgo Hill Time Trial). |
 | Yana Korolets | National team hopeful (Kosa Coast Time Trial). |
 | Ruslan Tvardov | Defending national time-trial champion (National Time Trial Championship). |
-| Stavren Regional Time Trial, Club 16 km Time Trial, Lake Dolgo Hill Time Trial, Kosa Coast Time Trial, National Time Trial Championship | The events above. |
+| Alina Vesnina | Track pursuiter on the national team (Track Championships: Individual Pursuit). PR 5h. |
+| Stavren Regional Time Trial, Club 16 km Time Trial, Lake Dolgo Hill Time Trial, Kosa Coast Time Trial, National Time Trial Championship, Track Championships: Individual Pursuit | The events above. |
 
 ## Still to name (later PRs)
 

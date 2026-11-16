@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BRIEFS } from '../src/data/briefs'
+import { BRIEFS, TRACK } from '../src/data/briefs'
 import { DEFAULT_CYCLIST } from '../src/data/cyclist'
 import { eventOf, newCareer, daySeed } from '../src/sim/career'
 import { riderEvent } from '../src/sim/cyclist'
@@ -46,12 +46,34 @@ describe('the race replay', () => {
     expect(windFeel(0, 90)).toBe('cross')
     expect(windFeel(90, 250)).toBe('tail')
     const { mine, old, mine$ } = rides()
-    const notes = replayNotes(mine, old, mine$.windFromDeg)
+    const notes = replayNotes(mine, old, { windFromDeg: mine$.windFromDeg, calm: false })
     expect(new Set(notes.map((n) => n.kind))).toEqual(new Set(['start', 'half', 'turn', 'meet', 'finish']))
     expect(notes[0]!.kind).toBe('start')
     expect(notes[notes.length - 1]!.kind).toBe('finish')
     expect(notes.some((n) => n.kind === 'turn')).toBe(true)
     expect(notes.some((n) => n.kind === 'meet')).toBe(true)
     for (let i = 1; i < notes.length; i++) expect(notes[i]!.t).toBeGreaterThanOrEqual(notes[i - 1]!.t)
+  })
+
+  it('rides laps of the indoor track and rings the bell', () => {
+    const brief = { id: 'vesnina-pursuit', fee: 120000, days: 18, seed: 77 }
+    const t = BRIEFS.find((b) => b.id === brief.id)!
+    const event = eventOf(brief)
+    expect(event.windSpeed).toBe(0)
+    const seed = daySeed(brief)
+    const mine$ = fieldResult(cyclistShape(DEFAULT_CYCLIST), riderEvent(DEFAULT_CYCLIST, event), seed)
+    const old$ = fieldResult(cyclistShape(t.setup), riderEvent(t.setup, event), seed)
+    expect(mine$.windSpeed).toBe(0)
+    const mine: Ride = { course: event.course, segments: mine$.segments }
+    const old: Ride = { course: event.course, segments: old$.segments }
+    expect(mine$.distance).toBeCloseTo(4000, 6)
+    // Every lap comes back to the start line.
+    const lapTime = timeAt(mine, TRACK.lap)
+    const back = trackAt(mine, lapTime)
+    expect(Math.hypot(back.x, back.z)).toBeLessThan(1e-6)
+    const notes = replayNotes(mine, old, { windFromDeg: mine$.windFromDeg, calm: true, lap: TRACK.lap })
+    expect(notes.map((n) => n.kind)).toEqual(['start', 'half', 'bell', 'finish'])
+    expect(notes[0]).toMatchObject({ kind: 'start', wind: null })
+    expect(notes[2]!.t).toBeCloseTo(timeAt(mine, 4000 - TRACK.lap), 6)
   })
 })

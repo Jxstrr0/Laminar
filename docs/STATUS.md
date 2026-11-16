@@ -27,11 +27,24 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 5e | Promise and prediction, the debrief, payment and penalties | **Done** (v0.5.4.0) |
 | 5f | Sealed bids against a rival firm | **Done** (v0.5.5.0) |
 | 5g | Time-trial replay | **Done** (v0.5.6.0) |
-| 5h | Velodrome | Next |
-| 5i | Guided first job | Not started |
+| 5h | Velodrome | **Done** (v0.5.7.0) |
+| 5i | Guided first job | Next |
 | 6–14 | See the plan | Not started |
 
 ## Versions
+
+- **0.5.7.0** (PR 5h): the velodrome.
+  - A new brief: **Alina Vesnina**, a track pursuiter, riding the 4 km
+    individual pursuit at the indoor **Stavren Velodrome**. Still air, so
+    her promise is about drag straight on; she already rides deep and disc
+    wheels and a sloping position, so the cut is harder to find (−5 %).
+  - The track is a 250 m oval (two straights, two bends), 16 laps. Brief
+    cards say "Indoors" for the wind.
+  - The replay on the track uses a broadcast camera high over the end of the
+    oval, so the whole lap fits a phone held upright. Rings under the riders
+    (cobalt for yours, grey for the old setup) make them easy to spot.
+  - The readout counts laps ("Lap 9 of 16") and says "Still air"; the
+    commentator rings the bell for the last lap. The strip ticks each lap.
 
 - **0.5.6.0** (PR 5g): race day plays out.
   - After "Lock it in and race", a short 3D replay (about 22 seconds) shows

@@ -23,6 +23,8 @@ export interface ReplayInput {
   result: FieldResult
   baseline: FieldResult
   predicted: number
+  /** On the indoor track: the lap length, m. */
+  lap?: number
   /** Called when the replay closes, whether watched to the end or skipped. */
   onDone(): void
 }
@@ -47,7 +49,9 @@ const feel = (w: WindFeel) => t(`replay.feel.${w}`)
 function noteText(n: ReplayNote, input: ReplayInput): string {
   switch (n.kind) {
     case 'start':
-      return t('replay.note.start', { client: input.client, wind: feel(n.wind) })
+      return n.wind ? t('replay.note.start', { client: input.client, wind: feel(n.wind) }) : t('replay.note.startStill', { client: input.client })
+    case 'bell':
+      return t('replay.note.bell', { gap: gapText(n.gap) })
     case 'turn':
       return t('replay.note.turn', { km: fixed(n.km, 0), wind: feel(n.wind) })
     case 'half':
@@ -74,7 +78,10 @@ export async function playReplay(input: ReplayInput): Promise<void> {
   const old: Ride = { course: input.course, segments: input.baseline.segments }
   const length = input.course.reduce((s, c) => s + c.length, 0)
   const duration = Math.max(rideTime(mine), rideTime(old))
-  const notes = replayNotes(mine, old, input.result.windFromDeg)
+  const calm = input.result.windSpeed < REPLAY.calm
+  const notes = replayNotes(mine, old, { windFromDeg: input.result.windFromDeg, calm, lap: input.lap })
+  const laps = input.lap ? Math.round(length / input.lap) : 0
+  const playSeconds = input.lap ? REPLAY.trackSeconds : REPLAY.seconds
 
   const root = el('div', 'replay')
   root.setAttribute('role', 'dialog')
@@ -99,14 +106,19 @@ export async function playReplay(input: ReplayInput): Promise<void> {
   reads.append(clock.box, dist.box, speed.box, wind.box, gap.box)
   const line = el('p', 'replay-line')
   line.setAttribute('aria-live', 'polite')
-  // Progress along the course: both riders as dots, with a tick at each turn.
+  // Progress along the course: both riders as dots.
   const strip = el('div', 'replay-strip')
   strip.setAttribute('aria-hidden', 'true')
-  let along = 0
-  for (const seg of input.course.slice(0, -1)) {
-    along += seg.length
+  // Ticks at each turn on the road, or at each lap on the track.
+  const ticks: number[] = []
+  if (input.lap) for (let d = input.lap; d < length - 1e-6; d += input.lap) ticks.push(d)
+  else {
+    let along = 0
+    for (const seg of input.course.slice(0, -1)) ticks.push((along += seg.length))
+  }
+  for (const d of ticks) {
     const tick = el('span', 'replay-tick')
-    tick.style.left = `${(along / length) * 100}%`
+    tick.style.left = `${(d / length) * 100}%`
     strip.append(tick)
   }
   const dotOld = el('span', 'replay-dot is-old')
@@ -127,7 +139,7 @@ export async function playReplay(input: ReplayInput): Promise<void> {
   const view = createReplayView(stage)
   const panelWatch = new ResizeObserver(() => view.setInset(panel.offsetHeight))
   panelWatch.observe(panel)
-  view.setCourse(input.course, input.result.windFromDeg)
+  view.setCourse(input.course, { windFromDeg: input.result.windFromDeg, calm, lap: input.lap })
   view.setRiders(input.design, input.setup)
 
   let raf = 0
@@ -143,9 +155,13 @@ export async function playReplay(input: ReplayInput): Promise<void> {
     view.place(me, them, reduce ? 1e3 : dt)
     view.render()
     clock.value.textContent = raceTime(Math.min(raceT, rideTime(mine)))
-    dist.value.textContent = `${fixed(me.distance / 1000, 1)} km`
+    dist.value.textContent = laps
+      ? t('replay.lap', { n: Math.min(laps, Math.floor(me.distance / input.lap!) + 1), laps })
+      : `${fixed(me.distance / 1000, 1)} km`
     speed.value.textContent = `${fixed(me.speed * 3.6, 1)} km/h`
-    wind.value.textContent = t(`replay.wind.${windFeel(me.heading, input.result.windFromDeg)}`, { yaw: fixed(Math.abs(me.yawDeg), 0) })
+    wind.value.textContent = calm
+      ? t('replay.wind.still')
+      : t(`replay.wind.${windFeel(me.heading, input.result.windFromDeg)}`, { yaw: fixed(Math.abs(me.yawDeg), 0) })
     gap.value.textContent = gapText(gapAt(mine, old, raceT))
     dotMine.style.left = `${(me.distance / length) * 100}%`
     dotOld.style.left = `${(them.distance / length) * 100}%`
@@ -170,7 +186,7 @@ export async function playReplay(input: ReplayInput): Promise<void> {
     if (!started) started = last = now
     const dt = (now - last) / 1000
     last = now
-    const raceT = ((now - started) / 1000) * (duration / REPLAY.seconds)
+    const raceT = ((now - started) / 1000) * (duration / playSeconds)
     if (raceT >= duration) {
       finish()
       return
