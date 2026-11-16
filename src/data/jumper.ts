@@ -139,3 +139,21 @@ export const JUMPER_COST = {
   /** A tailored suit costs more the roomier it's cut. */
   suit: { mass: 0.6, price: 18000, pricePerBag: 14000 },
 } as const
+
+/**
+ * The jumper in the tunnel (PR 8e): the model sits on a sting that pitches
+ * it through the flight's angles, and the balance reads lift, drag and the
+ * pitch moment about the hips. A forecast flies the reference jump on what
+ * the balance read, joining the angles measured with straight lines.
+ */
+export const JUMP_TUNNEL = {
+  /** The sting's pitch dial, degrees (the skis' angle to the air). */
+  pitch: { min: 6, max: 44, step: 1 },
+  /** Readings within this many degrees count as the same angle. */
+  sameAngle: 0.25,
+  /**
+   * A forecast needs readings across the angles the flight passes through,
+   * give or take this many degrees at each end.
+   */
+  coverSlack: 1,
+}

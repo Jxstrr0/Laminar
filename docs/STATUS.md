@@ -47,13 +47,28 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 8b | The skater on screen, skating briefs | **Done** (v0.8.1.0) |
 | 8c | Ski jump in the sim | **Done** (v0.8.2.0) |
 | 8d | Ski jump on Shape: the jumper's figure, controls and readouts; a preview link | **Done** (v0.8.3.0) |
-| 8e | Ski jump in the tunnel: the pitch sweep, lift and stability readings, the distance forecast | Next |
-| 8f | Ski-jump flight replay and ski-jump briefs (normal hill, then large) | Not started |
-| 8g–8h | Bobsled | Not started |
+| 8e | Ski jump in the tunnel, part 1: readings and the distance forecast (sim) | **Done** (v0.8.4.0) |
+| 8f | Ski jump in the tunnel, part 2: the pitch dial, readings and forecast on screen | Next |
+| 8g | Ski-jump flight replay and ski-jump briefs (normal hill, then large) | Not started |
+| 8h–8i | Bobsled | Not started |
 | 9–14 | See the plan | Not started |
 
 ## Versions
 
+- **0.8.4.0** (PR 8e): the ski jumper in the tunnel, sim side.
+  - The balance reads a jumper model on a pitching sting: lift, drag and the
+    pitch moment about the hips, scaled to full size (`src/sim/jumpTunnel.ts`).
+    Blockage, the sting's own drag, build errors and the balance's noise all
+    reach the readings.
+  - The plates lift from their edges, so they read the same at any scale.
+    The helmet and boots don't: on a small, slow model they read draggier
+    than on the hill, and the forecast lands a few metres short. A bigger
+    model or a faster run gets closer.
+  - The forecast flies the reference jump on the readings (straight lines
+    between the angles read). Its distance is the number you'll declare; its
+    lowest margin is the tunnel's word on stability; it says when the sweep
+    doesn't cover the angles the flight passes through.
+  - Nothing new on screen yet: the tunnel screen gets the pitch dial in PR 8f.
 - **0.8.3.0** (PR 8d): the ski jumper on the Shape screen.
   - The jumper joins the game's designs, so saves, save codes, the run
     report and the model shop all know it (`src/sim/design.ts`). The suit is
@@ -69,9 +84,9 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
   - Kelbo chose (16 November 2026) that a jumper's declared number is the
     predicted distance; PR 8e builds it from the tunnel's readings.
   - Preview: `?try=skijump` opens a throwaway career with a jumper on the
-    bench, saving nothing, until the ski-jump briefs arrive in PR 8f. Its
-    tunnel still shows the last model (the pitch sweep is PR 8e).
-  - To revisit with the briefs (8f): a flat lean, a wide V and a roomy suit
+    bench, saving nothing, until the ski-jump briefs arrive in PR 8g. Its
+    tunnel still shows the last model (the pitch dial is PR 8f).
+  - To revisit with the briefs (8g): a flat lean, a wide V and a roomy suit
     reach about 116 m on the 98 m normal hill in still air, past the hill size.
 - **0.8.2.0** (PR 8c): the ski jumper in the sim.
   - A jumper's design: body lean, ski V-angle and suit bagginess
