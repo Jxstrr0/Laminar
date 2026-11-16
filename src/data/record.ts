@@ -19,10 +19,20 @@
  * - The wheel fairings: how much of each wheel they cover. Covered wheels
  *   are far less draggy, but the front ones add side area ahead of the mass.
  *
- * Lengths in metres, areas m², angles degrees, masses kg, powers W.
+ * The jet car (PR 9w) is the last class: pushed by a jet engine rather than
+ * driven through its wheels, chasing the sound barrier, and through it
+ * (Kelbo, 16 November 2026: "through the sound barrier"). On top of the
+ * streamliner's parts the firm shapes its waist (Kelbo: "a waist (area
+ * rule)"): pinching the body where the engine sits lets the air squeeze
+ * later and less, but pinch past the engine's room and it loses thrust.
+ * Right at Mach 1 the shock under the nose lifts it: droop that held the
+ * nose down below the barrier may not hold it there. The tunnel sees
+ * neither.
+ *
+ * Lengths in metres, areas m², angles degrees, masses kg, powers W, thrust N.
  */
 
-export type RecordClass = 'streamliner'
+export type RecordClass = 'streamliner' | 'jet'
 
 export interface RecordDesign {
   sport: 'record'
@@ -36,6 +46,8 @@ export interface RecordDesign {
   fin: number
   /** How much of each wheel the fairings cover, 0 (open) to 1 (enclosed). */
   fairings: number
+  /** How far the body is pinched where the engine sits, 0 (straight) to 1 (the most). Only a jet car has one; a streamliner's stays 0. */
+  waist: number
 }
 
 /** Slider ranges. */
@@ -46,27 +58,62 @@ export const RECORD_RANGE = {
     canopy: { min: 0.15, max: 0.45, step: 0.01 },
     fin: { min: 0, max: 1.4, step: 0.05 },
     fairings: { min: 0, max: 1, step: 0.05 },
+    waist: { min: 0, max: 0, step: 0.05 },
+  },
+  jet: {
+    length: { min: 2, max: 5, step: 0.1 },
+    droop: { min: -2, max: 6, step: 0.5 },
+    canopy: { min: 0.15, max: 0.45, step: 0.01 },
+    fin: { min: 0, max: 3, step: 0.05 },
+    fairings: { min: 0, max: 1, step: 0.05 },
+    waist: { min: 0, max: 1, step: 0.05 },
   },
 } as const
 
-/** What each class is, before any aero is shaped. */
-export const RECORD_CLASS = {
+/** What a class of record car is, before any aero is shaped. */
+export interface RecordClassSpec {
+  /** With the driver, kg, and the share of it on the front axle. */
+  mass: number
+  massFront: number
+  /** Engines at the wheels, W, with the tyres' grip on salt (all four drive); or a jet's thrust, N (the wheels only roll). One of power and thrust is 0. */
+  power: number
+  grip: number
+  thrust: number
+  /** The body behind the nose cone: its length and height, m; the axles and the mass, m back from where the nose cone joins. */
+  body: { length: number; height: number; frontAxle: number; rearAxle: number; mass: number }
+  /** The bare body's drag area, m² (no nose cone, canopy, fin or wheels). */
+  bodyCdA: number
+  /** Lift at each end of the bare body, m² of lift (a long body near the ground lifts like a wing). */
+  lift: { front: number; rear: number }
+}
+
+export const RECORD_CLASS: Record<RecordClass, RecordClassSpec> = {
   streamliner: {
-    /** With the driver, kg, and the share of it on the front axle. */
     mass: 2500,
     massFront: 0.45,
-    /** The engines at the wheels, W. */
     power: 900_000,
-    /** Tyre grip on salt (friction coefficient). All four wheels drive. */
     grip: 0.45,
-    /** The body behind the nose cone: its length and height, m; the axles and the mass, m back from where the nose cone joins. */
+    thrust: 0,
     body: { length: 8, height: 0.9, frontAxle: 1.4, rearAxle: 7, mass: 3.2 },
-    /** The bare body's drag area, m² (no nose cone, canopy, fin or wheels). */
     bodyCdA: 0.06,
-    /** Lift at each end of the bare body, m² of lift (a long body near the ground lifts like a wing). */
     lift: { front: 0.2, rear: 0.05 },
   },
-} as const
+  /**
+   * The jet car (PR 9w): a long tube round one jet engine, the driver ahead
+   * of it, on solid wheels. Heavy, so the nose is harder to lift, but the
+   * air pushes far harder at its speeds. The body is shaped to sit down.
+   */
+  jet: {
+    mass: 7500,
+    massFront: 0.42,
+    power: 0,
+    grip: 0,
+    thrust: 81_000,
+    body: { length: 12, height: 1.3, frontAxle: 1.6, rearAxle: 10.5, mass: 6.2 },
+    bodyCdA: 0.42,
+    lift: { front: -0.1, rear: 0.05 },
+  },
+}
 
 /** How the parts behave. */
 export const RECORD_AERO = {
@@ -103,14 +150,17 @@ export const RECORD_SIDE = {
   /** The body's side: its area × this, at this share of its length back. */
   bodyGain: 0.5,
   bodyAt: 0.4,
-  /** The canopy: its height × this length, m, at this far back along the body. */
+  /** The canopy: its height × this length, m, at this far back along the body (each class's own `at`). */
   canopyLength: 1.2,
-  canopyAt: 2.2,
   /** Each axle's fairings add this side area when fully covering, m². */
   fairingArea: 0.35,
-  /** The fin is a wing on its side: its area × this, at this far back along the body. */
+  /** The fin is a wing on its side: its area × this, at this far back along the body (each class's own `at`). */
   finGain: 3,
-  finAt: 7.6,
+  /** Where the canopy and the fin push, m back from where the nose cone joins. */
+  at: {
+    streamliner: { canopy: 2.2, fin: 7.6 },
+    jet: { canopy: 2, fin: 11.4 },
+  },
   /** The driver holds the car straight with the side force at least this share of the car's length behind the mass, plus this much per m/s of crosswind. */
   margin: 0.012,
   perCross: 0.006,
@@ -123,23 +173,41 @@ export const RECORD_SIDE = {
  * above a critical Mach number the drag grows as rise × (how far past the
  * critical Mach, as a share of the way to Mach 1)². A longer nose lets the
  * air squeeze later. The tunnel never runs fast enough to see it.
+ *
+ * The jet car (PR 9w) goes further. Its waist (the area rule) lets the air
+ * squeeze later and cuts how high the drag climbs; past Mach 1 the drag
+ * eases off a little from its peak. Near Mach 1 a shock forms under the
+ * nose and lifts it.
  */
 export const COMPRESSIBILITY = {
   /** Air's ratio of specific heats. */
   gamma: 1.4,
-  /** The critical Mach number with a nose of `refNose` m, and how much each metre more raises it. */
-  critical: 0.5,
-  refNose: 1.5,
-  perNose: 0.01,
-  rise: 6,
+  /**
+   * For each class: the critical Mach number with a nose of `refNose` m and
+   * no waist, how much each metre more of nose and the whole waist raise
+   * it, the drag's climb by Mach 1, and the share of that climb the whole
+   * waist takes away. With `fineness`, the climb also shrinks as the
+   * square of how much longer than `refNose` the nose is (a slender car
+   * makes weaker shocks).
+   */
+  classes: {
+    streamliner: { critical: 0.5, refNose: 1.5, perNose: 0.01, perWaist: 0, rise: 6, waistCut: 0, fineness: false },
+    jet: { critical: 0.7, refNose: 3, perNose: 0.03, perWaist: 0.1, rise: 2.9, waistCut: 0.6, fineness: true },
+  },
+  /** Past Mach 1 the drag's climb eases off by this share per 0.1 of Mach, down to `floor` of it. */
+  supersonic: { fall: 0.15, floor: 0.6 },
+  /** The shock under the nose: this much front lift, m², at Mach 1, gone by `width` of Mach either side. */
+  shock: { lift: 0.12, width: 0.06 },
+  /** A waist past `room` of the most pinch crowds the engine: each share more of pinch loses `thrust` of the thrust. */
+  waist: { room: 0.6, thrust: 0.5 },
 } as const
 
 /** The run (PR 9p): a run-up, the timed kilometre, then the chutes. */
 export const RECORD_RUN = {
   /** Worked out every this many metres. */
   step: 5,
-  /** The run-up before the timed kilometre, and the timed distance, m. */
-  runUp: 8000,
+  /** The run-up before the timed kilometre for each class (a jet car takes far longer to reach its speed), and the timed distance, m. */
+  runUp: { streamliner: 8000, jet: 14000 },
   timed: 1000,
   /** Rolling resistance on salt (share of the load). */
   rolling: 0.015,
@@ -157,6 +225,8 @@ export const RECORD_RUN = {
  */
 export const RECORD_BODY = {
   streamliner: { half: 0.55, ride: 0.12, canopyFrom: 1.6, canopyTo: 3, taper: 2.2, tailHalf: 0.18, wheel: 0.38, track: 0.62 },
+  /** The jet car: a wider tube ending in the engine's nozzle. */
+  jet: { half: 0.7, ride: 0.15, canopyFrom: 1.2, canopyTo: 2.8, taper: 2.5, tailHalf: 0.45, wheel: 0.45, track: 0.8 },
 } as const
 
 /**
@@ -217,5 +287,15 @@ export const STOCK_RECORD: Record<RecordClass, RecordDesign> = {
     canopy: 0.35,
     fin: 0.5,
     fairings: 0.3,
+    waist: 0,
+  },
+  jet: {
+    sport: 'record',
+    class: 'jet',
+    nose: { length: 3, droop: 2 },
+    canopy: 0.35,
+    fin: 2.2,
+    fairings: 0.5,
+    waist: 0,
   },
 }

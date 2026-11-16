@@ -145,7 +145,7 @@ export function buildRecord(design: RecordDesign, look: RecordLook): THREE.Group
   if (design.fin > 0.01) {
     const height = Math.sqrt(design.fin * DRAW.finAspect)
     const chord = design.fin / height
-    const mid = n + RECORD_SIDE.finAt
+    const mid = n + RECORD_SIDE.at[design.class].fin
     const base = axis + half * fullnessAt(design, mid) - 0.02
     const x0 = recordX(design, mid - chord / 2)
     const x1 = recordX(design, mid + chord / 2)
