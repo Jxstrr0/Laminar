@@ -38,6 +38,7 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Lake Sukhoye | A dry salt lake in Tarnovia's south, some 20 km long: the land-speed course. | PR 9p |
 | Lugovoy meadow | A meadow outside Stavren: the drone club's gate course. | PR 10a |
 | Ozimka fields | A farm co-operative's wheat fields east of Stavren: the survey drones' site. | PR 10i |
+| Belyanka airfield | A grass strip and a tarmac one north of Stavren: home to the flying club and the kit builders. | PR 10p |
 | Belogor | A ski-jump venue with a normal hill (HS 98) and a large hill (HS 134), and a sliding track on the same mountain. | PR 8g, 8h, 8l |
 
 ## Bodies
@@ -101,6 +102,7 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Alina Tropova | Chief pilot at Vekha Geodata (Ozimka crop survey). PR 10m. |
 | Vekha Geodata | Maps pipeline routes with survey drones. PR 10m. |
 | Ozimka crop survey | A survey contract over the Ozimka fields: range on one charge at survey speed. PR 10m. |
+| Lastochka Aero | Makes the Lastochka L-2, a two-seat high-wing kit plane on struts. PR 10p. |
 | Stavren Regional Time Trial, Club 16 km Time Trial, Lake Dolgo Hill Time Trial, Kosa Coast Time Trial, National Time Trial Championship, Track Championships: Individual Pursuit, Stavren Open: 10 000 m, Lake Dolgo Ice Marathon, Belogor Junior Cup, Belogor Winter Cup, Tarnovian Large Hill Championship, Belogor Club Cup: two-man, Tarnovian Two-man Championship, Tarnovian Four-man Championship, Kovyl Haulage fuel trial, Volok Freight fuel trial, Prichal Logistics fuel trial | The events above. |
 
 ## Rival firms (PR 7)
