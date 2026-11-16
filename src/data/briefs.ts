@@ -18,6 +18,7 @@ import { STOCK_CAR, type CarClass, type CarDesign } from './car'
 import type { Circuit } from './circuits'
 import { STOCK_RECORD, type RecordDesign } from './record'
 import { STOCK_DRONE, type DroneCourse, type DroneDesign } from './drone'
+import { STOCK_PLANE, type PlaneDesign, type SurveySite } from './plane'
 import type { SaltFlat } from './saltFlats'
 
 /** How a career starts, and how the brief board works. */
@@ -135,6 +136,12 @@ export interface EventTemplate {
    * `spread.temperature` says how far race day's air strays from it.
    */
   drone?: { course: DroneCourse['id'] }
+  /**
+   * A survey contract (PR 10m): the fields the plane maps. `temperature`
+   * and `altitude` copy the site's usual day for the brief card, and
+   * `spread.temperature` says how far survey day's air strays from it.
+   */
+  plane?: { site: SurveySite['id'] }
 }
 
 export interface BriefTemplate {
@@ -283,6 +290,35 @@ export const DRONE_JOBS = {
   declared: { min: 30, max: 120 },
 }
 
+/**
+ * Survey-drone jobs (PR 10m; Kelbo, 16 November 2026: "range on a
+ * charge"): farms and mapping firms mid-career. The promise is kilometres
+ * gained on one battery at survey speed on the site's usual day, over the
+ * client's own plane on paper; a plane that stalls in the usual gust on a
+ * turn spins into the crop and gains nothing (the drone breaks, nobody is
+ * hurt). One point is a kilometre. The declared number is the new plane's
+ * range.
+ *
+ * Survey day is the show: its air, and its strongest gust on a turn, which
+ * comes somewhere along the flight. A plane that can't ride that gust out
+ * lands in the crop there.
+ *
+ * Closed to the board until PR 10n puts them on it.
+ */
+export const PLANE_JOBS = {
+  open: false,
+  /** Kilometres in one promised point. */
+  pointKm: 1,
+  /** A survey bid's promise moves in these points: a kilometre. */
+  promiseStep: 1,
+  /** The ranges the Deliver sheet takes, km. */
+  declared: { min: 20, max: 300 },
+  /** Survey day's strongest gust on a turn strays this far from the site's usual one (standard deviation), m/s. */
+  gustSpread: 0.4,
+  /** It comes somewhere between these shares of the way through the flight. */
+  gustAt: { min: 0.15, max: 0.9 },
+}
+
 /** The indoor 400 m ice oval (PR 8b): longer straights than the velodrome, skated anticlockwise too. */
 export const OVAL = {
   lap: 400,
@@ -355,6 +391,8 @@ const car = (cls: CarClass, change: Partial<Omit<CarDesign, 'sport' | 'class'>> 
 const streamliner = (change: Partial<Omit<RecordDesign, 'sport' | 'class'>> = {}): RecordDesign => ({ ...STOCK_RECORD.streamliner, ...change })
 /** A pilot's quad: the club racer with the changes they've already made. */
 const quad = (pod: Partial<DroneDesign['pod']> = {}, arms = STOCK_DRONE.racer.arms): DroneDesign => ({ ...STOCK_DRONE.racer, pod: { ...STOCK_DRONE.racer.pod, ...pod }, arms })
+
+const plane = (change: Partial<Omit<PlaneDesign, 'sport' | 'class'>> = {}): PlaneDesign => ({ ...STOCK_PLANE.survey, ...change })
 
 const jetCar = (change: Partial<Omit<RecordDesign, 'sport' | 'class'>> = {}): RecordDesign => ({ ...STOCK_RECORD.jet, ...change })
 
@@ -1016,5 +1054,78 @@ export const BRIEFS: readonly BriefTemplate[] = [
     minRep: 20,
     // A second: a long pod raked right up with faired arms tumbles braking, so it has to come shorter.
     target: 10,
+  },
+  // Survey drones (PR 10m): farms and mapping firms mid-career, all at the Ozimka fields.
+  {
+    id: 'kolos-survey',
+    client: 'Daria Kolos',
+    who: 'Agronomist for the Ozimka farm co-operative; flies its survey plane over the wheat every week',
+    goal: 'One battery doesn’t quite cover the north fields, so I land, swap and lose the light. Get me the rest of the way on one charge.',
+    event: {
+      name: 'Ozimka crop survey',
+      place: 'Ozimka fields',
+      temperature: 16,
+      altitude: 180,
+      windSpeed: 0,
+      riderSpeed: 16,
+      spread: { temperature: 4, wind: 0, power: 0 },
+      course: [],
+      plane: { site: 'ozimka' },
+    },
+    rider: { power: 0, mass: 0 },
+    setup: plane(),
+    fee: { min: 90000, max: 120000 },
+    days: 18,
+    minRep: 30,
+    // 15 km: the camera tucked to the rule and faired does most of it.
+    target: 15,
+  },
+  {
+    id: 'pashnya-survey',
+    client: 'Lev Borozdin',
+    who: 'Runs Pashnya Mapping, three survey planes for hire; hung a bigger camera on its full mount, bare',
+    goal: 'The new camera takes lovely pictures and eats the battery. Clients pay by the hectare. Win me back the range.',
+    event: {
+      name: 'Ozimka crop survey',
+      place: 'Ozimka fields',
+      temperature: 16,
+      altitude: 180,
+      windSpeed: 0,
+      riderSpeed: 16,
+      spread: { temperature: 4, wind: 0, power: 0 },
+      course: [],
+      plane: { site: 'ozimka' },
+    },
+    rider: { power: 0, mass: 0 },
+    setup: plane({ camera: { drop: 1, fairing: 0, at: 0 } }),
+    fee: { min: 110000, max: 150000 },
+    days: 20,
+    minRep: 40,
+    // 20 km: tucked and faired, then the nose, tail cone and winglets.
+    target: 20,
+  },
+  {
+    id: 'vekha-survey',
+    client: 'Alina Tropova',
+    who: 'Chief pilot at Vekha Geodata, who map pipeline routes; their engineers cut the tail down and stretched the nose for range',
+    goal: 'It flies further on paper. We’ve lost two in the wheat on the turns this month. Keep the range and stop it spinning in.',
+    event: {
+      name: 'Ozimka crop survey',
+      place: 'Ozimka fields',
+      temperature: 16,
+      altitude: 180,
+      windSpeed: 0,
+      riderSpeed: 16,
+      spread: { temperature: 4, wind: 0, power: 0 },
+      course: [],
+      plane: { site: 'ozimka' },
+    },
+    rider: { power: 0, mass: 0 },
+    setup: plane({ fuselage: { nose: 0.3, taper: 0.6 }, tail: 0.75 }),
+    fee: { min: 140000, max: 190000 },
+    days: 22,
+    minRep: 50,
+    // 12 km over their plane on paper: the tail has to grow back, so the rest must pay for it.
+    target: 12,
   },
 ]

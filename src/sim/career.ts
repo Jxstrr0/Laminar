@@ -21,11 +21,13 @@
  */
 import { RECORD_TUNNEL, STOCK_RECORD, type RecordClass, type RecordDesign } from '../data/record'
 import { STOCK_DRONE, type DroneClass, type DroneCourse, type DroneDesign } from '../data/drone'
-import { STOCK_PLANE, SURVEY_SITES, type PlaneClass, type PlaneDesign, type SurveySite } from '../data/plane'
+import { STOCK_PLANE, type PlaneClass, type PlaneDesign, type SurveySite } from '../data/plane'
+import { cameraTooHigh } from './plane'
+import { dragScaleForRange, looseFix, planeEventFrom, PRACTICE_SITE, surveyDay, surveyDragArea, surveyFlight, usualDay, type PlaneEvent, type SurveyDay, type SurveyFlight } from './planeJob'
 import { droneRace, type DroneRace } from './drone'
 import { dragScaleForTime, droneDayAir, droneEventFrom, heatCost, PRACTICE_COURSE, raceDragArea, type DroneEvent } from './droneJob'
 import type { SaltFlat } from '../data/saltFlats'
-import { BID, BRIEFS, CAREER, CAR_JOBS, DRONE_JOBS, JUMP_JOBS, PROMISE, RECORD_JOBS, SLED_JOBS, TRUCK_JOBS, type BriefTemplate } from '../data/briefs'
+import { BID, BRIEFS, CAREER, CAR_JOBS, DRONE_JOBS, JUMP_JOBS, PLANE_JOBS, PROMISE, RECORD_JOBS, SLED_JOBS, TRUCK_JOBS, type BriefTemplate } from '../data/briefs'
 import { recordAero, recordDayAir, sightLoss, soundSpeed, twoWay, type RecordAttempt, type RecordDay } from './record'
 import { dragScaleForSpeed, PRACTICE_FLAT, recordEventFrom, sightCost, stillAttempt, type RecordEvent } from './recordJob'
 import type { BobsledDesign } from '../data/bobsled'
@@ -159,6 +161,7 @@ export function openTo(b: BriefTemplate, reputation: number): boolean {
   if (b.event.car && !CAR_JOBS.open) return false
   if (b.event.record && !RECORD_JOBS.open) return false
   if (b.event.drone && !DRONE_JOBS.open) return false
+  if (b.event.plane && !PLANE_JOBS.open) return false
   return (b.minRep ?? 0) <= reputation
 }
 
@@ -224,6 +227,16 @@ export function isDroneBrief(id: string): boolean {
 /** A quad brief's club race. Null for any other brief. */
 export function droneEventOf(brief: Pick<Brief, 'id'>): DroneEvent | null {
   return droneEventFrom(template(brief.id))
+}
+
+/** True for a survey-drone brief: its promise is kilometres of range, its declaration a range. */
+export function isPlaneBrief(id: string): boolean {
+  return briefTemplate(id)?.event.plane !== undefined
+}
+
+/** A survey brief's contract. Null for any other brief. */
+export function planeEventOf(brief: Pick<Brief, 'id'>): PlaneEvent | null {
+  return planeEventFrom(template(brief.id))
 }
 
 /** A record brief's speed week. Null for any other brief. */
@@ -434,14 +447,19 @@ export function currentDroneRun(state: CareerState, cls: DroneClass): { course: 
   return { course: currentDroneEvent(state).course, old: setup && setup.sport === 'drone' && setup.class === cls ? setup : STOCK_DRONE[cls] }
 }
 
+/** The survey a plane is built for: the job's, or the Ozimka fields on their usual day between jobs. */
+export function currentPlaneEvent(state: CareerState): PlaneEvent {
+  return (state.job && planeEventOf(state.job.brief)) ?? PRACTICE_SITE
+}
+
 /**
  * The site a survey drone is forecast at and the client's plane it's
- * measured against (PR 10j): the Ozimka fields and the maker's plane as
- * sold, until survey jobs bring their own (a later PR).
+ * measured against: the job's (PR 10m), or the maker's plane as sold at the
+ * Ozimka fields between jobs.
  */
 export function currentPlaneRun(state: CareerState, cls: PlaneClass): { site: SurveySite; old: PlaneDesign } {
   const setup = state.job ? template(state.job.brief.id).setup : null
-  return { site: SURVEY_SITES.ozimka, old: setup && setup.sport === 'plane' && setup.class === cls ? setup : STOCK_PLANE[cls] }
+  return { site: currentPlaneEvent(state).site, old: setup && setup.sport === 'plane' && setup.class === cls ? setup : STOCK_PLANE[cls] }
 }
 
 /** The speed week a record car is built for: the job's, or Lake Sukhoye on its usual day between jobs. */
@@ -526,7 +544,7 @@ export function promiseLimits(id: string): { min: number; max: number } {
 export function clampBid(id: string, bid: Bid): Bid {
   const b = template(id)
   const price = Math.min(b.fee.max, Math.max(b.fee.min, roundTo(bid.price, BID.priceStep)))
-  // A sled's promise moves in hundredths of a second, a car's and a quad's in tenths, a record car's 2 km/h at a time.
+  // A sled's promise moves in hundredths of a second, a car's and a quad's in tenths, a record car's 2 km/h at a time, a survey drone's a kilometre.
   const step = isSledBrief(id)
     ? SLED_JOBS.promiseStep
     : isCarBrief(id)
@@ -535,7 +553,9 @@ export function clampBid(id: string, bid: Bid): Bid {
         ? RECORD_JOBS.promiseStep
         : isDroneBrief(id)
           ? DRONE_JOBS.promiseStep
-          : BID.promiseStep
+          : isPlaneBrief(id)
+            ? PLANE_JOBS.promiseStep
+            : BID.promiseStep
   const limits = promiseLimits(id)
   const promise = Math.min(limits.max, Math.max(limits.min, roundTo(bid.promise, step)))
   return { price, promise }
@@ -1413,6 +1433,99 @@ export function deliverDrone(state: CareerState, design: DroneDesign, predicted:
     // Either way the pod's rake sets the angle the air meets it at; its length how hard that twists.
     tumble: reference.tumble ? { speed: reference.tumble.speed * 3.6, braking: reference.twist.braking, fix: 'podRake' } : null,
     heat: reference.hotAt !== null && lost > 0 ? { at: reference.hotAt, lost, fix: 'podVents' } : null,
+    reputation: { before: firmReputation(state), after: 0 },
+  }
+  const closed = closeJob(state, job, penalty, { achieved, predicted: predictedCdA, actual: actualCdA })
+  return { ...closed, job, event, debrief: { ...debrief, reputation: { ...debrief.reputation, after: firmReputation(closed.state) } } }
+}
+
+/** What survey day showed for a survey drone (plan section 9: range on a charge on the site's usual day). */
+export interface PlaneDebrief {
+  /** Promised and achieved gain in range on the usual day, points (kilometres). */
+  promised: number
+  achieved: number
+  met: boolean
+  /** Points short after the allowance (0 if met). */
+  shortfall: number
+  /** ₽ taken off the fee. */
+  penalty: number
+  /** Declared range, km, and the real one on the usual day (null if the usual gust stalls it on a turn). */
+  predicted: number
+  actual: number | null
+  /** The client's plane's range on paper on the usual day, km. */
+  baseline: number
+  /** The drag areas at survey speed the declared and real ranges come from, m²: the read is judged on these. */
+  predictedCdA: number
+  actualCdA: number
+  /** (declared − real) ÷ real, on drag. */
+  readError: number
+  read: Read
+  /** Survey day: its air and gust, and both planes' flights in it. */
+  day: SurveyDay
+  flight: SurveyFlight
+  baselineFlight: SurveyFlight
+  /** Why a miss happened: not enough range ('design'), or a stall in the usual gust on a turn ('stall'). */
+  cause: 'design' | 'stall' | null
+  /** The usual gust that stalls it and the strongest it rides out, km/h, with the slider to change; null if it rides the usual gust out. */
+  stall: { gust: number; limit: number; fix: FixTarget } | null
+  /** The camera sat higher than the client's rule, so they lowered it before flying (the range counts it lowered); null if it was within the rule. */
+  camera: { fix: FixTarget } | null
+  reputation: { before: number; after: number }
+}
+
+export interface PlaneDelivery extends Closed {
+  job: Job
+  event: PlaneEvent
+  debrief: PlaneDebrief
+}
+
+/**
+ * Deliver a survey drone with a declared range, km. The promise is judged
+ * on the site's usual day, over the client's plane on paper; a plane the
+ * usual gust stalls on a turn gains nothing. Survey day, both planes in the
+ * same air and gust, is the show. The firm's record keeps the read on drag.
+ * Null if there's no job, it isn't a survey job, or the plane isn't the
+ * client's class.
+ */
+export function deliverPlane(state: CareerState, design: PlaneDesign, predicted: number): PlaneDelivery | null {
+  const job = state.job
+  if (!job) return null
+  const event = planeEventOf(job.brief)
+  const setup = template(job.brief.id).setup
+  if (!event || setup.sport !== 'plane' || design.class !== setup.class) return null
+  const site = event.site
+  const usual = surveyFlight(design, site, usualDay(site))
+  const actual = usual.stall ? null : usual.range
+  // Their plane on paper: the range it would fly, stall or not (Vekha's spins in, and that's why they called).
+  const baseline = surveyFlight(setup, site, usualDay(site)).range
+  const gainOf = (range: number | null) => (range === null ? 0 : (range - baseline) / PLANE_JOBS.pointKm)
+  const achieved = gainOf(actual)
+  const { shortfall, penalty } = penaltyFor(job.brief.fee, job.promise, achieved)
+  const met = shortfall === 0
+  const day = surveyDay(event, daySeed(job.brief))
+  // The read is on drag: the drag at survey speed the declared range is worth.
+  const actualCdA = surveyDragArea(design, site)
+  const predictedCdA = dragScaleForRange(predicted, design, site) * actualCdA
+  const readError = (predictedCdA - actualCdA) / actualCdA
+  const debrief: PlaneDebrief = {
+    promised: job.promise,
+    achieved,
+    met,
+    shortfall,
+    penalty,
+    predicted,
+    actual,
+    baseline,
+    predictedCdA,
+    actualCdA,
+    readError,
+    read: readOf(readError),
+    day,
+    flight: surveyFlight(design, site, day),
+    baselineFlight: surveyFlight(setup, site, day),
+    cause: met ? null : usual.stall ? 'stall' : 'design',
+    stall: usual.stall ? { gust: site.gust * 3.6, limit: usual.limit * 3.6, fix: looseFix(design) } : null,
+    camera: cameraTooHigh(design) ? { fix: 'cameraDrop' } : null,
     reputation: { before: firmReputation(state), after: 0 },
   }
   const closed = closeJob(state, job, penalty, { achieved, predicted: predictedCdA, actual: actualCdA })
