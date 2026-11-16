@@ -48,13 +48,27 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 8c | Ski jump in the sim | **Done** (v0.8.2.0) |
 | 8d | Ski jump on Shape: the jumper's figure, controls and readouts; a preview link | **Done** (v0.8.3.0) |
 | 8e | Ski jump in the tunnel, part 1: readings and the distance forecast (sim) | **Done** (v0.8.4.0) |
-| 8f | Ski jump in the tunnel, part 2: the pitch dial, readings and forecast on screen | Next |
-| 8g | Ski-jump flight replay and ski-jump briefs (normal hill, then large) | Not started |
+| 8f | Ski jump in the tunnel, part 2: the pitch dial, readings and forecast on screen | **Done** (v0.8.5.0) |
+| 8g | Ski-jump flight replay and ski-jump briefs (normal hill, then large) | Next |
 | 8h–8i | Bobsled | Not started |
 | 9–14 | See the plan | Not started |
 
 ## Versions
 
+- **0.8.5.0** (PR 8f): the ski jumper in the tunnel, on screen.
+  - A jumper model flies on a sting from behind, pivoting at the hips. The
+    angle row becomes **Pitch** (6–44°, "Flight angle" sets 34°); no cranks,
+    no smoke or tufts yet.
+  - Readouts: air speed (with how near the helmet and boots are to the
+    hill's Reynolds number), pitch with the model's lift in newtons, L/D with
+    the lift and drag areas, and the forecast: the reference jump in metres
+    and its lowest margin, or the angles still to sweep.
+  - Runs keep each reading's lift and pitch moment, so the forecast survives
+    a save. The Pitch sweep tab plots lift area against pitch; the Runs tab
+    gives the forecast in full. A sting tare and the sphere's blockage come
+    off the readings once they're known.
+  - The jump is the practice hill until the ski-jump briefs (PR 8g). A
+    jumper model can't break yet: its weak points come with the briefs.
 - **0.8.4.0** (PR 8e): the ski jumper in the tunnel, sim side.
   - The balance reads a jumper model on a pitching sting: lift, drag and the
     pitch moment about the hips, scaled to full size (`src/sim/jumpTunnel.ts`).

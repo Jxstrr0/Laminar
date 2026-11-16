@@ -20,6 +20,7 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { HANDLE_TOUCH } from '../data/handles'
+import { FLIGHT_ATTITUDE } from '../data/jumper'
 import { FRAME } from '../data/pose'
 import { UNIVERSITY_TUNNEL, REFERENCE_SPHERE, REFERENCE_WHEEL } from '../data/tunnel'
 import type { FailurePart } from '../sim/failure'
@@ -99,6 +100,13 @@ const RIDER_MID_X = (FRAME.rearAxleX + FRAME.frontAxleX) / 2
 /** A skater model stands on two short posts under its blades (full scale, m along and tall). */
 const SKATER_POSTS = [-0.1, 0.15]
 const SKATER_POST_HEIGHT = 0.02
+/**
+ * A ski jumper flies on a sting from behind: the model pivots about its hips,
+ * held this high above the floor (full scale, m), with the sting this long
+ * back to its strut.
+ */
+const JUMPER_HIPS_Y = 0.85
+const JUMPER_STING = 0.9
 
 export interface TunnelView {
   /** Draw one frame. speed is the air speed in m/s; dt is real seconds since the last frame. */
@@ -109,6 +117,8 @@ export interface TunnelView {
   setModel(model: TunnelModel): void
   /** Turn the turntable, degrees (positive: the nose turns right, so the air arrives from the rider's left). */
   setYaw(deg: number): void
+  /** Pitch a ski jumper on its sting: the skis' angle to the air, degrees. */
+  setPitch(deg: number): void
   /** The air round the rider for the smoke and tufts (null: none yet). */
   setFlow(field: FlowField | null, tufts: readonly Tuft[]): void
   /** Which instruments are out, and whether the dark backdrop is up. */
@@ -577,6 +587,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     riderGroup.parent?.remove(riderGroup)
     disposeGroup(riderGroup)
     riderGroup = null
+    pitchGroup = null
   }
   /** The posts with a rider on them, the reference wheel (null), or nothing for a tare run. */
   function showRider(state: RiderState | null, scale: number, tare: boolean) {
@@ -584,6 +595,11 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     clearDebris()
     strain = 0
     const skater = state?.design.sport === 'skating'
+    if (state?.design.sport === 'skijump') {
+      showJumper(state, scale, tare)
+      return
+    }
+    pitchGroup = null
     rearIsDisc = state !== null && (state.design.sport === undefined || state.design.sport === 'cycling') && state.design.wheels.rear === 'disc'
     const g = new THREE.Group()
     // Two posts clamp the axles (or a skater's blades) to the balance under the floor.
@@ -606,6 +622,45 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     g.rotation.y = Math.PI
     mount.add(g)
     riderGroup = g
+  }
+  /** The jumper's pivot: its hips, turned to the sting's pitch (null for anything else). */
+  let pitchGroup: THREE.Group | null = null
+  /** The pose's own angle: the figure is built at the flight attitude. */
+  let pitchBuilt = FLIGHT_ATTITUDE.hold
+  let pitchDeg = FLIGHT_ATTITUDE.hold
+  /** A ski jumper on its sting: a rod from behind into the hips, a strut down to the floor. */
+  function showJumper(state: RiderState, scale: number, tare: boolean) {
+    rearIsDisc = false
+    const g = new THREE.Group()
+    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, JUMPER_STING, 12), postMat)
+    rod.rotation.z = Math.PI / 2
+    rod.position.set(-JUMPER_STING / 2, JUMPER_HIPS_Y, 0)
+    const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, JUMPER_HIPS_Y, 12), postMat)
+    strut.position.set(-JUMPER_STING, JUMPER_HIPS_Y / 2, 0)
+    const knuckle = new THREE.Mesh(new THREE.SphereGeometry(0.045, 16, 12), postMat)
+    knuckle.position.set(0, JUMPER_HIPS_Y, 0)
+    g.add(rod, strut, knuckle)
+    const pivot = new THREE.Group()
+    pivot.position.set(0, JUMPER_HIPS_Y, 0)
+    if (!tare) {
+      const figure = buildRider(state)
+      const hips = state.pose.hip
+      figure.position.set(-(hips[0].x + hips[1].x) / 2, -(hips[0].y + hips[1].y) / 2, 0)
+      pivot.add(figure)
+    }
+    g.add(pivot)
+    flowViz.group.position.x = 0
+    g.add(flowViz.group)
+    g.scale.setScalar(scale)
+    g.rotation.y = Math.PI
+    mount.add(g)
+    riderGroup = g
+    pitchGroup = pivot
+    pitchBuilt = FLIGHT_ATTITUDE.hold
+    applyPitch()
+  }
+  function applyPitch() {
+    if (pitchGroup) pitchGroup.rotation.z = ((pitchDeg - pitchBuilt) * Math.PI) / 180
   }
   // --- Breaks (plan section 8). A warning buzzes the model on its posts; a
   // break throws a part (or, off the posts, the whole model) down the section,
@@ -824,7 +879,9 @@ export function createTunnelView(host: HTMLElement): TunnelView {
             ? 'The wind tunnel test section with the empty sting, for a tare run'
             : 'The wind tunnel test section with the empty posts, for a tare run'
           : model.kind === 'rider'
-            ? 'The wind tunnel test section with your rider model on the yaw turntable'
+            ? model.state.design.sport === 'skijump'
+              ? 'The wind tunnel test section with your ski jumper model on a pitching sting'
+              : 'The wind tunnel test section with your rider model on the yaw turntable'
             : model.kind === 'wheel'
               ? 'The wind tunnel test section with the reference wheel held still on the posts'
               : 'The wind tunnel test section with a sphere on a sting',
@@ -833,6 +890,10 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     },
     setYaw(deg) {
       yawTable.rotation.y = (-deg * Math.PI) / 180
+    },
+    setPitch(deg) {
+      pitchDeg = deg
+      applyPitch()
     },
     setSeparation(deg) {
       if (Number.isFinite(deg)) sepDeg = Math.min(170, Math.max(60, deg))

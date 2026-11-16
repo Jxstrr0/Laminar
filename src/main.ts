@@ -16,6 +16,7 @@ import { lastSlot, readSlot, setLastSlot, writeSlot } from './persist/db'
 import { packSave, parseSave, SAVE_VERSION, type SaveFile } from './persist/save'
 import { DEFAULT_CYCLIST } from './data/cyclist'
 import { DEFAULT_JUMPER } from './data/jumper'
+import { PRACTICE_JUMP } from './data/hills'
 import { careerStore, freshSeed } from './ui/careerStore'
 import { charge, currentEvent, newCareer, orderBlock, orderModel, repairModel } from './sim/career'
 import { makersOwned, tunnelSetup } from './sim/facility'
@@ -120,7 +121,7 @@ async function boot(): Promise<void> {
   const tunnelHost = screenHost(app, 'tunnel')
   // The tunnel calls back when something worth keeping changes; so do the design and the career.
   let touch = () => {}
-  const tunnel = startTunnelScreen(tunnelHost, createTunnelView(tunnelHost), saved?.lab ?? newLab(), {
+  const tunnel = startTunnelScreen(tunnelHost, createTunnelView(tunnelHost), saved?.lab ?? newLab(PREVIEW ? DEFAULT_JUMPER : undefined), {
     onChange: () => touch(),
     onRun: (run) => careerStore.set(afterRun(charge(careerStore.get(), runCost(run)))),
     tunnelSeed: careerStore.get().seed,
@@ -129,6 +130,8 @@ async function boot(): Promise<void> {
       return tunnelSetup(career.seed, career.facility, career.day, career.crew)
     },
     event: () => currentEvent(careerStore.get()),
+    // Ski-jump briefs come later: until then a jumper is forecast on the practice jump.
+    jumpEvent: () => PRACTICE_JUMP,
     shop: () => {
       const career = careerStore.get()
       return {

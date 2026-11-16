@@ -116,7 +116,9 @@ function soundSample(x: unknown): x is RunSample {
     isNum(x.cdA) &&
     isNum(x.cyA) &&
     isNum(x.dragN) &&
-    typeof x.steady === 'boolean'
+    typeof x.steady === 'boolean' &&
+    (x.clA === undefined || isNum(x.clA)) &&
+    (x.pitchA === undefined || isNum(x.pitchA))
   )
 }
 

@@ -23,6 +23,7 @@ import { gaussian } from './noise'
 import { DEG } from './num'
 import { blockageFactor, type MountKind } from './quirks'
 import { Rng } from './rng'
+import type { Run } from './run'
 import { buildModel, tunnelTurbulence, type ModelSpec, type TunnelSpec } from './views'
 
 /** A built jumper model: its plates' size errors and its small parts, ready to read many times a second. */
@@ -192,3 +193,32 @@ export function forecastJump(readings: readonly Pick<JumpReading, 'alphaDeg' | '
     flight,
   }
 }
+
+/** What the calibration runs let you take off a jumper's readings: the sting's tare (m², model size) and the blockage constant. */
+export interface JumperFix {
+  tare: number | null
+  blockageK: number | null
+}
+
+/**
+ * A reading with what's known taken off: the sting's own drag, then the
+ * blockage at this angle (the plates fill more of the section as they pitch up).
+ */
+export function correctJumper<R extends Pick<JumpReading, 'alphaDeg' | 'clA' | 'cdA' | 'pitchA'>>(r: R, fix: JumperFix, prepared: PreparedJumper, sectionArea: number): R {
+  const s2 = prepared.scale * prepared.scale
+  const frontal = jumperFrontal(prepared.design, r.alphaDeg) * s2 + prepared.parts.frontalArea
+  const b = fix.blockageK !== null ? blockageFactor(fix.blockageK, frontal, sectionArea) : 1
+  const tare = (fix.tare ?? 0) / s2
+  return { ...r, clA: r.clA / b, cdA: (r.cdA - tare) / b, pitchA: r.pitchA / b }
+}
+
+/** A jumper run's settled readings: fan and sting at rest, with lift recorded. */
+export function jumperReadings(runs: readonly Pick<Run, 'samples'>[]): Pick<JumpReading, 'alphaDeg' | 'clA' | 'cdA' | 'pitchA'>[] {
+  const out: Pick<JumpReading, 'alphaDeg' | 'clA' | 'cdA' | 'pitchA'>[] = []
+  for (const run of runs)
+    for (const s of run.samples) if (s.steady && s.clA !== undefined && s.pitchA !== undefined) out.push({ alphaDeg: s.yawDeg, clA: s.clA, cdA: s.cdA, pitchA: s.pitchA })
+  return out
+}
+
+/** True if a run read a ski jumper. */
+export const isJumperRun = (run: Pick<Run, 'samples'>): boolean => run.samples.some((s) => s.clA !== undefined)

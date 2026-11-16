@@ -3,7 +3,10 @@ import { DEFAULT_JUMPER, JUMP_TUNNEL, type JumperDesign } from '../src/data/jump
 import { PRACTICE_JUMP } from '../src/data/hills'
 import { UNIVERSITY_TUNNEL } from '../src/data/tunnel'
 import { STANDARD_MODEL } from '../src/data/model'
-import { forecastJump, polar, polarAero, prepareJumper, readJumper, type JumpReading } from '../src/sim/jumpTunnel'
+import { correctJumper, forecastJump, isJumperRun, jumperReadings, polar, polarAero, prepareJumper, readJumper, type JumpReading } from '../src/sim/jumpTunnel'
+import { newLab } from '../src/sim/lab'
+import { soundLab } from '../src/persist/save'
+import { blockageFactor } from '../src/sim/quirks'
 import { designAero, flyAero, jumperForces, referenceJump, staticMargin } from '../src/sim/jumper'
 import { Rng } from '../src/sim/rng'
 import type { TunnelSpec } from '../src/sim/views'
@@ -134,5 +137,47 @@ describe('the forecast', () => {
 
   it('keeps its dial inside the readings it can pool', () => {
     expect(JUMP_TUNNEL.pitch.step).toBeGreaterThan(2 * JUMP_TUNNEL.sameAngle)
+  })
+})
+
+describe('on the screen', () => {
+  const quirky: TunnelSpec = { ...ideal, quirks: { blockage: 1.2, turbulence: 0, mountCdA: { sting: 0.004, posts: 0.01 } } }
+  const prepared = prepareJumper(DEFAULT_JUMPER, model())
+  const area = UNIVERSITY_TUNNEL.section.width * UNIVERSITY_TUNNEL.section.height
+
+  it('takes the sting and the blockage back off a reading', () => {
+    const run = { speed: 30, alphaDeg: 30, mount: 'sting' as const }
+    const raw = readJumper(prepared, quirky, run, new Rng(1))
+    const clean = readJumper(prepared, ideal, run, new Rng(1))
+    const fixedUp = correctJumper(raw, { tare: 0.004, blockageK: 1.2 }, prepared, area)
+    expect(fixedUp.clA).toBeCloseTo(clean.clA, 9)
+    expect(fixedUp.cdA).toBeCloseTo(clean.cdA, 9)
+    expect(fixedUp.pitchA).toBeCloseTo(clean.pitchA, 9)
+    // Nothing known, nothing taken off.
+    expect(correctJumper(raw, { tare: null, blockageK: null }, prepared, area)).toEqual(raw)
+    expect(blockageFactor(1.2, 0.1, area)).toBeGreaterThan(1)
+  })
+
+  it('pulls the settled readings out of a run', () => {
+    const run = {
+      samples: [
+        { t: 0, speed: 20, yawDeg: 20, cdA: 0.3, cyA: 0, dragN: 1, clA: 0.5, pitchA: 0.01, steady: false },
+        { t: 1, speed: 30, yawDeg: 30, cdA: 0.4, cyA: 0, dragN: 2, clA: 0.8, pitchA: 0.02, steady: true },
+      ],
+    }
+    expect(jumperReadings([run])).toEqual([{ alphaDeg: 30, clA: 0.8, cdA: 0.4, pitchA: 0.02 }])
+    expect(isJumperRun(run)).toBe(true)
+    expect(isJumperRun({ samples: [{ t: 0, speed: 30, yawDeg: 0, cdA: 0.3, cyA: 0, dragN: 1, steady: true }] })).toBe(false)
+  })
+
+  it('keeps lift and the pitch moment through a save', () => {
+    const lab = newLab(DEFAULT_JUMPER)
+    lab.runs.push({ id: 1, model: 'rider', duration: 10, energyKWh: 0.1, topSpeed: 30, samples: [{ t: 0, speed: 30, yawDeg: 30, cdA: 0.4, cyA: 0, dragN: 2, clA: 0.8, pitchA: 0.02, steady: true }] })
+    lab.nextRunId = 2
+    const back = soundLab(JSON.parse(JSON.stringify(lab)), DEFAULT_JUMPER)!
+    expect(back.runs[0]!.samples[0]!.clA).toBe(0.8)
+    const bad = JSON.parse(JSON.stringify(lab))
+    bad.runs[0].samples[0].clA = 'lots'
+    expect(soundLab(bad, DEFAULT_JUMPER)).toBeNull()
   })
 })
