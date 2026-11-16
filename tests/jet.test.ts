@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { COMPRESSIBILITY, RECORD_RUN, STOCK_RECORD, type RecordDesign } from '../src/data/record'
+import { COMPRESSIBILITY, RECORD_BODY, RECORD_RUN, STOCK_RECORD, type RecordDesign } from '../src/data/record'
+import { recordDeskEstimate } from '../src/sim/desk'
+import { fullnessAt, pinchAt } from '../src/sim/geom/record'
 import { SALT_FLATS } from '../src/data/saltFlats'
 import { soundDesign } from '../src/persist/save'
 import { criticalMach, dragRise, flatDensity, frontKept, risePeak, shockLift, sideCentre, soundSpeed, stillDay, thrustKept, twoWay } from '../src/sim/record'
@@ -84,5 +86,25 @@ describe('saves', () => {
     expect(soundDesign(old)).toEqual(STOCK_RECORD.streamliner)
     // A streamliner can't be pinched.
     expect(soundDesign({ ...STOCK_RECORD.streamliner, waist: 0.5 })).toEqual(STOCK_RECORD.streamliner)
+  })
+})
+
+describe('the waist as drawn', () => {
+  it('pinches the body most at the engine and not at all away from it, and never a streamliner', () => {
+    const b = RECORD_BODY.jet
+    const at = GOOD.nose.length + b.waistAt
+    expect(pinchAt(GOOD, at)).toBeCloseTo(b.waistDepth * GOOD.waist, 9)
+    expect(fullnessAt(GOOD, at)).toBeCloseTo(1 - b.waistDepth * GOOD.waist, 9)
+    expect(pinchAt(GOOD, at + b.waistSpan + 0.01)).toBe(0)
+    expect(pinchAt(GOOD, at - b.waistSpan - 0.01)).toBe(0)
+    expect(pinchAt(JET, at)).toBe(0)
+    const s = STOCK_RECORD.streamliner
+    expect(pinchAt({ ...s, waist: 1 }, s.nose.length + 3)).toBe(0)
+  })
+
+  it('tells Shape the desk’s Mach number', () => {
+    const desk = recordDeskEstimate(GOOD, JET, flat, 7, 'good')
+    expect(desk.topMach).toBeCloseTo(desk.top / sound, 1)
+    expect(desk.topMach).toBeGreaterThan(1)
   })
 })

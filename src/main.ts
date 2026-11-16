@@ -47,8 +47,9 @@ const PREVIEWS: Record<string, Design> = {
   // Racing cars (PR 9j): a touring car, and `?try=car-open` a single-seater.
   car: STOCK_CAR.touring,
   'car-open': STOCK_CAR.open,
-  // The land-speed streamliner (PR 9q).
+  // The land-speed streamliner (PR 9q), and `?try=jet` the jet car (PR 9x).
   record: STOCK_RECORD.streamliner,
+  jet: STOCK_RECORD.jet,
 }
 const PREVIEW_DESIGN = PREVIEWS[new URLSearchParams(location.search).get('try') ?? ''] ?? null
 const PREVIEW = PREVIEW_DESIGN !== null

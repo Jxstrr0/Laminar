@@ -142,7 +142,8 @@ export function carDeskEstimate(design: CarDesign, old: CarDesign, circuit: Circ
  * (still) day against the team's car (their own data, so known). The value
  * is the record speed, m/s, or null if the desk's run is aborted; `low` is
  * the slow end (more drag), `high` the fast one. Also the desk's top speed,
- * the share of the nose's weight it keeps there with a moderate headwind,
+ * and its Mach number there (PR 9x), the share of the nose's weight it
+ * keeps there with a moderate headwind,
  * where the air starts to squeeze round the car (m/s through the air),
  * why the desk's run stopped, if it did, and whether the nose would go
  * light (checked as if the driver held the car straight, so a car that
@@ -155,7 +156,18 @@ export function recordDeskEstimate(
   jobSeed: number,
   designKey: string,
   analystLevel = 0,
-): { value: number | null; low: number | null; high: number | null; old: number | null; top: number; noseKept: number; squeeze: number; abort: RecordAbort | null; noseLight: RecordAbort | null } {
+): {
+  value: number | null
+  low: number | null
+  high: number | null
+  old: number | null
+  top: number
+  topMach: number
+  noseKept: number
+  squeeze: number
+  abort: RecordAbort | null
+  noseLight: RecordAbort | null
+} {
   const narrow = Math.max(DESK.floor, 1 - DESK.perLevel * analystLevel)
   const job = new Rng(jobSeed)
   const mine = new Rng(jobSeed ^ hashString(designKey))
@@ -175,6 +187,7 @@ export function recordDeskEstimate(
     high: at(drag * (1 - sd)).mean,
     old: twoWay(old, flat, day).mean,
     top: straight.top,
+    topMach: straight.topMach,
     noseKept: frontKept(design, straight.top + RECORD_DESK.headwind, density, { drag, lift }),
     squeeze: criticalMach(design) * soundSpeed(flat.temperature),
     abort: first.abort,

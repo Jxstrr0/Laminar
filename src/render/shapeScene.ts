@@ -92,8 +92,8 @@ const VIEWS = {
 const TRUCK_SCALE = 0.14
 /** A racing car is drawn at this fraction of full size (about a 2 to 2.5 m long model). */
 const CAR_SCALE = 0.45
-/** A streamliner is drawn at this fraction of full size (about a 2.6 to 3.1 m long model). */
-const RECORD_SCALE = 0.26
+/** A streamliner is drawn at this fraction of full size (about a 2.6 to 3.1 m long model); the longer jet car (PR 9x) smaller, about 2.4 to 2.9 m. */
+const RECORD_SCALE = { streamliner: 0.26, jet: 0.17 }
 
 export function createShapeView(host: HTMLElement): ShapeView {
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
@@ -151,7 +151,7 @@ export function createShapeView(host: HTMLElement): ShapeView {
     const g = buildRider(state)
     if (state.design.sport === 'truck') g.scale.setScalar(TRUCK_SCALE)
     if (state.design.sport === 'car') g.scale.setScalar(CAR_SCALE)
-    if (state.design.sport === 'record') g.scale.setScalar(RECORD_SCALE)
+    if (state.design.sport === 'record') g.scale.setScalar(RECORD_SCALE[state.design.class])
     const isBroken = (h: Highlight) => state.broken.includes(h)
 
     // The rule box: where the hands and the helmet must stay.

@@ -50,6 +50,10 @@ const DRAW = {
   /** The fin is this many times as tall as its chord, and leans back this share of its chord at the top. */
   finAspect: 1.2,
   finSweep: 0.5,
+  /** A jet car's intakes: radius and length, m, starting this far behind the canopy. */
+  intake: 0.24,
+  intakeLength: 2.2,
+  intakeBack: 0.6,
 }
 
 export interface RecordLook {
@@ -105,7 +109,14 @@ export function buildRecord(design: RecordDesign, look: RecordLook): THREE.Group
   // The nose cone, bent down by its droop (its tip lowest), then the body behind it.
   const slope = Math.tan((design.nose.droop * Math.PI) / 180)
   g.add(loft(design, 0, n, DRAW.noseSteps, (x) => slope * (n - x), tint('nose', M.part)))
-  g.add(loft(design, n, len, DRAW.bodySteps, () => 0, M.body))
+  if (design.waist > 0) {
+    // A jet car's pinched waist, in the instruments' cobalt like the other shaped parts.
+    const w0 = n + b.waistAt - b.waistSpan
+    const w1 = n + b.waistAt + b.waistSpan
+    g.add(loft(design, n, w0, DRAW.bodySteps / 3, () => 0, M.body))
+    g.add(loft(design, w0, w1, DRAW.bodySteps / 2, () => 0, tint('waist', M.part)))
+    g.add(loft(design, w1, len, DRAW.bodySteps / 3, () => 0, M.body))
+  } else g.add(loft(design, n, len, DRAW.bodySteps, () => 0, tint('waist', M.body)))
   // A dark seam where the nose cone meets the body.
   const seam = new THREE.Mesh(new THREE.TorusGeometry(1, 0.025, 6, 32).rotateY(Math.PI / 2), M.dark)
   seam.scale.set(1, half, b.half)
@@ -182,9 +193,25 @@ export function buildRecord(design: RecordDesign, look: RecordLook): THREE.Group
     }
   }
 
-  // The parachute canister at the tail, in its warning orange.
-  const can = new THREE.Mesh(new THREE.CylinderGeometry(b.tailHalf * 0.7, b.tailHalf * 0.7, 0.3, 16).rotateZ(Math.PI / 2), M.chute)
-  can.position.set(recordX(design, len + 0.1), axis + 0.05, 0)
+  const jet = design.class === 'jet'
+  if (jet) {
+    // The jet engine: an intake either side behind the cockpit, its dark mouth forward, and the nozzle at the tail.
+    const at = n + b.canopyTo + DRAW.intakeBack
+    const out = b.half * fullnessAt(design, at)
+    for (const side of [-1, 1]) {
+      const duct = new THREE.Mesh(new THREE.CylinderGeometry(DRAW.intake, DRAW.intake, DRAW.intakeLength, 18).rotateZ(Math.PI / 2), M.body)
+      duct.position.set(recordX(design, at + DRAW.intakeLength / 2), axis + half * 0.25, side * (out + DRAW.intake * 0.6))
+      const mouth = new THREE.Mesh(new THREE.CircleGeometry(DRAW.intake * 0.85, 18).rotateY(Math.PI / 2), M.dark)
+      mouth.position.set(recordX(design, at) + 0.01, duct.position.y, duct.position.z)
+      g.add(duct, mouth)
+    }
+    const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(b.tailHalf * 0.9, b.tailHalf, 0.5, 24, 1, true).rotateZ(Math.PI / 2), M.dark)
+    nozzle.position.set(recordX(design, len + 0.2), axis, 0)
+    g.add(nozzle)
+  }
+  // The parachute canister at the tail, in its warning orange (above a jet's nozzle).
+  const can = new THREE.Mesh(new THREE.CylinderGeometry(b.tailHalf * 0.7 * (jet ? 0.5 : 1), b.tailHalf * 0.7 * (jet ? 0.5 : 1), 0.3, 16).rotateZ(Math.PI / 2), M.chute)
+  can.position.set(recordX(design, len + 0.1), jet ? axis + half * 0.75 : axis + 0.05, 0)
   g.add(can)
   return g
 }
