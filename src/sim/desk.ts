@@ -163,12 +163,12 @@ export function recordDeskEstimate(
   const lift = 1 + narrow * RECORD_DESK.liftBias * gaussian(job.fork('desk-lift'))
   const sd = Math.sqrt(RECORD_DESK.dragBias * RECORD_DESK.dragBias + RECORD_DESK.jitter * RECORD_DESK.jitter) * narrow * DESK.bars
   const day = stillDay(flat)
-  const at = (dg: number) => twoWay(design, flat, day, { drag: dg, lift })
+  const at = (dg: number) => twoWay(design, flat, day, { trim: { drag: dg, lift } })
   const mid = at(drag)
   const first = mid.runs[0]
   const density = flatDensity(flat)
   // The nose, checked on a run held straight (the same run, unless the car wandered).
-  const straight = first.abort?.cause === 'wander' ? recordRun(design, { temperature: day.temperature, density, head: 0, cross: 0 }, { drag, lift }, true) : first
+  const straight = first.abort?.cause === 'wander' ? recordRun(design, { temperature: day.temperature, density, head: 0, cross: 0 }, { trim: { drag, lift }, holdStraight: true }) : first
   return {
     value: mid.mean,
     low: at(drag * (1 + sd)).mean,

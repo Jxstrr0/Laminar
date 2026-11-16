@@ -65,10 +65,12 @@ export function recordLength(design: RecordDesign): number {
 
 /**
  * Where the side force acts and where the mass sits, m from the nose's tip,
- * and the margin between them as a share of the car's length (positive:
- * the side force is behind the mass, and the car points into the wind).
+ * the side force's area (its push per radian of yaw per unit dynamic
+ * pressure, m²), and the margin between them as a share of the car's length
+ * (positive: the side force is behind the mass, and the car points into
+ * the wind).
  */
-export function sideCentre(design: RecordDesign): { centre: number; mass: number; margin: number } {
+export function sideCentre(design: RecordDesign): { centre: number; mass: number; area: number; margin: number } {
   const b = RECORD_CLASS[design.class].body
   const n = design.nose.length
   const parts: [number, number][] = [
@@ -87,7 +89,7 @@ export function sideCentre(design: RecordDesign): { centre: number; mass: number
   }
   const centre = moment / area
   const mass = n + b.mass
-  return { centre, mass, margin: (centre - mass) / recordLength(design) }
+  return { centre, mass, area, margin: (centre - mass) / recordLength(design) }
 }
 
 /** The margin the driver needs to hold the car straight in this crosswind, a share of the car's length. */
@@ -167,22 +169,42 @@ export function frontKept(design: RecordDesign, airSpeed: number, density: numbe
 
 /** The steadiest crosswind the driver can hold the car straight in, m/s (0 or less: it wanders even in still air). */
 export function crossHeld(design: RecordDesign): number {
-  return (sideCentre(design).margin - S.margin) / S.perCross
+  return crossHeldAt(sideCentre(design).margin)
+}
+
+/** The steadiest crosswind held with this margin (a share of the car's length), m/s. */
+export function crossHeldAt(margin: number): number {
+  return (margin - S.margin) / S.perCross
 }
 
 /**
- * One run in this air. `holdStraight` pretends the driver holds a wandering
- * car straight (the desk uses it to check the nose of a car that would
- * otherwise wander before it got fast).
+ * How a run is worked out, when it isn't the plain truth:
+ * - trim: scales on the drag and lift (the desk's guess);
+ * - aero and margin: the drag, the lift and the side force's margin as
+ *   something else measured them (the tunnel's forecast, PR 9r);
+ * - squeeze: false leaves out the air squeezing near the speed of sound
+ *   (the tunnel never sees it);
+ * - holdStraight: pretend the driver holds a wandering car straight (to
+ *   check the nose of a car that would otherwise wander before it got fast).
  */
-export function recordRun(design: RecordDesign, air: RunAir, trim: RecordTrim = NO_RECORD_TRIM, holdStraight = false): RecordRun {
+export interface RunOptions {
+  trim?: RecordTrim
+  aero?: Pick<RecordAero, 'cdA' | 'liftFront' | 'liftRear'>
+  margin?: number
+  squeeze?: boolean
+  holdStraight?: boolean
+}
+
+/** One run in this air. */
+export function recordRun(design: RecordDesign, air: RunAir, opts: RunOptions = {}): RecordRun {
   const c = RECORD_CLASS[design.class]
   const g = ATMOSPHERE.gravity
   const weight = c.mass * g
   const frontStatic = weight * c.massFront
-  const aero = trimmed(design, trim)
+  const aero = opts.aero ?? trimmed(design, opts.trim ?? NO_RECORD_TRIM)
+  const squeeze = opts.squeeze ?? true
   const power = c.power * (1 - sightLoss(design))
-  const stable = holdStraight || sideCentre(design).margin >= marginNeeded(air.cross)
+  const stable = opts.holdStraight === true || (opts.margin ?? sideCentre(design).margin) >= marginNeeded(air.cross)
   const sound = soundSpeed(air.temperature)
   const end = RUN.runUp + RUN.timed
   const speeds = [0]
@@ -199,7 +221,7 @@ export function recordRun(design: RecordDesign, air: RunAir, trim: RecordTrim = 
     if (q * aero.liftFront > (1 - RUN.frontKeep) * frontStatic) return aborted('lift')
     if (!stable && v >= S.wanderSpeed) return aborted('wander')
     const mach = Math.abs(u) / sound
-    const r = dragRise(design, mach)
+    const r = squeeze ? dragRise(design, mach) : 1
     const traction = c.grip * Math.max(0, weight - q * (aero.liftFront + aero.liftRear))
     const drive = Math.min(power / Math.max(v, 1), traction)
     const drag = q * aero.cdA * r
@@ -261,10 +283,10 @@ export interface RecordAttempt {
 }
 
 /** The attempt on this day: out into the wind along, back with it (shifted a little) behind. */
-export function twoWay(design: RecordDesign, flat: SaltFlat, day: RecordDay, trim: RecordTrim = NO_RECORD_TRIM): RecordAttempt {
+export function twoWay(design: RecordDesign, flat: SaltFlat, day: RecordDay, opts: RunOptions = {}): RecordAttempt {
   const density = flatDensity(flat, day.temperature)
-  const out = recordRun(design, { temperature: day.temperature, density, head: day.along, cross: day.cross }, trim)
-  const back = recordRun(design, { temperature: day.temperature, density, head: -(day.along + day.shift), cross: day.cross }, trim)
+  const out = recordRun(design, { temperature: day.temperature, density, head: day.along, cross: day.cross }, opts)
+  const back = recordRun(design, { temperature: day.temperature, density, head: -(day.along + day.shift), cross: day.cross }, opts)
   const mean = out.time !== null && back.time !== null ? (2 * RUN.timed) / (out.time + back.time) : null
   return { runs: [out, back], mean }
 }
