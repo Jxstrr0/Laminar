@@ -49,8 +49,8 @@ const DRAW = {
 export interface PodLook {
   broken: Highlight[]
   strained: Highlight[]
-  /** Leave out the wing (a pod model tested on its own, from the tunnel PR). */
-  alone?: boolean
+  /** Leave out the wing and pylon (a pod model tested on its own, PR 10ab). */
+  noWing?: boolean
 }
 
 export function buildPod(design: PodDesign, look: PodLook): THREE.Group {
@@ -84,7 +84,7 @@ export function buildPod(design: PodDesign, look: PodLook): THREE.Group {
   win.position.set(podX(design, l.nose + l.middle / 2), B.axis - r * DRAW.windowDrop, 0)
   g.add(win)
 
-  if (look.alone) return g
+  if (look.noWing) return g
 
   // The pylon from the pod's top up to the wing's underside, over the pod's middle.
   const top = B.axis + r * 0.9
