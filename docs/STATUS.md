@@ -79,10 +79,17 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 9q | The streamliner on Shape: the car drawn from the drag model's own shell with its nose drooped, a glass canopy, the fin and the wheel fairings; Body and Fin & wheels tabs; the desk's record speed against the team's car at Lake Sukhoye, the nose's weight at top speed and the crosswind it holds straight in; a light nose, a wander, a low canopy and the air squeezing as amber warnings with a "Change this". Saves and the model shop know the car. Preview with `?try=record`. The tunnel reads it in 9r | **Done** (v0.9.16.0) |
 | 9r | The streamliner in the tunnel, in the sim: a scale model read for drag, nose lift and side force over a still floor, a moving board or the rolling road; still wheels add drag unless the fairings cover them; the still floor reads the nose's lift low, so a nose that goes light on the salt can pass in a still tunnel; a yaw sweep finds the centre of side force. The forecast turns the readings into a record speed, the nose's weight and the crosswind held | **Done** (v0.9.17.0) |
 | 9s | The streamliner on the Tunnel screen: it stands on two slim posts on the turntable (they take 60 N) over the bare floor, a ground board or the rolling road, at a truck's model scales. Readouts for yaw (with where the side force acts against the mass), nose lift, drag and the record forecast; the forecast in full on the Runs tab, with what the floor does to the nose's lift. Preview with `?try=record` | **Done** (v0.9.18.0) |
-| 9t–14 | See the plan | Next: record jobs in the sim. |
+| 9t | Record jobs in the sim: Bogdan Lisovoy's home-built Kalina and the Zarya Land Speed Project (its canopy cut so low the driver gives up power) at Sukhoye Speed Week. The promise is km/h on the two-way mean on the salt's still day over the team's car, 2 km/h a point (Kelbo: "km/h on their car"); a car that pulls its chutes there gains nothing. Record day is seeded, the read is judged on drag, and the debrief names a light nose, a wander or the low canopy. Shape and Tunnel forecast at the job's flat against the team's own car. Closed to the board until 9u | **Done** (v0.9.19.0) |
+| 9u–14 | See the plan | Next: record jobs on the board, the Deliver sheet and the debrief (9u). Then the record-run replay, then the jet car. |
 
 ## Versions
 
+- **0.9.19.0** (PR 9t): land-speed record jobs in the sim, not yet on the
+  board. Two teams at Sukhoye Speed Week: Bogdan Lisovoy's home-built
+  Kalina and the Zarya Land Speed Project, whose driver can't see over the
+  canopy. The promise is km/h gained on the two-way mean on a still day;
+  pull the chutes and the run gains nothing. Nothing new to see on a phone
+  yet: the board gets them in 9u.
 - **0.9.18.0** (PR 9s): the streamliner on the Tunnel screen. Open
   `?try=record` and tap Tunnel. Turn the fan up: you get the nose's lift,
   the drag and a record-speed forecast at Lake Sukhoye. Then yaw the car

@@ -5,7 +5,7 @@
  */
 import { briefTemplate, firmName, firmReputation, type CareerState, type Ending } from './career'
 import { correlationScore } from './reputation'
-import { CAR_JOBS, PROMISE, SLED_JOBS } from '../data/briefs'
+import { CAR_JOBS, PROMISE, RECORD_JOBS, SLED_JOBS } from '../data/briefs'
 
 export interface Legacy {
   firm: string
@@ -23,11 +23,11 @@ export interface Legacy {
   /**
    * The biggest cut delivered: who for, at what event, and how much (% of
    * drag, metres for a ski jump, seconds for a bobsled, % of fuel for a
-   * truck). A cut in % of drag always beats the others, since they can't be
+   * truck, km/h for a land-speed car). A cut in % of drag always beats the others, since they can't be
    * weighed; between the others the first one delivered stands. A career of
    * only jumps (or only sleds, or only trucks) shows its biggest gain.
    */
-  best: { client: string; event: string; cut: number; unit: 'pct' | 'm' | 's' | 'fuel' } | null
+  best: { client: string; event: string; cut: number; unit: 'pct' | 'm' | 's' | 'fuel' | 'kmh' } | null
   /** Fees the clients paid in all, ₽. */
   earned: number
   /** Cash at the end, ₽. */
@@ -42,9 +42,9 @@ export function legacyOf(state: CareerState): Legacy {
   for (const job of state.history) {
     const b = briefTemplate(job.id)
     if (!b) continue
-    const unit = b.event.jump ? 'm' : b.event.sled || b.event.car ? 's' : b.event.truck ? 'fuel' : 'pct'
-    // A sled's or a car's achieved gain is in points, a tenth of a second each.
-    const cut = unit === 's' ? job.achieved * (b.event.car ? CAR_JOBS.pointSeconds : SLED_JOBS.pointSeconds) : job.achieved
+    const unit = b.event.jump ? 'm' : b.event.sled || b.event.car ? 's' : b.event.truck ? 'fuel' : b.event.record ? 'kmh' : 'pct'
+    // A sled's or a car's achieved gain is in points, a tenth of a second each; a record car's, 2 km/h each.
+    const cut = unit === 's' ? job.achieved * (b.event.car ? CAR_JOBS.pointSeconds : SLED_JOBS.pointSeconds) : unit === 'kmh' ? job.achieved * RECORD_JOBS.pointKmh : job.achieved
     const beats = !best || (unit === best.unit ? cut > best.cut : unit === 'pct')
     if (beats) best = { client: b.client, event: b.event.name, cut, unit }
   }

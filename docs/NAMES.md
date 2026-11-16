@@ -79,6 +79,11 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Gleb Mirny | Race engineer at Iskra Racing (Tarnovian Open-wheel Series: Stavren Park). PR 9m. |
 | Iskra Racing | A single-seater team in the Tarnovian Open-wheel Series. PR 9m. |
 | Tarnovian Touring Car Championship, Tarnovian Open-wheel Series | Fictional race series; their rounds are at the Dolgo Ring and Stavren Park. PR 9m. |
+| Bogdan Lisovoy | Built Kalina, a streamliner, in his barn and drives it himself (Sukhoye Speed Week). PR 9t. |
+| Kalina | Bogdan Lisovoy's home-built streamliner. PR 9t. |
+| Vera Yarovaya | Engineer for the Zarya Land Speed Project (Sukhoye Speed Week). PR 9t. |
+| Zarya Land Speed Project | A record team chasing the Tarnovian land-speed record. PR 9t. |
+| Sukhoye Speed Week | The land-speed meeting on Lake Sukhoye: a run each way, the mean counts. PR 9t. |
 | Stavren Regional Time Trial, Club 16 km Time Trial, Lake Dolgo Hill Time Trial, Kosa Coast Time Trial, National Time Trial Championship, Track Championships: Individual Pursuit, Stavren Open: 10 000 m, Lake Dolgo Ice Marathon, Belogor Junior Cup, Belogor Winter Cup, Tarnovian Large Hill Championship, Belogor Club Cup: two-man, Tarnovian Two-man Championship, Tarnovian Four-man Championship, Kovyl Haulage fuel trial, Volok Freight fuel trial, Prichal Logistics fuel trial | The events above. |
 
 ## Rival firms (PR 7)
