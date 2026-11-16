@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { DEFAULT_CYCLIST } from '../src/data/cyclist'
+import { FAILURE } from '../src/data/failure'
+import { newLab } from '../src/sim/lab'
+import { strains } from '../src/sim/failure'
 import { MODEL_SHOP, STANDARD_ORDER, TRUCK_SCALES } from '../src/data/model'
 import { ROUTES } from '../src/data/routes'
 import { DEFAULT_TRUCK, FLEET_TRUCK, TRUCK_TUNNEL, type TruckDesign } from '../src/data/truck'
@@ -107,5 +111,23 @@ describe('truck models in the shop', () => {
     expect(makerScales('resin', false)).toEqual([4, 3])
     expect(forMaker({ ...STANDARD_ORDER, scale: 8 }, 'resin').scale).toBe(10)
     expect(forMaker({ ...STANDARD_ORDER, scale: 2 }, 'resin').scale).toBe(3)
+  })
+})
+
+describe('the truck on the tunnel’s mount', () => {
+  it('starts a truck lab on a 1:8 model with a ground board', () => {
+    const lab = newLab(DEFAULT_TRUCK)
+    expect(lab.order.scale).toBe(8)
+    expect(lab.order.board).toBe(true)
+    expect(newLab().order.board).toBeUndefined()
+  })
+
+  it('bolts a truck to stouter struts than a rider’s posts', () => {
+    const order = { ...STANDARD_ORDER, scale: 8 as const, board: true }
+    const posts = (design: TruckDesign | typeof DEFAULT_CYCLIST, loadN: number) =>
+      strains({ order, design }, 40, loadN).find((s) => s.part === 'posts')!.level
+    expect(posts(DEFAULT_TRUCK, FAILURE.truckMountN)).toBeCloseTo(1, 12)
+    expect(posts(DEFAULT_CYCLIST, FAILURE.mountN)).toBeCloseTo(1, 12)
+    expect(FAILURE.truckMountN).toBeGreaterThan(FAILURE.mountN * 3)
   })
 })

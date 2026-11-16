@@ -36,6 +36,12 @@ export const FAILURE = {
   /** The two posts that clamp a rider model's axles: the most load they take, drag and side force together. */
   mountN: 60,
   /**
+   * A truck model (PR 9d) is bolted through its wheels onto stouter struts:
+   * the most load they take. A 1:8 rig sweeps to about 15° at full fan; at
+   * 20° it wants the fan down near 30 m/s, where a truck's side force bites.
+   */
+  truckMountN: 250,
+  /**
    * The sting a ski jumper's model hangs on (PR 8k): the most load it takes,
    * lift and drag together. A 1:2 model reads the whole sweep at 30 m/s; push
    * it near 35 m/s at a steep pitch and it gives.

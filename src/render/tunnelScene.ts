@@ -26,6 +26,9 @@ import { FRAME } from '../data/pose'
 import { UNIVERSITY_TUNNEL, REFERENCE_SPHERE, REFERENCE_WHEEL } from '../data/tunnel'
 import type { FailurePart } from '../sim/failure'
 import { sledLength } from '../sim/geom/bobsled'
+import { TRUCK_TUNNEL } from '../data/truck'
+import { doorsAt, truckLength } from '../sim/geom/truck'
+import { truckX } from '../sim/geom/truckPose'
 import type { FlowField, Tuft } from '../sim/flow/field'
 import type { Tap } from '../sim/flow/taps'
 import { createFlowViz, type Instruments } from './flowViz'
@@ -108,6 +111,13 @@ const SKATER_POST_HEIGHT = 0.02
 const SLED_POSTS = [-0.7, 0.7]
 /** The ground board under a sled: how far it reaches past each end, and its width and thickness (full scale, m). */
 const BOARD = { past: 0.5, width: 1.1, thick: 0.02 }
+/** A truck's board is the same idea at a truck's size; its posts sit under the steer axle and the trailer's bogie (full scale, m). */
+const TRUCK_BOARD = { past: 3, width: 4.2, thick: 0.15 }
+const TRUCK_POSTS = { steer: 1.35, bogie: 3.3 }
+/** A truck's middle above the road, full scale, m (where the camera looks). */
+const TRUCK_CENTRE_Y = 1.9
+/** The camera stands this much further back from a truck than from a rider at the same scale. */
+const TRUCK_CAMERA = 6
 /**
  * A ski jumper flies on a sting from behind: the model pivots about its hips,
  * held this high above the floor (full scale, m), with the sting this long
@@ -589,6 +599,8 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   const boardMat = new THREE.MeshStandardMaterial({ color: COLOURS.board, roughness: 0.8 })
   let riderGroup: THREE.Group | null = null
   let modelKind: TunnelModel['kind'] = 'sphere'
+  /** Whether the camera is framed for a truck. */
+  let truckFramed = false
   function clearRider() {
     if (!riderGroup) return
     // The instruments outlive the model: take them off before it is thrown away.
@@ -606,6 +618,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     strain = 0
     const skater = state?.design.sport === 'skating'
     const sled = state?.design.sport === 'bobsled' ? state.design : null
+    const truck = state?.design.sport === 'truck' ? state.design : null
     if (state?.design.sport === 'skijump') {
       showJumper(state, scale, tare)
       return
@@ -615,13 +628,22 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     const g = new THREE.Group()
     // Two posts clamp the axles (or a skater's blades) to the balance under the floor.
     // A sled is built with its cockpit's middle at x = 0, not the bike's.
-    const midX = sled ? 0 : RIDER_MID_X
-    // On a ground board the sled sits that much higher, and the posts reach up through it.
-    const lift = sled && board ? BOB_TUNNEL.boardHeight : 0
-    const posts = sled ? SLED_POSTS : skater ? SKATER_POSTS : [FRAME.rearAxleX, FRAME.frontAxleX]
-    const postH = sled ? SKATER_POST_HEIGHT + lift : skater ? SKATER_POST_HEIGHT : FRAME.wheelRadius
+    // A truck is drawn centred on the rig's middle too.
+    const midX = sled || truck ? 0 : RIDER_MID_X
+    // On a ground board the sled or truck sits that much higher, and the posts reach up through it.
+    const lift = board ? (sled ? BOB_TUNNEL.boardHeight : truck ? TRUCK_TUNNEL.boardHeight : 0) : 0
+    const posts = truck
+      ? [truckX(truck, TRUCK_POSTS.steer), truckX(truck, doorsAt(truck) - TRUCK_POSTS.bogie)]
+      : sled
+        ? SLED_POSTS
+        : skater
+          ? SKATER_POSTS
+          : [FRAME.rearAxleX, FRAME.frontAxleX]
+    const postH = sled || truck ? SKATER_POST_HEIGHT + lift : skater ? SKATER_POST_HEIGHT : FRAME.wheelRadius
     for (const axle of posts) {
-      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, postH, 12), postMat)
+      // A truck's posts are drawn as thick as a rider's at its model's size.
+      const fat = truck ? 6 : 1
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.03 * fat, 0.04 * fat, postH, 12), postMat)
       post.position.set(axle - midX, postH / 2, 0)
       g.add(post)
     }
@@ -634,6 +656,17 @@ export function createTunnelView(host: HTMLElement): TunnelView {
       for (const end of [-1, 1]) {
         const leg = new THREE.Mesh(new THREE.BoxGeometry(0.03, lift, BOARD.width * 0.9), postMat)
         leg.position.set(plate.position.x + end * (length / 2 - 0.1), (lift - BOARD.thick) / 2, 0)
+        g.add(leg)
+      }
+    }
+    if (truck && board) {
+      const length = truckLength(truck) + 2 * TRUCK_BOARD.past
+      const plate = new THREE.Mesh(new THREE.BoxGeometry(length, TRUCK_BOARD.thick, TRUCK_BOARD.width), boardMat)
+      plate.position.set(0, lift - TRUCK_BOARD.thick / 2, 0)
+      g.add(plate)
+      for (const end of [-1, 1]) {
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.2, lift, TRUCK_BOARD.width * 0.9), postMat)
+        leg.position.set(end * (length / 2 - 0.6), (lift - TRUCK_BOARD.thick) / 2, 0)
         g.add(leg)
       }
     }
@@ -768,15 +801,15 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     }
   }
 
-  /** Point the camera at the model, keeping it on the observation-window side. */
-  function aim(kind: TunnelModel['kind'], scale = 1) {
+  /** Point the camera at the model, keeping it on the observation-window side. A truck is framed from further back. */
+  function aim(kind: TunnelModel['kind'], scale = 1, truck = false) {
     const target =
       kind === 'rider'
-        ? new THREE.Vector3(0, floorY + RIDER_CENTRE_Y * scale, 0)
+        ? new THREE.Vector3(0, floorY + (truck ? TRUCK_CENTRE_Y : RIDER_CENTRE_Y) * scale, 0)
         : kind === 'wheel'
           ? new THREE.Vector3(0, floorY + FRAME.wheelRadius * scale, 0)
           : new THREE.Vector3(0, 0, 0)
-    const offset = CAMERA_OFFSET[kind].clone().multiplyScalar(kind === 'sphere' ? 1 : scale * 2)
+    const offset = CAMERA_OFFSET[kind].clone().multiplyScalar(kind === 'sphere' ? 1 : scale * 2 * (truck ? TRUCK_CAMERA : 1))
     controls.target.copy(target)
     camera.position.copy(target).add(offset)
     controls.update()
@@ -897,8 +930,11 @@ export function createTunnelView(host: HTMLElement): TunnelView {
       floorMat.color.setHex(dark ? COLOURS.darkFloor : COLOURS.floor)
     },
     setModel(model) {
-      const changed = model.kind !== modelKind
+      // Re-aim when the kind of model changes, or a truck comes on or off the posts (it's ten times a rider's length).
+      const truckOn = model.kind === 'rider' && model.state.design.sport === 'truck'
+      const changed = model.kind !== modelKind || truckOn !== truckFramed
       modelKind = model.kind
+      truckFramed = truckOn
       const tare = model.tare === true
       sphereRig.visible = model.kind === 'sphere'
       // With the sphere off there is nothing to bend the smoke round.
@@ -920,12 +956,14 @@ export function createTunnelView(host: HTMLElement): TunnelView {
               ? 'The wind tunnel test section with your ski jumper model on a pitching sting'
               : model.state.design.sport === 'bobsled'
                 ? `The wind tunnel test section with your bobsled model ${model.board ? 'on a ground board' : 'on the bare floor'}`
+                : truckOn
+                  ? `The wind tunnel test section with your truck model on the yaw turntable, ${model.board ? 'on a ground board' : 'on the bare floor'}`
                 : 'The wind tunnel test section with your rider model on the yaw turntable'
             : model.kind === 'wheel'
               ? 'The wind tunnel test section with the reference wheel held still on the posts'
               : 'The wind tunnel test section with a sphere on a sting',
       )
-      if (changed) aim(model.kind, model.kind === 'sphere' ? 1 : model.scale)
+      if (changed) aim(model.kind, model.kind === 'sphere' ? 1 : model.scale, truckOn)
     },
     setYaw(deg) {
       yawTable.rotation.y = (-deg * Math.PI) / 180

@@ -63,10 +63,18 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 9a | Trucks in the sim: the rig and its parts, the Tarnovian Road Code, drag over yaw, the fuel run on the Stavren–Mostograd highway | **Done** (v0.9.0.0) |
 | 9b | The truck on Shape: cab, gap and trailer sliders, the desk's fuel saving, road code breaks with "change this", the rig in 3D (`?try=truck`) | **Done** (v0.9.1.0) |
 | 9c | The truck in the tunnel, sim side: truck model scales (1:12, 1:10, 1:8), parts drag that grows with yaw, the still floor and the ground board, bolt-on part swaps, the fuel-saving forecast from a yaw sweep | **Done** (v0.9.2.0) |
-| 9d–14 | See the plan | Next: PR 9d, the truck on the tunnel screen. Then 9e truck jobs, 9f the fuel-run replay. |
+| 9d | The truck on the tunnel screen: its own small model on a ground board, the camera framing the rig, runs pooled by yaw into a fuel-saving forecast with the straight-on and bare-floor traps named, truck scales in the model shop, stouter struts | **Done** (v0.9.3.0) |
+| 9e–14 | See the plan | Next: PR 9e, truck jobs (briefs, the promise, the debrief). Then 9f the fuel-run replay. |
 
 ## Versions
 
+- **0.9.3.0** (PR 9d): the truck on the tunnel screen (`?try=truck`, then
+  Tunnel). It starts on a 1:8 model on a ground board. The Runs tab pools
+  its runs angle by angle and runs the route on that curve for a fuel
+  saving; it says when the curve is straight on only, or on the bare floor.
+  The model shop offers 1:12, 1:10 and 1:8 for a truck, and the board. A
+  truck is bolted to stouter struts (250 N): a big yaw at full fan still
+  tears it off. Runs and the mount button say "truck".
 - **0.9.2.0** (PR 9c): the truck in the tunnel, in the sim. Truck models
   come at 1:12, 1:10 or 1:8 so the rig fits the section. The parts a box
   can't show (gap, underside, boat-tail panels and so on) ride with the
