@@ -8,8 +8,9 @@
  */
 import * as THREE from 'three'
 import { FIELD_TROUBLE, type CourseSegment } from '../data/field'
-import { CAR_REPLAY, REPLAY_SCENE as S } from '../data/replay'
+import { CAR_REPLAY, RECORD_SCENE, REPLAY_SCENE as S } from '../data/replay'
 import { designPose, type Design } from '../sim/design'
+import { recordAxis, recordLength } from '../sim/geom/record'
 import type { TrackPoint } from '../sim/replay'
 import { buildRider, disposeGroup } from './riderFigure'
 
@@ -32,6 +33,12 @@ const COLOURS = {
   line: 0xffffff,
   markMine: 0x2456e8,
   markOld: 0x5a6875,
+  /** The salt flat (PR 9v): the pan, its cracks, the graded course and its black line, and the chutes. */
+  salt: 0xece8de,
+  saltGrid: 0xd6cfbf,
+  saltCourse: 0xe2dccd,
+  saltLine: 0x1d242b,
+  chute: 0xe08a00,
 }
 
 const DEG = Math.PI / 180
@@ -59,6 +66,8 @@ export interface ReplayOptions {
   truck?: boolean
   /** A race lap (PR 9o): the circuit's road, lanes and camera of REPLAY_SCENE.car, and no cones but the line. */
   car?: boolean
+  /** A record run (PR 9v): the salt flat, the lanes and camera of RECORD_SCENE, and each car's chute. */
+  record?: boolean
 }
 
 /** A rider as drawn: tucked as designed, and (built the first time it's needed) sitting up. */
@@ -67,6 +76,8 @@ interface Figure {
   ghost: boolean
   tucked: THREE.Group
   sitting: THREE.Group | null
+  /** A record car's chute, behind its tail, shown once it's out. */
+  chute: THREE.Group | null
 }
 
 /** The same rider sitting up (a skater standing taller): back up to the trouble table's angle, head up. */
@@ -96,7 +107,14 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
   // The road's layout and the chase camera: a rider's, or a truck's.
   // setCourse's own options shadow these, so keep the circuit flag by name.
   const circuit = opts.car === true
-  const lay = circuit ? S.car : opts.truck ? S.truck : { roadWidth: S.roadWidth, laneMine: S.laneMine, laneOld: S.laneOld, flagEvery: S.flagEvery, flagSide: S.flagSide, camera: S.camera }
+  const salt = opts.record === true
+  const lay = salt
+    ? RECORD_SCENE
+    : circuit
+      ? S.car
+      : opts.truck
+        ? S.truck
+        : { roadWidth: S.roadWidth, laneMine: S.laneMine, laneOld: S.laneOld, flagEvery: S.flagEvery, flagSide: S.flagSide, camera: S.camera }
   const renderer = new THREE.WebGLRenderer({ antialias: true })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
   renderer.outputColorSpace = THREE.SRGBColorSpace
@@ -121,17 +139,18 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     m.depthWrite = false
     return o
   }
-  const ground = flat(new THREE.Mesh(new THREE.PlaneGeometry(S.gridSize * 2, S.gridSize * 2), new THREE.MeshLambertMaterial({ color: COLOURS.ground })), -4)
+  const ground = flat(new THREE.Mesh(new THREE.PlaneGeometry(S.gridSize * 2, S.gridSize * 2), new THREE.MeshLambertMaterial({ color: salt ? COLOURS.salt : COLOURS.ground })), -4)
   ground.rotation.x = -Math.PI / 2
-  const grid = flat(new THREE.GridHelper(S.gridSize, S.gridSize / S.gridCell, COLOURS.grid, COLOURS.grid), -3)
+  const gridColour = salt ? COLOURS.saltGrid : COLOURS.grid
+  const grid = flat(new THREE.GridHelper(S.gridSize, S.gridSize / S.gridCell, gridColour, gridColour), -3)
   scene.add(ground, grid)
 
   const course = new THREE.Group()
   scene.add(course)
-  const roadMat = new THREE.MeshLambertMaterial({ color: COLOURS.road, depthWrite: false })
-  const dashMat = new THREE.MeshLambertMaterial({ color: COLOURS.dash, depthWrite: false })
-  // One centre-line dash, lying flat and pointing along the road (local −z).
-  const dashGeo = new THREE.PlaneGeometry(0.15, S.dashEvery / 2)
+  const roadMat = new THREE.MeshLambertMaterial({ color: salt ? COLOURS.saltCourse : COLOURS.road, depthWrite: false })
+  const dashMat = new THREE.MeshLambertMaterial({ color: salt ? COLOURS.saltLine : COLOURS.dash, depthWrite: false })
+  // One centre-line dash, lying flat and pointing along the road (local −z). On the salt the black line is nearly unbroken and wider.
+  const dashGeo = new THREE.PlaneGeometry(salt ? 0.3 : 0.15, salt ? S.dashEvery * 0.9 : S.dashEvery / 2)
   dashGeo.rotateX(-Math.PI / 2)
   const poleMat = new THREE.MeshLambertMaterial({ color: COLOURS.pole })
   const flagMat = new THREE.MeshLambertMaterial({ color: COLOURS.flag, side: THREE.DoubleSide })
@@ -156,7 +175,14 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
   scene.add(ringMine, ringOld)
   /** The fixed broadcast camera on the track, or null for the chase camera. */
   let broadcast: { at: THREE.Vector3; look: THREE.Vector3 } | null = null
-  const ghostMat = new THREE.MeshStandardMaterial({ color: COLOURS.ghost, transparent: true, opacity: S.ghostOpacity, depthWrite: false, roughness: 0.8 })
+  // On the salt the twin is slate: white would vanish on it.
+  const ghostMat = new THREE.MeshStandardMaterial({
+    color: salt ? COLOURS.markOld : COLOURS.ghost,
+    transparent: true,
+    opacity: salt ? RECORD_SCENE.ghostOpacity : S.ghostOpacity,
+    depthWrite: false,
+    roughness: 0.8,
+  })
   let mine: Figure | null = null
   let old: Figure | null = null
   /** Seconds of replay so far, for the gusts' rhythm. */
@@ -174,13 +200,45 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     return g
   }
 
+  const chuteMat = new THREE.MeshLambertMaterial({ color: COLOURS.chute, side: THREE.DoubleSide })
+  const chuteLineMat = new THREE.LineBasicMaterial({ color: COLOURS.pole })
+  const chuteGeo = new THREE.SphereGeometry(RECORD_SCENE.chute.radius, 16, 6, 0, Math.PI * 2, 0, Math.PI / 2)
+  // The dome's open side faces forward, toward the car (the car is built facing +x).
+  chuteGeo.rotateZ(Math.PI / 2)
+
+  /** A record car's chute on its lines, behind the tail. */
+  function buildChute(design: Design, ghost: boolean): THREE.Group {
+    const g = new THREE.Group()
+    if (design.sport !== 'record') return g
+    const tail = -recordLength(design) / 2
+    const axis = recordAxis(design)
+    const c = RECORD_SCENE.chute
+    const dome = new THREE.Mesh(chuteGeo, ghost ? ghostMat : chuteMat)
+    dome.position.set(tail - c.line, axis, 0)
+    // Four lines from the tail to the canopy's rim.
+    const pts: number[] = []
+    for (const [y, z] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) pts.push(tail, axis, 0, tail - c.line, axis + y * c.radius, z * c.radius)
+    const lineGeo = new THREE.BufferGeometry()
+    lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3))
+    g.add(dome, new THREE.LineSegments(lineGeo, chuteLineMat))
+    g.visible = false
+    return g
+  }
+
   function figure(design: Design, ghost: boolean): Figure {
     const tucked = build(design, ghost)
-    return { design, ghost, tucked, sitting: null }
+    const chute = design.sport === 'record' ? buildChute(design, ghost) : null
+    if (chute) tucked.add(chute)
+    return { design, ghost, tucked, sitting: null, chute }
   }
 
   function dropFigure(f: Figure | null) {
     if (!f) return
+    // The chute's dome shares one geometry and its materials: keep them for the next car.
+    if (f.chute) {
+      f.tucked.remove(f.chute)
+      for (const o of f.chute.children) if (o instanceof THREE.LineSegments) o.geometry.dispose()
+    }
     for (const g of [f.tucked, f.sitting]) {
       if (!g) continue
       scene.remove(g)
@@ -201,6 +259,18 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
 
   /** Show the figure the race clock calls for and put it in its lane. */
   function pose(f: Figure, at: TrackPoint, lane: number, phase: number): THREE.Group {
+    // A record car (PR 9v): the chute once it's out, the nose lifting before a light-nose abort, a swing before a wander.
+    if (f.design.sport === 'record') {
+      const g = f.tucked
+      const R = RECORD_SCENE
+      const swing = at.faded === 2 && !opts.still ? Math.sin(2 * Math.PI * R.wander.perSecond * (clock + phase)) : 0
+      stand(g, at, lane + R.wander.side * swing)
+      g.rotation.y += R.wander.deg * swing * DEG
+      g.rotation.x = 0
+      g.rotation.z = at.faded === 1 ? R.liftDeg * DEG : 0
+      if (f.chute) f.chute.visible = at.eased > 0
+      return g
+    }
     if (at.faded > 0) f.sitting ??= build(sitUp(f.design), f.ghost)
     const g = at.faded > 0 && f.sitting ? f.sitting : f.tucked
     for (const other of [f.tucked, f.sitting]) if (other) other.visible = other === g
@@ -302,8 +372,8 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       ringMine.visible = ringOld.visible = !!opts.lap
       grid.visible = !opts.lap
       boardsMat.color.setHex(opts.ice ? COLOURS.ice : COLOURS.boards)
-      roadMat.color.setHex(opts.ice ? COLOURS.ice : COLOURS.road)
-      ;(ground.material as THREE.MeshLambertMaterial).color.setHex(opts.lap ? COLOURS.infield : opts.ice ? COLOURS.snow : COLOURS.ground)
+      roadMat.color.setHex(salt ? COLOURS.saltCourse : opts.ice ? COLOURS.ice : COLOURS.road)
+      ;(ground.material as THREE.MeshLambertMaterial).color.setHex(salt ? COLOURS.salt : opts.lap ? COLOURS.infield : opts.ice ? COLOURS.snow : COLOURS.ground)
       if (opts.lap) {
         layTrack(segs, opts.lap)
         return
@@ -411,9 +481,9 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       clearCourse()
       dropFigure(mine)
       dropFigure(old)
-      for (const geo of [poleGeo, flagGeo, coneGeo, dashGeo, ringGeo, ground.geometry]) geo.dispose()
+      for (const geo of [poleGeo, flagGeo, coneGeo, dashGeo, ringGeo, chuteGeo, ground.geometry]) geo.dispose()
       grid.dispose()
-      for (const m of [roadMat, dashMat, poleMat, flagMat, coneMat, ghostMat, boardsMat, lineMat, ringMine.material, ringOld.material, ground.material as THREE.Material])
+      for (const m of [roadMat, dashMat, poleMat, flagMat, coneMat, ghostMat, boardsMat, lineMat, chuteMat, chuteLineMat, ringMine.material, ringOld.material, ground.material as THREE.Material])
         m.dispose()
       renderer.dispose()
       renderer.forceContextLoss()

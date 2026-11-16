@@ -17,6 +17,7 @@ import { recordForecast } from './recordForecast'
 import { CAR_CLASS, type CarDesign } from '../data/car'
 import { checkCarRules, lapTime, scrutineered } from '../sim/car'
 import { playCarReplay } from './carReplay'
+import { playRecordReplay } from './recordReplay'
 import type { BobsledDesign } from '../data/bobsled'
 import { GRAVEL_YARD, type TruckDesign } from '../data/truck'
 import { ROUTES } from '../data/routes'
@@ -868,8 +869,8 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       if (!d) return
       deliverSheet?.close()
       careerStore.set(d.state)
-      // The record-run replay comes in a later PR: straight to the debrief for now.
-      showRecordDelivery(d)
+      // The record-run replay (PR 9v), then speed week's debrief.
+      replayRecord(d, car, () => showRecordDelivery(d, car))
     })
     deliverSheet.body.replaceChildren(
       el('p', 'shop-intro', t('deliver.introRecord', { client: b.client, flat: flatName })),
@@ -887,7 +888,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
   let recordSheet: Sheet | null = null
 
   /** Speed week for a record car: the promise judged on the still day, record day, and a light nose, a wander or a low canopy with its fix. */
-  function showRecordDelivery(d: RecordDelivery) {
+  function showRecordDelivery(d: RecordDelivery, design: RecordDesign) {
     recordSheet ??= createSheet({ cls: 'raceday', title: t('rd.title'), closeLabel: t('rd.close') })
     const b = briefTemplate(d.job.brief.id)!
     const db = d.debrief
@@ -935,8 +936,32 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     parts.push(el('p', 'shop-note', t('rd.readNote')))
     if (d.sale) parts.push(brokeBox(d.sale, d.state.money))
     if (d.state.ended) parts.push(el('p', 'save-due', t('end.reached')))
+    const again = button('save-btn quiet', t('race.replay'))
+    again.addEventListener('click', () => {
+      recordSheet?.close()
+      replayRecord(d, design, () => showRecordDelivery(d, design))
+    })
+    parts.push(again)
     recordSheet.body.replaceChildren(...parts)
     recordSheet.open()
+  }
+
+  /** Record day's two runs on the salt, then `after`. */
+  function replayRecord(d: RecordDelivery, design: RecordDesign, after: () => void) {
+    const b = briefTemplate(d.job.brief.id)!
+    const db = d.debrief
+    void playRecordReplay({
+      client: b.client,
+      event: b.event.name,
+      design,
+      setup: b.setup as RecordDesign,
+      day: db.day,
+      attempt: db.attempt,
+      baselineAttempt: db.baselineAttempt,
+      predicted: db.predicted,
+      actual: db.actual,
+      onDone: after,
+    })
   }
 
   /** Race day's lap replay for a car as the scrutineers passed it, then `after`. */

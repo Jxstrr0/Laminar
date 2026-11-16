@@ -227,3 +227,44 @@ export const CAR_REPLAY = {
   /** A porpoising car bounces this high, m, this many times a second of the replay. */
   bounce: { height: 0.06, perSecond: 4 },
 }
+
+/**
+ * The record-run replay (PR 9v): both runs on the salt, your car with the
+ * team's old one as a see-through twin beside it. A run takes a minute or
+ * more, most of it the run-up, so the run-up plays fast and the timed
+ * kilometre slower. Every speed comes from record day's runs; these numbers
+ * only set how they are shown.
+ */
+export const RECORD_REPLAY = {
+  /** Run seconds per replay second: on the run-up, and from just before the timed kilometre (or the chutes) until your car stops. */
+  fastRate: 10,
+  slowRate: 2.5,
+  /** The slower part starts this many run seconds before your car reaches the timed kilometre, or pulls its chutes. */
+  lead: 1.5,
+  /** Between the runs the picture holds this long, replay s, for the turn round. */
+  turn: 2.2,
+  /** Chutes out: the car slows at this rate, m/s², drawn in pieces this long, m, and is shown stopping once it's down to this speed, m/s. */
+  chuteDecel: 20,
+  stopPiece: 25,
+  stopSpeed: 8,
+  /** A light nose or a wander shows over this many metres before the chutes come out. */
+  troubleSpan: 300,
+}
+
+/** The record replay's salt, lanes, chute and chase camera, m. */
+export const RECORD_SCENE = {
+  roadWidth: 16,
+  laneMine: 2,
+  laneOld: -2,
+  /** A wind sock every this many metres along the left of the course. */
+  flagEvery: 500,
+  flagSide: -12,
+  camera: { back: 26, up: 4.5, side: -0.5, ahead: 14, lookUp: 0.5, fov: 50 },
+  /** The drogue chute rides this far behind the tail on its lines, this wide in radius: far enough back to show below the car in the chase camera. */
+  chute: { line: 10, radius: 0.6 },
+  /** The old car is a see-through slate twin, so it shows on the white salt. */
+  ghostOpacity: 0.45,
+  /** A light nose lifts up to this many degrees; a wander swings this many degrees and this far sideways, this often a second. */
+  liftDeg: 4,
+  wander: { deg: 1.5, side: 0.6, perSecond: 1.2 },
+}
