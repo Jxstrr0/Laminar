@@ -27,6 +27,7 @@ import { gaussian } from './noise'
 import { DEG } from './num'
 import { blockageFactor, type MountKind } from './quirks'
 import { Rng } from './rng'
+import type { Run } from './run'
 import { REFERENCE_TT, type EventSpec, type ModelSpec, type TunnelSpec } from './views'
 
 /** How a quad model goes in: props stopped (a plain model) or spinning (a powered one, PR 10c). */
@@ -66,7 +67,7 @@ export interface DroneTunnelRun {
 /** One balance reading, scaled to full size. */
 export interface DroneReading {
   tiltDeg: number
-  /** Drag area, m², and the twist on the pod over the dynamic pressure, m³ (positive: nose up). */
+  /** Drag area, m², and the twist on the pod over the dynamic pressure, m³ (positive: nose down, turning the pod further off the wind). */
   cdA: number
   twist: number
   /** The share of the thrust the downwash on the arms takes, or null with the props stopped. */
@@ -190,3 +191,15 @@ export function forecastDrone(readings: readonly Omit<DroneReading, 'dragN'>[], 
 export function droneEvent(course: DroneCourse): EventSpec {
   return { ...REFERENCE_TT, temperature: course.temperature, altitude: course.altitude, riderSpeed: T.matchSpeed, windSpeed: 0 }
 }
+
+/** A quad run's settled readings (PR 10d): fan and sting at rest, with the twist recorded. */
+export function droneReadings(runs: readonly Pick<Run, 'samples'>[]): Omit<DroneReading, 'dragN'>[] {
+  const out: Omit<DroneReading, 'dragN'>[] = []
+  for (const run of runs)
+    for (const s of run.samples)
+      if (s.steady && s.twist !== undefined) out.push({ tiltDeg: s.yawDeg, cdA: s.cdA, twist: s.twist, downwash: s.downwash ?? null })
+  return out
+}
+
+/** True if a run read a racing quad. */
+export const isDroneRun = (run: Pick<Run, 'samples'>): boolean => run.samples.some((s) => s.twist !== undefined)

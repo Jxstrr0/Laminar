@@ -207,7 +207,9 @@ function soundSample(x: unknown): x is RunSample {
     (x.pitchA === undefined || isNum(x.pitchA)) &&
     (x.clAFront === undefined || isNum(x.clAFront)) &&
     (x.liftFront === undefined || isNum(x.liftFront)) &&
-    (x.centre === undefined || isNum(x.centre))
+    (x.centre === undefined || isNum(x.centre)) &&
+    (x.twist === undefined || isNum(x.twist)) &&
+    (x.downwash === undefined || isNum(x.downwash))
   )
 }
 

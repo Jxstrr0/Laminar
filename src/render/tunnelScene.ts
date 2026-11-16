@@ -22,6 +22,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { HANDLE_TOUCH } from '../data/handles'
 import { BOB_TUNNEL } from '../data/bobsled'
 import { FLIGHT_ATTITUDE } from '../data/jumper'
+import { DRONE_BODY } from '../data/drone'
 import { FRAME } from '../data/pose'
 import { UNIVERSITY_TUNNEL, REFERENCE_SPHERE, REFERENCE_WHEEL } from '../data/tunnel'
 import type { FailurePart } from '../sim/failure'
@@ -144,13 +145,22 @@ const CAR_CAMERA = 2.6
  */
 const RECORD_CENTRE_Y = 0.6
 const RECORD_CAMERA = 4
+/**
+ * A racing quad (PR 10d) is tested full size on a slim sting from behind,
+ * pivoting about its frame plate's middle, held at the section's middle
+ * height. Metres: the pivot's height, the sting's length back to its strut,
+ * and the rod's and strut's radii. The camera stands close: a quad is small.
+ */
+const DRONE_STING = { y: 0.9, length: 0.3, rod: 0.005, strut: 0.012, knuckle: 0.01 }
+const DRONE_CAMERA = 0.22
 /** How each kind of model on the posts is framed: the height looked at and how far back the camera stands, as for a rider. */
-type Framing = 'rider' | 'truck' | 'car' | 'record'
+type Framing = 'rider' | 'truck' | 'car' | 'record' | 'drone'
 const FRAMING: Record<Framing, { y: number; back: number }> = {
   rider: { y: RIDER_CENTRE_Y, back: 1 },
   truck: { y: TRUCK_CENTRE_Y, back: TRUCK_CAMERA },
   car: { y: CAR_CENTRE_Y, back: CAR_CAMERA },
   record: { y: RECORD_CENTRE_Y, back: RECORD_CAMERA },
+  drone: { y: DRONE_STING.y, back: DRONE_CAMERA },
 }
 /**
  * A ski jumper flies on a sting from behind: the model pivots about its hips,
@@ -669,6 +679,10 @@ export function createTunnelView(host: HTMLElement): TunnelView {
       showJumper(state, scale, tare)
       return
     }
+    if (state?.design.sport === 'drone') {
+      showDrone(state, scale, tare)
+      return
+    }
     pitchGroup = null
     rearIsDisc = state !== null && (state.design.sport === undefined || state.design.sport === 'cycling') && state.design.wheels.rear === 'disc'
     const g = new THREE.Group()
@@ -857,10 +871,47 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     riderGroup = g
     pitchGroup = pivot
     pitchBuilt = FLIGHT_ATTITUDE.hold
+    pitchSign = 1
     applyPitch()
   }
+  /** A quad on its sting (PR 10d): built level, then tipped nose-down by the tilt (setPitch). */
+  function showDrone(state: RiderState, scale: number, tare: boolean) {
+    rearIsDisc = false
+    const S = DRONE_STING
+    const g = new THREE.Group()
+    const rod = new THREE.Mesh(new THREE.CylinderGeometry(S.rod, S.rod, S.length, 12), postMat)
+    rod.rotation.z = Math.PI / 2
+    rod.position.set(-S.length / 2, S.y, 0)
+    const strut = new THREE.Mesh(new THREE.CylinderGeometry(S.strut, S.strut * 1.3, S.y, 12), postMat)
+    strut.position.set(-S.length, S.y / 2, 0)
+    const knuckle = new THREE.Mesh(new THREE.SphereGeometry(S.knuckle, 16, 12), postMat)
+    knuckle.position.set(0, S.y, 0)
+    g.add(rod, strut, knuckle)
+    const pivot = new THREE.Group()
+    pivot.position.set(0, S.y, 0)
+    if (!tare) {
+      // The quad is drawn with its plate at its hover height: bring the plate's middle to the pivot.
+      const figure = buildRider({ ...state, tilt: undefined })
+      figure.position.y = -DRONE_BODY.hover
+      pivot.add(figure)
+    }
+    g.add(pivot)
+    flowViz.group.position.x = 0
+    g.add(flowViz.group)
+    g.scale.setScalar(scale)
+    g.rotation.y = Math.PI
+    mount.add(g)
+    riderGroup = g
+    pitchGroup = pivot
+    pitchBuilt = 0
+    // Tilt is nose-down: the other way round from a jumper's pitch.
+    pitchSign = -1
+    applyPitch()
+  }
+  /** +1 turns the pitch group nose-up with the dial (a jumper), −1 nose-down (a quad's tilt). */
+  let pitchSign = 1
   function applyPitch() {
-    if (pitchGroup) pitchGroup.rotation.z = ((pitchDeg - pitchBuilt) * Math.PI) / 180
+    if (pitchGroup) pitchGroup.rotation.z = (pitchSign * (pitchDeg - pitchBuilt) * Math.PI) / 180
   }
   // --- Breaks (plan section 8). A warning buzzes the model on its posts; a
   // break throws a part (or, off the posts, the whole model) down the section,
@@ -1081,7 +1132,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     setModel(model) {
       // Re-aim when the kind of model changes, or a truck comes on or off the posts (it's ten times a rider's length).
       const sport = model.kind === 'rider' ? model.state.design.sport : undefined
-      const framing: Framing = sport === 'truck' || sport === 'car' || sport === 'record' ? sport : 'rider'
+      const framing: Framing = sport === 'truck' || sport === 'car' || sport === 'record' || sport === 'drone' ? sport : 'rider'
       const truckOn = framing === 'truck'
       const carOn = framing === 'car'
       const changed = model.kind !== modelKind || framing !== framed
@@ -1106,6 +1157,8 @@ export function createTunnelView(host: HTMLElement): TunnelView {
           : model.kind === 'rider'
             ? model.state.design.sport === 'skijump'
               ? 'The wind tunnel test section with your ski jumper model on a pitching sting'
+              : framing === 'drone'
+                ? 'The wind tunnel test section with your full-size racing quad on a tilting sting, its props stopped'
               : model.state.design.sport === 'bobsled'
                 ? `The wind tunnel test section with your bobsled model ${model.board ? 'on a ground board' : 'on the bare floor'}`
                 : framing === 'record'

@@ -29,7 +29,7 @@ export const FAILURE = {
     disc: 42,
     /** Smaller models have shorter, stiffer parts: their flutter speed times this. */
     // Smaller models are stiffer for their size; a truck's scales (PR 9c) carry on the trend.
-    scale: { 4: 1.3, 3: 1.15, 2: 1, 12: 1.6, 10: 1.5, 8: 1.4 },
+    scale: { 4: 1.3, 3: 1.15, 2: 1, 12: 1.6, 10: 1.5, 8: 1.4, 1: 1 },
     /** Printed parts are softer. */
     finish: { printed: 0.85, sanded: 1, polished: 1 },
   },
@@ -55,6 +55,12 @@ export const FAILURE = {
    * it near 35 m/s at a steep pitch and it gives.
    */
   stingN: 170,
+  /**
+   * The slim sting a full-size quad model is tipped on (PR 10d), N: a faired
+   * racer tipped right over in the university's fan loads it under 30 N; the
+   * bigger fan, tipped as far, breaks it.
+   */
+  droneStingN: 45,
   /** Printed models have their helmet glued on: it lets go past this air speed. */
   detachSpeed: 36,
   repair: {
