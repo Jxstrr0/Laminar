@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CYCLIST, type CyclistDesign } from '../src/data/cyclist'
+import { DEFAULT_JUMPER } from '../src/data/jumper'
 import { FAILURE } from '../src/data/failure'
 import { STANDARD_ORDER } from '../src/data/model'
 import { acceptBrief, newCareer, repairModel } from '../src/sim/career'
@@ -40,6 +41,15 @@ describe('tunnel failures', () => {
     const posts = strains(model(), 20, FAILURE.mountN).find((s) => s.part === 'posts')!
     expect(posts.level).toBe(1)
     expect(strains(model({ finish: 'printed' }), FAILURE.detachSpeed, 0).find((s) => s.part === 'helmet')!.level).toBe(1)
+  })
+
+  it('hangs a jumper on its sting, which takes lift and drag, not on the posts', () => {
+    const jumper: MountedModel = { order: STANDARD_ORDER, design: DEFAULT_JUMPER }
+    const parts = strains(jumper, 30, 100).map((s) => s.part)
+    expect(parts).toEqual(['sting'])
+    expect(strains(jumper, 30, FAILURE.stingN)[0]!.level).toBe(1)
+    // A tunnel tech who's good with mounts makes the sting hold more too.
+    expect(strains(jumper, 30, FAILURE.stingN, 1.25)[0]!.level).toBeCloseTo(0.8)
   })
 
   it('always warns before it breaks, and only breaks when held past the limit', () => {
@@ -96,6 +106,7 @@ describe('tunnel failures', () => {
     expect(fixFor({ mode: 'flutter', part: 'tail' })).toBe('helmet')
     expect(fixFor({ mode: 'flutter', part: 'disc' })).toBe('wheels')
     expect(fixFor({ mode: 'mount', part: 'posts' })).toBe('shop')
+    expect(fixFor({ mode: 'mount', part: 'sting' })).toBe('shop')
     expect(fixFor({ mode: 'detach', part: 'helmet' })).toBe('shop')
   })
 })

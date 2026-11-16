@@ -12,7 +12,7 @@ import { Rng } from '../src/sim/rng'
 import type { TunnelSpec } from '../src/sim/views'
 
 const ideal: TunnelSpec = { turbulence: 0, balanceNoise: 0, section: UNIVERSITY_TUNNEL.section }
-const model = (accuracy = 0, scale = 0.5) => ({ scale, finish: STANDARD_MODEL.finish, accuracy, seed: 3 })
+const model = (accuracy = 0, scale = 0.5, trips = false) => ({ scale, finish: STANDARD_MODEL.finish, accuracy, seed: 3, trips })
 const tweak = (lean: number, v: number, bag: number): JumperDesign => ({ sport: 'skijump', posture: { leanDeg: lean, vAngleDeg: v }, suit: { bagginess: bag } })
 
 /** A sweep: one reading per angle, every `step` degrees. */
@@ -120,6 +120,20 @@ describe('the forecast', () => {
     const big = at(1, 40)
     expect(small).toBeLessThan(ref - 2)
     expect(Math.abs(big - ref)).toBeLessThan(Math.abs(small - ref))
+  })
+
+  it('reads fair with trip strips on the helmet and boots, at any size and speed', () => {
+    const ref = referenceJump(DEFAULT_JUMPER, PRACTICE_JUMP).distance
+    const at = (scale: number, speed: number, trips: boolean) => {
+      const prepared = prepareJumper(DEFAULT_JUMPER, model(0, scale, trips))
+      const rng = new Rng(1)
+      const rs: JumpReading[] = []
+      for (let a = 8; a <= 42; a++) rs.push(readJumper(prepared, ideal, { speed, alphaDeg: a }, rng))
+      return forecastJump(rs, PRACTICE_JUMP)!.distance
+    }
+    // Untaped, even a big fast model reads short: the tunnel's quiet air leaves them laminar.
+    expect(at(0.5, 30, false)).toBeLessThan(ref - 3)
+    for (const [scale, speed] of [[0.5, 30], [0.5, 20], [0.25, 30]] as const) expect(Math.abs(at(scale, speed, true) - ref)).toBeLessThan(0.5)
   })
 
   it('needs two angles', () => {

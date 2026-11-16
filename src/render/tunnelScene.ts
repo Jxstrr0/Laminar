@@ -680,6 +680,8 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   function partObject(part: FailurePart): THREE.Object3D | null {
     if (!riderGroup) return null
     if (part === 'posts') return riderGroup
+    // Off a broken sting the jumper leaves its knuckle; the sting stays.
+    if (part === 'sting') return pitchGroup
     if (part === 'disc') {
       const rear = riderGroup.getObjectByName('wheel-rear')
       return rearIsDisc ? (rear ?? null) : (riderGroup.getObjectByName('wheel-front') ?? null)
@@ -691,17 +693,25 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     const obj = partObject(part)
     if (!obj) return
     strain = 0
+    // The loose jumper no longer turns with the sting's pitch.
+    if (part === 'sting') pitchGroup = null
     if (!animate) {
       // A model that broke before: the part is simply missing (off the posts, the model lies on the floor).
       if (part === 'posts') {
         obj.rotation.z = Math.PI / 2
         obj.position.set(L * 0.3, floorY + 0.05, 0)
+      } else if (part === 'sting') {
+        // The jumper lies on the floor against the screens, as debris (so a new model clears it).
+        scene.attach(obj)
+        obj.rotation.set(0, Math.PI, 0)
+        obj.position.set(L * 0.3, floorY + 0.06, 0)
+        debris.push({ obj, v: new THREE.Vector3(), spin: new THREE.Vector3(), still: true })
       } else obj.visible = false
       return
     }
     // Keep its place in the world as it leaves its parent.
     scene.attach(obj)
-    const kick = part === 'posts' ? 0.6 : 1.2
+    const kick = part === 'posts' || part === 'sting' ? 0.6 : 1.2
     debris.push({ obj, v: new THREE.Vector3(1.5, kick, (Math.random() - 0.5) * 0.6), spin: new THREE.Vector3(Math.random() * 6, Math.random() * 6, 3 + Math.random() * 6), still: false })
   }
   /** Fly the debris: blown downstream, pulled down, bouncing on the floor, stopped by the screens. */

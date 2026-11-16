@@ -6,12 +6,15 @@
  *   size, through the tunnel's quirks (blockage, the sting's own drag) and
  *   the balance's noise. The plates' lift comes from their edges, which the
  *   air treats the same at any size, so a jumper model hardly feels the
- *   Reynolds trap; only the helmet and boots do.
+ *   Reynolds trap; only the helmet and boots do. The hill's open air trips
+ *   their boundary layer, the tunnel's quiet air doesn't: untaped they read
+ *   draggy and the forecast short, so the shop's trip strips go on them too.
  * - forecastJump: the reference jump flown on those readings instead of the
  *   truth. Its distance is what you declare (Kelbo, 16 November 2026), and
  *   its lowest margin is the tunnel's word on stability.
  */
 import { AIR } from '../data/air'
+import { MODEL_TRIPS } from '../data/model'
 import { FLIGHT_ATTITUDE, JUMP_BODY, JUMP_SKIS, JUMP_TUNNEL, PITCH, type JumperDesign } from '../data/jumper'
 import { shapeDrag } from './aero/drag'
 import type { Flow } from './aero/flow'
@@ -40,7 +43,11 @@ export interface PreparedJumper {
 export function prepareJumper(design: JumperDesign, model: ModelSpec): PreparedJumper {
   const rng = new Rng(model.seed).fork('jumper-build')
   const k = () => 1 + model.accuracy * gaussian(rng)
-  return { design, scale: model.scale, skiArea: k(), bodyArea: k(), parts: describeShape(buildModel(jumperParts(design), model)) }
+  const built = buildModel(jumperParts(design), model)
+  // On a jumper the shop tapes strips round the helmet and the boots too (PR 8k):
+  // the open air on a hill trips them, the tunnel's quiet air doesn't, so untaped they read draggy.
+  const parts = model.trips ? { ...built, bodies: built.bodies.map((b) => (b.trip ? b : { ...b, trip: { at: MODEL_TRIPS.at, height: MODEL_TRIPS.height } })) } : built
+  return { design, scale: model.scale, skiArea: k(), bodyArea: k(), parts: describeShape(parts) }
 }
 
 export interface JumpRun {
