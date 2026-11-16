@@ -47,6 +47,20 @@ export const REPLAY_SCENE = {
   cameraEase: 3,
   /** How see-through the old setup is drawn. */
   ghostOpacity: 0.35,
+  /**
+   * A truck's fuel run (PR 9h): a wider road with your truck in the right
+   * lane and the fleet's old one in the left, flags spaced for a long
+   * route, and the chase camera pulled back, up and over to the road's
+   * middle, so both 17 m rigs fit a portrait screen.
+   */
+  truck: {
+    roadWidth: 11,
+    laneMine: 2.2,
+    laneOld: -2.2,
+    flagEvery: 1500,
+    flagSide: -8,
+    camera: { back: 34, up: 11, side: -2.2, ahead: 24, lookUp: 0, fov: 50 },
+  },
   /** The indoor track: the boards' width, a fixed broadcast camera and the rider markers. */
   track: {
     width: 7,
@@ -165,4 +179,20 @@ export const SLED_SCENE = {
   camera: { back: 8, up: 3, follow: 0.6, ahead: 8, lead: 0.3, lookUp: 0.5, fov: 55 },
   /** The old sled is a see-through slate ghost. */
   ghostOpacity: 0.4,
+}
+
+/**
+ * The fuel-run replay (PR 9h): both trucks down the client's route on the
+ * trial day, fast-forwarded. Every speed, yaw angle and litre comes from
+ * the day's fuel runs; these numbers only set how they are shown.
+ */
+export const TRUCK_REPLAY = {
+  /** The whole route (to the later truck's arrival) plays in this many seconds; a route takes about two hours. */
+  seconds: 26,
+  /** The stretch with the most yaw gets a crosswind line if the wind meets your truck at more than this, degrees. */
+  crossDeg: 4,
+  /** The first stretch where your truck drops this far below the limit, m/s, gets a climb line. */
+  slowBy: 0.5,
+  /** A line comes this far into its stretch (a share of it), so the picture has turned first. */
+  noteAt: 0.08,
 }

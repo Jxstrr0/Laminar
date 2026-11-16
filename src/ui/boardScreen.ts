@@ -16,7 +16,8 @@ import type { BobsledDesign } from '../data/bobsled'
 import { GRAVEL_YARD, type TruckDesign } from '../data/truck'
 import { ROUTES } from '../data/routes'
 import { checkTruckRules, skirtGap } from '../sim/truck'
-import { cracksOnGravel, roadLegal } from '../sim/truckJob'
+import { asRun, cracksOnGravel, roadLegal } from '../sim/truckJob'
+import { playTruckReplay } from './truckReplay'
 import { PITCH, type JumperDesign } from '../data/jumper'
 import { HILLS } from '../data/hills'
 import { jumpForecast } from './jumpForecast'
@@ -604,8 +605,21 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       if (!d) return
       deliverSheet?.close()
       careerStore.set(d.state)
-      // The fuel-run replay comes with PR 9g; for now the debrief.
-      showTruckDelivery(d)
+      // The fuel-run replay (PR 9h), then the debrief.
+      void playTruckReplay({
+        client: b.client,
+        event: b.event.name,
+        route: d.event.route,
+        design: asRun(truck, d.event).truck,
+        setup: b.setup as TruckDesign,
+        day: d.debrief.day,
+        run: d.debrief.run,
+        baselineRun: d.debrief.baselineRun,
+        cracked: d.debrief.cracked !== null,
+        predicted: d.debrief.predicted,
+        actual: d.debrief.actual,
+        onDone: () => showTruckDelivery(d),
+      })
     })
     deliverSheet.body.replaceChildren(
       el('p', 'shop-intro', t('deliver.introTruck', { client: b.client, route: routeName })),
