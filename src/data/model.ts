@@ -48,6 +48,8 @@ export const MODEL_SHOP = {
     fine: { times: 1.5, days: 2 },
   } satisfies Record<ModelGrade, { times: number; days: number }>,
   trips: { price: 3000, days: 1 },
+  /** A ground board for a bobsled model: a raised plate with a sharp front edge (PR 8n, BOB_TUNNEL). */
+  board: { price: 4000, days: 1 },
   /** Pressure taps: pinholes over the rider piped to the tunnel's scanner. */
   taps: { price: 8000, days: 2 },
   /** Swapping one bolt-on part (helmet, suit, bars, a wheel, the frame) on a model you have, ₽ (no days). */

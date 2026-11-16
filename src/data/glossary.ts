@@ -458,6 +458,20 @@ export const GLOSSARY = defineGlossary({
     aliases: ['tarnovian sliding federation', 'sliding rules'],
     seeAlso: ['ruleBox', 'cowling'],
   },
+  fixedFloor: {
+    term: 'Still floor',
+    short: 'The tunnel floor stands still; the ice under a sled doesn’t.',
+    long: 'On the track the ice slides past under the sled at its own speed. In the tunnel the floor stays put and grows a slow layer of air, and the runners and axles sit in it. The balance misses some of their drag, so a sled on the bare floor reads too slippery and its forecast run too quick. A ground board fixes most of it.',
+    aliases: ['fixed floor', 'floor effect', 'moving ground', 'ground plane'],
+    seeAlso: ['groundBoard', 'boundaryLayer'],
+  },
+  groundBoard: {
+    term: 'Ground board',
+    short: 'A raised plate under a sled model, with a sharp front edge.',
+    long: 'The model shop builds it into the order, like trip strips. The sharp edge starts a fresh, thin layer of air just ahead of the sled instead of the floor’s thick old one, so the runners meet air much as they do over the ice. It takes away most of the still floor’s error; a rolling road under the model would take it all.',
+    aliases: ['board', 'raised floor', 'splitter plate'],
+    seeAlso: ['fixedFloor', 'tripStrip'],
+  },
 })
 
 /** Every glossary id, checked by TypeScript wherever one is written. */

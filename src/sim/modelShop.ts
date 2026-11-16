@@ -16,6 +16,8 @@ export interface ModelOrder {
   trips: boolean
   /** Pressure taps fitted (they read the surface pressure; they don't change the drag). */
   taps: boolean
+  /** A ground board under a bobsled model (left out for anything else; PR 8n). */
+  board?: boolean
   /** Who makes it: the outside shop (left out) or one of your machines. */
   maker?: MakerId
 }
@@ -76,10 +78,11 @@ function shopQuote(order: ModelOrder): Quote {
   const grade = MODEL_SHOP.grade[order.grade]
   const trips = order.trips ? MODEL_SHOP.trips : { price: 0, days: 0 }
   const taps = order.taps ? MODEL_SHOP.taps : { price: 0, days: 0 }
-  const raw = base.price * finish.times * grade.times + trips.price + taps.price
+  const board = order.board ? MODEL_SHOP.board : { price: 0, days: 0 }
+  const raw = base.price * finish.times * grade.times + trips.price + taps.price + board.price
   return {
     price: Math.round(raw / MODEL_SHOP.round) * MODEL_SHOP.round,
-    days: Math.max(1, base.days + finish.days + grade.days + trips.days + taps.days),
+    days: Math.max(1, base.days + finish.days + grade.days + trips.days + taps.days + board.days),
   }
 }
 
@@ -91,6 +94,7 @@ export function modelSpecOf(order: ModelOrder, seed: number): ModelSpec {
     accuracy: MODEL_GRADE[order.grade].accuracy * MAKERS[makerOf(order)].accuracyTimes,
     seed,
     ...(order.trips ? { trips: true } : {}),
+    ...(order.board ? { board: true } : {}),
   }
 }
 

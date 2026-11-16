@@ -77,6 +77,14 @@ describe('the save file', () => {
     expect(parseSave(JSON.stringify(old))!.lab.order.taps).toBe(false)
   })
 
+  it('keeps a sled model’s ground board, and drops anything else in its place', () => {
+    const boarded = parseSave(packSave(file({ order: { ...newLab().order, board: true } })))!
+    expect(boarded.lab.order.board).toBe(true)
+    const odd = JSON.parse(packSave(file())) as { lab: { order: Record<string, unknown> } }
+    odd.lab.order.board = 'yes'
+    expect(parseSave(JSON.stringify(odd))!.lab.order.board).toBeUndefined()
+  })
+
   it('keeps a long session small enough for any phone', () => {
     // 40 two-minute runs at four samples a second.
     const long = Array.from({ length: 40 }, (_, i) => ({ ...run(i + 1), samples: Array.from({ length: 480 }, () => run(1).samples[0]!) }))

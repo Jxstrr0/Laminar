@@ -61,7 +61,9 @@ import { describeShape, scaleShape } from '../sim/geom/body'
 import { referenceWheel } from '../sim/geom/cyclist'
 import { sphere } from '../sim/geom/shapes'
 import { Rng } from '../sim/rng'
-import { designPose, designShape, isJumper, type Design } from '../sim/design'
+import { designPose, designShape, isBobsled, isJumper, type Design } from '../sim/design'
+import { forecastRun, prepareSled, sledEvent } from '../sim/sledTunnel'
+import { TRACKS } from '../data/tracks'
 import { FLIGHT_ATTITUDE, JUMP_TUNNEL, PITCH } from '../data/jumper'
 import { correctJumper, forecastJump, isJumperRun, jumperReadings, prepareJumper, readJumper, type JumperFix, type JumpForecast, type PreparedJumper } from '../sim/jumpTunnel'
 import type { JumpEvent } from '../sim/jumper'
@@ -237,6 +239,10 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   const dial = () => (jumper ? pitchSpec : spec.turntable)
   /** Where the angle row's "level" button goes: square on, or the flight angle. */
   const home = () => (jumper ? FLIGHT_ATTITUDE.hold : 0)
+  /** The track a sled is forecast on (the job's from PR 8o; Belogor until then). */
+  const sledTrack = () => TRACKS.belogor
+  /** The event the model's Reynolds number is matched to: a sled's track at its usual speed, else the job's. */
+  const reEvent = (): EventSpec => (isBobsled(modelDesign) ? sledEvent(sledTrack()) : hooks.event())
   /** What holds the model on the mount now. */
   const mountKind = (): MountKind => (mount === 'rider' && jumper ? 'sting' : MOUNT_KIND[mount])
   // The calibration sphere, made exactly: a reference body has no build errors.
@@ -331,7 +337,11 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   const rYaw = readout(t('read.yaw'), 'yaw')
   const rDrag = readout(t('read.modelDrag'), 'forceBalance')
   const rCdA = readout(t('read.cda'), 'cda')
-  riderGrid.append(rSpeed.box, rYaw.box, rDrag.box, rCdA.box)
+  // A sled's run time down the track on what the balance reads, in the yaw's place (a sled runs straight).
+  const rRun = readout(t('read.runForecast'), 'fixedFloor')
+  riderGrid.append(rSpeed.box, rYaw.box, rRun.box, rDrag.box, rCdA.box)
+  /** Last time the sled's run was flown on the reading, s ago (it's a march down the whole track). */
+  let runAge = Infinity
   rCdA.sub.textContent = t('read.cdaRaw', { scale: fixed(1 / STANDARD_MODEL.scale, 0) })
 
   // Readouts for a ski jumper on the sting.
@@ -570,7 +580,10 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     }
   }
   shopBtn.addEventListener('click', () => {
-    const ctx = hooks.shop()
+    const bench = designStore.get()
+    const sled = isBobsled(bench)
+    // A sled's model is matched to the track's speed, and only a sled can sit on a ground board.
+    const ctx: ShopContext = { ...hooks.shop(), sled, ...(sled ? { event: sledEvent(sledTrack()) } : {}) }
     openModelShop(order, ctx, (next) => {
       const q = quote(next, ctx.hand)
       hooks.onOrder(q.price, q.days)
@@ -1092,6 +1105,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     }
     poolBox.hidden = byCrank.size === 0 || !prepared
     if (poolBox.hidden || !prepared) return
+    // The jumper's forecast hides the cycle line; a rider's and a sled's use it.
+    poolCycle.hidden = false
     const s2 = prepared.scale * prepared.scale
     const fixCdA = (v: number) => correct(v * s2, fix) / s2
     const fixBand = (v: number) => v / (fix.blockage ?? 1)
@@ -1108,7 +1123,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
           else {
             const p = g
             row.textContent =
-              t('pool.row', {
+              t(isBobsled(now) ? 'pool.rowSled' : 'pool.row', {
                 crank: c,
                 cda: fixed(fixCdA(p.mean), 4),
                 band: fixed(fixBand(p.band), 4),
@@ -1122,6 +1137,19 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     )
     setText(poolTitle, cycle ? t('pool.titleAt', { yaw: fixed(cycle.yawDeg, 0), speed: fixed(cycle.speed, 0) }) : t('pool.title'))
     const more = cycle ? Math.max(0, RUN_STATS.legAngles - cycle.angles.length) : 0
+    if (isBobsled(now)) {
+      // A sled has no legs to crank: the pooled reading flies the reference run instead.
+      const only = [...byCrank.values()][0]!
+      const g = headlineGroup(poolRuns(only).filter((p) => p.trusted))
+      const track = sledTrack()
+      setText(poolTitle, t('pool.titleSled'))
+      const run = g ? t('pool.sledRun', { time: fixed(forecastRun(fixCdA(g.mean), now, track).time, 2), track: t(`track.${track.id}`) }) : t('runs.rowNone')
+      // The trap a sled model falls into (PR 8n): on the bare floor the runners read low.
+      setText(poolCycle, order.board ? run : `${run} ${t('pool.sledFloor')}`)
+      const words = fixWords(fix)
+      setText(poolFix, words ? t('pool.fixed', { list: words }) : t('pool.raw'))
+      return
+    }
     setText(
       poolCycle,
       !cycle
@@ -1154,14 +1182,16 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     setJumper(isJumper(design))
     jumperModel = isJumper(design) ? prepareJumper(design, modelSpec) : null
     forecastDirty = true
-    prepared = prepareModel(designShape(design, { crankDeg: crank, staticWheels: !spec.wheelDrive }), modelSpec)
+    prepared = isBobsled(design) ? prepareSled(design, modelSpec) : prepareModel(designShape(design, { crankDeg: crank, staticWheels: !spec.wheelDrive }), modelSpec)
+    rYaw.box.hidden = isBobsled(design)
+    rRun.box.hidden = !isBobsled(design)
     refreshCal()
     // The CdA's note names the model's scale before any reading (it changes with a new order).
     if (!fixWords(fix)) setText(rCdA.sub, t('read.cdaRaw', { scale: fixed(1 / modelSpec.scale, 0) }))
     modelVersion++
     view.setFlow(null, [])
     view.setTaps([], [])
-    view.setModel({ kind: 'rider', state: { design, pose: designPose(design, crank), broken: [], strained: [] }, scale: modelSpec.scale, tare })
+    view.setModel({ kind: 'rider', state: { design, pose: designPose(design, crank), broken: [], strained: [] }, scale: modelSpec.scale, tare, board: order.board === true })
     // A model that broke before comes back with its part missing.
     if (broken && !tare) view.breakPart(broken.part, false)
     runsDirty = true
@@ -1307,7 +1337,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     shown.cdA = shown.dragN = shown.sideN = 0
     placeModel()
     yawCtl.row.hidden = !yawOpen()
-    crankBox.hidden = !yawOpen() || modelDesign.sport === 'skating' || jumper
+    crankBox.hidden = !yawOpen() || modelDesign.sport === 'skating' || isBobsled(modelDesign) || jumper
     shopBtn.hidden = !yawOpen()
     instBar.hidden = !yawOpen() || jumper
     showStale()
@@ -1511,10 +1541,12 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       setText(rDrag.value, '–')
       setText(rDrag.sub, t('read.reMatch', { pct: '–' }))
       setText(rCdA.value, '–')
+      setText(rRun.value, '–')
+      setText(rRun.sub, t('read.runForecastWait'))
       return
     }
     const r = readBalance(prepared, tunnel, { speed: fan.speed, yawDeg: table.angle, mount: 'posts' }, balanceRng)
-    loadArea = Math.hypot(r.forces.cdA, r.forces.cyA)
+    loadArea = Math.hypot(r.forces.cdA + (prepared.fixedCdA ?? 0), r.forces.cyA)
     const q = dynamicPressure(AIR.density, fan.speed)
     const s2 = prepared.scale * prepared.scale
     const k = settle(dt)
@@ -1525,7 +1557,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     setText(rYaw.sub, t('read.sideNote', { force: `${fixed(shown.sideN, 1)} N` }))
     setText(rDrag.value, `${fixed(shown.dragN, 1)} N`)
     // How near the model's Reynolds number is to the full-size rider's on the day (the Reynolds trap).
-    setText(rDrag.sub, t('read.reMatch', { pct: fixed(reynoldsRatio(prepared, fan.speed, hooks.event()) * 100, 0) }))
+    setText(rDrag.sub, t('read.reMatch', { pct: fixed(reynoldsRatio(prepared, fan.speed, reEvent()) * 100, 0) }))
     rDrag.sub.title = t('read.modelDragNote', { re: scientific(r.reynolds) })
     // The CdA takes off whatever the tare and calibration runs have found.
     const words = fixWords(fix)
@@ -1537,6 +1569,15 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       setText(rCdA.value, `${fixed(correct(shown.cdA * s2, fix) / s2, 3)} m²`)
       setText(rCdA.sub, t('read.cdaFixed', { raw: fixed(shown.cdA, 3) }))
       rCdA.sub.title = t('read.fixedFor', { list: words })
+    }
+    // A sled: the reference run flown on this reading, four times a second.
+    runAge += dt
+    if (isBobsled(modelDesign) && runAge >= 0.25) {
+      runAge = 0
+      const cdA = words ? correct(shown.cdA * s2, fix) / s2 : shown.cdA
+      const track = sledTrack()
+      setText(rRun.value, `${fixed(forecastRun(cdA, modelDesign, track).time, 2)} s`)
+      setText(rRun.sub, t('read.runForecastNote', { track: t(`track.${track.id}`) }))
     }
   }
 
