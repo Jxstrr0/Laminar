@@ -13,13 +13,16 @@ import {
   type CyclistDesign,
 } from '../data/cyclist'
 import { DEFAULT_SKATER, SKATER_RANGE, type SkaterDesign } from '../data/skater'
+import { DEFAULT_JUMPER, FLIGHT_ATTITUDE, JUMPER_RANGE, PITCH, type JumperDesign } from '../data/jumper'
+import { PRACTICE_JUMP } from '../data/hills'
 import { TCF_TIME_TRIAL } from '../data/rules'
 import { t, type StringKey } from '../data/strings'
 import type { RuleBreak } from '../sim/cyclist'
 import type { FixTarget } from '../sim/failure'
-import { deskEstimate } from '../sim/desk'
+import { deskEstimate, jumpDeskEstimate } from '../sim/desk'
+import { jumperReadouts } from '../sim/jumper'
 import { crewEffects } from '../sim/staff'
-import { designPose, designReadouts, designShape, isSkater, type Design } from '../sim/design'
+import { designPose, designReadouts, designShape, isCyclist, isJumper, isSkater, type Design } from '../sim/design'
 import { availableHandles, dragHandle, handleDef, handlePoint } from '../sim/geom/handles'
 import { ruleVolumes } from '../sim/geom/ruleBox'
 import { briefTemplate, currentEvent } from '../sim/career'
@@ -34,6 +37,7 @@ import { openGlossaryIndex, glossaryTerm } from './glossary'
 type Tab = 'position' | 'kit' | 'bike'
 type PostureKey = keyof CyclistDesign['posture']
 type SkaterKey = keyof SkaterDesign['posture']
+type JumperKey = keyof JumperDesign['posture']
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag)
@@ -94,6 +98,10 @@ const POSTURE_FORMAT: Record<PostureKey, (v: number) => string> = {
   handReach: (v) => `${fixed(v * 100, 0)} cm`,
   handHeight: (v) => `${v > 0 ? '+' : ''}${fixed(v * 100, 0)} cm`,
 }
+const JUMPER_FORMAT: Record<JumperKey, (v: number) => string> = {
+  leanDeg: (v) => `${fixed(v, 0)}°`,
+  vAngleDeg: (v) => `${fixed(v, 0)}°`,
+}
 const SKATER_FORMAT: Record<SkaterKey, (v: number) => string> = {
   trunkDeg: (v) => `${fixed(v, 0)}°`,
   kneeDeg: (v) => `${fixed(v, 0)}°`,
@@ -112,8 +120,10 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   // Each sport's controls read and write through these; the other sport's (hidden) controls get a spare copy.
   const spareCyclist = structuredClone(DEFAULT_CYCLIST)
   const spareSkater = structuredClone(DEFAULT_SKATER)
-  const cyc = (): CyclistDesign => (isSkater(design) ? spareCyclist : design)
+  const spareJumper = structuredClone(DEFAULT_JUMPER)
+  const cyc = (): CyclistDesign => (isCyclist(design) ? design : spareCyclist)
   const sk = (): SkaterDesign => (isSkater(design) ? design : spareSkater)
+  const jp = (): JumperDesign => (isJumper(design) ? design : spareJumper)
   let selected: HandleId | null = null
 
   // --- Header
@@ -125,7 +135,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   const showPlace = () => {
     const job = careerStore.get().job
     const who = job ? briefTemplate(job.brief.id)?.client : undefined
-    place.textContent = who ? t('shape.placeJob', { client: who }) : t('shape.place')
+    place.textContent = who ? t('shape.placeJob', { client: who }) : t(isJumper(design) ? 'shape.placeJumper' : 'shape.place')
   }
   showPlace()
   header.append(titleBlock)
@@ -146,7 +156,13 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   comfortR.box.insertBefore(meter, comfortR.sub)
   const frontalR = readout(t('read.frontal'), 'frontalArea')
   const rulesR = readout(t('read.rules'), 'ruleBox')
-  grid.append(deskR.box, comfortR.box, frontalR.box, rulesR.box)
+  // A jumper's sheet reads the flight instead: desk distance, lift and stability.
+  const jumpDeskR = readout(t('read.desk'), 'deskEstimate')
+  const liftR = readout(t('read.lift'), 'lift')
+  const marginR = readout(t('read.margin'), 'staticMargin')
+  const bodyBoxes = [deskR.box, comfortR.box, frontalR.box]
+  const jumpBoxes = [jumpDeskR.box, liftR.box, marginR.box]
+  grid.append(deskR.box, jumpDeskR.box, comfortR.box, liftR.box, frontalR.box, marginR.box, rulesR.box)
 
   const breaks = el('ul', 'breaks')
   breaks.setAttribute('aria-live', 'polite')
@@ -311,6 +327,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   }
   const cycBox = { position: box(panels.position), kit: box(panels.kit), bike: box(panels.bike) }
   const skBox = { position: box(panels.position), kit: box(panels.kit) }
+  const jpBox = { position: box(panels.position), kit: box(panels.kit) }
 
   for (const key of Object.keys(POSTURE_RANGE) as PostureKey[]) {
     slider(cycBox.position, `ctl-${key}`, t(`ctl.${key}`), POSTURE_RANGE[key], () => cyc().posture[key], (v) => (cyc().posture[key] = v), POSTURE_FORMAT[key])
@@ -322,6 +339,11 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   choice(skBox.kit, 'sk-hood', t('ctl.hood'), [{ value: 'cap', key: 'opt.cap' }, { value: 'hood', key: 'opt.hood' }], () => sk().hood, (v) => (sk().hood = v))
   choice(skBox.kit, 'sk-fabric', t('ctl.fabric'), [{ value: 'smooth', key: 'opt.smooth' }, { value: 'textured', key: 'opt.textured' }], () => sk().suit.fabric, (v) => (sk().suit.fabric = v))
   toggle(skBox.kit, 'sk-legTrips', t('ctl.legTrips'), () => sk().suit.legTrips, (v) => (sk().suit.legTrips = v))
+  for (const key of Object.keys(JUMPER_FORMAT) as JumperKey[]) {
+    slider(jpBox.position, `jp-${key}`, t(`ctl.${key}`), JUMPER_RANGE[key], () => jp().posture[key], (v) => (jp().posture[key] = v), JUMPER_FORMAT[key])
+  }
+  const roomy = (v: number) => (v <= 0 ? t('opt.suitTight') : t('opt.suitRoomy', { pct: fixed(v * 100, 0) }))
+  slider(jpBox.kit, 'jp-bagginess', t('ctl.bagginess'), JUMPER_RANGE.bagginess, () => jp().suit.bagginess, (v) => (jp().suit.bagginess = v), roomy)
 
   const pct = (v: number) => `${fixed(v * 100, 0)} %`
   choice(cycBox.kit, 'ctl-helmet', t('ctl.helmet'), [{ value: 'road', key: 'opt.road' }, { value: 'aero', key: 'opt.aero' }], () => cyc().helmet.kind, (v) => (cyc().helmet.kind = v))
@@ -354,7 +376,8 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   reset.addEventListener('click', () => {
     // Back to where the job started: the client's setup (or the plain starting design between jobs).
     const job = careerStore.get().job
-    design = structuredClone((job && briefTemplate(job.brief.id)?.setup) || DEFAULT_CYCLIST)
+    const plain = isJumper(design) ? DEFAULT_JUMPER : isSkater(design) ? DEFAULT_SKATER : DEFAULT_CYCLIST
+    design = structuredClone((job && briefTemplate(job.brief.id)?.setup) || plain)
     selected = null
     syncAll()
     changed()
@@ -362,15 +385,21 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
 
   const syncAll = () => {
     syncers.forEach((s) => s())
+    showPlace()
     const skating = isSkater(design)
-    for (const b of Object.values(cycBox)) b.hidden = skating
+    const jumping = isJumper(design)
+    const riding = !skating && !jumping
+    for (const b of Object.values(cycBox)) b.hidden = !riding
     for (const b of Object.values(skBox)) b.hidden = !skating
-    // Skaters have no bike: their tab goes, and the sheet falls back to Position if it was open.
-    tabButtons.bike.hidden = skating
-    if (skating && currentTab === 'bike') selectTab('position')
+    for (const b of Object.values(jpBox)) b.hidden = !jumping
+    for (const b of bodyBoxes) b.hidden = jumping
+    for (const b of jumpBoxes) b.hidden = !jumping
+    // Only riders have a bike: the tab goes for the others, and the sheet falls back to Position if it was open.
+    tabButtons.bike.hidden = !riding
+    if (!riding && currentTab === 'bike') selectTab('position')
     tailRow.hidden = cyc().helmet.kind !== 'aero'
-    hint.textContent = t(skating ? 'hint.shapeSkater' : 'hint.shape')
-    rulesR.sub.textContent = t(skating ? 'book.skating' : 'book.tcf-tt')
+    hint.textContent = t(jumping ? 'hint.shapeJumper' : skating ? 'hint.shapeSkater' : 'hint.shape')
+    if (!jumping) rulesR.sub.textContent = t(skating ? 'book.skating' : 'book.tcf-tt')
   }
   syncAll()
   // A new job puts the client's setup on the bench: take it up.
@@ -392,6 +421,12 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   // "Change this" after a model broke in the tunnel, or after trouble on race day (plan sections 7 and 8).
   window.addEventListener('laminar:fix', (e) => {
     const where = (e as CustomEvent<FixTarget>).detail
+    if (isJumper(design)) {
+      // A jumper's fixes: the lean or the V if named, otherwise the suit (where stability is won and lost).
+      if (where === 'leanDeg' || where === 'vAngleDeg') jumpToControl({ tab: 'position', id: `jp-${where}` })
+      else jumpToControl({ tab: 'kit', id: 'jp-bagginess' })
+      return
+    }
     if (isSkater(design)) {
       // A skater's fixes are all in the crouch (or the head cover, for a helmet-like fault).
       if (where === 'helmet') jumpToControl({ tab: 'kit', id: 'sk-hood' })
@@ -424,6 +459,10 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     // The tunnel tests whatever is shaped here; it gets its own copy.
     sent = structuredClone(design)
     designStore.set(sent)
+    if (isJumper(design)) {
+      showJumper(design)
+      return
+    }
     const r = designReadouts(design, TCF_TIME_TRIAL)
     const shape = designShape(design)
     // The desk estimate is for the job's event, with the job's own bias.
@@ -464,7 +503,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     const worst = c.worst as PostureKey | SkaterKey | null
     const strained = c.strain >= COMFORT.strainWarn * c.limit && worst ? [STRAIN_HIGHLIGHT[worst]] : []
     const pose = designPose(design)
-    const bike = isSkater(design) ? null : design
+    const bike = isCyclist(design) ? design : null
     view.show({
       design,
       pose,
@@ -477,6 +516,40 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     })
   }
 
+  /** The jumper's sheet (PR 8d): the desk's reference jump, lift area and L/D, and the stability margin against its floor. */
+  function showJumper(jumper: JumperDesign) {
+    const career = careerStore.get()
+    const event = PRACTICE_JUMP
+    const desk = jumpDeskEstimate(jumper, event, career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(jumper), crewEffects(career.crew).deskLevel)
+    jumpDeskR.value.textContent = `${fixed(desk.value, 1)} m`
+    jumpDeskR.sub.textContent = t('read.deskJumpNote', { spread: fixed((desk.high - desk.low) / 2, 1), hill: t(`hill.${event.hill.id}`) })
+    const r = jumperReadouts(jumper)
+    // Stability is judged at the flight's worst moment, as the promise will be.
+    const margin = desk.minMargin
+    liftR.value.textContent = `${fixed(r.liftArea, 2)} m²`
+    liftR.sub.textContent = t('read.liftNote', { ld: fixed(r.lOverD, 2), alpha: fixed(FLIGHT_ATTITUDE.hold, 0) })
+    const floor = fixed(PITCH.floor * 100, 0)
+    const pct = margin * 100
+    marginR.value.textContent = `${pct > 0 ? '+' : pct < 0 ? '−' : ''}${fixed(Math.abs(pct), 1)} %`
+    const state = margin < 0 ? 'bad' : margin < PITCH.floor ? 'low' : 'ok'
+    marginR.value.classList.toggle('over', state !== 'ok')
+    marginR.sub.textContent = t(state === 'bad' ? 'read.marginBad' : state === 'low' ? 'read.marginLow' : 'read.marginOk', { floor })
+    rulesR.value.textContent = t('read.noRules')
+    rulesR.value.classList.remove('over')
+    rulesR.sub.textContent = t('read.jumpKit', { mass: fixed(r.mass, 1), price: fixed(r.price, 0) })
+    breaks.replaceChildren()
+    // The body glows amber under the floor and red past zero: that's where the trouble is.
+    view.show({
+      design: jumper,
+      pose: designPose(jumper),
+      broken: state === 'bad' ? ['torso'] : [],
+      strained: state === 'low' ? ['torso'] : [],
+      handles: [],
+      selected: null,
+      volumes: [],
+    })
+  }
+
   // --- Drag handles: a pull moves the same numbers as the sliders.
   view.setHandleListener({
     begin(id) {
@@ -484,7 +557,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
       changed()
     },
     move(id, target, project) {
-      if (!isSkater(design)) design = dragHandle(design, id, target, project)
+      if (isCyclist(design)) design = dragHandle(design, id, target, project)
       changed()
     },
     end(id, tapped) {

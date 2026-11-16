@@ -395,6 +395,13 @@ export const GLOSSARY = defineGlossary({
     aliases: ['estimate', 'error bars'],
     seeAlso: ['forceBalance', 'scaleModel'],
   },
+  staticMargin: {
+    term: 'Stability margin',
+    short: 'How far behind the centre of mass the lift adds up, as a share of body length.',
+    long: 'A ski jumper is balanced on their own lift. If the extra lift from a nose-up wobble acts behind the hips, it pushes the nose back down and the flight settles. If it acts ahead, the wobble grows and the jumper pitches forward. A baggy suit lifts more, but moves that point forward.',
+    aliases: ['static margin', 'stability', 'pitch stability', 'neutral point'],
+    seeAlso: ['lift', 'centreOfPressure', 'angleOfAttack'],
+  },
   comfort: {
     term: 'Comfort / strain',
     short: 'How hard a position is for the athlete to hold.',

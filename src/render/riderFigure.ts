@@ -10,8 +10,10 @@
  */
 import * as THREE from 'three'
 import { BIKE, HELMET, type CyclistDesign } from '../data/cyclist'
-import { FRAME, SKATER_SKELETON, SKELETON } from '../data/pose'
+import { FRAME, JUMPER_SKELETON, SKATER_SKELETON, SKELETON } from '../data/pose'
 import type { SkaterDesign } from '../data/skater'
+import { JUMP_SKIS, type JumperDesign } from '../data/jumper'
+import type { JumperPose } from '../sim/geom/jumperPose'
 import type { Design } from '../data/sport'
 import { cyclistShape } from '../sim/geom/cyclist'
 import { skaterShape } from '../sim/geom/skater'
@@ -32,6 +34,8 @@ const COLOURS = {
   trip: 0xe08a00,
   blade: 0xb8c2cb,
   cap: 0x5d6873,
+  ski: 0xe6ebef,
+  skiStripe: 0x2456e8,
   broken: 0xd2462b,
   strain: 0xe08a00,
 }
@@ -66,6 +70,8 @@ const M = {
   trip: mat(COLOURS.trip, 0.6),
   blade: mat(COLOURS.blade, 0.25, 0.8),
   cap: mat(COLOURS.cap, 0.95),
+  ski: mat(COLOURS.ski, 0.3, 0.1),
+  skiStripe: mat(COLOURS.skiStripe, 0.4),
   broken: new THREE.MeshStandardMaterial({ color: COLOURS.broken, emissive: COLOURS.broken, emissiveIntensity: 0.35, roughness: 0.5 }),
   strain: new THREE.MeshStandardMaterial({ color: COLOURS.strain, emissive: COLOURS.strain, emissiveIntensity: 0.25, roughness: 0.6 }),
 }
@@ -145,6 +151,7 @@ export function buildReferenceWheel(spokes: number): THREE.Group {
 export function buildRider(state: RiderState): THREE.Group {
   const { pose } = state
   if (state.design.sport === 'skating') return buildSkater(state.design, state)
+  if (state.design.sport === 'skijump') return buildJumper(state.design, state)
   const design = state.design
   const g = new THREE.Group()
   const isBroken = (h: Highlight) => state.broken.includes(h)
@@ -334,6 +341,92 @@ function buildSkater(design: SkaterDesign, state: RiderState): THREE.Group {
   g.add(visor)
   return g
 }
+
+/**
+ * The ski jumper in flight (PR 8d): lying out over the skis, arms back along
+ * the sides, skis spread in a V. A baggier suit draws fatter limbs and a
+ * wider body. The body glows amber when the flight is short of the
+ * stability floor, red when it would pitch over.
+ */
+function buildJumper(design: JumperDesign, state: RiderState): THREE.Group {
+  const pose = state.pose as JumperPose
+  const g = new THREE.Group()
+  const S = JUMPER_SKELETON
+  const isBroken = (h: Highlight) => state.broken.includes(h)
+  const isStrained = (h: Highlight) => state.strained.includes(h)
+  const tint = (h: Highlight, base: THREE.Material) => (isBroken(h) ? M.broken : isStrained(h) ? M.strain : base)
+  const bag = 1 + JUMPER_BAG_DRAW * Math.min(1, Math.max(0, design.suit.bagginess))
+  const suit = M.suit
+  const along = new THREE.Vector3(1, 0, 0)
+
+  // Skis: long thin boards from tail to tip, a cobalt stripe down the middle, tips turned up.
+  for (const ski of pose.skis) {
+    const tail = v3(ski.tail)
+    const tip = v3(ski.tip)
+    const len = tail.distanceTo(tip)
+    const dir = tip.clone().sub(tail).normalize()
+    const board = new THREE.Mesh(new THREE.BoxGeometry(len, S.skiThick, JUMP_SKIS.width), M.ski)
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(len * 0.96, S.skiThick * 1.1, JUMP_SKIS.width * 0.3), M.skiStripe)
+    for (const m of [board, stripe]) {
+      m.quaternion.setFromUnitVectors(along, dir)
+      m.position.copy(tail).add(tip).multiplyScalar(0.5)
+      g.add(m)
+    }
+    g.add(rod(tip, tip.clone().addScaledVector(dir, 0.06).add(new THREE.Vector3(0, 0.03, 0)), S.skiThick / 2, M.ski))
+  }
+
+  const legMat = tint('legs', suit)
+  for (let i = 0; i < 2; i++) {
+    const hip = v3(pose.hip[i]!)
+    const knee = v3(pose.knee[i]!)
+    const foot = v3(pose.foot[i]!)
+    g.add(rod(hip, knee, 0.07 * bag, legMat))
+    g.add(rod(knee, foot, 0.055 * bag, legMat))
+    const ski = pose.skis[i]!
+    const boot = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.12, 0.11), M.tyre)
+    boot.quaternion.setFromUnitVectors(along, v3(ski.tip).sub(v3(ski.tail)).normalize())
+    boot.position.copy(foot).add(new THREE.Vector3(0, 0.05, 0))
+    g.add(boot)
+  }
+
+  const hipC = v3(pose.hip[0]).add(v3(pose.hip[1])).multiplyScalar(0.5)
+  const shC = v3(pose.shoulder[0]).add(v3(pose.shoulder[1])).multiplyScalar(0.5)
+  const width = (S.shoulderWidth / 0.2) * bag
+  const torso = rod(hipC, shC, 0.11, tint('torso', suit))
+  torso.scale.set(0.85, 1, width)
+  g.add(torso)
+  const stripe = rod(hipC.clone().setZ(0.001), shC.clone().setZ(0.001), 0.112, M.panel)
+  stripe.scale.set(0.3, 0.98, width * 1.01)
+  g.add(stripe)
+
+  const armMat = tint('arms', suit)
+  for (let i = 0; i < 2; i++) {
+    const sh = v3(pose.shoulder[i]!)
+    const el = v3(pose.elbow[i]!)
+    const hand = v3(pose.hand[i]!)
+    g.add(rod(sh, el, 0.05 * bag, armMat))
+    g.add(rod(el, hand, 0.045 * bag, armMat))
+    g.add(ball(hand, 0.04, M.tyre))
+  }
+  const neck = v3(pose.neck)
+  g.add(rod(shC, neck, 0.05, tint('head', suit)))
+  const head = v3(pose.head)
+  g.add(ball(head, S.headRadius * 0.85, M.skin))
+  const helmet = roadHelmet(tint('helmet', M.helmet))
+  helmet.position.copy(v3(pose.helmet))
+  helmet.rotation.z = (pose.headPitchDeg * Math.PI) / 180
+  helmet.name = 'helmet'
+  g.add(helmet)
+  const visor = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 8, -0.9, 1.8, 1.2, 0.7), M.visor)
+  visor.rotation.y = Math.PI / 2
+  visor.position.copy(head).add(new THREE.Vector3(0.02, 0, 0))
+  visor.rotation.z = (pose.headPitchDeg * Math.PI) / 180
+  g.add(visor)
+  return g
+}
+
+/** The baggiest suit draws limbs and body this much fatter (× 1 + this). */
+const JUMPER_BAG_DRAW = 0.45
 
 function roadHelmet(material: THREE.Material): THREE.Object3D {
   const r = HELMET.road

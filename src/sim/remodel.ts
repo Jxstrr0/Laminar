@@ -2,17 +2,19 @@
  * Keeping the model in step with the design (Kelbo, PR 5d): the model on
  * the mount is a solid thing built of one design. Bolt-on parts (helmet,
  * suit, bars, wheels, frame; a skater's hood and suit) can be swapped on it for a small fee and no
- * days; a new position needs a new model from the shop.
+ * days; a new position needs a new model from the shop. A ski jumper's suit
+ * is cut into the model's body, so any change to a jumper is a new model.
  */
 import { MODEL_SHOP } from '../data/model'
 import type { Design } from './design'
-import { isSkater } from './design'
+import { isJumper, isSkater } from './design'
 
 export type PartName = 'helmet' | 'suit' | 'bars' | 'frontWheel' | 'rearWheel' | 'frame' | 'hood'
 
 /** The bolt-on parts that differ between the model and the bench design. */
 export function partChanges(model: Design, bench: Design): PartName[] {
   const out: PartName[] = []
+  if (isJumper(model) || isJumper(bench)) return out
   if (isSkater(model) || isSkater(bench)) {
     if (!isSkater(model) || !isSkater(bench)) return out
     if (model.hood !== bench.hood) out.push('hood')
@@ -35,7 +37,8 @@ export function partChanges(model: Design, bench: Design): PartName[] {
  * arms are part of the body; a design for another sport is a new model.
  */
 export function postureChanged(model: Design, bench: Design): boolean {
-  if (isSkater(model) !== isSkater(bench)) return true
+  if (isSkater(model) !== isSkater(bench) || isJumper(model) !== isJumper(bench)) return true
+  if (isJumper(model) && isJumper(bench) && model.suit.bagginess !== bench.suit.bagginess) return true
   if (isSkater(model) && isSkater(bench) && model.arms !== bench.arms) return true
   const a = model.posture as Record<string, number>
   const b = bench.posture as Record<string, number>
@@ -44,6 +47,7 @@ export function postureChanged(model: Design, bench: Design): boolean {
 
 /** The model with the bench design's parts bolted on, its position unchanged (same sport only). */
 export function swapParts(model: Design, bench: Design): Design {
+  if (isJumper(model) || isJumper(bench)) return structuredClone(model)
   if (isSkater(bench)) return isSkater(model) ? structuredClone({ ...bench, posture: model.posture, arms: model.arms }) : structuredClone(model)
   return isSkater(model) ? structuredClone(model) : structuredClone({ ...bench, posture: model.posture })
 }

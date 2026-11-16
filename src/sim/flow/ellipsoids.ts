@@ -13,7 +13,10 @@ import { BIKE, HELMET, type CyclistDesign } from '../../data/cyclist'
 import { ELLIPSOID_FIT as FIT } from '../../data/flowViz'
 import { FRAME, HELMET_MOUNT, SKATER_SKELETON, SKELETON } from '../../data/pose'
 import { SK_HEAD, type SkaterDesign } from '../../data/skater'
-import { isSkater, type Design } from '../design'
+import { JUMP_PARTS, JUMP_SKIS, type JumperDesign } from '../../data/jumper'
+import { isJumper, isSkater, type Design } from '../design'
+import { bodySpan } from '../jumper'
+import type { JumperPose } from '../geom/jumperPose'
 import { detAtan2, detCos, detSin } from '../det'
 import { DEG } from '../num'
 import { cyclistShape } from '../geom/cyclist'
@@ -210,8 +213,28 @@ export function skaterEllipsoids(design: SkaterDesign, pose: Pose): Ellipsoid[] 
   return out
 }
 
+/**
+ * The ski jumper in flight (PR 8d): the body as one flat plate from boots to
+ * head, the helmet, and the skis as thin plates that only steer the smoke.
+ */
+export function jumperEllipsoids(design: JumperDesign, pose: Pose): Ellipsoid[] {
+  const feet = mid(pose.foot[0], pose.foot[1])
+  const head = pose.head
+  const out: Ellipsoid[] = [
+    capsule('body', 'body', feet, head, FIT.jumperBodyHalfThick, 'oval', 'rider', { side: bodySpan(design) / 2 / FIT.jumperBodyHalfThick }),
+  ]
+  const h = JUMP_PARTS.helmet
+  out.push({ id: 'helmet', bodyId: 'helmet', centre: { ...pose.helmet }, axes: { a: h.length / 2, b: h.height / 2, c: h.width / 2 }, pitchRad: pose.headPitchDeg * DEG, wrap: 'oval', part: 'rider' })
+  const skis = (pose as Partial<JumperPose>).skis
+  if (skis) {
+    skis.forEach((s, i) => out.push(capsule(`ski-${i + 1}`, `ski-${i + 1}`, s.tail, s.tip, JUMP_SKIS.width / 2, 'none', 'bike')))
+  }
+  return out
+}
+
 /** The ellipsoids for any design in its pose. */
 export function designEllipsoids(design: Design, pose: Pose): Ellipsoid[] {
+  if (isJumper(design)) return jumperEllipsoids(design, pose)
   return isSkater(design) ? skaterEllipsoids(design, pose) : riderEllipsoids(design, pose)
 }
 

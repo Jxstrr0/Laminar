@@ -127,6 +127,7 @@ quirks you have to learn.
 | Bobsled bid | **Run time gain**: hundredths of a second off a run. *(16 Nov 2026, for PR 8)* |
 | Bobsled crews | **Two-man and four-man**; four-man comes later, at higher reputation. *(16 Nov 2026, for PR 8)* |
 | Ski-jump suit rules | **None**: bagginess only trades lift against stability. *(16 Nov 2026, for PR 8)* |
+| Ski-jump declaration | **Predicted distance**: you declare the reference jump's length, forecast from the tunnel's lift and drag. *(16 Nov 2026, for PR 8)* |
 | Ski-jump hills | **A normal hill and a large hill**; the large hill comes later, at higher reputation. *(16 Nov 2026, for PR 8)* |
 | Speed skating venues | **Indoor 400 m oval, plus one outdoor marathon** on natural lake ice. *(16 Nov 2026, for PR 8)* |
 | Firm name | **Asked at career start**, with a ready-made name to keep; renamable. *(16 Nov 2026, for PR 7)* |

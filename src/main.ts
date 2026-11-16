@@ -15,6 +15,7 @@ import { startAutosave } from './persist/autosave'
 import { lastSlot, readSlot, setLastSlot, writeSlot } from './persist/db'
 import { packSave, parseSave, SAVE_VERSION, type SaveFile } from './persist/save'
 import { DEFAULT_CYCLIST } from './data/cyclist'
+import { DEFAULT_JUMPER } from './data/jumper'
 import { careerStore, freshSeed } from './ui/careerStore'
 import { charge, currentEvent, newCareer, orderBlock, orderModel, repairModel } from './sim/career'
 import { makersOwned, tunnelSetup } from './sim/facility'
@@ -26,6 +27,13 @@ import { askToKeepStorage, backupDue, noteFirstSeen, readMarks } from './persist
 
 /** The career slot in play: the one used last visit. */
 const SLOT = lastSlot()
+
+/**
+ * A preview of a sport before its jobs arrive (PR 8d): `?try=skijump` puts a
+ * ski jumper on the bench in a fresh, throwaway career. Nothing is read from
+ * or written to the save slots, so a real career is never touched.
+ */
+const PREVIEW = new URLSearchParams(location.search).get('try') === 'skijump'
 
 const loading = bindLoadingScreen()
 
@@ -89,8 +97,11 @@ async function boot(): Promise<void> {
   }
   loading.progress(0.2)
   // Pick up where the last visit left off. A save that can't be trusted is left alone, unread.
-  const saved = parseSave(await readSlot(SLOT).catch(() => null))
-  if (saved) {
+  const saved = PREVIEW ? null : parseSave(await readSlot(SLOT).catch(() => null))
+  if (PREVIEW) {
+    designStore.set(structuredClone(DEFAULT_JUMPER))
+    careerStore.set(newCareer(freshSeed()))
+  } else if (saved) {
     designStore.set(saved.design)
     careerStore.set(saved.career)
   } else careerStore.set(newCareer(freshSeed()))
@@ -144,7 +155,8 @@ async function boot(): Promise<void> {
   })
   const autosave = startAutosave(
     () => current(),
-    (text) => writeSlot(SLOT, text),
+    // A preview writes nowhere.
+    (text) => (PREVIEW ? Promise.resolve(true) : writeSlot(SLOT, text)),
   )
   touch = () => autosave.touch()
   designStore.subscribe(() => {
@@ -227,6 +239,16 @@ async function boot(): Promise<void> {
   const chips = document.createElement('div')
   chips.className = 'top-chips'
   chips.append(jobChip, savesBtn)
+  if (PREVIEW) {
+    // In a preview the Saves sheet is out of reach; this chip says so, and a tap goes back to the real game.
+    const previewChip = document.createElement('button')
+    previewChip.type = 'button'
+    previewChip.className = 'chip preview-chip'
+    previewChip.textContent = t('preview.chip')
+    previewChip.setAttribute('aria-label', t('preview.chipName'))
+    previewChip.addEventListener('click', () => location.assign(location.pathname))
+    savesBtn.replaceWith(previewChip)
+  }
   app.append(chips)
   const screens: Record<Screen, { host: HTMLElement; control: { setActive(on: boolean): void } }> = {
     board: { host: boardHost, control: startBoardScreen(boardHost, (s) => show(s)) },

@@ -584,7 +584,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     clearDebris()
     strain = 0
     const skater = state?.design.sport === 'skating'
-    rearIsDisc = state !== null && state.design.sport !== 'skating' && state.design.wheels.rear === 'disc'
+    rearIsDisc = state !== null && (state.design.sport === undefined || state.design.sport === 'cycling') && state.design.wheels.rear === 'disc'
     const g = new THREE.Group()
     // Two posts clamp the axles (or a skater's blades) to the balance under the floor.
     const posts = skater ? SKATER_POSTS : [FRAME.rearAxleX, FRAME.frontAxleX]
