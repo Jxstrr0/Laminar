@@ -18,8 +18,8 @@ import { BOBSLED_RANGE, DEFAULT_BOBSLED, SLED, type BobsledDesign } from '../dat
 import { TRACKS } from '../data/tracks'
 import { DEFAULT_TRUCK, FAIRING_MISS, FLEET_TRUCK, GRAVEL_YARD, TRUCK_RANGE, type TruckDesign } from '../data/truck'
 import { CAR_CLASS, CAR_DESK, CAR_RANGE, STOCK_CAR, type CarClass, type CarDesign } from '../data/car'
-import { RECORD_DESK, RECORD_RANGE, STOCK_RECORD, type RecordDesign } from '../data/record'
-import { crossHeld, sideCentre, sightLoss } from '../sim/record'
+import { RECORD_DESK, RECORD_RANGE, STOCK_RECORD, type RecordClass, type RecordDesign } from '../data/record'
+import { crossHeld, sideCentre, sightLoss, thrustKept } from '../sim/record'
 import { carAero, checkCarRules, circuitDensity, heatLoss, porpoiseSpeed, type CarRuleBreak } from '../sim/car'
 import { checkTruckRules, roofMismatch, skirtGap, truckParts, type TruckRuleBreak } from '../sim/truck'
 import { truckLength } from '../sim/geom/truck'
@@ -161,8 +161,11 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   // A car's sliders come in a set per class (their ranges differ); the other class's set writes to a spare.
   const spareCar: Record<CarClass, CarDesign> = { touring: structuredClone(STOCK_CAR.touring), open: structuredClone(STOCK_CAR.open) }
   const car = (cls: CarClass): CarDesign => (isCar(design) && design.class === cls ? design : spareCar[cls])
-  const spareRecord = structuredClone(STOCK_RECORD.streamliner)
-  const rec = (): RecordDesign => (isRecord(design) ? design : spareRecord)
+  // A record car's sliders come in a set per class too (the jet car's ranges are wider, and it has a waist).
+  const spareRecord: Record<RecordClass, RecordDesign> = { streamliner: structuredClone(STOCK_RECORD.streamliner), jet: structuredClone(STOCK_RECORD.jet) }
+  const rec = (cls: RecordClass): RecordDesign => (isRecord(design) && design.class === cls ? design : spareRecord[cls])
+  /** A record slider's id in the set for this car's class. */
+  const rcId = (name: string) => `rc-${isRecord(design) ? design.class : 'streamliner'}-${name}`
   let selected: HandleId | null = null
 
   // --- Header
@@ -174,7 +177,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   const showPlace = () => {
     const job = careerStore.get().job
     const who = job ? briefTemplate(job.brief.id)?.client : undefined
-    const plain = isRecord(design) ? 'shape.placeRecord' : isCar(design) ? (design.class === 'open' ? 'shape.placeCarOpen' : 'shape.placeCar') : isTruck(design) ? 'shape.placeTruck' : isJumper(design) ? 'shape.placeJumper' : isBobsled(design) ? (design.crew === 4 ? 'shape.placeBobsled4' : 'shape.placeBobsled') : 'shape.place'
+    const plain = isRecord(design) ? (design.class === 'jet' ? 'shape.placeRecordJet' : 'shape.placeRecord') : isCar(design) ? (design.class === 'open' ? 'shape.placeCarOpen' : 'shape.placeCar') : isTruck(design) ? 'shape.placeTruck' : isJumper(design) ? 'shape.placeJumper' : isBobsled(design) ? (design.crew === 4 ? 'shape.placeBobsled4' : 'shape.placeBobsled') : 'shape.place'
     place.textContent = who ? t('shape.placeJob', { client: who }) : t(plain)
   }
   showPlace()
@@ -447,14 +450,23 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     slider(b.kit, id('rearChord'), t('ctl.rearChord'), R.chord, () => car(cls).rearWing.chord, (v) => (car(cls).rearWing.chord = v), cm)
     slider(b.kit, id('inlet'), t('ctl.inlet'), R.inlet, () => car(cls).inlet, (v) => (car(cls).inlet = v), (v) => `${fixed(v * 100, 0)} %`)
   }
-  // The record car: the nose and the canopy on the first tab, the fin and the wheel fairings on the second.
-  const rcBox = { position: box(panels.position), kit: box(panels.kit) }
-  const RR = RECORD_RANGE.streamliner
-  slider(rcBox.position, 'rc-noseLength', t('ctl.noseLength'), RR.length, () => rec().nose.length, (v) => (rec().nose.length = v), (v) => `${fixed(v, 1)} m`)
-  slider(rcBox.position, 'rc-noseDroop', t('ctl.noseDroop'), RR.droop, () => rec().nose.droop, (v) => (rec().nose.droop = v), (v) => `${fixed(v, 1)}°`)
-  slider(rcBox.position, 'rc-canopy', t('ctl.canopy'), RR.canopy, () => rec().canopy, (v) => (rec().canopy = v), cm)
-  slider(rcBox.kit, 'rc-fin', t('ctl.fin'), RR.fin, () => rec().fin, (v) => (rec().fin = v), (v) => (v <= 0 ? t('opt.off') : `${fixed(v, 2)} m²`))
-  slider(rcBox.kit, 'rc-fairings', t('ctl.fairings'), RR.fairings, () => rec().fairings, (v) => (rec().fairings = v), (v) => (v <= 0 ? t('opt.off') : `${fixed(v * 100, 0)} %`))
+  // The record car: the nose, the canopy (and a jet car's waist) on the first tab, the fin and the wheel fairings on the second.
+  const rcBox: Record<RecordClass, { position: HTMLElement; kit: HTMLElement }> = {
+    streamliner: { position: box(panels.position), kit: box(panels.kit) },
+    jet: { position: box(panels.position), kit: box(panels.kit) },
+  }
+  for (const cls of ['streamliner', 'jet'] as const) {
+    const RR = RECORD_RANGE[cls]
+    const b = rcBox[cls]
+    const id = (name: string) => `rc-${cls}-${name}`
+    slider(b.position, id('noseLength'), t('ctl.noseLength'), RR.length, () => rec(cls).nose.length, (v) => (rec(cls).nose.length = v), (v) => `${fixed(v, 1)} m`)
+    slider(b.position, id('noseDroop'), t('ctl.noseDroop'), RR.droop, () => rec(cls).nose.droop, (v) => (rec(cls).nose.droop = v), (v) => `${fixed(v, 1)}°`)
+    slider(b.position, id('canopy'), t('ctl.canopy'), RR.canopy, () => rec(cls).canopy, (v) => (rec(cls).canopy = v), cm)
+    // The jet car's waist (PR 9x): how far the body is pinched where the engine sits.
+    if (cls === 'jet') slider(b.position, id('waist'), t('ctl.waist'), RR.waist, () => rec(cls).waist, (v) => (rec(cls).waist = v), (v) => (v <= 0 ? t('opt.off') : `${fixed(v * 100, 0)} %`))
+    slider(b.kit, id('fin'), t('ctl.fin'), RR.fin, () => rec(cls).fin, (v) => (rec(cls).fin = v), (v) => (v <= 0 ? t('opt.off') : `${fixed(v, 2)} m²`))
+    slider(b.kit, id('fairings'), t('ctl.fairings'), RR.fairings, () => rec(cls).fairings, (v) => (rec(cls).fairings = v), (v) => (v <= 0 ? t('opt.off') : `${fixed(v * 100, 0)} %`))
+  }
 
   /** Jump to a car slider by its name, in the set for the car's class. */
   const jumpToCar = (tab: Tab, control: string) => jumpToControl({ tab, id: `cr-${isCar(design) ? design.class : 'touring'}-${control}` })
@@ -514,7 +526,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     for (const b of Object.values(bsBox)) b.hidden = !sliding
     for (const b of Object.values(tkBox)) b.hidden = !trucking
     for (const cls of ['touring', 'open'] as const) for (const b of Object.values(crBox[cls])) b.hidden = !(isCar(design) && design.class === cls)
-    for (const b of Object.values(rcBox)) b.hidden = !recording
+    for (const cls of ['streamliner', 'jet'] as const) for (const b of Object.values(rcBox[cls])) b.hidden = !(isRecord(design) && design.class === cls)
     for (const b of bodyBoxes) b.hidden = jumping || sliding || trucking || racing || recording
     for (const b of carBoxes) b.hidden = !racing
     for (const b of recBoxes) b.hidden = !recording
@@ -527,7 +539,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     tabButtons.bike.hidden = !riding
     if (!riding && currentTab === 'bike') selectTab('position')
     tailRow.hidden = cyc().helmet.kind !== 'aero'
-    hint.textContent = t(recording ? 'hint.shapeRecord' : racing ? 'hint.shapeCar' : trucking ? 'hint.shapeTruck' : jumping ? 'hint.shapeJumper' : sliding ? 'hint.shapeBobsled' : skating ? 'hint.shapeSkater' : 'hint.shape')
+    hint.textContent = t(recording ? (rec('jet') === design ? 'hint.shapeRecordJet' : 'hint.shapeRecord') : racing ? 'hint.shapeCar' : trucking ? 'hint.shapeTruck' : jumping ? 'hint.shapeJumper' : sliding ? 'hint.shapeBobsled' : skating ? 'hint.shapeSkater' : 'hint.shape')
     if (!jumping && !sliding && !trucking && !racing && !recording) rulesR.sub.textContent = t(skating ? 'book.skating' : 'book.tcf-tt')
   }
   syncAll()
@@ -552,9 +564,10 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     const where = (e as CustomEvent<FixTarget>).detail
     if (isRecord(design)) {
       // A record car's fixes (PR 9q): the fin when it wandered, the canopy when the driver couldn't see, otherwise the nose's droop.
-      if (where === 'fin') jumpToControl({ tab: 'kit', id: 'rc-fin' })
-      else if (where === 'canopy') jumpToControl({ tab: 'position', id: 'rc-canopy' })
-      else jumpToControl({ tab: 'position', id: 'rc-noseDroop' })
+      if (where === 'fin') jumpToControl({ tab: 'kit', id: rcId('fin') })
+      else if (where === 'canopy') jumpToControl({ tab: 'position', id: rcId('canopy') })
+      else if (where === 'waist') jumpToControl({ tab: 'position', id: rcId('waist') })
+      else jumpToControl({ tab: 'position', id: rcId('noseDroop') })
       return
     }
     if (isCar(design)) {
@@ -934,7 +947,8 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     } else {
       recDeskR.value.textContent = `${kmh(desk.value)} km/h`
       const spread = desk.low !== null && desk.high !== null ? (desk.high - desk.low) / 2 : 0
-      recDeskR.sub.textContent = t('read.deskRecordNote', { spread: kmh(spread), old: oldText })
+      recDeskR.sub.textContent =
+        r.class === 'jet' ? t('read.deskRecordNoteJet', { mach: fixed(desk.topMach, 2), spread: kmh(spread), old: oldText }) : t('read.deskRecordNote', { spread: kmh(spread), old: oldText })
     }
     recDeskR.value.classList.toggle('warn', desk.value === null)
     const kept = Math.max(0, desk.noseKept)
@@ -963,13 +977,17 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
       breaks.append(li)
       if (!strained.includes(look)) strained.push(look)
     }
-    if (desk.noseLight) warn(t('rule.noseLight', { speed: kmh(desk.noseLight.speed) }), 'rc-noseDroop', 'position', 'nose')
-    else if (kept < RECORD_DESK.liftWarn) warn(t('rule.noseClose', { pct: fixed(kept * 100, 0) }), 'rc-noseDroop', 'position', 'nose')
-    if (held <= 0) warn(t('rule.wander'), 'rc-fin', 'kit', 'fin')
-    else if (held < flat.spread.cross * 2) warn(t('rule.crossLow', { cross: fixed(held, 1) }), 'rc-fin', 'kit', 'fin')
+    if (desk.noseLight) warn(t('rule.noseLight', { speed: kmh(desk.noseLight.speed) }), rcId('noseDroop'), 'position', 'nose')
+    else if (kept < RECORD_DESK.liftWarn) warn(t('rule.noseClose', { pct: fixed(kept * 100, 0) }), rcId('noseDroop'), 'position', 'nose')
+    if (held <= 0) warn(t('rule.wander'), rcId('fin'), 'kit', 'fin')
+    else if (held < flat.spread.cross * 2) warn(t('rule.crossLow', { cross: fixed(held, 1) }), rcId('fin'), 'kit', 'fin')
     const blind = sightLoss(r)
-    if (blind > 0) warn(t('rule.sight', { pct: fixed(blind * 100, 0) }), 'rc-canopy', 'position', 'canopy')
-    if (desk.top > desk.squeeze) warn(t('rule.squeeze', { speed: kmh(desk.squeeze) }), 'rc-noseLength', 'position', 'nose')
+    if (blind > 0) warn(t('rule.sight', { pct: fixed(blind * 100, 0) }), rcId('canopy'), 'position', 'canopy')
+    if (r.class === 'jet') {
+      // A jet car (PR 9x): pinched past the engine's room it loses thrust; short of the barrier, the waist and a finer nose help.
+      if (thrustKept(r) < 1) warn(t('rule.waistEngine', { pct: fixed((1 - thrustKept(r)) * 100, 0) }), rcId('waist'), 'position', 'waist')
+      else if (desk.topMach < 1) warn(t('rule.barrier', { mach: fixed(desk.topMach, 2) }), rcId('waist'), 'position', 'waist')
+    } else if (desk.top > desk.squeeze) warn(t('rule.squeeze', { speed: kmh(desk.squeeze) }), rcId('noseLength'), 'position', 'nose')
     view.show({
       design: r,
       pose: designPose(r),

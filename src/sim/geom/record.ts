@@ -39,8 +39,22 @@ export function canopyAt(design: RecordDesign, x: number): number {
   return design.canopy * Math.max(0, rise)
 }
 
-/** The body's size at x as a share of its full size: 0 at the nose's tip, 1 along the body, easing in at the tail. */
+/** How much a jet car's waist takes off the body's size at x (m from the nose's tip): the most at the engine, easing out either side. */
+export function pinchAt(design: RecordDesign, x: number): number {
+  const b = RECORD_BODY[design.class]
+  const u = (x - design.nose.length - b.waistAt) / b.waistSpan
+  if (u <= -1 || u >= 1) return 0
+  // A smooth dip: flat at its edges and at its middle.
+  const w = 1 - u * u
+  return b.waistDepth * design.waist * w * w
+}
+
+/** The body's size at x as a share of its full size: 0 at the nose's tip, 1 along the body (less at a jet car's waist), easing in at the tail. */
 export function fullnessAt(design: RecordDesign, x: number): number {
+  return shellAt(design, x) * (1 - pinchAt(design, x))
+}
+
+function shellAt(design: RecordDesign, x: number): number {
   const b = RECORD_BODY[design.class]
   const n = design.nose.length
   const len = recordLength(design)

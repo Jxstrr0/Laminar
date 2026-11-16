@@ -64,7 +64,7 @@ export const RECORD_RANGE = {
     length: { min: 2, max: 5, step: 0.1 },
     droop: { min: -2, max: 6, step: 0.5 },
     canopy: { min: 0.15, max: 0.45, step: 0.01 },
-    fin: { min: 0, max: 3, step: 0.05 },
+    fin: { min: 0, max: 5, step: 0.05 },
     fairings: { min: 0, max: 1, step: 0.05 },
     waist: { min: 0, max: 1, step: 0.05 },
   },
@@ -224,9 +224,14 @@ export const RECORD_RUN = {
  * joins), how long the tail tapers, and the wheels.
  */
 export const RECORD_BODY = {
-  streamliner: { half: 0.55, ride: 0.12, canopyFrom: 1.6, canopyTo: 3, taper: 2.2, tailHalf: 0.18, wheel: 0.38, track: 0.62 },
-  /** The jet car: a wider tube ending in the engine's nozzle. */
-  jet: { half: 0.7, ride: 0.15, canopyFrom: 1.2, canopyTo: 2.8, taper: 2.5, tailHalf: 0.45, wheel: 0.45, track: 0.8 },
+  streamliner: { half: 0.55, ride: 0.12, canopyFrom: 1.6, canopyTo: 3, taper: 2.2, tailHalf: 0.18, wheel: 0.38, track: 0.62, waistAt: 0, waistSpan: 1, waistDepth: 0 },
+  /**
+   * The jet car: a wider tube ending in the engine's nozzle. Its waist is
+   * pinched round the engine, centred `waistAt` back from where the nose
+   * joins and easing out over `waistSpan` either side; the whole waist takes
+   * `waistDepth` off the body's size there.
+   */
+  jet: { half: 0.7, ride: 0.15, canopyFrom: 1.2, canopyTo: 2.8, taper: 2.5, tailHalf: 0.45, wheel: 0.45, track: 0.8, waistAt: 6.5, waistSpan: 3, waistDepth: 0.22 },
 } as const
 
 /**

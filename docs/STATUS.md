@@ -83,10 +83,17 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 9u | Record jobs on the board: the brief card (course, air, car), bids in km/h 2 at a time, a Deliver sheet that declares the two-way mean from the tunnel's forecast (warning if it was read over the bare floor, never yawed, or pulled its chutes) or the desk's, and a Speed week debrief with the still day, record day and its wind, the read, and a light nose, a wander or a low canopy with a "Change this". The bids sheet's Shape button now names a truck or a car | **Done** (v0.9.20.0) |
 | 9v | The record-run replay: record day on the salt from behind your car, the team's old car as a slate twin, both runs (north, then back south), the run-up fast and the timed kilometre slower. Chutes at the end of each run, or early where the nose lifted or the car swung off the line; a readout of the run, the speed and the timed kilometre, and a commentator. Ends on record day's two-way means and the declared speed against the still day's, then speed week; "Watch the replay" brings it back | **Done** (v0.9.21.0) |
 | 9w | The jet car in the sim: a second record class pushed by thrust on a 14 km run-up, with a waist (area rule) that lets the air squeeze later and less until it crowds the engine, a peak drag that also shrinks with a finer nose, drag easing off past Mach 1, and a shock under the nose at Mach 1 that can lift it (Kelbo: "through the sound barrier", "a waist"). The team's stock jet tops out near Mach 0.9; a well-shaped one breaks the barrier. Saves from before keep a straight body | **Done** (v0.9.22.0) |
-| 9x–14 | See the plan | Next: the jet car on Shape (9x), in the tunnel (9y), its jobs (9z), and the sonic boom in the replay. |
+| 9x | The jet car on Shape (`?try=jet` to preview): its own set of sliders with the waist added on the Body tab, a wider fin range, drawn at its own scale with the waist pinched in cobalt, intakes either side and the engine's nozzle. The desk's record speed shows its Mach number; amber warnings for a car short of the barrier (change the waist), a waist past the engine's room, and a nose that goes light at the barrier | **Done** (v0.9.23.0) |
+| 9y–14 | See the plan | Next: the jet car in the tunnel (9y), its jobs (9z), and the sonic boom in the replay. |
 
 ## Versions
 
+- **0.9.23.0** (PR 9x): the jet car on Shape. Open
+  `laminar.longlight.games/?try=jet` and tap Shape: a long jet car with a
+  new Waist slider. Try a 4.5 m nose, 3.5° of droop, a 25 cm canopy, a
+  60 % waist, and on Fin & wheels 3.5 m² of fin and the wheels covered:
+  the desk says Mach 1.06. Drop the droop to 2° and the nose goes light at
+  the barrier.
 - **0.9.22.0** (PR 9w): the jet car in the sim, not yet in the game. A
   second land-speed class, pushed by a jet engine, that can go through the
   sound barrier if it's shaped for it: a long, fine, well-drooped nose and

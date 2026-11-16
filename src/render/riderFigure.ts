@@ -48,7 +48,7 @@ const COLOURS = {
 }
 
 /** Which drawn groups a rule break or a strained posture lights up. */
-export type Highlight = 'helmet' | 'hands' | 'front-wheel' | 'frame' | 'torso' | 'head' | 'arms' | 'legs' | 'fairing' | 'skirts' | 'boat-tail' | 'floor' | 'rear-wing' | 'front-wing' | 'inlet' | 'nose' | 'canopy' | 'fin' | 'fairings'
+export type Highlight = 'helmet' | 'hands' | 'front-wheel' | 'frame' | 'torso' | 'head' | 'arms' | 'legs' | 'fairing' | 'skirts' | 'boat-tail' | 'floor' | 'rear-wing' | 'front-wing' | 'inlet' | 'nose' | 'canopy' | 'fin' | 'fairings' | 'waist'
 
 export interface RiderState {
   design: Design
