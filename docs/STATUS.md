@@ -59,10 +59,26 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 8n | The bobsled in the tunnel | **Done** (v0.8.13.0) |
 | 8o | Bobsled jobs in the career (sim): briefs, the promise in hundredths, race day | **Done** (v0.8.14.0) |
 | 8p | Bobsled jobs on screen: the board, the bid in hundredths, declaring a run time, the race-day debrief | **Done** (v0.8.15.0) |
-| 8q | The bobsled run replay | Next |
-| 9–14 | See the plan | Not started |
+| 8q | The bobsled run replay | **Done** (v0.8.16.0) |
+| 9–14 | See the plan | Next: PR 9 |
 
 ## Versions
+
+- **0.8.16.0** (PR 8q): the bobsled run replay. PR 8 (the rest of Sport)
+  is done.
+  - Race day now plays the day's run from behind the sled before the
+    debrief, fast-forwarded. The client's old sled races in the same ice
+    channel as a see-through ghost.
+  - The channel follows Belogor's stretches: curves turn right, then left.
+    Each sled rides up the outside wall as far as its speed throws it,
+    easing in and out of each curve.
+  - Readouts: the clock, speed, the gap to the old sled at the same spot,
+    and metres down the track. The commentator calls the push, the load,
+    a driver who can't see over the cowling, the long horseshoe, the top
+    speed and the finish.
+  - At the finish it shows the declared reference run next to the real one.
+    "Watch the replay" on the debrief plays it again. Reduced motion shows
+    the finish still.
 
 - **0.8.15.0** (PR 8p): bobsled jobs on screen.
   - The three sled briefs are on the board now (the four-man from
