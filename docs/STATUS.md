@@ -36,11 +36,22 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 7a | Reputation and correlation score: bigger clients and close bids for a good name | **Done** (v0.7.0.0) |
 | 7b | The named rivals, Bystro Aero and Vysota Aerolab | **Done** (v0.7.1.0) |
 | 7c | Your own tunnel: save up and build it (cash only), 90 days, cheap runs and daily upkeep | **Done** (v0.7.2.0) |
-| 7d | Tunnel upgrades | Next |
-| 7e–14 | See the plan (workshop chain, staff, going broke, backup file, 2040 ending, then PRs 8–14) | Not started |
+| 7d | Tunnel upgrades: turbulence screens, bigger turntable, wheel-drive rig, bigger fan | **Done** (v0.7.3.0) |
+| 7e | Workshop chain: resin printer, FDM printer, CNC mill | Next |
+| 7f–14 | See the plan (staff, going broke, backup file, 2040 ending, then PRs 8–14) | Not started |
 
 ## Versions
 
+- **0.7.3.0** (PR 7d): upgrades for your own tunnel.
+  - Once your tunnel is open, its card lists four upgrades, each paid in
+    cash and fitted over some days while you keep working:
+    - turbulence screens (₽180k, 14 days): calmer air;
+    - a bigger turntable (₽120k, 10 days): yaw out to ±30°;
+    - a wheel-drive rig (₽350k, 21 days): the wheels spin, so no
+      static-wheel correction is needed;
+    - a bigger fan (₽600k, 30 days): top speed 55 m/s.
+  - The tunnel screen's fan and yaw sliders, the yaw chart and the model
+    shop's speed check follow whatever is fitted.
 - **0.7.2.0** (PR 7c): your own tunnel.
   - The Jobs screen has a "Your own tunnel" card: ₽2,000,000, cash only.
     Pay (two taps) and it's built over 90 days while you keep working in

@@ -96,7 +96,9 @@ describe('saves with a tunnel of your own', () => {
     const text = packSave({ v: SAVE_VERSION, savedAt: 0, design: structuredClone(DEFAULT_CYCLIST), lab: newLab(), career: built })
     expect(parseSave(text)!.career.facility).toEqual(built.facility)
     const { facility: _gone, ...old } = newCareer(4)
-    expect(soundCareer(old)!.facility).toEqual({ ownOrdered: null })
+    expect(soundCareer(old)!.facility).toEqual({ ownOrdered: null, upgrades: {} })
+    // A 7c facility has no upgrades yet.
+    expect(soundCareer({ ...built, facility: { ownOrdered: 5 } })!.facility).toEqual({ ownOrdered: 5, upgrades: {} })
     expect(soundCareer({ ...built, facility: { ownOrdered: -3 } })).toBeNull()
   })
 })

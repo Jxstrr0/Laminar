@@ -35,7 +35,7 @@ import { AIR } from '../data/air'
 import type { GlossaryId } from '../data/glossary'
 import { TUFT_VIZ } from '../data/flowViz'
 import { DEMO_MODEL_SEED, STANDARD_MODEL } from '../data/model'
-import { CALIBRATION, CRANK_DIAL, REFERENCE_SPHERE, REFERENCE_WHEEL, RUN_RECORDING, RUN_STATS, TUNNEL_BILLING, UNIVERSITY_TUNNEL } from '../data/tunnel'
+import { CALIBRATION, CRANK_DIAL, REFERENCE_SPHERE, REFERENCE_WHEEL, RUN_RECORDING, RUN_STATS, TUNNEL_BILLING } from '../data/tunnel'
 import { t, type StringKey } from '../data/strings'
 import { dynamicPressure, reynolds } from '../sim/air'
 import { bodyDrag, shapeDrag, type Regime } from '../sim/aero/drag'
@@ -69,7 +69,7 @@ import { compareRuns, headlineCompare, headlineGroup, legCycle, poolRuns, yawGro
 import { addSample, newRecorder, runCost, runTunnel, stepRecorder, type Recorder, type Run, type RunSample } from '../sim/run'
 import { setYawTarget, stepTurntable, turntableAtRest, type TurntableState } from '../sim/turntable'
 import type { MountKind } from '../sim/quirks'
-import { tunnelQuirks, type TunnelId } from '../sim/facility'
+import type { TunnelBuild, TunnelId, TunnelSetup } from '../sim/facility'
 import { FAILURE } from '../data/failure'
 import { fixFor, repairQuote, stepStrain, strains, wobbleOf, type Failure, type FailurePart, type Strain, type StrainClock } from '../sim/failure'
 import { gaussian } from '../sim/noise'
@@ -182,8 +182,8 @@ export interface TunnelHooks {
   onRun(run: Run): void
   /** The career's seed, which sets each tunnel's hidden quirks. */
   tunnelSeed: number
-  /** The tunnel the firm tests in today: the university's, or your own once it's open. */
-  tunnelId(): TunnelId
+  /** The tunnel the firm tests in today (the university's, or your own once it's open) and its upgrades. */
+  tunnel(): TunnelSetup
   /** The event the design is being built for (the job's). */
   event(): EventSpec
   /** The model shop's view of the job. */
@@ -207,11 +207,13 @@ export interface TunnelControl {
 /** Start the tunnel from the lab's saved state. */
 export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: LabState, hooks: TunnelHooks): TunnelControl {
   const onChange = hooks.onChange
-  const spec = UNIVERSITY_TUNNEL
+  let setup = hooks.tunnel()
+  /** The tunnel's build: test section, fan, turntable, wheel drive (upgrades change it). */
+  let spec: TunnelBuild = setup.build
   // The tunnel as the balance reads it, hidden quirks and all (each career's tunnels have their own).
   // It changes once, when your own tunnel opens (syncTunnel).
-  let current: TunnelId = hooks.tunnelId()
-  let tunnel: TunnelSpec = { ...UNIVERSITY_TUNNEL, quirks: tunnelQuirks(current, hooks.tunnelSeed) }
+  let current: TunnelId = setup.id
+  let tunnel: TunnelSpec = { ...spec, quirks: setup.quirks }
   let airTurbulence = tunnelTurbulence(tunnel)
   /** Runs made in the tunnel in use: only they say anything about its quirks. */
   const here = () => runs.filter((r) => runTunnel(r) === current)
@@ -796,13 +798,25 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
    * again, so its calibration starts from scratch.
    */
   function syncTunnel() {
-    const id = hooks.tunnelId()
-    if (id === current || rec.run) return
-    current = id
-    tunnel = { ...UNIVERSITY_TUNNEL, quirks: tunnelQuirks(current, hooks.tunnelSeed) }
+    if (rec.run) return
+    const next = hooks.tunnel()
+    if (next.key === setup.key) return
+    const wheelsChanged = next.build.wheelDrive !== spec.wheelDrive
+    setup = next
+    spec = next.build
+    current = next.id
+    tunnel = { ...spec, quirks: next.quirks }
     airTurbulence = tunnelTurbulence(tunnel)
     place.textContent = t(current === 'own' ? 'tunnel.placeOwn' : 'tunnel.place')
-    refreshCal()
+    // A bigger fan or turntable widens the controls and the yaw chart.
+    fanCtl.input.max = String(spec.topSpeed)
+    yawCtl.input.min = String(spec.turntable.min)
+    yawCtl.input.max = String(spec.turntable.max)
+    yawAxes.x.min = spec.turntable.min
+    yawAxes.x.max = spec.turntable.max
+    // Driven wheels change the model itself (its spokes no longer read still).
+    if (wheelsChanged && mount === 'rider') placeModel()
+    else refreshCal()
     runsDirty = true
     chartDirty = true
   }

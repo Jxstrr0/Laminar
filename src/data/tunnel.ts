@@ -195,3 +195,24 @@ export const OWN_BILLING = {
   perRun: 0,
   perKWh: 500,
 }
+
+/**
+ * Upgrades for your own tunnel (plan section 9.2), the ones the cycling work
+ * needs. Each is paid for in cash and fitted over some days while you keep
+ * working; it takes effect the day it's done.
+ */
+export type UpgradeId = 'screens' | 'turntable' | 'wheelDrive' | 'fan'
+
+export const TUNNEL_UPGRADES = {
+  /** Fine mesh screens before the contraction: the test-section air's turbulence falls to this share. */
+  screens: { price: 180_000, days: 14, turbulenceShare: 0.4 },
+  /** A bigger turntable: yaw sweeps out to ± this many degrees. */
+  turntable: { price: 120_000, days: 10, yawRange: 30 },
+  /** Motors that spin the model's wheels, so the spokes read true (no static-wheel correction needed). */
+  wheelDrive: { price: 350_000, days: 21 },
+  /** A bigger fan and motor: top speed, m/s, for a closer Reynolds match on small models. */
+  fan: { price: 600_000, days: 30, topSpeed: 55 },
+} as const satisfies Record<UpgradeId, { price: number; days: number; [k: string]: number }>
+
+/** The order they're shown in. */
+export const UPGRADE_IDS: readonly UpgradeId[] = ['screens', 'turntable', 'wheelDrive', 'fan']

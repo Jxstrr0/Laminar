@@ -10,6 +10,7 @@ import { CRANK_DIAL, DEMO_TUNNEL_SEED } from '../data/tunnel'
 import { briefTemplate, newCareer, type Brief, type CareerState, type Job, type JobRecord } from '../sim/career'
 import { GUIDE_STEPS, type GuideStep } from '../sim/guide'
 import { NO_FACILITY, type Facility } from '../sim/facility'
+import { UPGRADE_IDS, type UpgradeId } from '../data/tunnel'
 import type { Failure, FailureMode, FailurePart } from '../sim/failure'
 import type { LabState, RunNote } from '../sim/lab'
 import type { ModelOrder } from '../sim/modelShop'
@@ -181,7 +182,15 @@ function soundRecord(x: unknown): JobRecord | null {
 function soundFacility(x: unknown): Facility | null {
   if (!isObj(x)) return null
   if (x.ownOrdered !== null && !isCount(x.ownOrdered)) return null
-  return { ownOrdered: x.ownOrdered as number | null }
+  // Facilities from PR 7c have no upgrades yet.
+  const raw = x.upgrades === undefined ? {} : x.upgrades
+  if (!isObj(raw)) return null
+  const upgrades: Facility['upgrades'] = {}
+  for (const [id, day] of Object.entries(raw)) {
+    if (!(UPGRADE_IDS as readonly string[]).includes(id) || !isCount(day)) return null
+    upgrades[id as UpgradeId] = day
+  }
+  return { ownOrdered: x.ownOrdered as number | null, upgrades }
 }
 
 /** The career, or null if it isn't one the game could have written. */
