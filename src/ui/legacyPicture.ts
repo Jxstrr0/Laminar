@@ -44,7 +44,7 @@ export function wrapLines(text: string, max: number, measure: (s: string) => num
 
 /** The best-job line, in the cut's own units: % of drag, metres further, or seconds quicker. */
 export function bestText(best: NonNullable<Legacy['best']>): string {
-  const key = best.unit === 'm' ? 'end.bestJump' : best.unit === 's' ? 'end.bestSled' : 'end.best'
+  const key = best.unit === 'm' ? 'end.bestJump' : best.unit === 's' ? 'end.bestSled' : best.unit === 'fuel' ? 'end.bestTruck' : 'end.best'
   return t(key, { client: best.client, event: best.event, cut: fixed(best.cut, best.unit === 's' ? 2 : 1) })
 }
 

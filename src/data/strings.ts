@@ -106,6 +106,7 @@ export const STRINGS = {
   'pool.rowTruck': '{yaw}° · {cda} ± {band} m² · {runs}',
   'pool.truckSaving': 'Fuel saving on these readings: {pct} % on the {route}, the wind from every side in turn.',
   'pool.truckStraight': 'Straight on only, so that’s too rosy: a crosswind costs more. Turn the table to 5°, 10° and 15° and run again.',
+  'pool.truckFriction': 'Scaled to full size: a 16 m truck’s skin drags less for its size than the model’s, so up to {cda} m² comes off each reading. Faster runs need less.',
   'pool.truckFloor': 'On the bare floor the wheels and underside read low, so the saving reads high: order a ground board.',
   'pool.fixed': 'Corrected for {list}.',
   'pool.raw': 'Balance readings, uncorrected.',
@@ -683,6 +684,7 @@ export const STRINGS = {
   'sd.fix': 'Lower the cowling',
   'sd.readNote': 'The reference run is the usual push on good ice in still air, so one warm day doesn’t decide it; the run on the day is the show. The read is judged on drag, like every job. Close reads build the firm’s name.',
   'end.bestSled': 'Best job: {client} at the {event}, {cut} s quicker.',
+  'end.bestTruck': 'Best job: {client} at the {event}, {cut} % less fuel.',
   // The bobsled replay (PR 8q).
   'sr.gap': 'Vs old sled',
   'sr.down': 'Down the track',
@@ -815,6 +817,7 @@ export const STRINGS = {
   'rule.truckTail': 'The boat-tail sticks out {value} m; the {book} allows {limit} m.',
   'rule.truckSkirts': 'The skirts clear the road by {value} m; the {book} needs {limit} m.',
   'route.stavren-mostograd': 'Stavren–Mostograd highway',
+  'route.kosa-coast': 'Kosa coast road',
   'hill.normal': 'normal hill',
   'hill.large': 'large hill',
   'mount.jumperShort': 'Jumper',

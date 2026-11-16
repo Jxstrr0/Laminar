@@ -19,10 +19,13 @@
  * - Delivering runs the event, pays the fee, jumps the calendar to the
  *   event and refreshes the board.
  */
-import { BID, BRIEFS, CAREER, JUMP_JOBS, PROMISE, SLED_JOBS, type BriefTemplate } from '../data/briefs'
+import { BID, BRIEFS, CAREER, JUMP_JOBS, PROMISE, SLED_JOBS, TRUCK_JOBS, type BriefTemplate } from '../data/briefs'
 import type { BobsledDesign } from '../data/bobsled'
 import { dayDrag, referenceConditions, referenceRun, runWith, type BobRun, type RunConditions } from './bobsled'
 import { cdAForTime, PRACTICE_RUN, raceConditions, sledEventFrom, type SledEvent } from './sledJob'
+import type { TruckDesign } from '../data/truck'
+import { checkTruckRules, fuelRun, fuelSaving, windAveragedFuel, type FuelRun, type RouteDay, type TruckRuleBreak } from './truck'
+import { dragScaleForFuel, PRACTICE_ROUTE, roadLegal, straightOnCdA, trialDay, truckEventFrom, type TruckEvent } from './truckJob'
 import { HILLS, PRACTICE_JUMP } from '../data/hills'
 import type { JumperDesign } from '../data/jumper'
 import { jumpDay, referenceJump, type JumpEvent, type JumpResult, type ReferenceJump } from './jumper'
@@ -139,6 +142,7 @@ function onBoard(b: BriefTemplate, rng: Rng): Brief {
 export function openTo(b: BriefTemplate, reputation: number): boolean {
   if (b.event.jump && !JUMP_JOBS.open) return false
   if (b.event.sled && !SLED_JOBS.open) return false
+  if (b.event.truck && !TRUCK_JOBS.open) return false
   return (b.minRep ?? 0) <= reputation
 }
 
@@ -169,6 +173,16 @@ export function isSledBrief(id: string): boolean {
 /** A bobsled brief's race, ready for the run model. Null for any other brief. */
 export function sledEventOf(brief: Pick<Brief, 'id'>): SledEvent | null {
   return sledEventFrom(template(brief.id))
+}
+
+/** True for a truck brief: its promise is per cent of fuel saved, its declaration a fuel figure. */
+export function isTruckBrief(id: string): boolean {
+  return briefTemplate(id)?.event.truck !== undefined
+}
+
+/** A truck brief's fuel trial, ready for the fuel run. Null for any other brief. */
+export function truckEventOf(brief: Pick<Brief, 'id'>): TruckEvent | null {
+  return truckEventFrom(template(brief.id))
 }
 
 /**
@@ -327,6 +341,11 @@ export function currentJumpEvent(state: CareerState): JumpEvent {
 /** The race a sled is built for: the job's, or Belogor in the reference conditions between jobs. */
 export function currentSledEvent(state: CareerState): SledEvent {
   return (state.job && sledEventOf(state.job.brief)) ?? PRACTICE_RUN
+}
+
+/** The route a truck is built for: the job's, or the Mostograd run between jobs. */
+export function currentTruckEvent(state: CareerState): TruckEvent {
+  return (state.job && truckEventOf(state.job.brief)) ?? PRACTICE_ROUTE
 }
 
 /** Take a brief off the board at its suggested fee and the client's ask. Only one job at a time. */
@@ -831,6 +850,95 @@ export function deliverSled(state: CareerState, design: BobsledDesign, predicted
     baselineDay,
     cause: met ? null : reference.blindLoss > 0 && penaltyFor(job.brief.fee, job.promise, sighted).shortfall === 0 ? 'sight' : 'design',
     blind: reference.blindLoss > 0 ? { lost: reference.blindLoss, fix: 'cowl' } : null,
+    reputation: { before: firmReputation(state), after: 0 },
+  }
+  const closed = closeJob(state, job, penalty, { achieved, predicted: predictedCdA, actual: actualCdA })
+  return { ...closed, job, event, debrief: { ...debrief, reputation: { ...debrief.reputation, after: firmReputation(closed.state) } } }
+}
+
+/** What the fuel trial showed for a truck (plan section 9: fuel saving on the client's route, wind-averaged). */
+export interface TruckDebrief {
+  /** Promised and achieved saving, % of the old truck's wind-averaged fuel. */
+  promised: number
+  achieved: number
+  met: boolean
+  /** Points short after the allowance (0 if met). */
+  shortfall: number
+  /** ₽ taken off the fee. */
+  penalty: number
+  /** Declared and real wind-averaged fuel figure, litres per 100 km. */
+  predicted: number
+  actual: number
+  /** The old truck's wind-averaged figure, litres per 100 km. */
+  baseline: number
+  /** The straight-on drag areas the declared and real figures come from, m²: the read is judged on these. */
+  predictedCdA: number
+  actualCdA: number
+  /** (declared − real) ÷ real, on drag. */
+  readError: number
+  read: Read
+  /** The trial day: its air and wind, and both trucks down the route in it. */
+  day: RouteDay
+  run: FuelRun
+  baselineRun: FuelRun
+  /** Parts the road code made the depot cut back before the truck went out (none if it was legal). */
+  cutBack: TruckRuleBreak[]
+  /** Why a miss happened: not enough saving ('design'), or enough until the depot cut a part back ('roadCode'). */
+  cause: 'design' | 'roadCode' | null
+  reputation: { before: number; after: number }
+}
+
+export interface TruckDelivery extends Closed {
+  job: Job
+  event: TruckEvent
+  debrief: TruckDebrief
+}
+
+/**
+ * Deliver a truck with a declared wind-averaged fuel figure. The fleet fits
+ * the parts the road code allows (anything past a limit is cut back to it),
+ * and the promise is judged on that truck's wind-averaged saving on the
+ * route, the same for any day. The trial day, your truck and the old one in
+ * the same air and wind, is the show. The firm's record keeps the read on
+ * drag, like every other job. Null if there's no job or it isn't a truck job.
+ */
+export function deliverTruck(state: CareerState, design: TruckDesign, predicted: number): TruckDelivery | null {
+  const job = state.job
+  if (!job) return null
+  const event = truckEventOf(job.brief)
+  const setup = template(job.brief.id).setup
+  if (!event || setup.sport !== 'truck') return null
+  const route = event.route
+  const cutBack = checkTruckRules(design)
+  const fitted = roadLegal(design)
+  const achieved = fuelSaving(fitted, setup, route)
+  const { shortfall, penalty } = penaltyFor(job.brief.fee, job.promise, achieved)
+  const met = shortfall === 0
+  const day = trialDay(event, daySeed(job.brief))
+  const actual = windAveragedFuel(fitted, route)
+  const actualCdA = straightOnCdA(fitted, route)
+  const predictedCdA = dragScaleForFuel(predicted, fitted, route) * actualCdA
+  const readError = (predictedCdA - actualCdA) / actualCdA
+  // Would the truck as drawn have kept the promise? Then the road code cost it.
+  const asDrawn = cutBack.length > 0 ? fuelSaving(design, setup, route) : achieved
+  const debrief: TruckDebrief = {
+    promised: job.promise,
+    achieved,
+    met,
+    shortfall,
+    penalty,
+    predicted,
+    actual,
+    baseline: windAveragedFuel(setup, route),
+    predictedCdA,
+    actualCdA,
+    readError,
+    read: readOf(readError),
+    day,
+    run: fuelRun(fitted, route, day),
+    baselineRun: fuelRun(setup, route, day),
+    cutBack,
+    cause: met ? null : cutBack.length > 0 && penaltyFor(job.brief.fee, job.promise, asDrawn).shortfall === 0 ? 'roadCode' : 'design',
     reputation: { before: firmReputation(state), after: 0 },
   }
   const closed = closeJob(state, job, penalty, { achieved, predicted: predictedCdA, actual: actualCdA })

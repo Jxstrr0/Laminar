@@ -22,12 +22,12 @@ export interface Legacy {
   correlation: number | null
   /**
    * The biggest cut delivered: who for, at what event, and how much (% of
-   * drag, metres for a ski jump, seconds for a bobsled). A cut in % always
-   * beats the others, since they can't be weighed; between metres and
-   * seconds the first one delivered stands. A career of only jumps (or only
-   * sleds) shows its biggest gain.
+   * drag, metres for a ski jump, seconds for a bobsled, % of fuel for a
+   * truck). A cut in % of drag always beats the others, since they can't be
+   * weighed; between the others the first one delivered stands. A career of
+   * only jumps (or only sleds, or only trucks) shows its biggest gain.
    */
-  best: { client: string; event: string; cut: number; unit: 'pct' | 'm' | 's' } | null
+  best: { client: string; event: string; cut: number; unit: 'pct' | 'm' | 's' | 'fuel' } | null
   /** Fees the clients paid in all, ₽. */
   earned: number
   /** Cash at the end, ₽. */
@@ -42,7 +42,7 @@ export function legacyOf(state: CareerState): Legacy {
   for (const job of state.history) {
     const b = briefTemplate(job.id)
     if (!b) continue
-    const unit = b.event.jump ? 'm' : b.event.sled ? 's' : 'pct'
+    const unit = b.event.jump ? 'm' : b.event.sled ? 's' : b.event.truck ? 'fuel' : 'pct'
     // A sled's achieved gain is in points, a tenth of a second each.
     const cut = unit === 's' ? job.achieved * SLED_JOBS.pointSeconds : job.achieved
     const beats = !best || (unit === best.unit ? cut > best.cut : unit === 'pct')

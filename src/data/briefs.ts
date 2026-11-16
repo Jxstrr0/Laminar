@@ -12,6 +12,8 @@ import type { SkaterDesign } from './skater'
 import type { Design } from './sport'
 import type { CourseSegment } from './field'
 import type { Track } from './tracks'
+import type { Route } from './routes'
+import { FLEET_TRUCK, type TruckDesign } from './truck'
 
 /** How a career starts, and how the brief board works. */
 export const CAREER = {
@@ -102,6 +104,13 @@ export interface EventTemplate {
    * the sled's usual speed.
    */
   sled?: { track: Track['id']; iceTemp: number; push: number; spread: { ice: number; push: number } }
+  /**
+   * A truck fleet's fuel trial (PR 9e): the route its trucks run. The air and
+   * wind are the route's own usual day (`temperature`, `windSpeed` and
+   * `riderSpeed`, the speed limit, copy it for the brief card), and `spread`
+   * says how far the trial day strays from it.
+   */
+  truck?: { route: Route['id'] }
 }
 
 export interface BriefTemplate {
@@ -176,6 +185,18 @@ export const SLED_JOBS = {
   promiseStep: 0.1,
 }
 
+/**
+ * Truck jobs (PR 9e; Kelbo, 16 November 2026): the promise is the fuel saved
+ * on the client's route, wind-averaged, against the fleet's current truck
+ * (one point is one per cent of fuel), and the declared number is the new
+ * truck's wind-averaged fuel figure, litres per 100 km.
+ *
+ * Closed until the board, bid and debrief can show them (PR 9f).
+ */
+export const TRUCK_JOBS = {
+  open: false,
+}
+
 /** The indoor 400 m ice oval (PR 8b): longer straights than the velodrome, skated anticlockwise too. */
 export const OVAL = {
   lap: 400,
@@ -225,6 +246,15 @@ const skater = (posture: SkaterDesign['posture'], parts: Partial<Omit<SkaterDesi
   hood: 'cap',
   suit: { fabric: 'smooth', legTrips: false },
   ...parts,
+})
+
+/** A fleet's current truck: FLEET_TRUCK with the changes they've already made. */
+const truck = (trailerTop: number, cab: Partial<TruckDesign['cab']> = {}, gap: Partial<TruckDesign['gap']> = {}, trailer: Partial<TruckDesign['trailer']> = {}): TruckDesign => ({
+  sport: 'truck',
+  trailerTop,
+  cab: { ...FLEET_TRUCK.cab, ...cab },
+  gap: { ...FLEET_TRUCK.gap, ...gap },
+  trailer: { ...FLEET_TRUCK.trailer, ...trailer },
 })
 
 const sled = (crew: Crew, nose: number, tail: number, cowl: number, tuck: number): BobsledDesign => ({
@@ -588,5 +618,74 @@ export const BRIEFS: readonly BriefTemplate[] = [
     days: 22,
     minRep: 45,
     target: 6,
+  },
+  {
+    id: 'kovyl-haulage',
+    client: 'Lukyan Pyzhov',
+    who: 'Owner of Kovyl Haulage, six trucks on the Mostograd run',
+    goal: 'Diesel eats everything we earn. My trucks are bricks on wheels. Tell me what to bolt on and how much it will save.',
+    event: {
+      name: 'Kovyl Haulage fuel trial',
+      place: 'Stavren–Mostograd highway',
+      temperature: 12,
+      altitude: 250,
+      windSpeed: 5,
+      riderSpeed: 25,
+      spread: { temperature: 5, wind: 2, power: 0 },
+      course: [],
+      truck: { route: 'stavren-mostograd' },
+    },
+    rider: { power: 0, mass: 0 },
+    setup: truck(4),
+    fee: { min: 40000, max: 60000 },
+    days: 16,
+    minRep: 5,
+    target: 12,
+  },
+  {
+    id: 'volok-freight',
+    client: 'Tamara Ilchuk',
+    who: 'Fleet manager at Volok Freight, forty trucks across the plain',
+    goal: 'We bought roof fairings years ago and saw nothing. Either they were wrong or we were. Find out, and find us more.',
+    event: {
+      name: 'Volok Freight fuel trial',
+      place: 'Stavren–Mostograd highway',
+      temperature: 12,
+      altitude: 250,
+      windSpeed: 5,
+      riderSpeed: 25,
+      spread: { temperature: 5, wind: 2, power: 0 },
+      course: [],
+      truck: { route: 'stavren-mostograd' },
+    },
+    rider: { power: 0, mass: 0 },
+    setup: truck(4, { nose: 0.15, fairing: 0.6 }, { length: 1 }),
+    fee: { min: 90000, max: 120000 },
+    days: 20,
+    minRep: 20,
+    target: 10,
+  },
+  {
+    id: 'prichal-coast',
+    client: 'Stepan Brovar',
+    who: 'Runs Prichal Logistics out of the Kosa port',
+    goal: 'The coast road is wind from the sea all day, side-on. Our tall boxes catch it like sails. I want the fuel bill down where the wind is.',
+    event: {
+      name: 'Prichal Logistics fuel trial',
+      place: 'The coast road from Stavren to the Kosa port',
+      temperature: 14,
+      altitude: 5,
+      windSpeed: 8,
+      riderSpeed: 25,
+      spread: { temperature: 4, wind: 2.5, power: 0 },
+      course: [],
+      truck: { route: 'kosa-coast' },
+    },
+    rider: { power: 0, mass: 0 },
+    setup: truck(4.1, { nose: 0.2, fairing: 1.1, extenders: 0.3 }, { length: 1 }),
+    fee: { min: 130000, max: 170000 },
+    days: 24,
+    minRep: 35,
+    target: 16,
   },
 ]

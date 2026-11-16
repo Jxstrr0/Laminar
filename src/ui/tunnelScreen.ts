@@ -62,7 +62,7 @@ import { referenceWheel } from '../sim/geom/cyclist'
 import { sphere } from '../sim/geom/shapes'
 import { Rng } from '../sim/rng'
 import { designPose, designShape, isBobsled, isJumper, isTruck, type Design } from '../sim/design'
-import { forecastSaving, prepareTruck, readCurve, truckEvent } from '../sim/truckTunnel'
+import { forecastSaving, frictionScaleUp, prepareTruck, readCurve, truckEvent } from '../sim/truckTunnel'
 import { FLEET_TRUCK, type TruckDesign } from '../data/truck'
 import { ROUTES } from '../data/routes'
 import { forecastRun, prepareSled, sledEvent } from '../sim/sledTunnel'
@@ -1160,13 +1160,20 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   /**
    * A truck's runs, pooled angle by angle (PR 9d): each yaw's settled
    * reading, corrected, in order of angle. A truck is the same either side.
+   * Each is scaled to full size for friction (PR 9e): `friction` is what
+   * came off, full-size m².
    */
-  function truckGroups(byCrank: Map<number, Run[]>) {
+  function truckGroups(byCrank: Map<number, Run[]>, truck: TruckDesign) {
     if (!prepared) return []
     const s2 = prepared.scale * prepared.scale
+    const { route } = truckRun(truck)
+    const scale = prepared.scale
     return poolRuns([...byCrank.values()].flat())
       .filter((p) => p.trusted)
-      .map((p) => ({ ...p, cdA: correct(p.mean * s2, fix) / s2 }))
+      .map((p) => {
+        const friction = frictionScaleUp(truck, scale, p.speed, route)
+        return { ...p, friction, cdA: correct(p.mean * s2, fix) / s2 - friction }
+      })
       .sort((a, b) => Math.abs(a.yawDeg) - Math.abs(b.yawDeg) || a.yawDeg - b.yawDeg)
   }
   function drawPool() {
@@ -1212,7 +1219,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     const more = cycle ? Math.max(0, RUN_STATS.legAngles - cycle.angles.length) : 0
     if (isTruck(now)) {
       // A truck has no legs to crank: its readings, angle by angle, make the drag curve the route is run on.
-      const groups = truckGroups(byCrank)
+      const groups = truckGroups(byCrank, now)
       setText(poolTitle, t('pool.titleTruck'))
       poolRows.replaceChildren(
         ...groups.map((p) => {
@@ -1233,6 +1240,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       else {
         const saving = forecastSaving(readCurve(groups.map((g) => ({ yawDeg: g.yawDeg, cdA: g.cdA }))), now, old, route)
         lines.push(t('pool.truckSaving', { pct: `${saving < 0 ? '−' : ''}${fixed(Math.abs(saving), 1)}`, route: t(`route.${route.id}`) }))
+        // Friction scaled to full size: the most that came off any reading (the slowest run's).
+        lines.push(t('pool.truckFriction', { cda: fixed(Math.max(...groups.map((g) => g.friction)), 2) }))
         // The two traps (PR 9c): a curve read straight on only, and the still floor.
         if (!groups.some((g) => Math.abs(g.yawDeg) >= TRUCK_SWEEP_MIN)) lines.push(t('pool.truckStraight'))
       }
