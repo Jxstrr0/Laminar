@@ -57,6 +57,7 @@ import { careerDate, fixed, pct, raceTime, rubles, rublesShort, shortTime } from
 import { glossaryTerm } from './glossary'
 import { GUIDE_STEPS, currentStep, guideOn, hideGuide, stepDone } from '../sim/guide'
 import { playReplay } from './replayOverlay'
+import { playJumpReplay } from './jumpReplay'
 import { createSheet, type Sheet } from './sheet'
 import { twoTap } from './twoTap'
 import { shareLegacy } from './legacyPicture'
@@ -248,7 +249,8 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       if (!d) return
       deliverSheet?.close()
       careerStore.set(d.state)
-      showJumpDelivery(d)
+      // The jump plays out first; the debrief follows.
+      replayJump(d, design, () => showJumpDelivery(d, design))
     })
     deliverSheet.body.replaceChildren(
       el('p', 'shop-intro', t('deliver.introJump', { client: b.client, event: b.event.name })),
@@ -265,8 +267,25 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
 
   let jumpSheet: Sheet | null = null
 
+  /** The jump replay for a delivery, then `after`. */
+  function replayJump(d: JumpDelivery, design: JumperDesign, after: () => void) {
+    const b = briefTemplate(d.job.brief.id)!
+    void playJumpReplay({
+      client: b.client,
+      event: b.event.name,
+      hill: d.event.hill,
+      design,
+      setup: b.setup as JumperDesign,
+      day: d.debrief.day,
+      baselineDay: d.debrief.baselineDay,
+      predicted: d.debrief.predicted,
+      actual: d.debrief.actual,
+      onDone: after,
+    })
+  }
+
   /** Jump day: the promise judged on the reference jump, the jump on the day, and any trouble with its fix. */
-  function showJumpDelivery(d: JumpDelivery) {
+  function showJumpDelivery(d: JumpDelivery, design: JumperDesign) {
     jumpSheet ??= createSheet({ cls: 'raceday', title: t('jd.title'), closeLabel: t('jd.close') })
     const b = briefTemplate(d.job.brief.id)!
     const db = d.debrief
@@ -325,6 +344,12 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     parts.push(el('p', 'shop-note', t('jd.readNote')))
     if (d.sale) parts.push(brokeBox(d.sale, d.state.money))
     if (d.state.ended) parts.push(el('p', 'save-due', t('end.reached')))
+    const again = button('save-btn quiet', t('race.replay'))
+    again.addEventListener('click', () => {
+      jumpSheet?.close()
+      replayJump(d, design, () => showJumpDelivery(d, design))
+    })
+    parts.push(again)
     jumpSheet.body.replaceChildren(...parts)
     jumpSheet.open()
   }

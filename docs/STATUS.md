@@ -52,13 +52,29 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 8g | Ski-jump jobs in the career (sim): briefs, the promise in metres, delivering a jumper | **Done** (v0.8.6.0) |
 | 8h | Ski-jump balance: the cap at the hill size, a retune, the large-hill job (sim) | **Done** (v0.8.7.0) |
 | 8i | Ski-jump jobs on screen: the board, the bid in metres, declaring a distance, the jump-day debrief | **Done** (v0.8.8.0) |
-| 8j | The flight replay on the hill | Next |
-| 8k | A sting that can break, and a fairer read on the helmet and boots | Not started |
+| 8j | The flight replay on the hill | **Done** (v0.8.9.0) |
+| 8k | A sting that can break, and a fairer read on the helmet and boots | Next |
 | 8l–8m | Bobsled | Not started |
 | 9–14 | See the plan | Not started |
 
 ## Versions
 
+- **0.8.9.0** (PR 8j): the jump replay on the hill.
+  - Delivering a jumper now plays the day's jump side-on, in slow motion:
+    the in-run, the table, the landing slope with the K line (cobalt) and
+    the hill-size line (red), and fir trees on the far side. Your design
+    flies beside the client's old setup, which is drawn see-through.
+  - A live readout gives the time in the air, the distance, the speed and
+    the stability margin; a commentator calls the take-off, settling into
+    the V, any pitch-forward, wobble or bail-out at HS, and the landing
+    against the old setup. A strip under it shows both jumpers with K and HS.
+  - A jump measured shorter than its flight (a wobble, or the bail-out at
+    HS) comes down over the last few metres to land on its mark. On the
+    snow the jumper stands in a landing crouch with the skis down the slope,
+    and each landing leaves a mark.
+  - At the end it shows your declared distance next to what the reference
+    jump counted, then "See the debrief". With reduced motion it shows the
+    landing as a still. Jump day has a "Watch the replay" button.
 - **0.8.8.0** (PR 8i): ski-jump jobs on the Jobs board.
   - Kirill Zorin (from reputation 15), Polina Vetrova (30) and Yaroslav
     Kuzmenko (45, the large hill) now turn up on the board. Their cards show

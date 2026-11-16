@@ -84,3 +84,63 @@ export function jumperPose(design: JumperDesign, alphaDeg: number = FLIGHT_ATTIT
     ],
   }
 }
+
+/**
+ * The jumper on the snow after the landing (the jump replay, PR 8j): skis
+ * together along the slope (`slopeDeg`, negative going down), the body
+ * upright against gravity over the boots, trunk leaning forward, knees
+ * bent. Only drawn; the sim never flies it.
+ */
+export function landedPose(slopeDeg = 0): JumperPose {
+  const L = S.landed
+  const lean = (90 - L.trunkDeg) * DEG
+  const bx = detCos(lean)
+  const by = detSin(lean)
+  const hipC = p(0, S.hipY, 0)
+  const along = (d: number, lift = 0, z = 0): Point => p(hipC.x + d * bx - lift * by, hipC.y + d * by + lift * bx, z)
+  const hw = S.hipWidth / 2
+  const sw = S.shoulderWidth / 2
+  const hip: [Point, Point] = [along(0, 0, -hw), along(0, 0, hw)]
+  const shoulder: [Point, Point] = [along(S.shoulderAhead, 0, -sw), along(S.shoulderAhead, 0, sw)]
+  // Arms forward and out for balance.
+  const hand: [Point, Point] = [along(S.shoulderAhead * 0.6, -0.35, -S.handsOut * 1.4), along(S.shoulderAhead * 0.6, -0.35, S.handsOut * 1.4)]
+  const elbow = shoulder.map((s, i) => {
+    const h = hand[i]!
+    return p((s.x + h.x) / 2, (s.y + h.y) / 2 - S.elbowDrop, ((s.z + h.z) / 2) * S.elbowOut)
+  }) as [Point, Point]
+  // Boots under the hips, a touch ahead; skis parallel through them, down the slope.
+  const bootY = hipC.y - JUMP_BODY.hipToBoot * L.hipsUp
+  const tailBack = JUMP_SKIS.length - JUMP_SKIS.tipAhead
+  const cx = detCos(slopeDeg * DEG)
+  const cy = detSin(slopeDeg * DEG)
+  const skiFor = (side: -1 | 1) => {
+    const z = side * (hw + 0.02)
+    const boot = p(L.hipsBack, bootY, z)
+    const tail = p(boot.x - tailBack * cx, boot.y - tailBack * cy - S.skiThick, z)
+    return { boot, tail, tip: p(tail.x + JUMP_SKIS.length * cx, tail.y + JUMP_SKIS.length * cy, z) }
+  }
+  const near = skiFor(-1)
+  const far = skiFor(1)
+  const foot: [Point, Point] = [near.boot, far.boot]
+  const knee = hip.map((h, i) => {
+    const f = foot[i]!
+    return p((h.x + f.x) / 2 + L.kneesForward, (h.y + f.y) / 2, (h.z + f.z) / 2)
+  }) as [Point, Point]
+  return {
+    hip,
+    shoulder,
+    neck: along(S.neckAhead, S.headLift / 2),
+    head: along(S.headAhead, S.headLift),
+    headPitchDeg: lean / DEG + S.helmetPitchDeg,
+    helmet: along(S.headAhead + S.helmetAt.ahead, S.headLift + S.helmetAt.lift),
+    helmetTail: along(S.headAhead - S.helmetTail.behind, S.headLift + S.helmetTail.lift),
+    elbow,
+    hand,
+    knee,
+    foot,
+    skis: [
+      { tip: near.tip, tail: near.tail },
+      { tip: far.tip, tail: far.tail },
+    ],
+  }
+}
