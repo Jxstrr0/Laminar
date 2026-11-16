@@ -4,7 +4,7 @@
  * controls (and their `ctl.*` labels).
  */
 import type { Design } from './design'
-import { isAircraft, isBobsled, isCar, isCyclist, isDrone, isJumper, isPlane, isRecord, isSkater, isTruck } from './design'
+import { isAircraft, isPod, isBobsled, isCar, isCyclist, isDrone, isJumper, isPlane, isRecord, isSkater, isTruck } from './design'
 import type { CyclistDesign } from '../data/cyclist'
 import type { SkaterDesign } from '../data/skater'
 import type { JumperDesign } from '../data/jumper'
@@ -15,6 +15,7 @@ import type { RecordDesign } from '../data/record'
 import type { DroneDesign } from '../data/drone'
 import type { PlaneDesign } from '../data/plane'
 import type { AircraftDesign } from '../data/aircraft'
+import type { PodDesign } from '../data/pod'
 
 export type ControlId =
   | 'torsoDeg' | 'headDrop' | 'armWidth' | 'handReach' | 'handHeight'
@@ -29,6 +30,7 @@ export type ControlId =
   | 'podLength' | 'podRake' | 'podVents' | 'armFairings'
   | 'planeNose' | 'tailCone' | 'tailSize' | 'cameraDrop' | 'cameraFairing' | 'cameraAt' | 'winglets' | 'wingSpan'
   | 'acCowling' | 'spats' | 'wingtips' | 'strutFairing' | 'strutToe' | 'acPodFairing' | 'acPodAt'
+  | 'senNose' | 'senTail' | 'senGap' | 'senAt'
 
 const bike = (f: (d: CyclistDesign) => unknown) => (d: Design) => (isCyclist(d) ? f(d) : undefined)
 const skate = (f: (d: SkaterDesign) => unknown) => (d: Design) => (isSkater(d) ? f(d) : undefined)
@@ -40,18 +42,19 @@ const rec = (f: (d: RecordDesign) => unknown) => (d: Design) => (isRecord(d) ? f
 const quad = (f: (d: DroneDesign) => unknown) => (d: Design) => (isDrone(d) ? f(d) : undefined)
 const plane = (f: (d: PlaneDesign) => unknown) => (d: Design) => (isPlane(d) ? f(d) : undefined)
 const kit = (f: (d: AircraftDesign) => unknown) => (d: Design) => (isAircraft(d) ? f(d) : undefined)
+const sen = (f: (d: PodDesign) => unknown) => (d: Design) => (isPod(d) ? f(d) : undefined)
 
 /** Each control's value on a design (undefined for another sport's control). */
 const READ: Record<ControlId, (d: Design) => unknown> = {
   torsoDeg: bike((d) => d.posture.torsoDeg),
-  headDrop: (d) => (isJumper(d) || isBobsled(d) || isTruck(d) || isCar(d) || isRecord(d) || isDrone(d) || isPlane(d) || isAircraft(d) ? undefined : d.posture.headDrop),
+  headDrop: (d) => (isJumper(d) || isBobsled(d) || isTruck(d) || isCar(d) || isRecord(d) || isDrone(d) || isPlane(d) || isAircraft(d) || isPod(d) ? undefined : d.posture.headDrop),
   armWidth: bike((d) => d.posture.armWidth),
   handReach: bike((d) => d.posture.handReach),
   handHeight: bike((d) => d.posture.handHeight),
   helmet: bike((d) => d.helmet.kind),
   tail: bike((d) => d.helmet.tail),
   vents: bike((d) => d.helmet.vents),
-  fabric: (d) => (isJumper(d) || isBobsled(d) || isTruck(d) || isCar(d) || isRecord(d) || isDrone(d) || isPlane(d) || isAircraft(d) ? undefined : d.suit.fabric),
+  fabric: (d) => (isJumper(d) || isBobsled(d) || isTruck(d) || isCar(d) || isRecord(d) || isDrone(d) || isPlane(d) || isAircraft(d) || isPod(d) ? undefined : d.suit.fabric),
   armTrips: bike((d) => d.suit.armTrips),
   bars: bike((d) => d.bars),
   front: bike((d) => d.wheels.front),
@@ -110,6 +113,10 @@ const READ: Record<ControlId, (d: Design) => unknown> = {
   strutToe: kit((d) => d.struts.toe),
   acPodFairing: kit((d) => d.pod.fairing),
   acPodAt: kit((d) => d.pod.at),
+  senNose: sen((d) => d.nose),
+  senTail: sen((d) => d.tail),
+  senGap: sen((d) => d.gap),
+  senAt: sen((d) => d.at),
 }
 
 /** The controls set differently in `b` than in `a`, in Shape-screen order. */
