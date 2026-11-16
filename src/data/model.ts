@@ -73,6 +73,12 @@ export const MODEL_SHOP = {
   board: { price: 4000, days: 1 },
   /** Pressure taps: pinholes over the rider piped to the tunnel's scanner. */
   taps: { price: 8000, days: 2 },
+  /**
+   * A powered quad model (PR 10e): motors and speed controllers wired down
+   * the sting to the tunnel's supply, so its props spin and the balance reads
+   * the downwash on the arms.
+   */
+  motors: { price: 15000, days: 2 },
   /** Swapping one bolt-on part (helmet, suit, bars, a wheel, the frame; a truck's fairing, skirts and the like) on a model you have, ₽ (no days). */
   partSwap: 1500,
   /** Prices round to this many rubles. */

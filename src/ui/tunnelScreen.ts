@@ -444,8 +444,10 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   const qTilt = readout(t('read.tilt'), 'quadTilt')
   const qDrag = readout(t('read.cda'), 'cda')
   const qTwist = readout(t('read.twistNow'), 'pitchTwist')
-  const qFc = readout(t('read.droneDesk'), 'downwash')
-  droneGrid.append(qSpeed.box, qTilt.box, qDrag.box, qTwist.box, qFc.box)
+  const qFc = readout(t('read.droneDesk'), 'quadTilt')
+  // What the downwash on the arms takes: only a powered model, its props spinning, reads it (PR 10e).
+  const qDown = readout(t('read.downwash'), 'downwash')
+  droneGrid.append(qSpeed.box, qTilt.box, qDrag.box, qTwist.box, qFc.box, qDown.box)
 
   // Readouts for the sphere.
   const sphereGrid = el('div', 'readouts')
@@ -661,7 +663,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   let loadArea = 0
   let modelSpec = modelSpecOf(order, DEMO_MODEL_SEED + build)
   const showOrder = () => {
-    const words = t('shop.open', { scale: order.scale })
+    const words = t(order.powered ? 'shop.openPowered' : 'shop.open', { scale: order.scale })
     setText(shopBtn, words)
     shopBtn.setAttribute('aria-label', `${words}. ${t('shop.openName')}`)
   }
@@ -1482,7 +1484,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     recordModel = isRecord(design) ? prepareRecord(design, modelSpec, carFloor(spec.rollingRoad, order.board === true)) : null
     recordCar = recordModel !== null
     // A quad's model is full size, its props stopped (PR 10d).
-    droneModel = isDrone(design) ? prepareDrone(design, modelSpec, 'stopped') : null
+    droneModel = isDrone(design) ? prepareDrone(design, modelSpec, order.powered ? 'powered' : 'stopped') : null
     forecastDirty = true
     prepared = isBobsled(design)
       ? prepareSled(design, modelSpec)
@@ -1499,7 +1501,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     view.setTaps([], [])
     view.setModel({
       kind: 'rider',
-      state: { design, pose: designPose(design, crank), broken: [], strained: [] },
+      state: { design, pose: designPose(design, crank), broken: [], strained: [], ...(droneModel ? { props: droneModel.props === 'powered' ? ('spinning' as const) : ('stopped' as const) } : {}) },
       scale: modelSpec.scale,
       tare,
       board: order.board === true,
@@ -1930,6 +1932,10 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     const words = droneFixWords(droneFix())
     setText(poolFix, words ? t('car.fixed', { list: words }) : t('quad.raw'))
   }
+  /** A powered quad's props spin with its model on the sting (and so every run costs more), not for a tare run. */
+  const propsSpinning = () => mount === 'rider' && !tare && quad && droneModel?.props === 'powered'
+  /** The downwash share as shown, settled like the other readouts. */
+  let shownDown = 0
   const updateDrone = (dt: number) => {
     if (!droneModel || !isDrone(modelDesign)) return
     updateDroneForecast(dt)
@@ -1948,6 +1954,9 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       setText(qDrag.sub, t('read.droneDragNote', { force: '–' }))
       setText(qTwist.value, '–')
       setText(qTwist.sub, t('read.twistNowNote'))
+      setText(qDown.value, '–')
+      setText(qDown.sub, t(droneModel.props === 'powered' ? 'read.downwashNote' : 'read.downwashOff'))
+      shownDown = 0
       return
     }
     const r = readDrone(droneModel, tunnel, { speed: fan.speed, tiltDeg: table.angle, mount: 'sting' }, balanceRng)
@@ -1966,6 +1975,14 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     setText(qTwist.value, `${fixed(Math.abs(shown.sideN), 2)} N·m`)
     // The twist always turns the pod further off the wind: nose down past the pod's angle, nose up short of it.
     setText(qTwist.sub, t(shown.sideN >= 0 ? 'read.twistDown' : 'read.twistUp'))
+    if (r.downwash === null) {
+      setText(qDown.value, '–')
+      setText(qDown.sub, t('read.downwashOff'))
+    } else {
+      shownDown = shownDown === 0 ? r.downwash : shownDown + (r.downwash - shownDown) * k
+      setText(qDown.value, `${fixed(shownDown * 100, 1)} %`)
+      setText(qDown.sub, t('read.downwashNote'))
+    }
   }
 
   /** Show the controls that fit what's on the mount. */
@@ -2259,7 +2276,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
         if (step.broke) breakModel(step.broke)
       } else warn = null
       if (coasting && fan.speed < RUN_RECORDING.endBelow) coasting = false
-      const step = coasting ? { recorder: rec, sampleDue: false, finished: null } : stepRecorder(rec, fan.speed, STEP, runModel(), current)
+      const step = coasting ? { recorder: rec, sampleDue: false, finished: null } : stepRecorder(rec, fan.speed, STEP, runModel(), current, propsSpinning())
       rec = step.recorder
       if (step.finished) {
         runs.push(step.finished)

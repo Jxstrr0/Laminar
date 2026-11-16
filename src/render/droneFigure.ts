@@ -34,6 +34,7 @@ const M = {
   prop: new THREE.MeshStandardMaterial({ color: COLOURS.prop, roughness: 0.5, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false }),
   wind: new THREE.LineBasicMaterial({ color: COLOURS.part, transparent: true, opacity: 0.45 }),
   lens: mat(COLOURS.lens, 0.15, 0.5),
+  blade: mat(COLOURS.prop, 0.5),
   part: mat(COLOURS.part, 0.4, 0.1),
   broken: new THREE.MeshStandardMaterial({ color: COLOURS.broken, emissive: COLOURS.broken, emissiveIntensity: 0.35, roughness: 0.5, side: THREE.DoubleSide }),
   strain: new THREE.MeshStandardMaterial({ color: COLOURS.strain, emissive: COLOURS.strain, emissiveIntensity: 0.25, roughness: 0.6, side: THREE.DoubleSide }),
@@ -54,6 +55,9 @@ const DRAW = {
   windTo: 0.17,
   windAt: [-0.05, 0, 0.05],
   arrow: 0.018,
+  /** A prop blade's width and thickness, m. */
+  blade: 0.009,
+  bladeThick: 0.0012,
 }
 
 export interface DroneLook {
@@ -61,6 +65,12 @@ export interface DroneLook {
   strained: Highlight[]
   /** Lean the quad nose-down by this, radians (as it flies flat out); level if left out. */
   tilt?: number
+  /**
+   * How the props are drawn: a faint blur disc as it flies (the default), or
+   * two-bladed props for the tunnel, still or spinning. Spinning ones are
+   * named 'rotor' for the tunnel scene to turn each frame (PR 10e).
+   */
+  props?: 'disc' | 'stopped' | 'spinning'
 }
 
 /** A rounded-box ring point: cos and sin pushed towards the corners. */
@@ -133,9 +143,24 @@ export function buildDrone(design: DroneDesign, look: DroneLook): THREE.Group {
     }
     const motor = new THREE.Mesh(new THREE.CylinderGeometry(B.motor, B.motor, B.motorHeight, 16), M.motor)
     motor.position.set(reach, -B.plateThick / 2 + B.motorHeight / 2 - B.armDepth, 0)
-    const prop = new THREE.Mesh(new THREE.CircleGeometry(B.prop, 32).rotateX(-Math.PI / 2), M.prop)
-    prop.position.set(reach, motor.position.y + B.motorHeight / 2 + 0.003, 0)
-    arm.add(motor, prop)
+    arm.add(motor)
+    const propY = motor.position.y + B.motorHeight / 2 + 0.003
+    const props = look.props ?? 'disc'
+    // Flying, or spinning in the tunnel, the props show as a faint disc.
+    if (props !== 'stopped') {
+      const prop = new THREE.Mesh(new THREE.CircleGeometry(B.prop, 32).rotateX(-Math.PI / 2), M.prop)
+      prop.position.set(reach, propY, 0)
+      arm.add(prop)
+    }
+    // In the tunnel, two blades across each motor: still, or turned by the scene.
+    if (props !== 'disc') {
+      const rotor = new THREE.Group()
+      rotor.name = props === 'spinning' ? 'rotor' : 'blades'
+      rotor.position.set(reach, propY, 0)
+      rotor.rotation.y = sx * sz * 0.6
+      rotor.add(new THREE.Mesh(new THREE.BoxGeometry(B.prop * 2, DRAW.bladeThick, DRAW.blade), M.blade))
+      arm.add(rotor)
+    }
     g.add(arm)
   }
 

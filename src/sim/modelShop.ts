@@ -20,6 +20,8 @@ export interface ModelOrder {
   board?: boolean
   /** Who makes it: the outside shop (left out) or one of your machines. */
   maker?: MakerId
+  /** A quad model with motors that spin its props in the tunnel (left out for anything else; PR 10e). */
+  powered?: boolean
 }
 
 /** Who makes an order. */
@@ -95,10 +97,11 @@ function shopQuote(order: ModelOrder): Quote {
   const trips = order.trips ? MODEL_SHOP.trips : { price: 0, days: 0 }
   const taps = order.taps ? MODEL_SHOP.taps : { price: 0, days: 0 }
   const board = order.board ? MODEL_SHOP.board : { price: 0, days: 0 }
-  const raw = base.price * finish.times * grade.times + trips.price + taps.price + board.price
+  const motors = order.powered ? MODEL_SHOP.motors : { price: 0, days: 0 }
+  const raw = base.price * finish.times * grade.times + trips.price + taps.price + board.price + motors.price
   return {
     price: Math.round(raw / MODEL_SHOP.round) * MODEL_SHOP.round,
-    days: Math.max(1, base.days + finish.days + grade.days + trips.days + taps.days + board.days),
+    days: Math.max(1, base.days + finish.days + grade.days + trips.days + taps.days + board.days + motors.days),
   }
 }
 

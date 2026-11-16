@@ -167,6 +167,12 @@ export const DRONE_TUNNEL = {
    * degrees per second. Flat out, a racer leans about 70°.
    */
   tilt: { min: -30, max: 85, step: 5, rate: 10 },
+  /**
+   * Every run of a powered model costs this much more, ₽ (PR 10e): a set of
+   * props and a battery's charge worn through, and a second technician by
+   * the glass while the props spin.
+   */
+  poweredRun: 2000,
 }
 
 /** The race (PR 10a): from a standing start, laps of the club's gate course, flown as fast as the quad can. */

@@ -153,6 +153,8 @@ const RECORD_CAMERA = 4
  */
 const DRONE_STING = { y: 0.9, length: 0.3, rod: 0.005, strut: 0.012, knuckle: 0.01 }
 const DRONE_CAMERA = 0.22
+/** A powered quad's props are drawn turning this many times a second: slow enough to see as props (real ones blur at hundreds). */
+const PROP_REVS = 3
 /** How each kind of model on the posts is framed: the height looked at and how far back the camera stands, as for a rider. */
 type Framing = 'rider' | 'truck' | 'car' | 'record' | 'drone'
 const FRAMING: Record<Framing, { y: number; back: number }> = {
@@ -656,7 +658,10 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     disposeGroup(riderGroup)
     riderGroup = null
     pitchGroup = null
+    rotors = []
   }
+  /** A powered quad's spinning props, turned each frame (PR 10e). */
+  let rotors: THREE.Object3D[] = []
   /** The posts with a rider on them, the reference wheel (null), or nothing for a tare run. */
   function showRider(state: RiderState | null, scale: number, tare: boolean, board = false, floor: CarFloorLook = 'still') {
     clearRider()
@@ -894,6 +899,9 @@ export function createTunnelView(host: HTMLElement): TunnelView {
       const figure = buildRider({ ...state, tilt: undefined })
       figure.position.y = -DRONE_BODY.hover
       pivot.add(figure)
+      figure.traverse((o) => {
+        if (o.name === 'rotor') rotors.push(o)
+      })
     }
     g.add(pivot)
     flowViz.group.position.x = 0
@@ -1071,6 +1079,8 @@ export function createTunnelView(host: HTMLElement): TunnelView {
 
       fanAngle += (speed / top) * FAN_REVS_AT_TOP * Math.PI * 2 * step
       rotor.rotation.x = fanAngle
+      // A powered quad's props turn whether or not the fan runs.
+      for (const r of rotors) r.rotation.y += PROP_REVS * Math.PI * 2 * step
       // The rolling road runs back under the car at the air's speed (drawn at the model's scale).
       if (belt) {
         const b = belt
@@ -1158,7 +1168,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
             ? model.state.design.sport === 'skijump'
               ? 'The wind tunnel test section with your ski jumper model on a pitching sting'
               : framing === 'drone'
-                ? 'The wind tunnel test section with your full-size racing quad on a tilting sting, its props stopped'
+                ? `The wind tunnel test section with your full-size racing quad on a tilting sting, its props ${model.state.props === 'spinning' ? 'spinning' : 'stopped'}`
               : model.state.design.sport === 'bobsled'
                 ? `The wind tunnel test section with your bobsled model ${model.board ? 'on a ground board' : 'on the bare floor'}`
                 : framing === 'record'

@@ -58,6 +58,8 @@ export interface RiderState {
   strained: Highlight[]
   /** A drone's lean, radians nose-down, as it flies flat out (PR 10b); nothing else reads it. */
   tilt?: number
+  /** A drone's props in the tunnel (PR 10e): still blades, or blades spun by the scene; a blur disc when flying. */
+  props?: 'disc' | 'stopped' | 'spinning'
 }
 
 export const v3 = (p: Point) => new THREE.Vector3(p.x, p.y, p.z)
