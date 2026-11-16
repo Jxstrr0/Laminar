@@ -82,6 +82,7 @@ import type { BobsledDesign } from '../data/bobsled'
 import { sledForecast } from './sledForecast'
 import { truckForecast } from './truckForecast'
 import { carForecast } from './carForecast'
+import { droneForecast } from './droneForecast'
 import { recordForecast } from './recordForecast'
 import { FLIGHT_ATTITUDE, JUMP_TUNNEL, PITCH } from '../data/jumper'
 import { correctJumper, forecastJump, isJumperRun, jumperReadings, prepareJumper, readJumper, type JumperFix, type JumpForecast, type PreparedJumper } from '../sim/jumpTunnel'
@@ -1887,6 +1888,22 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     const readings = droneReadings(modelRuns()).map((r) => correctDrone(r, fix, model, sectionArea))
     const { course, old } = droneRun(modelDesign)
     droneCast = forecastDrone(readings, modelDesign, old, course)
+    // Kept for the Deliver sheet: the declared race time starts from it.
+    const f = droneCast
+    droneForecast.set(
+      modelDesign,
+      course.id,
+      f
+        ? {
+            time: f.time,
+            gain: f.gain,
+            tumble: f.time === null ? (f.tumble?.speed ?? f.top) * 3.6 : null,
+            twistMeasured: f.twist !== null,
+            downwashMeasured: f.downwashMeasured,
+            calibrated: fix.tare !== null && fix.blockageK !== null,
+          }
+        : null,
+    )
     runsDirty = true
   }
   const signed = (v: number, digits: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${fixed(Math.abs(v), digits)}`

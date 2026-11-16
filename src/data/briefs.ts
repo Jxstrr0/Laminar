@@ -270,11 +270,11 @@ export const RECORD_JOBS = {
  * bids move a tenth at a time. The declared number is the new quad's race
  * time.
  *
- * Closed until the board, the Deliver sheet and the debrief can show them
- * (PR 10g). The switch stays so a test (or a later change) can close them.
+ * On the board since PR 10g. The switch stays so a test (or a later change)
+ * can close them.
  */
 export const DRONE_JOBS = {
-  open: false,
+  open: true,
   /** Seconds in one promised point. */
   pointSeconds: 0.1,
   /** A quad bid's promise moves in these points: a tenth of a second. */
