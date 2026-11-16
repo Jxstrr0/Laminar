@@ -5,7 +5,7 @@
  * winning puts the client's current setup on the bench. Delivering runs the
  * event and pays the fee.
  */
-import { BID, CAREER, PROMISE, type BriefTemplate } from '../data/briefs'
+import { BID, CAREER, PROMISE, TRACK, type BriefTemplate } from '../data/briefs'
 import type { CyclistDesign } from '../data/cyclist'
 import { t } from '../data/strings'
 import {
@@ -167,6 +167,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       result: d.result,
       baseline: d.debrief.baseline,
       predicted: d.debrief.predicted,
+      lap: b.event.indoor ? TRACK.lap : undefined,
       onDone: after,
     })
   }
@@ -384,7 +385,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       fact(t('board.feeRange'), `${rublesShort(b.fee.min)}–${rublesShort(b.fee.max)}`),
       fact(t('board.days'), String(brief.days)),
       fact(t('board.course'), `${fixed(km(b), 0)} km`),
-      fact(t('board.wind'), `~${fixed(b.event.windSpeed, 0)} m/s`),
+      fact(t('board.wind'), b.event.indoor ? t('board.indoors') : `~${fixed(b.event.windSpeed, 0)} m/s`),
       fact(t('board.power'), `${fixed(b.rider.power, 0)} W`),
       fact(t('board.where'), b.event.place),
     )

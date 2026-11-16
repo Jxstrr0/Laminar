@@ -5,8 +5,11 @@
  * how it is shown.
  */
 export const REPLAY = {
-  /** The whole race (to the slower rider's finish) plays in this many seconds. */
+  /** The whole race (to the slower rider's finish) plays in this many seconds; on the track, `trackSeconds`. */
   seconds: 22,
+  trackSeconds: 30,
+  /** Wind below this, m/s, is still air (indoors). */
+  calm: 0.3,
   /** Wind within this many degrees of straight ahead is a headwind; past `tailDeg`, a tailwind. */
   headDeg: 45,
   tailDeg: 135,
@@ -42,4 +45,12 @@ export const REPLAY_SCENE = {
   cameraEase: 3,
   /** How see-through the old setup is drawn. */
   ghostOpacity: 0.35,
+  /** The indoor track: the boards' width, a fixed broadcast camera and the rider markers. */
+  track: {
+    width: 7,
+    /** High over the west end of the oval, looking steeply down along it, so a portrait screen holds the whole lap. */
+    camera: { back: 26, up: 108, ahead: 4, fov: 70 },
+    /** Radius of the ring under each rider, m. */
+    marker: 1.8,
+  },
 }

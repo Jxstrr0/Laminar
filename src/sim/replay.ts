@@ -103,22 +103,32 @@ export function windFeel(heading: number, windFromDeg: number): WindFeel {
 
 /** A moment worth a line from the commentator, on the race clock. */
 export type ReplayNote =
-  | { kind: 'start'; t: number; wind: WindFeel }
+  | { kind: 'start'; t: number; wind: WindFeel | null }
+  | { kind: 'bell'; t: number; gap: number }
   | { kind: 'turn'; t: number; km: number; wind: WindFeel }
   | { kind: 'meet'; t: number; gap: number }
   | { kind: 'half'; t: number; gap: number }
   | { kind: 'finish'; t: number; gap: number }
 
+export interface NoteOptions {
+  windFromDeg: number
+  /** Still air: no wind to speak of. */
+  calm: boolean
+  /** On the track: the lap length, m, for the bell. */
+  lap?: number
+}
+
 /** The commentator's moments for your ride against the old setup, in race-clock order. */
-export function replayNotes(mine: Ride, old: Ride, windFromDeg: number): ReplayNote[] {
-  const notes: ReplayNote[] = [{ kind: 'start', t: 0, wind: windFeel(mine.course[0]!.heading, windFromDeg) }]
+export function replayNotes(mine: Ride, old: Ride, opts: NoteOptions): ReplayNote[] {
+  const { windFromDeg } = opts
+  const notes: ReplayNote[] = [{ kind: 'start', t: 0, wind: opts.calm ? null : windFeel(mine.course[0]!.heading, windFromDeg) }]
   let t = 0
   let km = 0
   for (let i = 1; i < mine.course.length; i++) {
     t += mine.segments[i - 1]!.time
     km += mine.course[i - 1]!.length / 1000
     const next = mine.course[i]!.heading
-    if (turnAngle(mine.course[i - 1]!.heading, next) > REPLAY.turnDeg) notes.push({ kind: 'turn', t, km, wind: windFeel(next, windFromDeg) })
+    if (!opts.lap && turnAngle(mine.course[i - 1]!.heading, next) > REPLAY.turnDeg) notes.push({ kind: 'turn', t, km, wind: windFeel(next, windFromDeg) })
   }
   const finish = rideTime(mine)
   notes.push({ kind: 'half', t: finish / 2, gap: gapAt(mine, old, finish / 2) })
@@ -135,6 +145,11 @@ export function replayNotes(mine: Ride, old: Ride, windFromDeg: number): ReplayN
         break
       }
     }
+  }
+  if (opts.lap) {
+    const length = mine.course.reduce((sum, c) => sum + c.length, 0)
+    const bell = timeAt(mine, length - opts.lap)
+    notes.push({ kind: 'bell', t: bell, gap: gapAt(mine, old, bell) })
   }
   notes.push({ kind: 'finish', t: finish, gap: gapAt(mine, old, finish) })
   return notes.sort((a, b) => a.t - b.t)

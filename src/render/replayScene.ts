@@ -22,6 +22,11 @@ const COLOURS = {
   flag: 0xe08a00,
   cone: 0xd2462b,
   ghost: 0xffffff,
+  boards: 0xc89f6a,
+  infield: 0xa9b8c6,
+  line: 0xffffff,
+  markMine: 0x2456e8,
+  markOld: 0x5a6875,
 }
 
 const DEG = Math.PI / 180
@@ -32,9 +37,17 @@ function axes(heading: number) {
   return { fx: Math.sin(h), fz: -Math.cos(h), rx: Math.cos(h), rz: Math.sin(h) }
 }
 
+export interface CourseOptions {
+  /** Where the wind blows from, degrees, and whether there's any (indoors there isn't). */
+  windFromDeg: number
+  calm: boolean
+  /** On the indoor track: the lap length, m. Only one lap is drawn, and the camera watches from the stands. */
+  lap?: number
+}
+
 export interface ReplayView {
   /** Lay out the course and the wind (blowing from `windFromDeg`). */
-  setCourse(course: readonly CourseSegment[], windFromDeg: number): void
+  setCourse(course: readonly CourseSegment[], opts: CourseOptions): void
   setRiders(mine: CyclistDesign, old: CyclistDesign): void
   /** Put both riders where the race clock says, and move the camera (dt in seconds). */
   place(mine: TrackPoint, old: TrackPoint, dt: number): void
@@ -91,6 +104,19 @@ export function createReplayView(host: HTMLElement): ReplayView {
   flagGeo.translate(0.7, 0, 0)
   const coneGeo = new THREE.ConeGeometry(0.4, 0.9, 12)
 
+  const boardsMat = new THREE.MeshLambertMaterial({ color: COLOURS.boards, depthWrite: false })
+  const lineMat = new THREE.MeshLambertMaterial({ color: COLOURS.line, depthWrite: false })
+  // On the track, a coloured ring under each rider keeps them easy to find in the wide shot.
+  const ringGeo = new THREE.RingGeometry(S.track.marker * 0.75, S.track.marker, 24)
+  ringGeo.rotateX(-Math.PI / 2)
+  const ringMine = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: COLOURS.markMine, depthWrite: false }))
+  const ringOld = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: COLOURS.markOld, depthWrite: false }))
+  ringMine.renderOrder = ringOld.renderOrder = -1
+  ringMine.position.y = ringOld.position.y = 0.01
+  ringMine.visible = ringOld.visible = false
+  scene.add(ringMine, ringOld)
+  /** The fixed broadcast camera on the track, or null for the chase camera. */
+  let broadcast: { at: THREE.Vector3; look: THREE.Vector3 } | null = null
   const ghostMat = new THREE.MeshStandardMaterial({ color: COLOURS.ghost, transparent: true, opacity: S.ghostOpacity, depthWrite: false, roughness: 0.8 })
   let mine: THREE.Group | null = null
   let old: THREE.Group | null = null
@@ -128,10 +154,61 @@ export function createReplayView(host: HTMLElement): ReplayView {
     group.rotation.y = (90 - at.heading) * DEG
   }
 
+  /** One lap of the indoor track as boards, a finish line, and the broadcast camera beyond the far bend. */
+  function layTrack(segs: readonly CourseSegment[], lap: number) {
+    const w = S.track.width
+    let x = 0
+    let z = 0
+    let along = 0
+    let minX = 0
+    let maxX = 0
+    let minZ = 0
+    let maxZ = 0
+    for (const seg of segs) {
+      if (along >= lap - 1e-6) break
+      const { fx, fz } = axes(seg.heading)
+      // Each piece runs a little long, so the bends have no gaps on the outside.
+      const len = seg.length + w * 0.4
+      const board = new THREE.Mesh(new THREE.PlaneGeometry(w, len), boardsMat)
+      board.renderOrder = -2
+      board.rotation.order = 'YXZ'
+      board.rotation.y = -seg.heading * DEG
+      board.rotation.x = -Math.PI / 2
+      // The riders' line is right of centre: lay the boards so it sits on them.
+      const { rx, rz } = axes(seg.heading)
+      board.position.set(x + (fx * seg.length) / 2 + rx * S.laneMine, 0, z + (fz * seg.length) / 2 + rz * S.laneMine)
+      course.add(board)
+      x += fx * seg.length
+      z += fz * seg.length
+      along += seg.length
+      minX = Math.min(minX, x)
+      maxX = Math.max(maxX, x)
+      minZ = Math.min(minZ, z)
+      maxZ = Math.max(maxZ, z)
+    }
+    const line = new THREE.Mesh(new THREE.PlaneGeometry(0.3, w), lineMat)
+    line.renderOrder = -1
+    line.rotation.x = -Math.PI / 2
+    line.position.set(0, 0, axes(90).rz * S.laneMine)
+    course.add(line)
+    const cx = (minX + maxX) / 2
+    const cz = (minZ + maxZ) / 2
+    const c = S.track.camera
+    broadcast = { at: new THREE.Vector3(cx - c.back, c.up, cz), look: new THREE.Vector3(cx + c.ahead, 0, cz) }
+  }
+
   return {
-    setCourse(segs, windFromDeg) {
+    setCourse(segs, opts) {
       clearCourse()
-      const downwind = (90 - (windFromDeg + 180)) * DEG
+      broadcast = null
+      ringMine.visible = ringOld.visible = !!opts.lap
+      grid.visible = !opts.lap
+      ;(ground.material as THREE.MeshLambertMaterial).color.setHex(opts.lap ? COLOURS.infield : COLOURS.ground)
+      if (opts.lap) {
+        layTrack(segs, opts.lap)
+        return
+      }
+      const downwind = (90 - (opts.windFromDeg + 180)) * DEG
       let x = 0
       let z = 0
       let along = 0
@@ -156,8 +233,8 @@ export function createReplayView(host: HTMLElement): ReplayView {
         }
         dashes.computeBoundingSphere()
         course.add(dashes)
-        // Wind flags along the left verge, every so often from the start.
-        for (let d = S.flagEvery - (along % S.flagEvery); d < seg.length; d += S.flagEvery) {
+        // Wind flags along the left verge, every so often from the start (none in still air).
+        for (let d = opts.calm ? seg.length : S.flagEvery - (along % S.flagEvery); d < seg.length; d += S.flagEvery) {
           const px = x + fx * d + rx * S.flagSide
           const pz = z + fz * d + rz * S.flagSide
           const pole = new THREE.Mesh(poleGeo, poleMat)
@@ -194,6 +271,21 @@ export function createReplayView(host: HTMLElement): ReplayView {
       if (!mine || !old) return
       stand(mine, me, S.laneMine)
       stand(old, them, S.laneOld)
+      ringMine.position.set(mine.position.x, 0.01, mine.position.z)
+      ringOld.position.set(old.position.x, 0.01, old.position.z)
+      if (broadcast) {
+        if (camera.fov !== S.track.camera.fov) {
+          camera.fov = S.track.camera.fov
+          camera.updateProjectionMatrix()
+        }
+        camera.position.copy(broadcast.at)
+        camera.lookAt(broadcast.look)
+        return
+      }
+      if (camera.fov !== S.camera.fov) {
+        camera.fov = S.camera.fov
+        camera.updateProjectionMatrix()
+      }
       const turn = ((((me.heading - camHeading) % 360) + 540) % 360) - 180
       camHeading = camReady ? camHeading + turn * (1 - Math.exp(-S.cameraEase * dt)) : me.heading
       camReady = true
@@ -220,9 +312,10 @@ export function createReplayView(host: HTMLElement): ReplayView {
       watcher.disconnect()
       clearCourse()
       for (const g of [mine, old]) if (g) disposeGroup(g)
-      for (const geo of [poleGeo, flagGeo, coneGeo, dashGeo, ground.geometry]) geo.dispose()
+      for (const geo of [poleGeo, flagGeo, coneGeo, dashGeo, ringGeo, ground.geometry]) geo.dispose()
       grid.dispose()
-      for (const m of [roadMat, dashMat, poleMat, flagMat, coneMat, ghostMat, ground.material as THREE.Material]) m.dispose()
+      for (const m of [roadMat, dashMat, poleMat, flagMat, coneMat, ghostMat, boardsMat, lineMat, ringMine.material, ringOld.material, ground.material as THREE.Material])
+        m.dispose()
       renderer.dispose()
       renderer.forceContextLoss()
       renderer.domElement.remove()

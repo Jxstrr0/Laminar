@@ -75,6 +75,8 @@ export interface EventTemplate {
   /** Day-to-day spread (standard deviations): temperature °C, wind m/s, the rider's power as a fraction. */
   spread: { temperature: number; wind: number; power: number }
   course: readonly CourseSegment[]
+  /** Ridden on the indoor track: still air, laps of TRACK.lap metres (plan section 8.3). */
+  indoor?: true
 }
 
 export interface BriefTemplate {
@@ -99,6 +101,35 @@ export interface BriefTemplate {
   tutorial?: true
   /** A small, low-fee brief: one is always on the board (plan section 9.8). */
   small?: true
+}
+
+/**
+ * The indoor track (plan section 8.3): a 250 m oval of two straights and two
+ * banked bends, ridden anticlockwise. Each bend is laid as short straight
+ * pieces, so the replay can draw it; the air is still, so the field model
+ * doesn't mind the headings.
+ */
+export const TRACK = {
+  lap: 250,
+  /** Each straight's share of a lap. */
+  straight: 0.2,
+  /** Pieces per bend. */
+  bendPieces: 8,
+}
+
+/** `km` of laps on the indoor track, starting at the head of the home straight (heading east). */
+const trackCourse = (km: number): CourseSegment[] => {
+  const straight = TRACK.lap * TRACK.straight
+  const piece = (TRACK.lap * (1 - 2 * TRACK.straight)) / 2 / TRACK.bendPieces
+  const step = 180 / TRACK.bendPieces
+  const lap: CourseSegment[] = []
+  for (const start of [90, 270]) {
+    lap.push({ length: straight, gradient: 0, heading: start })
+    // Anticlockwise: the heading swings left through the bend.
+    for (let k = 0; k < TRACK.bendPieces; k++) lap.push({ length: piece, gradient: 0, heading: (start - step * (k + 0.5) + 360) % 360 })
+  }
+  const laps = Math.round((km * 1000) / TRACK.lap)
+  return Array.from({ length: laps }, () => lap).flat()
 }
 
 /** Bits of course shared by several briefs. */
@@ -239,5 +270,30 @@ export const BRIEFS: readonly BriefTemplate[] = [
     fee: { min: 160000, max: 220000 },
     days: 28,
     target: 2,
+  },
+  {
+    id: 'vesnina-pursuit',
+    client: 'Alina Vesnina',
+    who: 'Track pursuiter, national team',
+    goal: 'Four kilometres on the boards, no wind, nowhere to hide. Every bit of drag you take away is time I keep.',
+    event: {
+      name: 'Track Championships: Individual Pursuit',
+      place: 'Stavren Velodrome (indoors)',
+      temperature: 26,
+      altitude: 180,
+      windSpeed: 0,
+      riderSpeed: 14.5,
+      spread: { temperature: 1, wind: 0, power: 0.02 },
+      course: trackCourse(4),
+      indoor: true,
+    },
+    rider: { power: 420, mass: 68 },
+    setup: setup(
+      { torsoDeg: 22, headDrop: 0.3, armWidth: 0.36, handReach: 0.66, handHeight: 0.02 },
+      { helmet: { kind: 'aero', tail: 0.2, vents: 0.3 }, wheels: { front: 'deep', rear: 'disc' } },
+    ),
+    fee: { min: 110000, max: 150000 },
+    days: 18,
+    target: 5,
   },
 ]
