@@ -6,6 +6,7 @@
  */
 import { DESIGN_CHOICES, PART_RANGE, POSTURE_RANGE, type CyclistDesign } from '../data/cyclist'
 import { SKATER_CHOICES, SKATER_RANGE, type SkaterDesign } from '../data/skater'
+import { JUMPER_RANGE, type JumperDesign } from '../data/jumper'
 import type { Design } from '../sim/design'
 import { MACHINE_IDS, MAKER_IDS, MODEL_FINISH, MODEL_GRADE, MODEL_SCALES, type MachineId } from '../data/model'
 import { CRANK_DIAL, DEMO_TUNNEL_SEED } from '../data/tunnel'
@@ -49,8 +50,21 @@ const clampTo = (x: number, r: { min: number; max: number }) => Math.min(r.max, 
 export function soundDesign(x: unknown): Design | null {
   if (!isObj(x)) return null
   if (x.sport === 'skating') return soundSkater(x)
+  if (x.sport === 'skijump') return soundJumper(x)
   if (x.sport !== undefined && x.sport !== 'cycling') return null
   return soundCyclist(x)
+}
+
+function soundJumper(x: Obj): JumperDesign | null {
+  if (!isObj(x.posture) || !isObj(x.suit)) return null
+  const { leanDeg, vAngleDeg } = x.posture
+  const { bagginess } = x.suit
+  if (!isNum(leanDeg) || !isNum(vAngleDeg) || !isNum(bagginess)) return null
+  return {
+    sport: 'skijump',
+    posture: { leanDeg: clampTo(leanDeg, JUMPER_RANGE.leanDeg), vAngleDeg: clampTo(vAngleDeg, JUMPER_RANGE.vAngleDeg) },
+    suit: { bagginess: clampTo(bagginess, JUMPER_RANGE.bagginess) },
+  }
 }
 
 function soundSkater(x: Obj): SkaterDesign | null {

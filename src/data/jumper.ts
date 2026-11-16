@@ -123,6 +123,16 @@ export const JUMP_PARTS = {
   boot: { diameter: 0.13, height: 0.3 },
 }
 
+/**
+ * The desk estimate for a jumper (PR 8d): the reference jump's distance with
+ * a job-wide bias and a little jitter per design, like the cyclist's DESK
+ * (whose analyst levels and error bars it shares), as fractions of the distance.
+ */
+export const JUMP_DESK = {
+  bias: 0.03,
+  jitter: 0.01,
+}
+
 /** Mass (kg) and price (₽) of the kit, for the readouts. */
 export const JUMPER_COST = {
   base: { mass: 7.5, price: 0 },

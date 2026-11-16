@@ -33,6 +33,8 @@ export const ELLIPSOID_FIT = {
   capsuleRadius: 1.15,
   /** The road helmet is drawn this much taller than its listed height. */
   roadHelmetHeight: 1.1,
+  /** A ski jumper's body plate as drawn: half its thickness, m (its half width is the sim's span ÷ 2). */
+  jumperBodyHalfThick: 0.1,
   /** Frame tubes: a Kamm tube is drawn this much deeper and thinner. */
   kammDeep: 2.2,
   kammThin: 0.75,

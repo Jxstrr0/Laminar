@@ -8,6 +8,7 @@
  */
 import type { CyclistDesign } from '../data/cyclist'
 import { isCyclist, type Design } from './design'
+import type { JumperDesign } from '../data/jumper'
 import type { SkaterDesign } from '../data/skater'
 import { FAILURE } from '../data/failure'
 import { MAKERS, MODEL_SHOP } from '../data/model'
@@ -117,7 +118,7 @@ export function repairQuote(order: ModelOrder, failure: Failure, hand?: MakerHan
  * A part on the Shape screen a "change this" jump can go to: the helmet's
  * tail, the rear or front wheel, or one of the position's sliders.
  */
-export type FixTarget = 'helmet' | 'wheels' | 'front' | keyof CyclistDesign['posture'] | keyof SkaterDesign['posture']
+export type FixTarget = 'helmet' | 'wheels' | 'front' | 'bagginess' | keyof CyclistDesign['posture'] | keyof SkaterDesign['posture'] | keyof JumperDesign['posture']
 
 /** Where the "change this" jump goes: the part on Shape, or the model shop for a stiffer, smaller or sanded model. */
 export function fixFor(failure: Failure): 'helmet' | 'wheels' | 'shop' {

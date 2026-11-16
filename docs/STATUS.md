@@ -46,12 +46,33 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 8a | Sports in the sim: the speed skater | **Done** (v0.8.0.0) |
 | 8b | The skater on screen, skating briefs | **Done** (v0.8.1.0) |
 | 8c | Ski jump in the sim | **Done** (v0.8.2.0) |
-| 8d | Ski jump on screen, ski-jump briefs | Next |
-| 8e–8f | Bobsled | Not started |
+| 8d | Ski jump on Shape: the jumper's figure, controls and readouts; a preview link | **Done** (v0.8.3.0) |
+| 8e | Ski jump in the tunnel: the pitch sweep, lift and stability readings, the distance forecast | Next |
+| 8f | Ski-jump flight replay and ski-jump briefs (normal hill, then large) | Not started |
+| 8g–8h | Bobsled | Not started |
 | 9–14 | See the plan | Not started |
 
 ## Versions
 
+- **0.8.3.0** (PR 8d): the ski jumper on the Shape screen.
+  - The jumper joins the game's designs, so saves, save codes, the run
+    report and the model shop all know it (`src/sim/design.ts`). The suit is
+    cut into the model's body: any change to a jumper is a new model.
+  - A figure in flight (`src/sim/geom/jumperPose.ts`, `src/render/riderFigure.ts`):
+    lying out over the skis at the flight angle, the body off the skis by the
+    lean, the skis in a V, arms back. A roomier suit draws fatter.
+  - Shape shows Position (body lean, ski V-angle) and Kit (suit cut). The
+    sheet reads the flight: the desk's guess at the reference jump in metres,
+    lift area and L/D, and stability (the lowest margin in the flight against
+    the 2 % floor), with the body glowing orange under the floor and red
+    below zero.
+  - Kelbo chose (16 November 2026) that a jumper's declared number is the
+    predicted distance; PR 8e builds it from the tunnel's readings.
+  - Preview: `?try=skijump` opens a throwaway career with a jumper on the
+    bench, saving nothing, until the ski-jump briefs arrive in PR 8f. Its
+    tunnel still shows the last model (the pitch sweep is PR 8e).
+  - To revisit with the briefs (8f): a flat lean, a wide V and a roomy suit
+    reach about 116 m on the 98 m normal hill in still air, past the hill size.
 - **0.8.2.0** (PR 8c): the ski jumper in the sim.
   - A jumper's design: body lean, ski V-angle and suit bagginess
     (`src/data/jumper.ts`). No suit rules: bagginess trades lift for stability.
@@ -63,8 +84,8 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
   - A margin below zero tips the jumper forward and the jump ends short; one
     between zero and the floor wobbles the landing. The promise's yardstick is
     the still-air flight, and it only counts above the floor.
-  - Nothing on screen yet: PR 8d adds the jumper's figure, controls, the
-    tunnel's pitch sweep, the flight replay and the briefs.
+  - Nothing on screen yet: the jumper's figure and controls came in PR 8d;
+    the tunnel, the flight replay and the briefs follow.
 - **0.8.1.0** (PR 8b): the skater on screen.
   - The skater has a figure in Shape, the tunnel and the race-day replay
     (`src/sim/geom/skaterPose.ts`, `src/render/riderFigure.ts`): crouch,

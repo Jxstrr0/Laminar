@@ -91,3 +91,42 @@ export const SKATER_SKELETON = {
   hoodOffset: { x: -0.02, y: 0.02 },
   hoodNose: 0.35,
 }
+
+/**
+ * The ski jumper's skeleton in flight (PR 8d), for drawing. The hips hang
+ * this high over the floor in the Shape screen's view, the body lies along a
+ * line from boots to head, and the skis hang off the boots in a V. The
+ * lengths along the body and skis are the sim's (JUMP_BODY, JUMP_SKIS), so
+ * the figure is the wing the sim flies. Same axes: x forward (into the
+ * air), y up, z to the jumper's right.
+ */
+export const JUMPER_SKELETON = {
+  /** Hips above the floor in the Shape screen, m. */
+  hipY: 1.1,
+  hipWidth: 0.2,
+  shoulderWidth: 0.38,
+  /** Shoulders, neck base and head centre, m along the body ahead of the hips. */
+  shoulderAhead: 0.52,
+  neckAhead: 0.62,
+  headAhead: 0.73,
+  headRadius: 0.11,
+  /** The head lifts this far above the body's line to look down the hill, m. */
+  headLift: 0.04,
+  /** The knees bend a touch: they sit this far below the hip–boot line, m. */
+  kneeDrop: 0.04,
+  /** The helmet: tilted this much above the body's line, degrees; its mount and its tail's tip, m along the body and above it. */
+  helmetPitchDeg: 10,
+  helmetAt: { ahead: 0.01, lift: 0.03 },
+  helmetTail: { behind: 0.12, lift: 0.04 },
+  /** Elbows sag this far below the shoulder–hand line and sit this much wider, m and times. */
+  elbowDrop: 0.03,
+  elbowOut: 1.15,
+  /** Arms lie back along the sides: hands this far behind the hips, this far out and below the body's line, m. */
+  handsBehind: 0.12,
+  handsOut: 0.3,
+  handsBelow: 0.06,
+  /** The ski tails nearly touch: this far apart either side of the middle, m. */
+  tailGap: 0.03,
+  /** Ski thickness, m. */
+  skiThick: 0.02,
+}

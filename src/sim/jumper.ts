@@ -24,6 +24,7 @@ import { jumperParts } from './geom/jumper'
 import { gaussian } from './noise'
 import { clamp01, DEG } from './num'
 import { Rng } from './rng'
+import type { Comfort } from './cyclist'
 
 export interface PlateForces {
   /** Lift and drag as areas per unit dynamic pressure, m². */
@@ -339,14 +340,36 @@ export function jumpDay(design: JumperDesign, event: JumpEvent, seed: number): J
 }
 
 /** Readouts for the Shape sheet: lifting area, lift over drag and margin at the held angle, kit mass and price. */
-export function jumperReadouts(design: JumperDesign): { liftArea: number; lOverD: number; margin: number; mass: number; price: number } {
+export interface JumperReadouts {
+  /** Skis plus body, m². */
+  liftArea: number
+  /** Lift ÷ drag of the plates at the settled flight angle (helmet and boots left out). */
+  lOverD: number
+  /** Static margin at the settled flight angle, a fraction of the body's length. */
+  margin: number
+  /** The plates' area as the oncoming air sees it at that angle, m². */
+  frontalArea: number
+  mass: number
+  price: number
+}
+
+export function jumperReadouts(design: JumperDesign): JumperReadouts {
   const c = JUMPER_COST
-  const f = jumperForces(design, FLIGHT_ATTITUDE.hold, 0)
+  const hold = FLIGHT_ATTITUDE.hold
+  const f = jumperForces(design, hold, 0)
+  const skiArea = 2 * JUMP_SKIS.length * JUMP_SKIS.width
+  const bodyArea = bodySpan(design) * JUMP_BODY.length
   return {
     liftArea: liftArea(design),
     lOverD: f.lOverD,
-    margin: staticMargin(design, FLIGHT_ATTITUDE.hold),
+    margin: staticMargin(design, hold),
+    frontalArea: skiArea * detSin(hold * DEG) + bodyArea * detSin((hold - design.posture.leanDeg) * DEG),
     mass: c.base.mass + c.suit.mass,
     price: c.base.price + c.suit.price + c.suit.pricePerBag * clamp01(design.suit.bagginess),
   }
+}
+
+/** A jumper has no crouch to hold and no pedals to push: the comfort meter stays empty. */
+export function jumperComfort(): Comfort<string> {
+  return { strain: 0, limit: 1, powerFactor: 1, holdable: true, fade: 0, worst: null }
 }

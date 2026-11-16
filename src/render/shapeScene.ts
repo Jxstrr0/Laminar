@@ -69,6 +69,16 @@ export interface ShapeView {
  */
 const FRAME = { lookY: 0.72, headY: 1.2, follow: 0.7 }
 
+/**
+ * A ski jumper is longer than a bike (skis and all, about 3 m nose to tail),
+ * so the camera starts further back, looking at the middle of the flight.
+ * Riders and skaters get the usual view back when the sport changes.
+ */
+const VIEWS = {
+  usual: { target: { x: 0.1, y: 0.72 }, camera: { x: 1.15, y: 1.05, z: 2.6 } },
+  jumper: { target: { x: -0.45, y: 0.85 }, camera: { x: 0.6, y: 2.2, z: 3 } },
+}
+
 export function createShapeView(host: HTMLElement): ShapeView {
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
@@ -80,9 +90,9 @@ export function createShapeView(host: HTMLElement): ShapeView {
   const scene = new THREE.Scene()
   scene.background = new THREE.Color(COLOURS.background)
   const camera = new THREE.PerspectiveCamera(PORTRAIT_FOV, 1, 0.05, 30)
-  camera.position.set(1.15, 1.05, 2.6)
+  camera.position.set(VIEWS.usual.camera.x, VIEWS.usual.camera.y, VIEWS.usual.camera.z)
   const controls = new OrbitControls(camera, renderer.domElement)
-  controls.target.set(0.1, 0.72, 0)
+  controls.target.set(VIEWS.usual.target.x, VIEWS.usual.target.y, 0)
   controls.enableDamping = true
   controls.enablePan = false
   controls.minDistance = 1.2
@@ -118,6 +128,8 @@ export function createShapeView(host: HTMLElement): ShapeView {
 
   let figure = new THREE.Group()
   scene.add(figure)
+  /** Which view the camera was last set up for. */
+  let framed: keyof typeof VIEWS = 'usual'
 
   function build(state: ShapeViewState): THREE.Group {
     const g = buildRider(state)
@@ -246,6 +258,15 @@ export function createShapeView(host: HTMLElement): ShapeView {
       figure = build(state)
       scene.add(figure)
       handles = state.handles
+      const want = state.design.sport === 'skijump' ? 'jumper' : 'usual'
+      if (want !== framed) {
+        framed = want
+        const v = VIEWS[want]
+        controls.target.set(v.target.x, v.target.y, 0)
+        camera.position.set(v.camera.x, v.camera.y, v.camera.z)
+        controls.update()
+      }
+      if (want === 'jumper') return
       // Keep a tall figure's head in view: the look point and the camera rise together.
       const lookY = FRAME.lookY + Math.max(0, state.pose.head.y - FRAME.headY) * FRAME.follow
       const rise = lookY - controls.target.y

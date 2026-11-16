@@ -1002,6 +1002,7 @@ body[data-guide='deliver'] .guide-deliver {
 
 /* Backups (PR 7h): the Saves chip asks for one after two weeks; the file picker hides behind its label. */
 .saves-open.due { color: var(--warn); border-color: var(--warn); font-weight: 700; }
+.preview-chip { color: var(--accent); border-color: var(--accent); font-weight: 600; }
 .save-due {
   margin: 0 0 12px;
   padding: 8px 12px;

@@ -67,3 +67,17 @@ export const FLIGHT = {
   /** Gravity, m/s². */
   gravity: 9.81,
 }
+
+/**
+ * The jump the Shape screen's desk estimate flies until a ski-jump job sets
+ * its own (PR 8d): the normal hill on a cold, still day.
+ */
+export const PRACTICE_JUMP = {
+  hill: HILLS.normal,
+  /** Jumper plus kit, kg. */
+  mass: 65,
+  temperature: -2,
+  altitude: 700,
+  headwind: 0,
+  spread: { temperature: 3, wind: 1, speed: 0.3 },
+}
