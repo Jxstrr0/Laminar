@@ -114,11 +114,13 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 10y | The patrol plane's sensor pod in the sim (Kelbo's calls): the ministry's Gorlitsa P-4 flies some 9½ hours on station with its old pod; the new, bigger sensor in the old shape loses over half an hour, and a fine nose, a long tail, a fair pylon gap and a little stagger win it back and more. Under the wing the pod drags more than on its own (the squeezed air in the gap, the pylon, the trim), so a pod tested alone can't tell a tight gap from a good one. A blunt tail or a tight gap buffets the pod and blurs the sensor; the debrief can name which | **Done** (v0.10.24.0) |
 | 10z | The sensor pod on Shape (`?try=pod`): the pod on its pylon under a stretch of the Gorlitsa's wing, the shaped parts in cobalt. Nose · tail tab (nose fairing, tail cone) and Pylon tab (gap, stagger). The sheet reads the desk's hours on station against the old pod's, and the buffet against the ministry's limit, with an amber warning and "Change this" to the tail cone or the pylon gap, whichever shakes it more. Saves know the pod. Glossary: hours on station, buffet | **Done** (v0.10.25.0) |
 | 10aa | The sensor pod in the tunnel, in the sim (Kelbo's trap): pod models at 1:2.4 and 1:1.8 on a sting, on their own or under a stretch of wing fixed to the walls (₽ 24,000 and 3 days more). On its own the pod reads only its own drag, and the firm adds the pylon from the handbook but nothing for the gap, so a pod hung tight forecasts over half an hour more than it flies, and its shake misses the wing's share. Under the wing it reads both true | **Done** (v0.10.26.0) |
-| 10ab–14 | See the plan | Next: the sensor pod on the Tunnel screen (the wing as a model-shop option, the shake on the readings). |
+| 10ab | The sensor pod on the Tunnel screen: the stretch of wing as a model-shop choice, the pod on a sting into its tail (the wing tied to the walls above it when ordered), readings of its drag, shake, hours on station and buffet, and the forecast on the Runs tab saying whether the gap was read | **Done** (v0.10.27.0) |
+| 10ac–14 | See the plan | Next: the defence jobs (clearance opens, applying in the firm strip, the ministry's pod briefs and secrecy), then the test-range replay. |
 
 ## Versions
 
 - **0.10.26.0** (PR 10aa): the sensor pod in the tunnel, in the sim only.
+- **0.10.27.0** (PR 10ab): the sensor pod on the Tunnel screen.
 - **0.10.25.0** (PR 10z): the sensor pod on the Shape screen.
 - **0.10.24.0** (PR 10y): the patrol plane's sensor pod in the sim only.
 - **0.10.23.0** (PR 10x): defence clearance and secrecy in the sim only.

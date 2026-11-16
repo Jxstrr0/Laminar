@@ -65,6 +65,8 @@ export interface RiderState {
   props?: 'disc' | 'stopped' | 'spinning'
   /** A plane on a sting (PR 10l) is drawn without its stage stand. */
   noStand?: boolean
+  /** A sensor pod in the tunnel (PR 10ab) without its stretch of wing: a pod model on its own. */
+  noWing?: boolean
 }
 
 export const v3 = (p: Point) => new THREE.Vector3(p.x, p.y, p.z)

@@ -9,7 +9,7 @@ import { hoursOnStation, podBuffet, podDrag, podLengths } from '../src/sim/pod'
 import { forecastPod, isPodRun, podReadings, podReynolds, preparePod, readPod } from '../src/sim/podTunnel'
 import { isAircraftRun } from '../src/sim/aircraftTunnel'
 import { Rng } from '../src/sim/rng'
-import type { RunSample } from '../src/sim/run'
+import { newRecorder, stepRecorder, type RunSample } from '../src/sim/run'
 import type { ModelSpec, TunnelSpec } from '../src/sim/views'
 import { soundLab } from '../src/persist/save'
 
@@ -130,5 +130,10 @@ describe('a pod run’s samples', () => {
     expect(back.order.wing).toBe(true)
     expect(back.runs[0]!.wing).toBe(true)
     expect(back.runs[0]!.samples[0]!.shake).toBe(0.4)
+  })
+
+  it('marks a run made with the wing fitted when it starts (PR 10ab)', () => {
+    expect(stepRecorder(newRecorder(), 30, 1 / 60, 'pod', 'university', false, true).recorder.run!.wing).toBe(true)
+    expect(stepRecorder(newRecorder(), 30, 1 / 60, 'pod').recorder.run!.wing).toBeUndefined()
   })
 })

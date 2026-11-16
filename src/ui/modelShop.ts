@@ -7,7 +7,7 @@
  * Models are built for a job (Kelbo, PR 5): the price is charged to it and
  * the lead time comes off its days, all at once when the order is placed.
  */
-import { ALL_SCALES, MAKERS, MAKER_IDS, MODEL_FINISH, MODEL_GRADE, type MakerId, type ModelFinish, type ModelGrade, type ModelScale } from '../data/model'
+import { ALL_SCALES, MAKERS, MAKER_IDS, MODEL_FINISH, MODEL_GRADE, MODEL_SHOP, type MakerId, type ModelFinish, type ModelGrade, type ModelScale } from '../data/model'
 import { t, type StringKey } from '../data/strings'
 import { FAMILY_START, forMaker, makerOf, scaleFamily, matchedSpeed, quote, type MakerHand, type ModelOrder } from '../sim/modelShop'
 import type { OrderBlock } from '../sim/career'
@@ -106,11 +106,13 @@ export interface ShopContext {
   plane?: boolean
   /** The model is a light aircraft: a kit plane's scales, and its prop stopped or driven (PR 10s). */
   aircraft?: boolean
+  /** The model is a sensor pod: a pod's scales, on its own or under its stretch of wing (PR 10ab). */
+  pod?: boolean
 }
 
 /** Which scale list the model takes: a truck's for a truck or a land-speed car, full size for a quad, else a rider's. */
 const familyOf = (ctx: ShopContext) =>
-  ctx.truck === true || ctx.record === true ? 'truck' : ctx.drone === true ? 'drone' : ctx.plane === true ? 'plane' : ctx.aircraft === true ? 'aircraft' : 'rider'
+  ctx.truck === true || ctx.record === true ? 'truck' : ctx.drone === true ? 'drone' : ctx.plane === true ? 'plane' : ctx.aircraft === true ? 'aircraft' : ctx.pod === true ? 'pod' : 'rider'
 
 interface Shop {
   sheet: Sheet
@@ -150,7 +152,8 @@ function buildShop(): Shop {
     taps.set(order.taps ? 'on' : 'off')
     // A quad's pod is too small for trip strips or taps to tell you anything (the air's own instruments come later).
     // A kit plane's wing is clear of the Reynolds trouble, so trip strips would change nothing (PR 10s).
-    trips.box.hidden = taps.box.hidden = family === 'drone' || family === 'aircraft'
+    // A sensor pod's Reynolds number is well past its trip point, and its shake says more than taps would (PR 10ab).
+    trips.box.hidden = taps.box.hidden = family === 'drone' || family === 'aircraft' || family === 'pod'
     // A plane's trip strips go on its wing (PR 10l); its taps would say nothing a tuft can't.
     if (family === 'plane') taps.box.hidden = true
     trips.note.textContent = t(family === 'plane' ? 'shop.tripsNotePlane' : 'shop.tripsNote')
@@ -165,6 +168,9 @@ function buildShop(): Shop {
       ' ',
       nose ? glossaryTerm('slipstream', t('shop.propLink')) : glossaryTerm('downwash', t('shop.propsLink')),
     )
+    // A sensor pod's model can hang under a stretch of wing, its pylon with it, so the balance feels the gap (PR 10ab).
+    wing.box.hidden = family !== 'pod'
+    wing.set(order.wing ? 'on' : 'off')
     board.box.hidden = context.sled !== true && !big && context.car !== true
     boardText.data = t(truck ? 'shop.boardNoteTruck' : context.car ? 'shop.boardNoteCar' : context.record ? 'shop.boardNoteRecord' : 'shop.boardNote')
     board.set(order.board ? 'on' : 'off')
@@ -172,6 +178,8 @@ function buildShop(): Shop {
     const top = context.topSpeed
     reText.data = nose
       ? t('shop.matchAircraft')
+      : family === 'pod'
+        ? t('shop.matchPod')
       : speed <= top
         ? t('shop.match', { speed: fixed(speed, 0) })
         : t('shop.noMatch', { speed: fixed(speed, 0), top: `${fixed(top, 0)} m/s` })
@@ -251,6 +259,15 @@ function buildShop(): Shop {
     ],
     (v) => pick({ powered: v === 'spinning' }),
   )
+  const wing = choice<'off' | 'on'>(
+    t('shop.wing'),
+    [
+      { value: 'off', text: t('shop.wing.off') },
+      { value: 'on', text: t('shop.wing.on') },
+    ],
+    (v) => pick({ wing: v === 'on' }),
+  )
+  wing.note.append(t('shop.wingNote', { price: fixed(MODEL_SHOP.wing.price, 0), days: MODEL_SHOP.wing.days }), ' ', glossaryTerm('interferenceDrag', t('shop.wingLink')))
   // The label and note say "prop" for a kit plane and "props" for a quad (set in update).
   const propsHead = props.box.querySelector('.shop-label')!
   const boardText = document.createTextNode(t('shop.boardNote'))
@@ -270,7 +287,7 @@ function buildShop(): Shop {
   })
   bill.append(price, free, orderBtn)
 
-  body.append(intro, maker.box, scale.box, finish.box, grade.box, trips.box, taps.box, props.box, board.box, bill)
+  body.append(intro, maker.box, scale.box, finish.box, grade.box, trips.box, taps.box, props.box, wing.box, board.box, bill)
 
   return {
     sheet,
@@ -284,6 +301,9 @@ function buildShop(): Shop {
       if (family === 'drone' || family === 'aircraft') order = { ...order, trips: false, taps: false }
       else delete order.powered
       if (family === 'plane') order = { ...order, taps: false }
+      // Only a sensor pod hangs under a stretch of wing.
+      if (family === 'pod') order = { ...order, trips: false, taps: false }
+      else delete order.wing
       if (scaleFamily(order.scale) !== family) order = forMaker({ ...order, scale: FAMILY_START[family] }, makerOf(order))
       context = ctx
       place = onOrder

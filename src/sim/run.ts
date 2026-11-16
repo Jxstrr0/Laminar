@@ -100,13 +100,14 @@ export interface RecorderStep {
 
 /**
  * Advance the recorder by one sim step at the current air speed. `model` names
- * what's on the mount and `tunnel` where it's run, kept with a run when it starts.
+ * what's on the mount and `tunnel` where it's run, kept with a run when it starts,
+ * as are a powered model's props and a sensor pod's stretch of wing.
  */
-export function stepRecorder(rec: Recorder, speed: number, dt: number, model: string, tunnel: TunnelId = 'university', powered = false): RecorderStep {
+export function stepRecorder(rec: Recorder, speed: number, dt: number, model: string, tunnel: TunnelId = 'university', powered = false, wing = false): RecorderStep {
   let run = rec.run
   if (!run) {
     if (speed <= RUN_RECORDING.startAbove) return { recorder: rec, sampleDue: false, finished: null }
-    run = { id: rec.nextId, model, samples: [], duration: 0, energyKWh: 0, topSpeed: 0, ...(tunnel === 'own' ? { tunnel } : {}), ...(powered ? { powered: true as const } : {}) }
+    run = { id: rec.nextId, model, samples: [], duration: 0, energyKWh: 0, topSpeed: 0, ...(tunnel === 'own' ? { tunnel } : {}), ...(powered ? { powered: true as const } : {}), ...(wing ? { wing: true as const } : {}) }
     rec = { run, nextId: rec.nextId + 1, untilSample: 0 }
   }
   if (speed < RUN_RECORDING.endBelow) {
