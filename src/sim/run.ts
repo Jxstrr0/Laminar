@@ -7,6 +7,7 @@
 import { AIR } from '../data/air'
 import type { Failure } from './failure'
 import { RUN_RECORDING, TUNNEL_BILLING, UNIVERSITY_TUNNEL } from '../data/tunnel'
+import { tunnelRunCost, type TunnelId } from './facility'
 
 export interface RunSample {
   /** Seconds since the run started. */
@@ -35,6 +36,8 @@ export interface Run {
   topSpeed: number
   /** The model broke during this run (plan section 8). */
   failure?: Failure
+  /** Run in your own tunnel; left out for the university's. */
+  tunnel?: 'own'
 }
 
 export interface Recorder {
@@ -55,9 +58,12 @@ export function fanPower(speed: number): number {
   return 0.5 * AIR.density * width * height * speed * speed * speed * TUNNEL_BILLING.powerFactor
 }
 
-/** What a run costs (or has cost so far), ₽. */
-export function runCost(run: Pick<Run, 'energyKWh'>): number {
-  return TUNNEL_BILLING.perRun + run.energyKWh * TUNNEL_BILLING.perKWh
+/** The tunnel a run was made in. */
+export const runTunnel = (run: Pick<Run, 'tunnel'>): TunnelId => run.tunnel ?? 'university'
+
+/** What a run costs (or has cost so far), ₽, at its tunnel's rates. */
+export function runCost(run: Pick<Run, 'energyKWh' | 'tunnel'>): number {
+  return tunnelRunCost(runTunnel(run), run.energyKWh)
 }
 
 export interface RecorderStep {
@@ -70,13 +76,13 @@ export interface RecorderStep {
 
 /**
  * Advance the recorder by one sim step at the current air speed. `model` names
- * what's on the mount, kept with a run when it starts.
+ * what's on the mount and `tunnel` where it's run, kept with a run when it starts.
  */
-export function stepRecorder(rec: Recorder, speed: number, dt: number, model: string): RecorderStep {
+export function stepRecorder(rec: Recorder, speed: number, dt: number, model: string, tunnel: TunnelId = 'university'): RecorderStep {
   let run = rec.run
   if (!run) {
     if (speed <= RUN_RECORDING.startAbove) return { recorder: rec, sampleDue: false, finished: null }
-    run = { id: rec.nextId, model, samples: [], duration: 0, energyKWh: 0, topSpeed: 0 }
+    run = { id: rec.nextId, model, samples: [], duration: 0, energyKWh: 0, topSpeed: 0, ...(tunnel === 'own' ? { tunnel } : {}) }
     rec = { run, nextId: rec.nextId + 1, untilSample: 0 }
   }
   if (speed < RUN_RECORDING.endBelow) {

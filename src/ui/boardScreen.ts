@@ -8,12 +8,15 @@
 import { BID, CAREER, PROMISE, TRACK, type BriefTemplate } from '../data/briefs'
 import { REPUTATION } from '../data/reputation'
 import { RIVALS, RIVAL_IDS } from '../data/rivals'
+import { OWN_BILLING, OWN_TUNNEL_BUILD } from '../data/tunnel'
+import { buildBlock, ownReadyDay } from '../sim/facility'
 import type { CyclistDesign } from '../data/cyclist'
 import { t } from '../data/strings'
 import {
   bidScore,
   biddersFor,
   briefTemplate,
+  buildOwnTunnel,
   deliver,
   eventOf,
   placeBid,
@@ -214,6 +217,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       fact(t('race.fee'), rubles(d.job.brief.fee)),
       fact(t('race.penalty'), db.penalty ? `−${rubles(db.penalty)}` : rubles(0)),
       fact(t('race.paid'), rubles(d.paid)),
+      ...(d.upkeep > 0 ? [fact(t('race.upkeep'), `−${rubles(d.upkeep)}`)] : []),
       fact(
         glossaryTerm('reputation', t('race.reputation')),
         t('race.repChange', { after: db.reputation.after, change: signed(db.reputation.after - db.reputation.before) }),
@@ -385,6 +389,44 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     return card
   }
 
+  /** Your own tunnel: the pitch and the button while you save up, then its build, then that it's open. */
+  function ownTunnelCard(): HTMLElement {
+    const career = careerStore.get()
+    const card = el('section', 'job-card own-card')
+    card.setAttribute('aria-labelledby', 'own-title')
+    const head = el('h2', 'job-client', t('own.title'))
+    head.id = 'own-title'
+    card.append(head)
+    const ready = ownReadyDay(career.facility)
+    if (ready === null) {
+      const facts = el('div', 'job-facts')
+      facts.append(
+        fact(t('own.price'), rubles(OWN_TUNNEL_BUILD.price)),
+        fact(t('own.build'), t('own.buildValue', { days: OWN_TUNNEL_BUILD.days })),
+        fact(t('own.power'), t('own.powerValue', { rub: rubles(OWN_BILLING.perKWh) })),
+        fact(t('own.upkeep'), t('own.upkeepValue', { rub: rubles(OWN_TUNNEL_BUILD.upkeepPerDay) })),
+      )
+      card.append(el('p', 'job-who', t('own.pitch', { days: OWN_TUNNEL_BUILD.days })), facts)
+      const block = buildBlock(career.facility, career.money)
+      if (block === 'money') {
+        card.append(el('p', 'shop-note', t('own.toGo', { have: rubles(Math.max(0, career.money)), short: rubles(OWN_TUNNEL_BUILD.price - career.money) })))
+      }
+      const buy = button('save-btn', t('own.buy'))
+      buy.disabled = block !== null
+      if (!block) twoTap(buy, t('own.buy'), t('own.buyConfirm', { price: rubles(OWN_TUNNEL_BUILD.price) }), () => careerStore.set(buildOwnTunnel(careerStore.get())))
+      const actions = el('div', 'job-actions')
+      actions.append(buy)
+      card.append(actions)
+    } else if (career.day < ready) {
+      const days = ready - career.day
+      const date = careerDate(ready, CAREER.start)
+      card.append(el('p', 'job-who', days === 1 ? t('own.buildingOne', { date }) : t('own.building', { date, days })))
+    } else {
+      card.append(el('p', 'job-who', t('own.open', { date: careerDate(ready, CAREER.start) })), el('p', 'shop-note', t('own.fresh')))
+    }
+    return card
+  }
+
   function emptyCard(): HTMLElement {
     const card = el('li', 'job-card')
     const wait = button('save-btn', t('board.wait'))
@@ -515,7 +557,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     if (career.board.length === 0 && !career.job) list.append(emptyCard())
     const intro = el('p', 'shop-note', t(career.job ? 'board.oneAtATime' : 'board.intro'))
     const guide = guideCard()
-    page.replaceChildren(firm, ...(guide ? [guide] : []), ...(now ? [now] : []), boardHead, intro, list, rivals)
+    page.replaceChildren(firm, ...(guide ? [guide] : []), ...(now ? [now] : []), boardHead, intro, list, ownTunnelCard(), rivals)
   }
 
   return {
