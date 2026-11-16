@@ -117,6 +117,10 @@ quirks you have to learn.
 | Own tunnel running cost | **Cheap runs plus daily upkeep**: no run fee, power at an industrial rate, and upkeep for every day that passes. *(16 Nov 2026, for PR 7)* |
 | Staff size | **One per role, three at most**: model maker, tunnel tech and analyst, each role with a couple of people to choose from (different traits and wages). *(16 Nov 2026, for PR 7)* |
 | Poaching | **No poaching**: staff stay until you let them go. *(16 Nov 2026, for PR 7)* |
+| Going broke: what sells | **Kit first, tunnel last**: machines and upgrades, cheapest first, until cash is back above zero; the tunnel only if that isn't enough. *(16 Nov 2026, for PR 7)* |
+| Going broke: sale price | **Half** of what each thing cost. *(16 Nov 2026, for PR 7)* |
+| Going broke: staff | **Staff stay** (and keep being paid). *(16 Nov 2026, for PR 7)* |
+| Going broke: reputation | **Small dip, −5.** *(16 Nov 2026, for PR 7)* |
 
 ---
 
@@ -511,10 +515,12 @@ Light touch: hire, pay, let go. No staff minigame, and no poaching (Kelbo, 16 No
   `share.js` and `cards.js`): records held, correlation score, best job.
 
 ### 9.8 Going broke (soft landing)
-- If cash goes below zero after a job, you sell kit (printers, upgrades) at a
-  loss to cover it, and drop back to renting the university tunnel.
+- If cash goes below zero after a job, you sell kit (printers, upgrades) at
+  half price, cheapest first, to cover it; your own tunnel goes only if that
+  isn't enough, and then you drop back to renting the university tunnel.
+  Staff stay.
 - Small, low-fee briefs always appear on the board so you can rebuild.
-- Reputation dips, but there is no game over.
+- Reputation dips 5, but there is no game over.
 
 ---
 

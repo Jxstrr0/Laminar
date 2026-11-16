@@ -11,6 +11,8 @@
  * - Your own tunnel is bought with cash and opens OWN_TUNNEL_BUILD.days later;
  *   from then on its upkeep is paid for every day that passes (passDays).
  * - Staff (one per role) are paid their wage for every day that passes too.
+ * - A job that leaves cash below zero sells kit to cover it (src/sim/broke.ts)
+ *   and costs a little reputation; there is no game over.
  * - Delivering runs the event, pays the fee, jumps the calendar to the
  *   event and refreshes the board.
  */
@@ -29,6 +31,7 @@ import { rivalRecord } from './rivals'
 import { buildBlock, machineBlock, NO_FACILITY, upgradeBlock, upkeepDays, type Facility } from './facility'
 import { MACHINE_PRICE, type MachineId } from '../data/model'
 import { OWN_TUNNEL_BUILD, TUNNEL_UPGRADES, type UpgradeId } from '../data/tunnel'
+import { sellToCover, type Sale } from './broke'
 import { hire, letGo, NO_CREW, wagesPerDay, type Crew } from './staff'
 import type { StaffId } from '../data/staff'
 import { fieldResult, REFERENCE_TT, truth, type EventSpec, type FieldResult } from './views'
@@ -92,6 +95,8 @@ export interface CareerState {
   facility: Facility
   /** Who's on the staff (one per role). */
   crew: Crew
+  /** Each time the firm went broke, as the number of jobs done by then. */
+  broke: number[]
 }
 
 /** Why a model can't be ordered now, or null if it can. */
@@ -151,7 +156,13 @@ export function newCareer(seed: number): CareerState {
     guide: { off: false, done: [] },
     facility: NO_FACILITY,
     crew: NO_CREW,
+    broke: [],
   }
+}
+
+/** The firm's reputation now: its record, less a dip for each time it went broke. */
+export function firmReputation(state: Pick<CareerState, 'history' | 'broke'>): number {
+  return reputationOf(state.history, state.broke)
 }
 
 /** The upkeep due for `days` more days from the career's day, ₽. */
@@ -327,7 +338,7 @@ export function placeBid(state: CareerState, id: string, bid: Bid): BidResult | 
   const mine = clampBid(id, bid)
   const rivals = rivalBids(state, brief)
   const worth = pointWorth(id)
-  const myRep = reputationOf(state.history)
+  const myRep = firmReputation(state)
   // The best rival bid; ties between rivals go to the first listed, and a tie with you goes to you.
   let best: RivalBid | null = null
   for (const r of rivals) if (!best || bidScore(id, r.bid, r.reputation) > bidScore(id, best.bid, best.reputation)) best = r
@@ -347,7 +358,7 @@ export function placeBid(state: CareerState, id: string, bid: Bid): BidResult | 
 export function waitForBriefs(state: CareerState): CareerState {
   if (state.job) return state
   const round = state.round + 1
-  return { ...passDays(state, BID.waitDays), round, board: boardFor(state.seed, round, state.jobsDone === 0, reputationOf(state.history)), lost: [] }
+  return { ...passDays(state, BID.waitDays), round, board: boardFor(state.seed, round, state.jobsDone === 0, firmReputation(state)), lost: [] }
 }
 
 /** Spend money (a run, a model). Goes on the job's tally when there is one. */
@@ -442,6 +453,8 @@ export interface Delivery {
   upkeep: number
   /** The staff's wages for the days up to race day, ₽. */
   wages: number
+  /** If the job left cash below zero: the kit sold to cover it (the firm also lost BROKE.dip reputation). */
+  sale: Sale | null
 }
 
 /** The seed for a job's event day. */
@@ -487,8 +500,8 @@ export function deliver(state: CareerState, design: CyclistDesign, predicted: nu
     gusts: result.lostToGusts > 0 ? { lost: result.lostToGusts, fix: 'front' } : null,
     fade: result.lostToFade > 0 ? { lost: result.lostToFade, fix: comfort(design).worst ?? 'torsoDeg' } : null,
     reputation: {
-      before: reputationOf(state.history),
-      after: reputationOf([...state.history, { promised: job.promise, achieved, predicted, actual: result.cdA }]),
+      before: firmReputation(state),
+      after: reputationOf([...state.history, { promised: job.promise, achieved, predicted, actual: result.cdA }], state.broke),
     },
   }
   const paid = job.brief.fee - penalty
@@ -506,16 +519,33 @@ export function deliver(state: CareerState, design: CyclistDesign, predicted: nu
   }
   const upkeep = upkeepFor(state, job.daysLeft)
   const wages = wagesFor(state, job.daysLeft)
+  const history = [...state.history, record]
+  let money = state.money + paid - upkeep - wages
+  let facility = state.facility
+  let broke = state.broke
+  let sale: Sale | null = null
+  // The soft landing: sell kit to cover a hole, and take the dip.
+  if (money < 0) {
+    const covered = sellToCover(money, facility)
+    money = covered.money
+    facility = covered.facility
+    sale = covered.sale
+    broke = [...broke, history.length]
+  }
   const next: CareerState = {
     ...state,
-    money: state.money + paid - upkeep - wages,
+    money,
     day: raceDay,
     jobsDone,
     round: state.round + 1,
-    board: boardFor(state.seed, state.round + 1, false, reputationOf([...state.history, record])),
+    board: boardFor(state.seed, state.round + 1, false, reputationOf(history, broke)),
     lost: [],
     job: null,
-    history: [...state.history, record],
+    history,
+    facility,
+    broke,
   }
-  return { state: next, job, event, result, debrief, paid, upkeep, wages }
+  // The reputation after includes any dip for going broke.
+  const after = firmReputation(next)
+  return { state: next, job, event, result, debrief: { ...debrief, reputation: { ...debrief.reputation, after } }, paid, upkeep, wages, sale }
 }

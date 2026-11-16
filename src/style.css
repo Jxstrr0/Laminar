@@ -988,3 +988,14 @@ body[data-guide='deliver'] .guide-deliver {
   flex: 1 1 100%;
   margin: 0;
 }
+
+/* Going broke (PR 7g): the fire sale on the debrief. */
+.race-broke {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--warn);
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+.race-broke-title { margin: 0 0 4px; font-size: 1rem; }

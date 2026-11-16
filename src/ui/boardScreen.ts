@@ -6,7 +6,7 @@
  * event and pays the fee.
  */
 import { BID, CAREER, PROMISE, TRACK, type BriefTemplate } from '../data/briefs'
-import { REPUTATION } from '../data/reputation'
+import { BROKE, REPUTATION } from '../data/reputation'
 import { RIVALS, RIVAL_IDS } from '../data/rivals'
 import { OWN_BILLING, OWN_TUNNEL_BUILD, TUNNEL_UPGRADES, UPGRADE_IDS } from '../data/tunnel'
 import { buildBlock, machineBlock, ownReadyDay, upgradeBlock, upgradeReadyDay } from '../sim/facility'
@@ -19,6 +19,7 @@ import {
   briefTemplate,
   buildOwnTunnel,
   buyMachine,
+  firmReputation,
   hireStaff,
   letStaffGo,
   orderUpgrade,
@@ -33,9 +34,10 @@ import {
 } from '../sim/career'
 import { deskEstimate } from '../sim/desk'
 import { crewEffects, wagesPerDay } from '../sim/staff'
+import type { Sale } from '../sim/broke'
 import { STAFF, STAFF_IDS, STAFF_ROLES, type StaffId } from '../data/staff'
 import { DESK } from '../data/cyclist'
-import { correlationScore, reputationOf } from '../sim/reputation'
+import { correlationScore } from '../sim/reputation'
 import { rivalRecord } from '../sim/rivals'
 import type { FixTarget } from '../sim/failure'
 import { cyclistShape } from '../sim/geom/cyclist'
@@ -254,6 +256,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     if (db.fade) trouble(t('race.fade', { client: b.client, time: shortTime(db.fade.lost) }), db.fade.fix, t('race.fix.position'))
     if (db.baseline.lostToGusts > 0) parts.push(el('p', 'shop-note', t('race.oldGusts', { time: shortTime(db.baseline.lostToGusts) })))
     parts.push(el('p', 'shop-note', t('race.readNote')))
+    if (d.sale) parts.push(brokeBox(d.sale, d.state.money))
     const again = button('save-btn quiet', t('race.replay'))
     again.addEventListener('click', () => {
       result?.close()
@@ -262,6 +265,27 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     parts.push(again)
     result.body.replaceChildren(...parts)
     result.open()
+  }
+
+  /** The soft landing after a job that left cash below zero: what was sold, and what's left to do. */
+  function brokeBox(sale: Sale, money: number): HTMLElement {
+    const box = el('section', 'race-broke')
+    box.setAttribute('aria-labelledby', 'broke-title')
+    const head = el('h3', 'race-broke-title', t('broke.title'))
+    head.id = 'broke-title'
+    box.append(head, el('p', 'shop-note', t('broke.intro', { dip: BROKE.dip, pct: fixed(BROKE.saleShare * 100, 0) })))
+    if (sale.sold.length) {
+      const list = el('div', 'job-facts')
+      for (const { item, price } of sale.sold) {
+        const name = item.kind === 'machine' ? t(`ws.${item.id}`) : item.kind === 'upgrade' ? t(`up.${item.id}`) : t('own.title')
+        list.append(fact(name, `+${rubles(price)}`))
+      }
+      list.append(fact(t('broke.raised'), rubles(sale.total)))
+      box.append(list)
+      if (sale.sold.some((s) => s.item.kind === 'tunnel')) box.append(el('p', 'shop-note', t('broke.renting')))
+    } else box.append(el('p', 'shop-note', t('broke.nothing')))
+    if (money < 0) box.append(el('p', 'shop-note', t('broke.short', { rub: rubles(-money) })))
+    return box
   }
 
   // --- Bidding: a sealed price and promise, then the bids opened.
@@ -644,7 +668,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     const corr = correlationScore(career.history)
     const name = el('div', 'firm-name')
     name.append(
-      fact(glossaryTerm('reputation', t('board.reputation')), t('board.outOf', { n: reputationOf(career.history) })),
+      fact(glossaryTerm('reputation', t('board.reputation')), t('board.outOf', { n: firmReputation(career) })),
       fact(glossaryTerm('correlationScore', t('board.correlation')), corr === null ? t('board.noRecord') : t('board.outOf', { n: corr })),
     )
     firm.append(
