@@ -96,10 +96,15 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 10g | Quad jobs on the board: the brief card (course, laps, the quad), bids in tenths of a second, "Shape the quad", and a Deliver sheet that fills the race time from the tunnel's forecast (warning if it tumbles, the twist wasn't measured, it was read raw or with the props stopped) or the desk estimate. The club-race debrief shows both races, the read, and a tumble or overheating with its "change this". No replay yet | **Done** (v0.10.6.0) |
 | 10h | The quad race replay: race day's five laps from close behind your quad, the pilot's old one see-through alongside, gates over a mown line, each quad leaning forward to pull away and back to brake (the lean the race model flew). A tumble plays slowly and the quad spins down onto the grass; the replay then ends. Lap, clock, speed and gap readouts and a commentator's line. The Lugovoy course now closes on itself (it drifted 50 m a lap), and the race model finds corner speeds by a search (a wide corner could flip it to a standstill); the jobs' balance is unchanged | **Done** (v0.10.7.0) |
 | 10i | Survey drones in the sim: a two-metre electric mapping plane flying survey lines at the Ozimka fields. Range on a charge from the drag at survey speed (wing, lift, fuselage, camera pod, tail, winglets, trim); the static margin from the tail, nose and camera position; a gust on a banked turn lifts the wing, more on a plane held loosely in pitch, and past the wing's most lift it stalls. The makers' plane flies about 85 km; a sensible one over 100; a cut-down tail or a long nose stalls in the usual gust. Kelbo's survey-drone choices go in the plan | **Done** (v0.10.8.0) |
-| 10j–14 | See the plan | Next: the survey drone on Shape (10j). |
+| 10j | The survey drone on Shape (`?try=plane`): drawn on a stand with its nose, tail cone and tail in cobalt, a pusher motor and the camera pod under the belly. Body tab (nose length, tail cone taper, tail size) and Camera · tips tab (camera drop, fairing, slide, winglets). The sheet reads the desk's range on a charge against the client's plane, the pitch margin and weight, the strongest gust it rides out on a turn, and whether the camera sees past the belly. A gust stall, a gust near the limit, a loose margin and a camera too high are amber warnings with a "Change this". Saves and run reports know the plane. Glossary: range on a charge, winglets, gust stall | **Done** (v0.10.9.0) |
+| 10k–14 | See the plan | Next: the survey drone in the tunnel, with the small-model wing-stall trap (10k). |
 
 ## Versions
 
+- **0.10.9.0** (PR 10j): the survey drone on Shape. Open
+  `laminar.longlight.games/?try=plane`, tap Shape, and move the sliders: a
+  longer nose and a finer tail cone fly further, but a smaller tail or a long
+  nose loosens the pitch margin until a gust on a turn stalls it.
 - **0.10.8.0** (PR 10i): survey drones in the sim only. Nothing new to see
   on a phone yet; Shape shows them in 10j.
 - **0.10.7.0** (PR 10h): the quad race replay. Deliver a quad job and watch

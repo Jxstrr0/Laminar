@@ -15,7 +15,9 @@ import { BOB_SKELETON, FRAME, HELMET_MOUNT, SKATER_SKELETON, SKELETON } from '..
 import { SK_HEAD, type SkaterDesign } from '../../data/skater'
 import { JUMP_PARTS, JUMP_SKIS, type JumperDesign } from '../../data/jumper'
 import { SLED, type BobsledDesign } from '../../data/bobsled'
-import { isBobsled, isCar, isDrone, isJumper, isRecord, isSkater, isTruck, type Design } from '../design'
+import { isBobsled, isCar, isDrone, isJumper, isPlane, isRecord, isSkater, isTruck, type Design } from '../design'
+import { PLANE_BODY, PLANE_CLASS, type PlaneDesign } from '../../data/plane'
+import { planeLength, planeX, podPlace } from '../geom/plane'
 import { DRONE_AERO, DRONE_BODY, type DroneDesign } from '../../data/drone'
 import { podEnds, podHeight } from '../geom/drone'
 import { CAR_BODY, type CarDesign } from '../../data/car'
@@ -364,6 +366,31 @@ export function droneEllipsoids(design: DroneDesign): Ellipsoid[] {
   ]
 }
 
+/**
+ * The survey drone (PR 10j): the fuselage as one long oval, the wing as a
+ * thin wide one on top of it, and the camera pod under the belly, where the
+ * figure draws them.
+ */
+export function planeEllipsoids(design: PlaneDesign): Ellipsoid[] {
+  const B = PLANE_BODY
+  const len = planeLength(design)
+  const y = B.stand
+  const pod = podPlace(design)
+  return [
+    { id: 'fuselage', bodyId: 'fuselage', centre: { x: planeX(design, len / 2), y, z: 0 }, axes: { a: len / 2, b: B.halfHeight, c: B.half }, pitchRad: 0, wrap: 'oval', part: 'rider' },
+    { id: 'wing', bodyId: 'fuselage', centre: { x: 0, y: y + B.halfHeight, z: 0 }, axes: { a: B.chord / 2, b: B.wingThick, c: PLANE_CLASS[design.class].span / 2 }, pitchRad: 0, wrap: 'oval', part: 'rider' },
+    {
+      id: 'pod',
+      bodyId: 'pod',
+      centre: { x: planeX(design, pod.x), y: y + (pod.top + pod.bottom) / 2, z: 0 },
+      axes: { a: pod.length / 2, b: B.pod.height / 2, c: B.pod.width / 2 },
+      pitchRad: 0,
+      wrap: 'oval',
+      part: 'rider',
+    },
+  ]
+}
+
 /** The ellipsoids for any design in its pose. */
 export function designEllipsoids(design: Design, pose: Pose): Ellipsoid[] {
   if (isJumper(design)) return jumperEllipsoids(design, pose)
@@ -372,6 +399,7 @@ export function designEllipsoids(design: Design, pose: Pose): Ellipsoid[] {
   if (isCar(design)) return carEllipsoids(design)
   if (isRecord(design)) return recordEllipsoids(design)
   if (isDrone(design)) return droneEllipsoids(design)
+  if (isPlane(design)) return planeEllipsoids(design)
   return isSkater(design) ? skaterEllipsoids(design, pose) : riderEllipsoids(design, pose)
 }
 

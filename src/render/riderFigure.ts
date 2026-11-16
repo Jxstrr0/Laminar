@@ -1,6 +1,6 @@
 /**
  * The rider and bike (or the skater, PR 8b) as a three.js group, drawn from
- * a design and its pose. A truck (PR 9b) is drawn by truckFigure.ts, a car (PR 9j) by carFigure.ts, a record car (PR 9q) by recordFigure.ts, a drone (PR 10b) by droneFigure.ts.
+ * a design and its pose. A truck (PR 9b) is drawn by truckFigure.ts, a car (PR 9j) by carFigure.ts, a record car (PR 9q) by recordFigure.ts, a drone (PR 10b) by droneFigure.ts, a plane (PR 10j) by planeFigure.ts.
  * Shared by the Shape screen and the tunnel (where it stands on the mount at
  * model scale). Limbs come from the pose (src/sim/geom/pose.ts); the aero
  * helmet's outline is the very cross-section stack the aero model reads, so a
@@ -26,6 +26,7 @@ import { buildTruck } from './truckFigure'
 import { buildCar } from './carFigure'
 import { buildRecord } from './recordFigure'
 import { buildDrone } from './droneFigure'
+import { buildPlane } from './planeFigure'
 
 const COLOURS = {
   suit: 0x2b3a4a,
@@ -49,7 +50,7 @@ const COLOURS = {
 }
 
 /** Which drawn groups a rule break or a strained posture lights up. */
-export type Highlight = 'helmet' | 'hands' | 'front-wheel' | 'frame' | 'torso' | 'head' | 'arms' | 'legs' | 'fairing' | 'skirts' | 'boat-tail' | 'floor' | 'rear-wing' | 'front-wing' | 'inlet' | 'nose' | 'canopy' | 'fin' | 'fairings' | 'waist' | 'pod' | 'vents'
+export type Highlight = 'helmet' | 'hands' | 'front-wheel' | 'frame' | 'torso' | 'head' | 'arms' | 'legs' | 'fairing' | 'skirts' | 'boat-tail' | 'floor' | 'rear-wing' | 'front-wing' | 'inlet' | 'nose' | 'canopy' | 'fin' | 'fairings' | 'waist' | 'pod' | 'vents' | 'winglets'
 
 export interface RiderState {
   design: Design
@@ -170,6 +171,7 @@ export function buildRider(state: RiderState): THREE.Group {
   if (state.design.sport === 'car') return buildCar(state.design, state)
   if (state.design.sport === 'record') return buildRecord(state.design, state)
   if (state.design.sport === 'drone') return buildDrone(state.design, state)
+  if (state.design.sport === 'plane') return buildPlane(state.design, state)
   const design = state.design
   const g = new THREE.Group()
   const isBroken = (h: Highlight) => state.broken.includes(h)

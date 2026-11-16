@@ -12,6 +12,7 @@ import { TRUCK_RANGE, type TruckDesign } from '../data/truck'
 import { CAR_RANGE, type CarDesign } from '../data/car'
 import { RECORD_RANGE, type RecordDesign } from '../data/record'
 import { DRONE_RANGE, type DroneDesign } from '../data/drone'
+import { PLANE_RANGE, type PlaneDesign } from '../data/plane'
 import type { Design } from '../sim/design'
 import { ALL_SCALES, MACHINE_IDS, MAKER_IDS, MODEL_FINISH, MODEL_GRADE, type MachineId } from '../data/model'
 import { CRANK_DIAL, DEMO_TUNNEL_SEED } from '../data/tunnel'
@@ -61,6 +62,7 @@ export function soundDesign(x: unknown): Design | null {
   if (x.sport === 'car') return soundCar(x)
   if (x.sport === 'record') return soundRecordCar(x)
   if (x.sport === 'drone') return soundDrone(x)
+  if (x.sport === 'plane') return soundPlane(x)
   if (x.sport !== undefined && x.sport !== 'cycling') return null
   return soundCyclist(x)
 }
@@ -133,6 +135,23 @@ function soundDrone(x: Obj): DroneDesign | null {
   const R = DRONE_RANGE[x.class]
   const n = (v: unknown, r: { min: number; max: number }) => clampTo(v as number, r)
   return { sport: 'drone', class: x.class, pod: { length: n(length, R.length), rake: n(rake, R.rake), vents: n(vents, R.vents) }, arms: n(x.arms, R.arms) }
+}
+
+function soundPlane(x: Obj): PlaneDesign | null {
+  if (!oneOf(x.class, ['survey'] as const) || !isObj(x.fuselage) || !isObj(x.camera)) return null
+  const { nose, taper } = x.fuselage
+  const { drop, fairing, at } = x.camera
+  if (![nose, taper, drop, fairing, at, x.winglets, x.tail].every(isNum)) return null
+  const R = PLANE_RANGE[x.class]
+  const n = (v: unknown, r: { min: number; max: number }) => clampTo(v as number, r)
+  return {
+    sport: 'plane',
+    class: x.class,
+    fuselage: { nose: n(nose, R.nose), taper: n(taper, R.taper) },
+    camera: { drop: n(drop, R.drop), fairing: n(fairing, R.fairing), at: n(at, R.at) },
+    winglets: n(x.winglets, R.winglets),
+    tail: n(x.tail, R.tail),
+  }
 }
 
 function soundRecordCar(x: Obj): RecordDesign | null {

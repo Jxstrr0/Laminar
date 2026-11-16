@@ -21,6 +21,7 @@
  */
 import { RECORD_TUNNEL, STOCK_RECORD, type RecordClass, type RecordDesign } from '../data/record'
 import { STOCK_DRONE, type DroneClass, type DroneCourse, type DroneDesign } from '../data/drone'
+import { STOCK_PLANE, SURVEY_SITES, type PlaneClass, type PlaneDesign, type SurveySite } from '../data/plane'
 import { droneRace, type DroneRace } from './drone'
 import { dragScaleForTime, droneDayAir, droneEventFrom, heatCost, PRACTICE_COURSE, raceDragArea, type DroneEvent } from './droneJob'
 import type { SaltFlat } from '../data/saltFlats'
@@ -431,6 +432,16 @@ export function currentDroneEvent(state: CareerState): DroneEvent {
 export function currentDroneRun(state: CareerState, cls: DroneClass): { course: DroneCourse; old: DroneDesign } {
   const setup = state.job ? template(state.job.brief.id).setup : null
   return { course: currentDroneEvent(state).course, old: setup && setup.sport === 'drone' && setup.class === cls ? setup : STOCK_DRONE[cls] }
+}
+
+/**
+ * The site a survey drone is forecast at and the client's plane it's
+ * measured against (PR 10j): the Ozimka fields and the maker's plane as
+ * sold, until survey jobs bring their own (a later PR).
+ */
+export function currentPlaneRun(state: CareerState, cls: PlaneClass): { site: SurveySite; old: PlaneDesign } {
+  const setup = state.job ? template(state.job.brief.id).setup : null
+  return { site: SURVEY_SITES.ozimka, old: setup && setup.sport === 'plane' && setup.class === cls ? setup : STOCK_PLANE[cls] }
 }
 
 /** The speed week a record car is built for: the job's, or Lake Sukhoye on its usual day between jobs. */

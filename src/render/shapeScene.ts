@@ -88,6 +88,8 @@ const VIEWS = {
   record: { target: { x: 0.15, y: 0.14 }, camera: { x: 2.1, y: 0.85, z: 2.6 } },
   // A racing quad nearly side-on and a little ahead, so its lean and the pod's rake against the oncoming air read.
   drone: { target: { x: 0.3, y: 0.5 }, camera: { x: 0.85, y: 0.85, z: 1.9 } },
+  // A survey drone from ahead, to the side and a little above, so the nose, the pod under the belly, a winglet and the tail all show.
+  plane: { target: { x: -0.1, y: 0.8 }, camera: { x: 1.25, y: 1.25, z: 1.45 } },
 }
 
 /** A truck is drawn at this fraction of full size on the Shape stage (about a 2.5 m long model). */
@@ -98,6 +100,8 @@ const CAR_SCALE = 0.45
 const RECORD_SCALE = { streamliner: 0.26, jet: 0.17 }
 /** A racing quad is drawn at this many times full size (about 0.7 m across), so its small parts read on a phone. */
 const DRONE_SCALE = 3.2
+/** A survey drone is drawn at this fraction of full size (about 1.7 m across), so its whole wing fits a phone. */
+const PLANE_SCALE = 0.8
 
 export function createShapeView(host: HTMLElement): ShapeView {
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
@@ -157,6 +161,7 @@ export function createShapeView(host: HTMLElement): ShapeView {
     if (state.design.sport === 'car') g.scale.setScalar(CAR_SCALE)
     if (state.design.sport === 'record') g.scale.setScalar(RECORD_SCALE[state.design.class])
     if (state.design.sport === 'drone') g.scale.setScalar(DRONE_SCALE)
+    if (state.design.sport === 'plane') g.scale.setScalar(PLANE_SCALE)
     const isBroken = (h: Highlight) => state.broken.includes(h)
 
     // The rule box: where the hands and the helmet must stay.
@@ -283,7 +288,7 @@ export function createShapeView(host: HTMLElement): ShapeView {
       scene.add(figure)
       handles = state.handles
       const d = state.design
-      const want: keyof typeof VIEWS = d.sport === 'skijump' ? 'jumper' : d.sport === 'bobsled' ? (d.crew === 4 ? 'sled4' : 'sled') : d.sport === 'truck' ? 'truck' : d.sport === 'car' ? 'car' : d.sport === 'record' ? 'record' : d.sport === 'drone' ? 'drone' : 'usual'
+      const want: keyof typeof VIEWS = d.sport === 'skijump' ? 'jumper' : d.sport === 'bobsled' ? (d.crew === 4 ? 'sled4' : 'sled') : d.sport === 'truck' ? 'truck' : d.sport === 'car' ? 'car' : d.sport === 'record' ? 'record' : d.sport === 'drone' ? 'drone' : d.sport === 'plane' ? 'plane' : 'usual'
       if (want !== framed) {
         framed = want
         const v = VIEWS[want]
