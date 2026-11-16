@@ -95,10 +95,13 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 10f | Quad jobs in the sim: three hobby pilots at the Lugovoy Club Race (Yegor Shmel's stock quad, slow on the back straight; Inna Vertel's, its vents taped over; Strizh Racing's long camera pod, which tumbles braking once it's raked up and faired). The promise is tenths of a second off the five-lap race on the course's usual day over their own quad; a quad that tumbles crashes out and gains nothing. Race day is seeded, the read is judged on drag, and the debrief names a tumble or the overheating with a "change this". Off the board until 10g | **Done** (v0.10.5.0) |
 | 10g | Quad jobs on the board: the brief card (course, laps, the quad), bids in tenths of a second, "Shape the quad", and a Deliver sheet that fills the race time from the tunnel's forecast (warning if it tumbles, the twist wasn't measured, it was read raw or with the props stopped) or the desk estimate. The club-race debrief shows both races, the read, and a tumble or overheating with its "change this". No replay yet | **Done** (v0.10.6.0) |
 | 10h | The quad race replay: race day's five laps from close behind your quad, the pilot's old one see-through alongside, gates over a mown line, each quad leaning forward to pull away and back to brake (the lean the race model flew). A tumble plays slowly and the quad spins down onto the grass; the replay then ends. Lap, clock, speed and gap readouts and a commentator's line. The Lugovoy course now closes on itself (it drifted 50 m a lap), and the race model finds corner speeds by a search (a wide corner could flip it to a standstill); the jobs' balance is unchanged | **Done** (v0.10.7.0) |
-| 10i–14 | See the plan | Next: survey drones (10i). |
+| 10i | Survey drones in the sim: a two-metre electric mapping plane flying survey lines at the Ozimka fields. Range on a charge from the drag at survey speed (wing, lift, fuselage, camera pod, tail, winglets, trim); the static margin from the tail, nose and camera position; a gust on a banked turn lifts the wing, more on a plane held loosely in pitch, and past the wing's most lift it stalls. The makers' plane flies about 85 km; a sensible one over 100; a cut-down tail or a long nose stalls in the usual gust. Kelbo's survey-drone choices go in the plan | **Done** (v0.10.8.0) |
+| 10j–14 | See the plan | Next: the survey drone on Shape (10j). |
 
 ## Versions
 
+- **0.10.8.0** (PR 10i): survey drones in the sim only. Nothing new to see
+  on a phone yet; Shape shows them in 10j.
 - **0.10.7.0** (PR 10h): the quad race replay. Deliver a quad job and watch
   the five laps before the debrief: your quad leans into the straights and
   tips back to brake; a quad that tumbles spins down onto the grass. The
