@@ -4,6 +4,7 @@
  * The desk estimate lives in desk.ts.
  */
 import { COMFORT, PART_COST, type CyclistDesign } from '../data/cyclist'
+import { FIELD_TROUBLE } from '../data/field'
 import type { CyclingRules } from '../data/rules'
 import { cyclistShape, helmetLength, tubeAspect } from './geom/cyclist'
 import { describeShape } from './geom/body'
@@ -16,6 +17,8 @@ export interface Comfort {
   /** Fraction of the rider's power still available (1 is all of it). */
   powerFactor: number
   holdable: boolean
+  /** Share of the rider's power lost when they sit up for the last third (0 if they can hold it). */
+  fade: number
   /** Which part of the posture strains most (for the "change this" jump). */
   worst: keyof CyclistDesign['posture'] | null
 }
@@ -39,7 +42,10 @@ export function comfort(design: CyclistDesign, limit: number = COMFORT.riderLimi
       worst = key
     }
   }
-  return { strain, limit, powerFactor: Math.max(0, 1 - COMFORT.powerPerStrain * strain), holdable: strain <= limit, worst }
+  const holdable = strain <= limit
+  const f = FIELD_TROUBLE.fade
+  const fade = holdable ? 0 : Math.min(f.max, f.start + f.per * (strain - limit))
+  return { strain, limit, powerFactor: Math.max(0, 1 - COMFORT.powerPerStrain * strain), holdable, fade, worst }
 }
 
 /** Which part breaks which rule. `part` names the slider or picker to jump to. */
@@ -97,7 +103,11 @@ export function readouts(design: CyclistDesign, rules: CyclingRules, limit?: num
   }
 }
 
-/** The event as this design rides it: the rider's power cut by the posture's strain. */
+/**
+ * The event as this design rides it: the rider's power cut by the posture's
+ * strain, and, past their limit, a fade for the last third.
+ */
 export function riderEvent(design: CyclistDesign, event: EventSpec, limit?: number): EventSpec {
-  return { ...event, rider: { ...event.rider, power: event.rider.power * comfort(design, limit).powerFactor } }
+  const c = comfort(design, limit)
+  return { ...event, rider: { ...event.rider, power: event.rider.power * c.powerFactor }, fade: c.fade }
 }

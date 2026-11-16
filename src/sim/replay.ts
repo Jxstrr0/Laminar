@@ -109,6 +109,9 @@ export type ReplayNote =
   | { kind: 'meet'; t: number; gap: number }
   | { kind: 'half'; t: number; gap: number }
   | { kind: 'finish'; t: number; gap: number }
+  /** Your rider eases off in a gust, or sits up for the last third (plan section 7). */
+  | { kind: 'gust'; t: number }
+  | { kind: 'fade'; t: number }
 
 export interface NoteOptions {
   windFromDeg: number
@@ -132,10 +135,13 @@ export function replayNotes(mine: Ride, old: Ride, opts: NoteOptions): ReplayNot
   }
   const finish = rideTime(mine)
   notes.push({ kind: 'half', t: finish / 2, gap: gapAt(mine, old, finish / 2) })
-  // On an out-and-back, you meet the old setup still heading out once you've turned.
-  if (mine.course.length === 2 && turnAngle(mine.course[0]!.heading, mine.course[1]!.heading) >= REPLAY.backDeg) {
-    const turnAt = mine.course[0]!.length
-    const start = mine.segments[0]!.time
+  // On an out-and-back (one sharp turn and no other), you meet the old setup still heading out once you've turned.
+  const turns: number[] = []
+  for (let i = 1; i < mine.course.length; i++) if (turnAngle(mine.course[i - 1]!.heading, mine.course[i]!.heading) > REPLAY.turnDeg) turns.push(i)
+  const back = turns.length === 1 ? turns[0]! : -1
+  if (!opts.lap && back > 0 && turnAngle(mine.course[back - 1]!.heading, mine.course[back]!.heading) >= REPLAY.backDeg) {
+    const turnAt = mine.course.slice(0, back).reduce((sum, c) => sum + c.length, 0)
+    const start = timeAt(mine, turnAt)
     for (let s = start; s < finish; s += REPLAY.meetStep) {
       const me = trackAt(mine, s).distance
       const them = trackAt(old, s).distance
@@ -145,6 +151,21 @@ export function replayNotes(mine: Ride, old: Ride, opts: NoteOptions): ReplayNot
         break
       }
     }
+  }
+  // Trouble: the first stretch where your rider eased off in a gust, and where they sat up.
+  let at = 0
+  let gust = false
+  let fade = false
+  for (const r of mine.segments) {
+    if (!gust && r.eased > 0) {
+      notes.push({ kind: 'gust', t: at + r.time * REPLAY.gustAt })
+      gust = true
+    }
+    if (!fade && r.faded > 0) {
+      notes.push({ kind: 'fade', t: at })
+      fade = true
+    }
+    at += r.time
   }
   if (opts.lap) {
     const length = mine.course.reduce((sum, c) => sum + c.length, 0)

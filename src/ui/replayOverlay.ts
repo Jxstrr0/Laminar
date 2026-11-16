@@ -60,6 +60,10 @@ function noteText(n: ReplayNote, input: ReplayInput): string {
       return t('replay.note.meet', { gap: gapText(n.gap) })
     case 'finish':
       return t('replay.note.finish', { time: raceTime(input.result.time), gap: gapText(n.gap) })
+    case 'gust':
+      return t('replay.note.gust', { client: input.client })
+    case 'fade':
+      return t('replay.note.fade', { client: input.client })
   }
 }
 
@@ -74,8 +78,9 @@ function readout(label: string): { box: HTMLElement; value: HTMLElement } {
 /** Play the replay over everything; it removes itself when done. */
 export async function playReplay(input: ReplayInput): Promise<void> {
   const { createReplayView } = await import('../render/replayScene')
-  const mine: Ride = { course: input.course, segments: input.result.segments }
-  const old: Ride = { course: input.course, segments: input.baseline.segments }
+  // Each ride on the course as that rider rode it (split where they sat up).
+  const mine: Ride = { course: input.result.course, segments: input.result.segments }
+  const old: Ride = { course: input.baseline.course, segments: input.baseline.segments }
   const length = input.course.reduce((s, c) => s + c.length, 0)
   const duration = Math.max(rideTime(mine), rideTime(old))
   const calm = input.result.windSpeed < REPLAY.calm

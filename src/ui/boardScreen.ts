@@ -20,10 +20,11 @@ import {
   type Delivery,
 } from '../sim/career'
 import { deskEstimate } from '../sim/desk'
+import type { FixTarget } from '../sim/failure'
 import { cyclistShape } from '../sim/geom/cyclist'
 import { careerStore } from './careerStore'
 import { designStore } from './designStore'
-import { careerDate, fixed, pct, raceTime, rubles, rublesShort } from './format'
+import { careerDate, fixed, pct, raceTime, rubles, rublesShort, shortTime } from './format'
 import { glossaryTerm } from './glossary'
 import { GUIDE_STEPS, currentStep, guideOn, hideGuide, stepDone } from '../sim/guide'
 import { playReplay } from './replayOverlay'
@@ -209,6 +210,21 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       facts,
     ]
     if (db.cause) parts.push(el('p', 'shop-note', t(db.cause === 'design' ? 'race.causeDesign' : 'race.causeDay')))
+    // Trouble on the road, each with a "change this" jump to the part on Shape (plan section 7).
+    const trouble = (text: string, fix: FixTarget, label: string) => {
+      const box = el('div', 'race-trouble')
+      const jump = button('save-btn quiet', label)
+      jump.addEventListener('click', () => {
+        result?.close()
+        go('shape')
+        window.dispatchEvent(new CustomEvent<FixTarget>('laminar:fix', { detail: fix }))
+      })
+      box.append(el('p', 'race-trouble-text', text), jump)
+      parts.push(box)
+    }
+    if (db.gusts) trouble(t('race.gusts', { client: b.client, time: shortTime(db.gusts.lost) }), db.gusts.fix, t('race.fix.front'))
+    if (db.fade) trouble(t('race.fade', { client: b.client, time: shortTime(db.fade.lost) }), db.fade.fix, t('race.fix.position'))
+    if (db.baseline.lostToGusts > 0) parts.push(el('p', 'shop-note', t('race.oldGusts', { time: shortTime(db.baseline.lostToGusts) })))
     parts.push(el('p', 'shop-note', t('race.readNote')))
     const again = button('save-btn quiet', t('race.replay'))
     again.addEventListener('click', () => {

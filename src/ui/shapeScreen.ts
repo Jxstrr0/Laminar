@@ -15,6 +15,7 @@ import {
 import { TCF_TIME_TRIAL } from '../data/rules'
 import { t, type StringKey } from '../data/strings'
 import { readouts, type RuleBreak } from '../sim/cyclist'
+import type { FixTarget } from '../sim/failure'
 import { deskEstimate } from '../sim/desk'
 import { cyclistShape } from '../sim/geom/cyclist'
 import { availableHandles, dragHandle, handleDef, handlePoint } from '../sim/geom/handles'
@@ -350,10 +351,13 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   function jumpTo(part: RuleBreak['part']) {
     jumpToControl(BREAK_TARGET[part])
   }
-  // "Change this" after a model broke in the tunnel (plan section 8): the tail, or the rear wheel.
+  // "Change this" after a model broke in the tunnel, or after trouble on race day (plan sections 7 and 8).
   window.addEventListener('laminar:fix', (e) => {
-    const where = (e as CustomEvent<'helmet' | 'wheels'>).detail
-    jumpToControl(where === 'helmet' ? BREAK_TARGET.helmet : { tab: 'bike', id: 'ctl-rear' })
+    const where = (e as CustomEvent<FixTarget>).detail
+    if (where === 'helmet') jumpToControl(BREAK_TARGET.helmet)
+    else if (where === 'wheels') jumpToControl({ tab: 'bike', id: 'ctl-rear' })
+    else if (where === 'front') jumpToControl(BREAK_TARGET['wheels.front'])
+    else jumpToControl({ tab: 'position', id: `ctl-${where}` })
   })
 
   function jumpToControl(target: { tab: Tab; id: string }) {

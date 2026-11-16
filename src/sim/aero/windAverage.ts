@@ -17,13 +17,16 @@ export interface YawCurve {
   yawsDeg: number[]
   cdA: number[]
   cyA: number[]
+  /** Yaw moment about the shape's reference point, m³ (negative turns it away from the wind). */
+  cnA: number[]
 }
 
-/** CdA and side force over yaw, from −max to +max. */
+/** CdA, side force and yaw moment over yaw, from −max to +max. */
 export function yawCurve(shape: ShapeDescriptor, flow: Flow, refX = 0): YawCurve {
   const yawsDeg: number[] = []
   const cdA: number[] = []
   const cyA: number[] = []
+  const cnA: number[] = []
   const steps = Math.round(YAW_CURVE.max / YAW_CURVE.step)
   for (let i = -steps; i <= steps; i++) {
     const yaw = i * YAW_CURVE.step
@@ -31,13 +34,23 @@ export function yawCurve(shape: ShapeDescriptor, flow: Flow, refX = 0): YawCurve
     yawsDeg.push(yaw)
     cdA.push(f.cdA)
     cyA.push(f.cyA)
+    cnA.push(f.yawMomentA)
   }
-  return { yawsDeg, cdA, cyA }
+  return { yawsDeg, cdA, cyA, cnA }
 }
 
 /** CdA at any yaw, read off a curve (held flat past its ends). */
 export function cdAAt(curve: YawCurve, yawDeg: number): number {
   return interp(curve.yawsDeg, curve.cdA, yawDeg)
+}
+
+/**
+ * The moment turning a rider off line at a yaw angle, m³: the yaw moment
+ * when it turns them away from the wind, else 0. A bike is the same on
+ * both sides, so it's read at the angle's size.
+ */
+export function steerAt(curve: YawCurve, yawDeg: number): number {
+  return Math.max(0, -interp(curve.yawsDeg, curve.cnA, Math.abs(yawDeg)))
 }
 
 /**

@@ -13,7 +13,8 @@
 import { BID, BRIEFS, CAREER, PROMISE, type BriefTemplate } from '../data/briefs'
 import type { CyclistDesign } from '../data/cyclist'
 import { REFERENCE_RIDER } from '../data/field'
-import { riderEvent } from './cyclist'
+import { comfort, riderEvent } from './cyclist'
+import type { FixTarget } from './failure'
 import { cyclistShape } from './geom/cyclist'
 import { hashString, Rng } from './rng'
 import type { Guide } from './guide'
@@ -298,6 +299,13 @@ export interface Debrief {
    * day ('design'), or it does and the day's wind took it away ('day').
    */
   cause: 'design' | 'day' | null
+  /**
+   * Trouble on the road (plan section 7): time the rider lost easing off in
+   * gusts or sitting up late, s, and the part to change for each; null if
+   * it didn't happen. It costs time, not the promise (that's on CdA).
+   */
+  gusts: { lost: number; fix: FixTarget } | null
+  fade: { lost: number; fix: FixTarget } | null
 }
 
 /** The fee, less a slice per point short (Kelbo: at most half, after a small allowance). */
@@ -362,6 +370,9 @@ export function deliver(state: CareerState, design: CyclistDesign, predicted: nu
     baseline,
     timeSaved: baseline.time - result.time,
     cause: met ? null : typical >= job.promise - PROMISE.allowance ? 'day' : 'design',
+    // A gust turns the bike by its front: the front wheel is the part to change.
+    gusts: result.lostToGusts > 0 ? { lost: result.lostToGusts, fix: 'front' } : null,
+    fade: result.lostToFade > 0 ? { lost: result.lostToFade, fix: comfort(design).worst ?? 'torsoDeg' } : null,
   }
   const paid = job.brief.fee - penalty
   const jobsDone = state.jobsDone + 1

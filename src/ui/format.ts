@@ -44,6 +44,11 @@ export function careerDate(day: number, start: { year: number; month: number; da
 }
 
 /** A race time: 3725.4 s → "1:02:05". */
+/** A short span of race time: "16 s" under a minute, else as `raceTime`. */
+export function shortTime(seconds: number): string {
+  return Math.round(seconds) < 60 ? `${Math.round(seconds)}\u00a0s` : raceTime(seconds)
+}
+
 export function raceTime(seconds: number): string {
   const s = Math.round(seconds)
   const h = Math.floor(s / 3600)
