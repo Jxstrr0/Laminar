@@ -11,7 +11,7 @@
  * before an abort, 1 for a light nose and 2 for a wander.
  */
 import type { CourseSegment } from '../data/field'
-import { RECORD_RUN as RUN } from '../data/record'
+import { RECORD_RUN as RUN, type RecordClass } from '../data/record'
 import { RECORD_REPLAY as R } from '../data/replay'
 import type { SegmentResult } from './field/timeTrial'
 import type { RecordAbort, RecordRun } from './record'
@@ -22,13 +22,14 @@ export type RunIndex = 0 | 1
 
 const headingOf = (run: RunIndex) => (run === 0 ? 0 : 180)
 
-/** The course as drawn: the run-up, the timed kilometre, and the far run-up, where the car stops. */
-export function saltCourse(run: RunIndex): CourseSegment[] {
+/** The course as drawn for this class's run-up: the run-up, the timed kilometre, and the far run-up, where the car stops. */
+export function saltCourse(run: RunIndex, cls: RecordClass): CourseSegment[] {
   const heading = headingOf(run)
+  const runUp = RUN.runUp[cls]
   return [
-    { length: RUN.runUp, gradient: 0, heading },
+    { length: runUp, gradient: 0, heading },
     { length: RUN.timed, gradient: 0, heading },
-    { length: RUN.runUp, gradient: 0, heading },
+    { length: runUp, gradient: 0, heading },
   ]
 }
 
@@ -75,8 +76,8 @@ export function recordRide(run: Pick<RecordRun, 'speeds' | 'abort'>, index: RunI
 }
 
 /** When the run's chutes come out, run s: where the driver aborted, or the end of the timed kilometre. */
-export function chutesAt(ride: Ride, run: Pick<RecordRun, 'abort'>): number {
-  return timeAt(ride, run.abort ? run.abort.at : RUN.runUp + RUN.timed)
+export function chutesAt(ride: Ride, run: Pick<RecordRun, 'abort'>, cls: RecordClass): number {
+  return timeAt(ride, run.abort ? run.abort.at : RUN.runUp[cls] + RUN.timed)
 }
 
 /**
@@ -92,8 +93,8 @@ export interface RunClock {
   length: number
 }
 
-export function runClock(mine: Ride, mineRun: Pick<RecordRun, 'abort'>, old: Ride): RunClock {
-  const enter = Math.min(timeAt(mine, RUN.runUp), chutesAt(mine, mineRun))
+export function runClock(mine: Ride, mineRun: Pick<RecordRun, 'abort'>, old: Ride, cls: RecordClass): RunClock {
+  const enter = Math.min(timeAt(mine, RUN.runUp[cls]), chutesAt(mine, mineRun, cls))
   const end = Math.max(rideTime(mine), rideTime(old))
   const slowTo = rideTime(mine)
   const slowFrom = Math.max(0, Math.min(enter - R.lead, slowTo))
@@ -123,17 +124,18 @@ export type RecordNote =
   | { t: number; kind: 'through'; run: RunIndex; speed: number; oldSpeed: number | null }
 
 /** The commentator's moments in one run, in time order (run seconds). */
-export function recordNotes(index: RunIndex, mine: RecordRun, old: RecordRun, head: number): RecordNote[] {
+export function recordNotes(index: RunIndex, mine: RecordRun, old: RecordRun, head: number, cls: RecordClass): RecordNote[] {
   const me = recordRide(mine, index)
   const them = recordRide(old, index)
   const notes: RecordNote[] = [{ t: 0, kind: 'start', run: index, head }]
-  const entry = RUN.runUp / RUN.step
-  if (!mine.abort || mine.abort.at > RUN.runUp) notes.push({ t: timeAt(me, RUN.runUp), kind: 'timed', run: index, speed: mine.speeds[entry]!, oldSpeed: old.speeds[entry] ?? null })
-  if (mine.abort) notes.push({ t: chutesAt(me, mine), kind: 'abort', run: index, cause: mine.abort.cause, speed: mine.abort.speed })
-  else notes.push({ t: chutesAt(me, mine), kind: 'through', run: index, speed: mine.speed!, oldSpeed: old.speed })
+  const runUp = RUN.runUp[cls]
+  const entry = runUp / RUN.step
+  if (!mine.abort || mine.abort.at > runUp) notes.push({ t: timeAt(me, runUp), kind: 'timed', run: index, speed: mine.speeds[entry]!, oldSpeed: old.speeds[entry] ?? null })
+  if (mine.abort) notes.push({ t: chutesAt(me, mine, cls), kind: 'abort', run: index, cause: mine.abort.cause, speed: mine.abort.speed })
+  else notes.push({ t: chutesAt(me, mine, cls), kind: 'through', run: index, speed: mine.speed!, oldSpeed: old.speed })
   // The old car's own abort gets a line if it doesn't land on top of one of yours.
   if (old.abort) {
-    const at = chutesAt(them, old)
+    const at = chutesAt(them, old, cls)
     if (!notes.some((n) => n.t > 0 && Math.abs(n.t - at) < R.lead * 2)) notes.push({ t: at, kind: 'oldAbort', run: index, cause: old.abort.cause, speed: old.abort.speed })
   }
   return notes.sort((a, b) => a.t - b.t)

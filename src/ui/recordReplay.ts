@@ -87,13 +87,15 @@ const length = (ride: Ride) => ride.course.reduce((sum, seg) => sum + seg.length
 /** Play the replay over everything; it removes itself when done. */
 export async function playRecordReplay(input: RecordReplayInput): Promise<void> {
   const { createReplayView } = await import('../render/replayScene')
+  const cls = input.design.class
+  const runUp = RECORD_RUN.runUp[cls]
   const runs = ([0, 1] as const).map((i) => {
     const mineRun = input.attempt.runs[i]
     const oldRun = input.baselineAttempt.runs[i]
     const mine = recordRide(mineRun, i)
     const old = recordRide(oldRun, i)
     const head = i === 0 ? input.day.along : -(input.day.along + input.day.shift)
-    return { index: i, mineRun, mine, old, clock: runClock(mine, mineRun, old), notes: recordNotes(i, mineRun, oldRun, head), chutes: chutesAt(mine, mineRun) }
+    return { index: i, mineRun, mine, old, clock: runClock(mine, mineRun, old, cls), notes: recordNotes(i, mineRun, oldRun, head, cls), chutes: chutesAt(mine, mineRun, cls) }
   })
   const [first, second] = runs as [(typeof runs)[0], (typeof runs)[0]]
   const secondFrom = first.clock.length + RECORD_REPLAY.turn
@@ -124,7 +126,7 @@ export async function playRecordReplay(input: RecordReplayInput): Promise<void> 
   // Metres down the course: both cars as dots, ticks at each end of the timed kilometre.
   const strip = el('div', 'replay-strip')
   strip.setAttribute('aria-hidden', 'true')
-  for (const at of [RECORD_RUN.runUp, RECORD_RUN.runUp + RECORD_RUN.timed]) {
+  for (const at of [runUp, runUp + RECORD_RUN.timed]) {
     const tick = el('span', 'replay-tick')
     tick.style.left = `${(at / stripLength) * 100}%`
     strip.append(tick)
@@ -159,7 +161,7 @@ export async function playRecordReplay(input: RecordReplayInput): Promise<void> 
   function lay(run: RunIndex) {
     if (laid === run) return
     laid = run
-    view.setCourse(saltCourse(run), windOf(input.day, run))
+    view.setCourse(saltCourse(run, cls), windOf(input.day, run))
     // Setting the cars again puts the camera straight behind them for the run back.
     view.setRiders(input.design, input.setup)
     shown = -1

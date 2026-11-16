@@ -145,6 +145,8 @@ quirks you have to learn.
 | Race-car promise | **Lap-time gain**: tenths off a reference lap. Downforce and drag both feed the lap, and a balance window must hold. *(16 Nov 2026, for PR 9)* |
 | Record cars | **Streamliner, then jet**: first a long, low wheel-driven streamliner on the salt (about 500–650 km/h), later a jet car chasing the sound barrier, where the air squeezes near Mach 1. *(16 Nov 2026, for PR 9)* |
 | Record cars in the tunnel | **Read low, learn the trap**: the firm reads at the tunnel's top speed and the forecast scales up. Lift and stability scale fine, but above about 650 km/h the air squeezes and drag grows that the tunnel never sees; learning that correction is the skill. No high-speed upgrade. *(16 Nov 2026, for PR 9)* |
+| Jet car target | **Through the sound barrier**: the jet car's hardest job asks for more than Mach 1 (about 1,250 km/h on the salt). Past Mach 1 the drag eases off a little from its peak, and right at it a shock under the nose lifts it, so droop that held below the barrier may not hold there. The tunnel sees neither. *(16 Nov 2026, for PR 9)* |
+| Jet car's new part | **A waist (area rule)**: pinching the body where the engine sits lets the air squeeze later and climb less; pinch past the engine's room and it loses thrust. A longer, finer nose also shrinks the climb. *(16 Nov 2026, for PR 9)* |
 | Record rules | **Two-way mean, chutes out**: a run each way within an hour, and the mean speed counts, so the wind mostly cancels. If the nose lifts or the car wanders, the driver aborts with the parachutes: nobody's hurt, but the run doesn't count. *(16 Nov 2026, for PR 9)* |
 | Firm name | **Asked at career start**, with a ready-made name to keep; renamable. *(16 Nov 2026, for PR 7)* |
 

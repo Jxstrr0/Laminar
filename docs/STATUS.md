@@ -82,10 +82,15 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 9t | Record jobs in the sim: Bogdan Lisovoy's home-built Kalina and the Zarya Land Speed Project (its canopy cut so low the driver gives up power) at Sukhoye Speed Week. The promise is km/h on the two-way mean on the salt's still day over the team's car, 2 km/h a point (Kelbo: "km/h on their car"); a car that pulls its chutes there gains nothing. Record day is seeded, the read is judged on drag, and the debrief names a light nose, a wander or the low canopy. Shape and Tunnel forecast at the job's flat against the team's own car. Closed to the board until 9u | **Done** (v0.9.19.0) |
 | 9u | Record jobs on the board: the brief card (course, air, car), bids in km/h 2 at a time, a Deliver sheet that declares the two-way mean from the tunnel's forecast (warning if it was read over the bare floor, never yawed, or pulled its chutes) or the desk's, and a Speed week debrief with the still day, record day and its wind, the read, and a light nose, a wander or a low canopy with a "Change this". The bids sheet's Shape button now names a truck or a car | **Done** (v0.9.20.0) |
 | 9v | The record-run replay: record day on the salt from behind your car, the team's old car as a slate twin, both runs (north, then back south), the run-up fast and the timed kilometre slower. Chutes at the end of each run, or early where the nose lifted or the car swung off the line; a readout of the run, the speed and the timed kilometre, and a commentator. Ends on record day's two-way means and the declared speed against the still day's, then speed week; "Watch the replay" brings it back | **Done** (v0.9.21.0) |
-| 9w–14 | See the plan | Next: the jet car. |
+| 9w | The jet car in the sim: a second record class pushed by thrust on a 14 km run-up, with a waist (area rule) that lets the air squeeze later and less until it crowds the engine, a peak drag that also shrinks with a finer nose, drag easing off past Mach 1, and a shock under the nose at Mach 1 that can lift it (Kelbo: "through the sound barrier", "a waist"). The team's stock jet tops out near Mach 0.9; a well-shaped one breaks the barrier. Saves from before keep a straight body | **Done** (v0.9.22.0) |
+| 9x–14 | See the plan | Next: the jet car on Shape (9x), in the tunnel (9y), its jobs (9z), and the sonic boom in the replay. |
 
 ## Versions
 
+- **0.9.22.0** (PR 9w): the jet car in the sim, not yet in the game. A
+  second land-speed class, pushed by a jet engine, that can go through the
+  sound barrier if it's shaped for it: a long, fine, well-drooped nose and
+  a pinched waist. Nothing new to see on a phone yet: Shape gets it in 9x.
 - **0.9.21.0** (PR 9v): the record-run replay. Deliver a land-speed car
   and record day plays first: both runs on the salt, your car in front,
   the team's car see-through beside it, the chutes out at the end (or

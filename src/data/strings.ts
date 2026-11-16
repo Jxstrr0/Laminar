@@ -788,6 +788,7 @@ export const STRINGS = {
   'deliver.wrongCar': 'The bench doesn’t hold the team’s car ({kind}). Shape their car, then deliver.',
   'deliver.car': 'Send it to the team',
   'record.class.streamliner': 'Streamliner',
+  'record.class.jet': 'Jet car',
   'board.promiseRecord': '+{kmh} km/h',
   'board.flat': 'Course',
   'board.flatValue': '{flat}, the timed kilometre',

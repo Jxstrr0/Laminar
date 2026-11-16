@@ -125,7 +125,7 @@ function soundCar(x: Obj): CarDesign | null {
 }
 
 function soundRecordCar(x: Obj): RecordDesign | null {
-  if (!oneOf(x.class, ['streamliner'] as const) || !isObj(x.nose)) return null
+  if (!oneOf(x.class, ['streamliner', 'jet'] as const) || !isObj(x.nose)) return null
   const { length, droop } = x.nose
   if (![length, droop, x.canopy, x.fin, x.fairings].every(isNum)) return null
   const R = RECORD_RANGE[x.class]
@@ -137,6 +137,8 @@ function soundRecordCar(x: Obj): RecordDesign | null {
     canopy: n(x.canopy, R.canopy),
     fin: n(x.fin, R.fin),
     fairings: n(x.fairings, R.fairings),
+    // Saves from before the jet car (PR 9w) have no waist: a straight body.
+    waist: n(isNum(x.waist) ? x.waist : 0, R.waist),
   }
 }
 

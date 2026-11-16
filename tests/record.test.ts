@@ -71,7 +71,7 @@ describe('the air squeezing near the speed of sound', () => {
 
   it('adds no drag below the critical Mach number, then more and more', () => {
     const crit = criticalMach(STOCK)
-    expect(crit).toBeCloseTo(COMPRESSIBILITY.critical, 9)
+    expect(crit).toBeCloseTo(COMPRESSIBILITY.classes.streamliner.critical, 9)
     expect(dragRise(STOCK, crit - 0.05)).toBe(1)
     expect(dragRise(STOCK, crit + 0.05)).toBeGreaterThan(1)
     expect(dragRise(STOCK, 0.9)).toBeGreaterThan(dragRise(STOCK, crit + 0.05) + 1)
@@ -96,7 +96,7 @@ describe('a run down the salt', () => {
     expect(good.speed!).toBeGreaterThan(stock.speed! * 1.05)
     // Still picking up speed through the timed kilometre, so its mean is under its top.
     expect(stock.speed!).toBeLessThan(stock.top)
-    expect(stock.speeds.length).toBe((RECORD_RUN.runUp + RECORD_RUN.timed) / RECORD_RUN.step + 1)
+    expect(stock.speeds.length).toBe((RECORD_RUN.runUp.streamliner + RECORD_RUN.timed) / RECORD_RUN.step + 1)
   })
 
   it('a canopy too low to see the line costs speed', () => {

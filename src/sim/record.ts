@@ -15,7 +15,11 @@
  * side force back.
  *
  * A run: from a standstill, traction-limited at first (all four wheels
- * drive, on salt), then power against drag, through the timed kilometre. If the nose
+ * drive, on salt), then power against drag, through the timed kilometre.
+ * A jet car (PR 9w) is pushed by its thrust instead, and goes on through
+ * the sound barrier if it can: its waist lets the air squeeze later and
+ * less, but pinched past the engine's room it loses thrust, and the shock
+ * under the nose at Mach 1 can lift it. If the nose
  * goes light or the car wanders, the driver pulls the chutes: nobody is
  * hurt, but the run doesn't count. The record is a run each way within the
  * hour: the timed kilometre twice over the two runs' time (Kelbo,
@@ -73,13 +77,14 @@ export function recordLength(design: RecordDesign): number {
 export function sideCentre(design: RecordDesign): { centre: number; mass: number; area: number; margin: number } {
   const b = RECORD_CLASS[design.class].body
   const n = design.nose.length
+  const at = S.at[design.class]
   const parts: [number, number][] = [
     [S.noseArea * n * S.noseGain, S.noseAt * n],
     [b.length * b.height * S.bodyGain, n + S.bodyAt * b.length],
-    [design.canopy * S.canopyLength, n + S.canopyAt],
+    [design.canopy * S.canopyLength, n + at.canopy],
     [S.fairingArea * design.fairings, n + b.frontAxle],
     [S.fairingArea * design.fairings, n + b.rearAxle],
-    [design.fin * S.finGain, n + S.finAt],
+    [design.fin * S.finGain, n + at.fin],
   ]
   let area = 0
   let moment = 0
@@ -102,17 +107,41 @@ export function soundSpeed(temperatureC: number): number {
   return Math.sqrt(C.gamma * ATMOSPHERE.gasConstant * (temperatureC + ATMOSPHERE.kelvin))
 }
 
-/** The Mach number where the air starts to squeeze round this car. */
+/** The Mach number where the air starts to squeeze round this car: later with a longer nose, and with a waist. */
 export function criticalMach(design: RecordDesign): number {
-  return C.critical + C.perNose * (design.nose.length - C.refNose)
+  const k = C.classes[design.class]
+  return k.critical + k.perNose * (design.nose.length - k.refNose) + k.perWaist * design.waist
 }
 
-/** How much the drag grows at this Mach number (1: not at all). */
+/** How far the drag climbs by Mach 1: the waist takes some of it away, and on a jet car a longer nose too. */
+export function risePeak(design: RecordDesign): number {
+  const k = C.classes[design.class]
+  const slender = k.fineness ? (k.refNose / design.nose.length) * (k.refNose / design.nose.length) : 1
+  return k.rise * (1 - k.waistCut * design.waist) * slender
+}
+
+/** How much the drag grows at this Mach number (1: not at all): climbing to Mach 1, then easing off a little past it. */
 export function dragRise(design: RecordDesign, mach: number): number {
   const crit = criticalMach(design)
   if (mach <= crit) return 1
-  const past = (mach - crit) / (1 - crit)
-  return 1 + C.rise * past * past
+  const peak = risePeak(design)
+  if (mach <= 1) {
+    const past = (mach - crit) / (1 - crit)
+    return 1 + peak * past * past
+  }
+  const eased = Math.max(C.supersonic.floor, 1 - C.supersonic.fall * (mach - 1) * 10)
+  return 1 + peak * eased
+}
+
+/** The front lift the shock under the nose adds at this Mach number, m²: the most at Mach 1, none by `width` either side. */
+export function shockLift(mach: number): number {
+  const u = (mach - 1) / C.shock.width
+  return C.shock.lift * Math.max(0, 1 - u * u)
+}
+
+/** The share of the thrust a jet car keeps with its waist: all of it until the pinch crowds the engine. */
+export function thrustKept(design: RecordDesign): number {
+  return 1 - C.waist.thrust * Math.max(0, design.waist - C.waist.room)
 }
 
 /** The share of power the driver gives up because the canopy is too low to see the line well. */
@@ -209,11 +238,15 @@ export function recordRun(design: RecordDesign, air: RunAir, opts: RunOptions = 
   const frontStatic = weight * c.massFront
   const aero = opts.aero ?? trimmed(design, opts.trim ?? NO_RECORD_TRIM)
   const squeeze = opts.squeeze ?? true
-  const power = c.power * (opts.sighted ? 1 : 1 - sightLoss(design))
+  // A driver who can't see the line gives up some of the power (or a jet's thrust).
+  const kept = opts.sighted ? 1 : 1 - sightLoss(design)
+  const power = c.power * kept
+  const thrust = c.thrust * thrustKept(design) * kept
   const chutes = opts.chutes ?? true
   const stable = !chutes || opts.holdStraight === true || (opts.margin ?? sideCentre(design).margin) >= marginNeeded(air.cross)
   const sound = soundSpeed(air.temperature)
-  const end = RUN.runUp + RUN.timed
+  const runUp = RUN.runUp[design.class]
+  const end = runUp + RUN.timed
   const speeds = [0]
   let v = 0
   let d = 0
@@ -224,19 +257,22 @@ export function recordRun(design: RecordDesign, air: RunAir, opts: RunOptions = 
   while (d < end - 1e-9) {
     const u = v + air.head
     const q = 0.5 * air.density * u * Math.abs(u)
-    // The nose goes light, or the car wanders off the line: chutes out.
-    if (chutes && q * aero.liftFront > (1 - RUN.frontKeep) * frontStatic) return aborted('lift')
-    if (!stable && v >= S.wanderSpeed) return aborted('wander')
     const mach = Math.abs(u) / sound
+    // Near Mach 1 the shock under the nose lifts it (unseen when the squeeze is left out, as in the tunnel).
+    const front = aero.liftFront + (squeeze ? shockLift(mach) : 0)
+    // The nose goes light, or the car wanders off the line: chutes out.
+    if (chutes && q * front > (1 - RUN.frontKeep) * frontStatic) return aborted('lift')
+    if (!stable && v >= S.wanderSpeed) return aborted('wander')
     const r = squeeze ? dragRise(design, mach) : 1
-    const traction = c.grip * Math.max(0, weight - q * (aero.liftFront + aero.liftRear))
-    const drive = Math.min(power / Math.max(v, 1), traction)
+    const load = Math.max(0, weight - q * (front + aero.liftRear))
+    // Wheels drive up to their grip; a jet's thrust pushes whatever the load.
+    const drive = c.thrust > 0 ? thrust : Math.min(power / Math.max(v, 1), c.grip * load)
     const drag = q * aero.cdA * r
-    const rolling = RUN.rolling * Math.max(0, weight - q * (aero.liftFront + aero.liftRear))
+    const rolling = RUN.rolling * load
     const accel = (drive - drag - rolling) / c.mass
     const next = Math.sqrt(Math.max(0, v * v + 2 * accel * RUN.step))
     const dt = RUN.step / Math.max((v + next) / 2, 0.5)
-    if (d >= RUN.runUp - 1e-9) timed += dt
+    if (d >= runUp - 1e-9) timed += dt
     v = next
     d += RUN.step
     speeds.push(v)
