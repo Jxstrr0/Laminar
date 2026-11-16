@@ -40,11 +40,21 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 7e | Workshop chain: FDM printer, resin printer, CNC mill | **Done** (v0.7.4.0) |
 | 7f | Staff with traits, paid per day that passes | **Done** (v0.7.5.0) |
 | 7g | Going broke: the soft landing | **Done** (v0.7.6.0) |
-| 7h | Backup file and reminder | Next |
-| 7i–14 | See the plan (2040 ending, then PRs 8–14) | Not started |
+| 7h | Backup file and reminder | **Done** (v0.7.7.0) |
+| 7i | The 2040 ending and legacy card | Next |
+| 8–14 | See the plan | Not started |
 
 ## Versions
 
+- **0.7.7.0** (PR 7h): backups.
+  - The Saves sheet can save the career as a text file
+    (`laminar-backup-YYYY-MM-DD.txt`, holding its save code) and restore one:
+    "Pick a backup file" puts its code in the box, ready to load.
+  - Two weeks after the last backup (or the first visit), the Saves chip
+    turns amber and reads "Back up". Saving a file or copying the code
+    resets it.
+  - The game asks the browser to keep its storage (`navigator.storage.persist()`).
+  - New localStorage keys: `laminar.backedUpAt` and `laminar.firstSeen`.
 - **0.7.6.0** (PR 7g): going broke, the soft landing.
   - If a job leaves cash below zero, kit is sold for half what it cost,
     cheapest first, until cash is back above zero. Your own tunnel goes

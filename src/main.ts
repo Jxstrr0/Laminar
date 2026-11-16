@@ -22,6 +22,7 @@ import { crewEffects } from './sim/staff'
 import { afterDesign, afterOrder, afterRun, afterSwap, currentStep } from './sim/guide'
 import { runCost } from './sim/run'
 import { rublesShort } from './ui/format'
+import { askToKeepStorage, backupDue, noteFirstSeen, readMarks } from './persist/backup'
 
 /** The career slot in play: the one used last visit. */
 const SLOT = lastSlot()
@@ -180,8 +181,16 @@ async function boot(): Promise<void> {
   const savesBtn = document.createElement('button')
   savesBtn.type = 'button'
   savesBtn.className = 'chip saves-open'
-  savesBtn.textContent = t('saves.open')
-  savesBtn.setAttribute('aria-label', t('saves.openName'))
+  // After two weeks without a backup, the chip asks for one.
+  const showSavesChip = () => {
+    const due = backupDue(Date.now(), readMarks())
+    savesBtn.textContent = t(due ? 'saves.openDue' : 'saves.open')
+    savesBtn.setAttribute('aria-label', t(due ? 'saves.openDueName' : 'saves.openName'))
+    savesBtn.classList.toggle('due', due)
+  }
+  noteFirstSeen(Date.now())
+  showSavesChip()
+  void askToKeepStorage()
   savesBtn.addEventListener('click', async () => {
     const { openSaves } = await import('./ui/savesSheet')
     await openSaves({
@@ -197,6 +206,7 @@ async function boot(): Promise<void> {
           career: newCareer(freshSeed()),
         }),
       load: (save) => leaveFor(SLOT, { ...save, savedAt: Date.now() }),
+      backedUp: showSavesChip,
     })
   })
   // The firm's money and the job's days, beside Saves; a tap opens Jobs.
