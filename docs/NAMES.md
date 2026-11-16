@@ -35,6 +35,7 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Kosa port | The port at the Kosa spit; home of Prichal Logistics, whose yard on the spit is shingle (gravel). | PR 9e, 9g |
 | Dolgo Ring | A fast circuit by Lake Dolgo: a long main straight, sweepers and one hairpin. | PR 9i |
 | Stavren Park | A tight park circuit in Stavren: short straights and slow corners. | PR 9i |
+| Lake Sukhoye | A dry salt lake in Tarnovia's south, some 20 km long: the land-speed course. | PR 9p |
 | Belogor | A ski-jump venue with a normal hill (HS 98) and a large hill (HS 134), and a sliding track on the same mountain. | PR 8g, 8h, 8l |
 
 ## Bodies

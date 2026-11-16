@@ -143,6 +143,9 @@ quirks you have to learn.
 | Balance window | **The driver loses time**: outside the window the car understeers or oversteers, the driver lifts in the corners and the lap gets slower, judged that way; the debrief names it with a fix. *(16 Nov 2026, for PR 9)* |
 | Car rules | **A rule box**: a fictional Tarnovian Motor Racing Federation rulebook sets a minimum ride height (the skid plank) and a maximum rear-wing chord; Shape flags a break and the scrutineers make the team trim it. *(16 Nov 2026, for PR 9)* |
 | Race-car promise | **Lap-time gain**: tenths off a reference lap. Downforce and drag both feed the lap, and a balance window must hold. *(16 Nov 2026, for PR 9)* |
+| Record cars | **Streamliner, then jet**: first a long, low wheel-driven streamliner on the salt (about 500–650 km/h), later a jet car chasing the sound barrier, where the air squeezes near Mach 1. *(16 Nov 2026, for PR 9)* |
+| Record cars in the tunnel | **Read low, learn the trap**: the firm reads at the tunnel's top speed and the forecast scales up. Lift and stability scale fine, but above about 650 km/h the air squeezes and drag grows that the tunnel never sees; learning that correction is the skill. No high-speed upgrade. *(16 Nov 2026, for PR 9)* |
+| Record rules | **Two-way mean, chutes out**: a run each way within an hour, and the mean speed counts, so the wind mostly cancels. If the nose lifts or the car wanders, the driver aborts with the parachutes: nobody's hurt, but the run doesn't count. *(16 Nov 2026, for PR 9)* |
 | Firm name | **Asked at career start**, with a ready-made name to keep; renamable. *(16 Nov 2026, for PR 7)* |
 
 ---
