@@ -55,7 +55,10 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Kirill Zorin | Junior ski jumper (Belogor Junior Cup). PR 8g. |
 | Polina Vetrova | National-level ski jumper (Belogor Winter Cup). PR 8g. |
 | Yaroslav Kuzmenko | Experienced ski jumper on the large hill (Tarnovian Large Hill Championship). PR 8h. |
-| Stavren Regional Time Trial, Club 16 km Time Trial, Lake Dolgo Hill Time Trial, Kosa Coast Time Trial, National Time Trial Championship, Track Championships: Individual Pursuit, Stavren Open: 10 000 m, Lake Dolgo Ice Marathon, Belogor Junior Cup, Belogor Winter Cup, Tarnovian Large Hill Championship | The events above. |
+| Danil Kostrov | Club bobsled driver on a borrowed old sled (Belogor Club Cup: two-man). PR 8o. |
+| Vera Kedrova | National two-man bobsled pilot (Tarnovian Two-man Championship). PR 8o. |
+| Matvei Gromov | Four-man bobsled pilot (Tarnovian Four-man Championship). PR 8o. |
+| Stavren Regional Time Trial, Club 16 km Time Trial, Lake Dolgo Hill Time Trial, Kosa Coast Time Trial, National Time Trial Championship, Track Championships: Individual Pursuit, Stavren Open: 10 000 m, Lake Dolgo Ice Marathon, Belogor Junior Cup, Belogor Winter Cup, Tarnovian Large Hill Championship, Belogor Club Cup: two-man, Tarnovian Two-man Championship, Tarnovian Four-man Championship | The events above. |
 
 ## Rival firms (PR 7)
 

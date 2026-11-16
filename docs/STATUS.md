@@ -57,12 +57,33 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 8l | The bobsled in the sim: the sled, the crew's tuck, the rule box, the run down Belogor | **Done** (v0.8.11.0) |
 | 8m | The bobsled on the Shape screen | **Done** (v0.8.12.0) |
 | 8n | The bobsled in the tunnel | **Done** (v0.8.13.0) |
-| 8o | Bobsled jobs: the promise in hundredths, the board, race day | Next |
-| 8p | The bobsled run replay | Not started |
+| 8o | Bobsled jobs in the career (sim): briefs, the promise in hundredths, race day | **Done** (v0.8.14.0) |
+| 8p | Bobsled jobs on screen: the board, the bid in hundredths, declaring a run time, the race-day debrief | Next |
+| 8q | The bobsled run replay | Not started |
 | 9–14 | See the plan | Not started |
 
 ## Versions
 
+- **0.8.14.0** (PR 8o): bobsled jobs in the career (sim only).
+  - Three clients: Danil Kostrov's club two-man on an old sled, Vera
+    Kedrova's national two-man championship (reputation 30), and Matvei
+    Gromov's four-man championship (reputation 45: the four-man comes later,
+    as Kelbo chose).
+  - The promise is time gained on the reference run down Belogor (the
+    usual push, good ice, still air) over the client's old sled. One
+    promised point is a tenth of a second, so a missed tenth costs what a
+    missed point of cut does; bids move in hundredths. The rivals bid the
+    same way.
+  - The declared number is the reference run's time, as a ski jumper's is
+    the reference jump's distance. The read is judged on drag like every
+    other job: the declared time is turned back into the drag area that
+    gives it. A forecast 0.4 s quick (a sled tested on the bare floor) is a
+    poor read; a few hundredths is a good one.
+  - Race day: the client's crew push, the day's ice, air and wind, with
+    both sleds down the track in the same conditions. If the driver couldn't
+    see over the cowling, the debrief names the time lost and sends you to
+    the cowling; if that's what cost the promise, it says so.
+  - The briefs stay off the board until PR 8p puts them on screen.
 - **0.8.13.0** (PR 8n): the bobsled in the tunnel.
   - The sled sits on two short posts under its runners. The balance reads
     the hull as a body (so it meets the Reynolds trap and trip strips like

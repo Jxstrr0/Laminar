@@ -454,7 +454,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     const where = (e as CustomEvent<FixTarget>).detail
     if (isBobsled(design)) {
       // A sled's fixes: the crew's tuck for anything about the crew, otherwise the cowling.
-      if (where === 'helmet' || where === 'headDrop') jumpToControl({ tab: 'position', id: 'bs-tuck' })
+      if (where === 'helmet' || where === 'headDrop' || where === 'tuck') jumpToControl({ tab: 'position', id: 'bs-tuck' })
       else jumpToControl({ tab: 'kit', id: 'bs-cowl' })
       return
     }
