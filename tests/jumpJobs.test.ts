@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { BRIEFS, JUMP_JOBS, PROMISE } from '../src/data/briefs'
 import { DEFAULT_JUMPER, type JumperDesign } from '../src/data/jumper'
-import { boardFor, briefTemplate, deliver, deliverJump, isJumpBrief, jumpEventOf, newCareer, openTo, type CareerState } from '../src/sim/career'
+import { boardFor, briefTemplate, currentJumpEvent, deliver, deliverJump, isJumpBrief, jumpEventOf, newCareer, openTo, type CareerState } from '../src/sim/career'
+import { PRACTICE_JUMP } from '../src/data/hills'
+import { legacyOf } from '../src/sim/legacy'
 import { jumpDay, referenceJump } from '../src/sim/jumper'
 import { reputationOf } from '../src/sim/reputation'
 
@@ -15,7 +17,7 @@ function onJob(id: string, promise: number): CareerState {
 
 describe('ski-jump briefs', () => {
   afterEach(() => {
-    JUMP_JOBS.open = false
+    JUMP_JOBS.open = true
   })
 
   it('are jumps on a hill, each setup a jumper', () => {
@@ -43,13 +45,16 @@ describe('ski-jump briefs', () => {
     expect(jumpEventOf({ id: 'selivan-regional' })).toBeNull()
   })
 
-  it('stay off the board until the board can show them', () => {
+  it('join the board once the firm is known enough, and the switch can take them off', () => {
     const jump = BRIEFS.find((b) => b.event.jump)!
-    expect(openTo(jump, 100)).toBe(false)
-    for (let round = 1; round < 20; round++) expect(boardFor(5, round, false, 100).some((b) => isJumpBrief(b.id))).toBe(false)
-    JUMP_JOBS.open = true
     expect(openTo(jump, 100)).toBe(true)
     expect(openTo(jump, 0)).toBe(false)
+    let seen = false
+    for (let round = 1; round < 40; round++) seen ||= boardFor(5, round, false, 100).some((b) => isJumpBrief(b.id))
+    expect(seen).toBe(true)
+    JUMP_JOBS.open = false
+    expect(openTo(jump, 100)).toBe(false)
+    for (let round = 1; round < 20; round++) expect(boardFor(5, round, false, 100).some((b) => isJumpBrief(b.id))).toBe(false)
   })
 })
 
@@ -144,10 +149,28 @@ describe('the cap at HS (Kelbo, 16 November 2026)', () => {
   })
 
   it('opens the large hill only to a well-known lab', () => {
-    JUMP_JOBS.open = true
     const b = BRIEFS.find((x) => x.id === id)!
     expect(openTo(b, 30)).toBe(false)
     expect(openTo(b, 60)).toBe(true)
-    JUMP_JOBS.open = false
+  })
+})
+
+describe('jump jobs around the career', () => {
+  it('builds the jumper for the job’s hill, or the practice jump between jobs', () => {
+    expect(currentJumpEvent(newCareer(5))).toBe(PRACTICE_JUMP)
+    expect(currentJumpEvent(onJob('kuzmenko-large', 8)).hill.id).toBe('large')
+    expect(currentJumpEvent(onJob('zorin-junior', 6))).toEqual(jumpEventOf({ id: 'zorin-junior' }))
+  })
+
+  it('tells metres from a cut in the legacy’s best job', () => {
+    const d = deliverJump(onJob('zorin-junior', 6), DEFAULT_JUMPER, 90)!
+    const jumpOnly = legacyOf(d.state).best!
+    expect(jumpOnly.unit).toBe('m')
+    expect(jumpOnly.cut).toBeCloseTo(d.debrief.achieved, 9)
+    // A cut in %, however small, is the best job once there is one: the two can't be weighed.
+    const cut = { id: 'selivan-regional', day: 1, fee: 1, paid: 1, promised: 1, achieved: 0.5, predicted: 0.25, actual: 0.25 }
+    const both = legacyOf({ ...d.state, history: [...d.state.history, cut] }).best!
+    expect(both.unit).toBe('pct')
+    expect(both.cut).toBe(0.5)
   })
 })

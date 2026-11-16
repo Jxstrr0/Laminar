@@ -142,10 +142,10 @@ export const TRACK = {
  * weighed like a promised point of cut, and missed the same way.
  *
  * The board offers them from PR 8i, when the board and debrief can show
- * them; until then they stay off it.
+ * them. The switch stays so a test can take them off again.
  */
 export const JUMP_JOBS = {
-  open: false,
+  open: true,
 }
 
 /** The indoor 400 m ice oval (PR 8b): longer straights than the velodrome, skated anticlockwise too. */

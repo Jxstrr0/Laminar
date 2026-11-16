@@ -20,7 +20,7 @@
  *   event and refreshes the board.
  */
 import { BID, BRIEFS, CAREER, JUMP_JOBS, PROMISE, type BriefTemplate } from '../data/briefs'
-import { HILLS } from '../data/hills'
+import { HILLS, PRACTICE_JUMP } from '../data/hills'
 import type { JumperDesign } from '../data/jumper'
 import { jumpDay, referenceJump, type JumpEvent, type JumpResult, type ReferenceJump } from './jumper'
 import { REFERENCE_RIDER } from '../data/field'
@@ -303,6 +303,11 @@ export function eventOf(brief: Pick<Brief, 'id'>): EventSpec {
 /** The event the bench is working towards: the job's, or the reference time trial between jobs. */
 export function currentEvent(state: CareerState): EventSpec {
   return state.job ? eventOf(state.job.brief) : REFERENCE_TT
+}
+
+/** The jump a jumper is built for: the job's hill and day, or the practice jump between jobs. */
+export function currentJumpEvent(state: CareerState): JumpEvent {
+  return (state.job && jumpEventOf(state.job.brief)) ?? PRACTICE_JUMP
 }
 
 /** Take a brief off the board at its suggested fee and the client's ask. Only one job at a time. */

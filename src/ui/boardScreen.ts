@@ -11,7 +11,10 @@ import { RIVALS, RIVAL_IDS } from '../data/rivals'
 import { OWN_BILLING, OWN_TUNNEL_BUILD, TUNNEL_UPGRADES, UPGRADE_IDS } from '../data/tunnel'
 import { buildBlock, machineBlock, ownReadyDay, upgradeBlock, upgradeReadyDay } from '../sim/facility'
 import { MACHINE_IDS, MACHINE_PRICE } from '../data/model'
-import { designShape, isSkater, type Design } from '../sim/design'
+import { designShape, isJumper, isSkater, type Design } from '../sim/design'
+import { PITCH, type JumperDesign } from '../data/jumper'
+import { HILLS } from '../data/hills'
+import { jumpForecast } from './jumpForecast'
 import { t } from '../data/strings'
 import {
   bidScore,
@@ -27,15 +30,19 @@ import {
   letStaffGo,
   orderUpgrade,
   deliver,
+  deliverJump,
   eventOf,
+  isJumpBrief,
+  jumpEventOf,
   placeBid,
   waitForBriefs,
   type Bid,
   type Brief,
   type BidResult,
   type Delivery,
+  type JumpDelivery,
 } from '../sim/career'
-import { deskEstimate } from '../sim/desk'
+import { deskEstimate, jumpDeskEstimate } from '../sim/desk'
 import { crewEffects, wagesPerDay } from '../sim/staff'
 import type { Sale } from '../sim/broke'
 import { legacyOf } from '../sim/legacy'
@@ -96,6 +103,11 @@ function fact(label: string | HTMLElement, value: string): HTMLElement {
   return box
 }
 
+/** A promise in its own units: −x % drag, or +x m on a ski jump. */
+function promiseText(id: string, n: number): string {
+  return isJumpBrief(id) ? t('board.promiseJump', { m: pct(n) }) : t('board.promiseValue', { pct: pct(n) })
+}
+
 /** A change in reputation, signed: "+6", "−4", "±0". */
 const signed = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `\u2212${-n}` : '\u00b10')
 
@@ -132,6 +144,12 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     const job = career.job
     if (!job) return
     deliverSheet ??= createSheet({ cls: 'deliver', title: t('deliver.title'), closeLabel: t('deliver.close') })
+    const bench = designStore.get()
+    // A ski-jump job declares a distance instead (winning one puts a jumper on the bench).
+    if (isJumpBrief(job.brief.id)) {
+      if (isJumper(bench)) openDeliverJump(bench)
+      return
+    }
     const b = briefTemplate(job.brief.id)!
     const design = designStore.get()
     const desk = deskEstimate(designShape(design), eventOf(job.brief), job.brief.seed, JSON.stringify(design), crewEffects(career.crew).deskLevel)
@@ -186,6 +204,129 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       race,
     )
     deliverSheet.open()
+  }
+
+  /**
+   * The Deliver sheet for a ski jump: the promise in metres, and the declared
+   * reference jump, filled in from the tunnel's forecast for this design.
+   */
+  function openDeliverJump(design: JumperDesign) {
+    const career = careerStore.get()
+    const job = career.job
+    if (!job || !deliverSheet) return
+    const b = briefTemplate(job.brief.id)!
+    const event = jumpEventOf(job.brief)!
+    const forecast = jumpForecast.get(design, event)
+    const desk = jumpDeskEstimate(design, event, job.brief.seed, JSON.stringify(design), crewEffects(career.crew).deskLevel)
+    // Start from the tunnel's forecast if it flew one for this design, else the desk; never past the hill size.
+    const start = Math.min(forecast ? forecast.counted : desk.value, event.hill.hs)
+    const box = stepper('deliver-jump', fixed(start, 1).replace(/,/g, ''), 'm', t('deliver.lessJump'), t('deliver.moreJump'), (dir) => {
+      const v = Number(box.input.value) || start
+      box.input.value = (Math.round((v + dir * 0.5) * 10) / 10).toFixed(1)
+    })
+    box.input.step = '0.1'
+    box.input.min = '20'
+    box.input.max = '200'
+    const label = el('label', 'shop-label', t('deliver.predictJump'))
+    label.htmlFor = box.input.id
+    const notes: HTMLElement[] = []
+    if (forecast) {
+      notes.push(el('p', 'shop-note', t('deliver.forecastNote', { distance: fixed(forecast.distance, 1), margin: fixed(forecast.minMargin * 100, 1) })))
+      if (forecast.pastHs) notes.push(el('p', 'shop-note', t('deliver.forecastPast', { hs: fixed(event.hill.hs, 0) })))
+      if (!forecast.covered) notes.push(el('p', 'shop-note', t('deliver.forecastWider')))
+    } else notes.push(el('p', 'shop-note', t('deliver.noForecast', { desk: fixed(desk.value, 1), spread: fixed((desk.high - desk.low) / 2, 1) })))
+    const status = el('p', 'shop-note')
+    status.setAttribute('aria-live', 'polite')
+    const go = button('shop-order', t('deliver.jump'))
+    go.addEventListener('click', () => {
+      const predicted = Number(box.input.value)
+      if (!Number.isFinite(predicted) || predicted < 20 || predicted > 200) {
+        status.textContent = t('deliver.badJump')
+        return
+      }
+      const d = deliverJump(careerStore.get(), design, predicted)
+      if (!d) return
+      deliverSheet?.close()
+      careerStore.set(d.state)
+      showJumpDelivery(d)
+    })
+    deliverSheet.body.replaceChildren(
+      el('p', 'shop-intro', t('deliver.introJump', { client: b.client, event: b.event.name })),
+      el('p', 'deliver-promise', t('deliver.promiseJump', { m: pct(job.promise) })),
+      el('p', 'shop-note', t('deliver.promiseNoteJump', { floor: fixed(PITCH.floor * 100, 0), hs: fixed(event.hill.hs, 0) })),
+      label,
+      box.row,
+      ...notes,
+      status,
+      go,
+    )
+    deliverSheet.open()
+  }
+
+  let jumpSheet: Sheet | null = null
+
+  /** Jump day: the promise judged on the reference jump, the jump on the day, and any trouble with its fix. */
+  function showJumpDelivery(d: JumpDelivery) {
+    jumpSheet ??= createSheet({ cls: 'raceday', title: t('jd.title'), closeLabel: t('jd.close') })
+    const b = briefTemplate(d.job.brief.id)!
+    const db = d.debrief
+    const hs = fixed(d.event.hill.hs, 0)
+    const floor = fixed(PITCH.floor * 100, 0)
+    const m = (x: number) => `${fixed(x, 1)} m`
+    // A reference jump past HS shows where it would land and what counts.
+    const ref = (r: JumpDelivery['debrief']['reference']) => (r.pastHs ? `${m(r.distance)} · ${t('jd.pastHs', { hs })}` : m(r.distance))
+    const verdict = el(
+      'p',
+      `race-verdict ${db.met ? 'is-met' : 'is-missed'}`,
+      db.met
+        ? t('jd.kept', { got: fixed(db.achieved, 1), promised: pct(db.promised) })
+        : t('jd.missed', { short: fixed(db.shortfall, 1), got: fixed(db.achieved, 1), promised: pct(db.promised) }),
+    )
+    const off = fixed(Math.abs(db.readError) * 100, 1)
+    const facts = el('div', 'job-facts')
+    facts.append(
+      fact(t('jd.reference'), ref(db.reference)),
+      fact(t('jd.oldReference'), ref(db.baselineReference)),
+      fact(t('jd.margin'), t('jd.marginValue', { pct: fixed(db.reference.minMargin * 100, 1), floor })),
+      fact(t('race.predicted'), m(db.predicted)),
+      fact(t('jd.actual'), m(db.actual)),
+      fact(t('race.read'), t(`race.read.${db.read}`, { pct: off, dir: t(db.readError >= 0 ? 'race.high' : 'race.low') })),
+      fact(t('jd.day'), m(db.day.distance)),
+      fact(t('jd.oldDay'), m(db.baselineDay.distance)),
+      fact(t('race.air'), `${fixed(db.day.temperature, 0)} °C`),
+      fact(t('jd.wind'), `${fixed(db.day.headwind, 1)} m/s`),
+      fact(t('jd.takeoff'), `${fixed(db.day.takeoffSpeed * 3.6, 1)} km/h`),
+      fact(t('race.fee'), rubles(d.job.brief.fee)),
+      fact(t('race.penalty'), db.penalty ? `−${rubles(db.penalty)}` : rubles(0)),
+      fact(t('race.paid'), rubles(d.paid)),
+      ...(d.upkeep > 0 ? [fact(t('race.upkeep'), `−${rubles(d.upkeep)}`)] : []),
+      ...(d.wages > 0 ? [fact(t('race.wages'), `−${rubles(d.wages)}`)] : []),
+      fact(
+        glossaryTerm('reputation', t('race.reputation')),
+        t('race.repChange', { after: db.reputation.after, change: signed(db.reputation.after - db.reputation.before) }),
+      ),
+    )
+    const parts: HTMLElement[] = [el('p', 'shop-intro', t('jd.intro', { client: b.client, event: b.event.name })), verdict, facts]
+    if (db.cause) parts.push(el('p', 'shop-note', db.cause === 'pitch' ? t('jd.causePitch', { floor }) : t('jd.causeDesign')))
+    // Trouble in the air, with a "change this" jump to the suit on Shape (plan section 7).
+    if (db.trouble) {
+      const box = el('div', 'race-trouble')
+      const fix = button('save-btn quiet', t('jd.fix'))
+      const target = db.trouble.fix
+      fix.addEventListener('click', () => {
+        jumpSheet?.close()
+        go('shape')
+        window.dispatchEvent(new CustomEvent<FixTarget>('laminar:fix', { detail: target }))
+      })
+      const text = t(db.trouble.kind === 'pitch' ? 'jd.pitch' : 'jd.wobble', { client: b.client, m: fixed(db.trouble.lost, 1) })
+      box.append(el('p', 'race-trouble-text', text), fix)
+      parts.push(box)
+    } else if (db.day.trouble === 'long') parts.push(el('p', 'shop-note', t('jd.long', { client: b.client, hs })))
+    parts.push(el('p', 'shop-note', t('jd.readNote')))
+    if (d.sale) parts.push(brokeBox(d.sale, d.state.money))
+    if (d.state.ended) parts.push(el('p', 'save-due', t('end.reached')))
+    jumpSheet.body.replaceChildren(...parts)
+    jumpSheet.open()
   }
 
   /** The race-day replay for a delivery, then `after`. */
@@ -311,7 +452,9 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     price.input.step = String(BID.priceStep)
     price.input.min = String(b.fee.min)
     price.input.max = String(b.fee.max)
-    const promise = stepper('bid-promise', String(b.target), '%', t('bid.promiseLess'), t('bid.promiseMore'), (dir) => {
+    // A ski jump's promise is in metres; everything else about the bid is the same.
+    const jump = !!b.event.jump
+    const promise = stepper('bid-promise', String(b.target), jump ? 'm' : '%', t(jump ? 'bid.promiseLessJump' : 'bid.promiseLess'), t(jump ? 'bid.promiseMoreJump' : 'bid.promiseMore'), (dir) => {
       const v = Number(promise.input.value) || b.target
       const next = Math.round(v / BID.promiseStep) * BID.promiseStep + dir * BID.promiseStep
       promise.input.value = String(Math.min(BID.promiseMax, Math.max(BID.promiseMin, next)))
@@ -322,7 +465,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     promise.input.max = String(BID.promiseMax)
     const priceLabel = el('label', 'shop-label', t('bid.price'))
     priceLabel.htmlFor = price.input.id
-    const promiseLabel = el('label', 'shop-label', t('bid.promise'))
+    const promiseLabel = el('label', 'shop-label', t(jump ? 'bid.promiseJump' : 'bid.promise'))
     promiseLabel.htmlFor = promise.input.id
     const worth = el('p', 'shop-note')
     worth.setAttribute('aria-live', 'polite')
@@ -331,7 +474,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     const worthOf = Math.round((((b.fee.min + b.fee.max) / 2) * BID.pointValue) / 100) * 100
     function update() {
       const p = Number(price.input.value) || brief.fee
-      worth.textContent = t('bid.worth', { worth: rubles(worthOf), cost: rubles(Math.round((p * PROMISE.perPoint) / 100) * 100) })
+      worth.textContent = t(jump ? 'bid.worthJump' : 'bid.worth', { worth: rubles(worthOf), cost: rubles(Math.round((p * PROMISE.perPoint) / 100) * 100) })
     }
     price.input.addEventListener('input', update)
     update()
@@ -358,7 +501,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       el('p', 'shop-note', t('bid.priceNote', { min: rubles(b.fee.min), max: rubles(b.fee.max), fee: rubles(brief.fee) })),
       promiseLabel,
       promise.row,
-      el('p', 'shop-note', t('bid.ask', { pct: pct(b.target) })),
+      el('p', 'shop-note', jump ? t('bid.askJump', { m: pct(b.target) }) : t('bid.ask', { pct: pct(b.target) })),
       worth,
       status,
       seal,
@@ -377,7 +520,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       const facts = el('div', 'job-facts')
       facts.append(
         fact(t('bids.price'), rubles(bid.price)),
-        fact(t('bids.promise'), t('board.promiseValue', { pct: pct(bid.promise) })),
+        fact(t('bids.promise'), promiseText(id, bid.promise)),
         fact(glossaryTerm('reputation', t('board.reputation')), String(rep)),
         fact(t('bids.value'), rubles(bidScore(id, bid, rep))),
       )
@@ -389,7 +532,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     for (const rb of r.rivals) parts.push(...block(RIVALS[rb.firm].name, rb.bid, rb.reputation, r.winner === rb.firm))
     if (contested)
       parts.push(
-        el('p', 'shop-note', t('bids.how', { worth: rubles(r.worth), max: rubles(briefTemplate(id)!.fee.max), rep: String(Math.round(1 / REPUTATION.bidPerPoint)) })),
+        el('p', 'shop-note', t(isJumpBrief(id) ? 'bids.howJump' : 'bids.how', { worth: rubles(r.worth), max: rubles(briefTemplate(id)!.fee.max), rep: String(Math.round(1 / REPUTATION.bidPerPoint)) })),
       )
     if (r.won) {
       parts.push(el('p', 'shop-note', t('bids.wonNote')))
@@ -610,7 +753,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     meter.classList.toggle('over', job.daysLeft === 0)
     const facts = el('div', 'job-facts')
     facts.append(
-      fact(t('board.promise'), t('board.promiseValue', { pct: pct(job.promise) })),
+      fact(t('board.promise'), promiseText(job.brief.id, job.promise)),
       fact(t('board.daysLeft'), t('board.daysOf', { left: job.daysLeft, days: job.brief.days })),
       fact(t('board.fee'), rubles(job.brief.fee)),
       fact(t('board.spent'), rubles(job.spent)),
@@ -625,7 +768,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     card.append(
       head,
       el('p', 'job-client', b.client),
-      el('p', 'job-event', `${b.event.name} · ${fixed(km(b), 0)} km`),
+      el('p', 'job-event', b.event.jump ? t('board.eventJump', { event: b.event.name, hs: fixed(HILLS[b.event.jump.hill].hs, 0) }) : `${b.event.name} · ${fixed(km(b), 0)} km`),
       meter,
       facts,
       el('p', 'shop-note', t(job.daysLeft === 0 ? 'board.outOfDays' : 'board.used', { used })),
@@ -641,13 +784,17 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     if (b.tutorial) top.append(' ', el('span', 'save-slot-tag', t('board.first')))
     if (b.small) top.append(' ', el('span', 'save-slot-tag quiet', t('board.small')))
     const facts = el('div', 'job-facts')
+    // A ski jump shows its hill and the jumper's weight where a race shows its course and power.
+    const jump = b.event.jump
     facts.append(
-      fact(t('board.wants'), t('board.promiseValue', { pct: pct(b.target) })),
+      fact(t('board.wants'), promiseText(brief.id, b.target)),
       fact(t('board.feeRange'), `${rublesShort(b.fee.min)}–${rublesShort(b.fee.max)}`),
       fact(t('board.days'), String(brief.days)),
-      fact(t('board.course'), `${fixed(km(b), 0)} km`),
+      jump
+        ? fact(t('board.hill'), t('board.hillValue', { hill: t(`hill.${jump.hill}`), hs: fixed(HILLS[jump.hill].hs, 0) }))
+        : fact(t('board.course'), `${fixed(km(b), 0)} km`),
       fact(t('board.wind'), b.event.indoor ? t('board.indoors') : `~${fixed(b.event.windSpeed, 0)} m/s`),
-      fact(t('board.power'), `${fixed(b.rider.power, 0)} W`),
+      jump ? fact(t('board.mass'), `${fixed(jump.mass, 0)} kg`) : fact(t('board.power'), `${fixed(b.rider.power, 0)} W`),
       fact(t('board.where'), b.event.place),
     )
     const bidders = biddersFor(brief.id)
@@ -716,7 +863,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       ...(L.broke > 0 ? [fact(t('end.broke'), String(L.broke))] : []),
     )
     card.append(el('p', 'legacy-kicker', t('end.kicker')), head, el('p', 'firm-date', span), facts)
-    if (L.best) card.append(el('p', 'legacy-best', t('end.best', { client: L.best.client, event: L.best.event, cut: fixed(L.best.cut, 1) })))
+    if (L.best) card.append(el('p', 'legacy-best', t(L.best.unit === 'm' ? 'end.bestJump' : 'end.best', { client: L.best.client, event: L.best.event, cut: fixed(L.best.cut, 1) })))
     const share = button('save-btn', t('end.share'))
     const said = el('p', 'shop-note legacy-said')
     said.setAttribute('role', 'status')

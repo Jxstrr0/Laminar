@@ -14,7 +14,6 @@ import {
 } from '../data/cyclist'
 import { DEFAULT_SKATER, SKATER_RANGE, type SkaterDesign } from '../data/skater'
 import { DEFAULT_JUMPER, FLIGHT_ATTITUDE, JUMPER_RANGE, PITCH, type JumperDesign } from '../data/jumper'
-import { PRACTICE_JUMP } from '../data/hills'
 import { TCF_TIME_TRIAL } from '../data/rules'
 import { t, type StringKey } from '../data/strings'
 import type { RuleBreak } from '../sim/cyclist'
@@ -25,7 +24,7 @@ import { crewEffects } from '../sim/staff'
 import { designPose, designReadouts, designShape, isCyclist, isJumper, isSkater, type Design } from '../sim/design'
 import { availableHandles, dragHandle, handleDef, handlePoint } from '../sim/geom/handles'
 import { ruleVolumes } from '../sim/geom/ruleBox'
-import { briefTemplate, currentEvent } from '../sim/career'
+import { briefTemplate, currentEvent, currentJumpEvent } from '../sim/career'
 import type { Highlight, ShapeView } from '../render/shapeScene'
 import type { GlossaryId } from '../data/glossary'
 import type { HandleId, HandleParam } from '../data/handles'
@@ -519,7 +518,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   /** The jumper's sheet (PR 8d): the desk's reference jump, lift area and L/D, and the stability margin against its floor. */
   function showJumper(jumper: JumperDesign) {
     const career = careerStore.get()
-    const event = PRACTICE_JUMP
+    const event = currentJumpEvent(career)
     const desk = jumpDeskEstimate(jumper, event, career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(jumper), crewEffects(career.crew).deskLevel)
     jumpDeskR.value.textContent = `${fixed(desk.value, 1)} m`
     jumpDeskR.sub.textContent = t('read.deskJumpNote', { spread: fixed((desk.high - desk.low) / 2, 1), hill: t(`hill.${event.hill.id}`) })
