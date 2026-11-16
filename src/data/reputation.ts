@@ -18,8 +18,6 @@ export const REPUTATION = {
   read: { good: 4, fair: 1, poor: -4 },
   /** In a sealed bid, each reputation point counts as this many promised points. */
   bidPerPoint: 0.02,
-  /** The rival firm's reputation (the named rivals bring their own in PR 7b). */
-  rival: 40,
 }
 
 /** The correlation score: the mean read error over the last `jobs` jobs; `zeroAt` scores 0 and a perfect read 100. */

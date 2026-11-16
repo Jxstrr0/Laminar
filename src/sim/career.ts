@@ -5,7 +5,8 @@
  *
  * - Tunnel runs cost money and no days, with or without a job.
  * - Model orders need a job, cost money and spend days from its budget.
- * - A brief is won with a sealed bid against one rival firm; a lost brief
+ * - A brief is won with a sealed bid against the rival firms (Bystro Aero on
+ *   every brief, Vysota Aerolab on the big ones); a lost brief
  *   leaves the board and another takes its place while any are left.
  * - Delivering runs the event, pays the fee, jumps the calendar to the
  *   event and refreshes the board.
@@ -20,6 +21,8 @@ import { hashString, Rng } from './rng'
 import type { Guide } from './guide'
 import { readOf, reputationOf, type Read } from './reputation'
 import { REPUTATION } from '../data/reputation'
+import { RIVALS, RIVAL_IDS, type RivalId } from '../data/rivals'
+import { rivalRecord } from './rivals'
 import { fieldResult, REFERENCE_TT, truth, type EventSpec, type FieldResult } from './views'
 
 /** A brief as it sits on the board: which client, and the terms on offer. */
@@ -70,7 +73,7 @@ export interface CareerState {
   /** Which board this is: one more after every delivery or week's wait. */
   round: number
   board: Brief[]
-  /** Briefs lost to the rival on this board, so they don't come back to it. */
+  /** Briefs lost to a rival on this board, so they don't come back to it. */
   lost: string[]
   job: Job | null
   /** Finished jobs, oldest first. */
@@ -180,13 +183,21 @@ export interface BidResult {
   won: boolean
   /** Your bid as it went in (kept inside the limits). */
   mine: Bid
-  /** The rival's bid, or null when the client asked for you alone (the first job). */
-  rival: Bid | null
+  /** The rivals' bids (none when the client asked for you alone, as on the first job). */
+  rivals: RivalBid[]
+  /** Who got the job: null for you, or the rival that beat you. */
+  winner: RivalId | null
   /** What the client counts each promised point as worth, ₽. */
   worth: number
-  /** Your firm's reputation and the rival's, as the client weighed them. */
+  /** Your firm's reputation, as the client weighed it. */
   myRep: number
-  rivalRep: number
+}
+
+/** A rival firm's sealed bid, with the reputation the client weighed it with. */
+export interface RivalBid {
+  firm: RivalId
+  bid: Bid
+  reputation: number
 }
 
 /** ₽ the client counts each promised point as worth: a share of the middle of the fee range. */
@@ -214,14 +225,30 @@ export function clampBid(id: string, bid: Bid): Bid {
   return { price, promise }
 }
 
-/** The rival firm's sealed bid for a brief (seeded by the brief), or null for the first job. */
-export function rivalBid(brief: Brief): Bid | null {
+/** The firms that bid for a brief: none for the first job, Vysota Aerolab only on the big ones. */
+export function biddersFor(id: string): RivalId[] {
+  const b = template(id)
+  if (b.tutorial) return []
+  return RIVAL_IDS.filter((firm) => b.fee.max >= RIVALS[firm].minFee)
+}
+
+/** One rival's sealed bid for a brief (seeded by the brief and the firm). */
+export function rivalBid(brief: Brief, firm: RivalId): Bid {
   const b = template(brief.id)
-  if (b.tutorial) return null
-  const rng = new Rng(brief.seed).fork('rival')
-  const promise = b.target + rng.range(BID.rivalPromise.min, BID.rivalPromise.max)
-  const share = rng.range(BID.rivalPrice.min, BID.rivalPrice.max)
+  const r = RIVALS[firm]
+  const rng = new Rng(brief.seed).fork(`rival-${firm}`)
+  const promise = b.target + rng.range(r.promise.min, r.promise.max)
+  const share = rng.range(r.price.min, r.price.max)
   return clampBid(brief.id, { price: b.fee.min + share * (b.fee.max - b.fee.min), promise })
+}
+
+/** Every rival's bid for a brief, weighed with that firm's reputation this week. */
+export function rivalBids(state: Pick<CareerState, 'seed' | 'day'>, brief: Brief): RivalBid[] {
+  return biddersFor(brief.id).map((firm) => ({
+    firm,
+    bid: rivalBid(brief, firm),
+    reputation: rivalRecord(state.seed, firm, state.day).reputation,
+  }))
 }
 
 /**
@@ -234,12 +261,14 @@ export function placeBid(state: CareerState, id: string, bid: Bid): BidResult | 
   const brief = state.board.find((b) => b.id === id)
   if (!brief || state.job) return null
   const mine = clampBid(id, bid)
-  const rival = rivalBid(brief)
+  const rivals = rivalBids(state, brief)
   const worth = pointWorth(id)
   const myRep = reputationOf(state.history)
-  const rivalRep = REPUTATION.rival
-  const won = !rival || bidScore(id, mine, myRep) >= bidScore(id, rival, rivalRep)
-  if (won) return { state: take(state, brief, mine), won, mine, rival, worth, myRep, rivalRep }
+  // The best rival bid; ties between rivals go to the first listed, and a tie with you goes to you.
+  let best: RivalBid | null = null
+  for (const r of rivals) if (!best || bidScore(id, r.bid, r.reputation) > bidScore(id, best.bid, best.reputation)) best = r
+  const won = !best || bidScore(id, mine, myRep) >= bidScore(id, best.bid, best.reputation)
+  if (won) return { state: take(state, brief, mine), won, mine, rivals, winner: null, worth, myRep }
   const lost = [...state.lost, id]
   const board = state.board.filter((b) => b.id !== id)
   const spare = BRIEFS.filter((b) => !b.tutorial && openTo(b, myRep) && !lost.includes(b.id) && !board.some((o) => o.id === b.id))
@@ -247,10 +276,10 @@ export function placeBid(state: CareerState, id: string, bid: Bid): BidResult | 
     const rng = new Rng(state.seed).fork(`refill-${state.round}-${lost.length}`)
     board.push(onBoard(rng.pick(spare), rng))
   }
-  return { state: { ...state, board, lost }, won, mine, rival, worth, myRep, rivalRep }
+  return { state: { ...state, board, lost }, won, mine, rivals, winner: best!.firm, worth, myRep }
 }
 
-/** Wait a week for a fresh board (when the rival has taken every brief). */
+/** Wait a week for a fresh board (when the rivals have taken every brief). */
 export function waitForBriefs(state: CareerState): CareerState {
   if (state.job) return state
   const round = state.round + 1
