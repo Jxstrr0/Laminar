@@ -69,7 +69,10 @@ import { compareRuns, headlineCompare, headlineGroup, legCycle, poolRuns, yawGro
 import { addSample, newRecorder, runCost, stepRecorder, type Recorder, type Run, type RunSample } from '../sim/run'
 import { setYawTarget, stepTurntable, turntableAtRest, type TurntableState } from '../sim/turntable'
 import { rollQuirks, type MountKind } from '../sim/quirks'
-import type { Failure } from '../sim/failure'
+import { FAILURE } from '../data/failure'
+import { fixFor, repairQuote, stepStrain, strains, wobbleOf, type Failure, type FailurePart, type Strain, type StrainClock } from '../sim/failure'
+import { gaussian } from '../sim/noise'
+import { createSheet, type Sheet } from './sheet'
 import { modelSpecOf, quote, reynoldsRatio, type ModelOrder } from '../sim/modelShop'
 import { prepareExact, prepareModel, readBalance, readTare, tunnelTurbulence, type EventSpec, type PreparedModel, type TunnelSpec } from '../sim/views'
 import type { TunnelView } from '../render/tunnelScene'
@@ -86,6 +89,8 @@ const REGIME_TERM: Record<Regime, GlossaryId> = { laminar: 'laminar', mixed: 'dr
 
 /** The sim's fixed time step, in seconds. */
 const STEP = 1 / 60
+/** How long a broken part flies before the break sheet slides up, ms. */
+const BREAK_SHEET_DELAY_MS = 1600
 
 type Mount = 'rider' | 'sphere' | 'wheel'
 type View = 'readouts' | 'time' | 'yaw' | 'cal' | 'runs'
@@ -184,6 +189,10 @@ export interface TunnelHooks {
   onOrder(price: number, days: number): void
   /** Parts were swapped on the model: charge the fee. */
   onSwap(price: number): void
+  /** A broken model goes for repair: charge it and spend its days. False if the job hasn't the days. */
+  onRepair(price: number, days: number): boolean
+  /** "Change this" after a break: open Shape at the helmet or the wheels. */
+  goFix(where: 'helmet' | 'wheels'): void
 }
 
 export interface TunnelControl {
@@ -467,6 +476,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     squareBtn.disabled = table.target === 0
   }
   fanCtl.input.addEventListener('input', () => {
+    if (locked()) fanCtl.input.value = '0'
     fan = setFanTarget(fan, Number(fanCtl.input.value), spec)
     showTargets()
   })
@@ -501,8 +511,13 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   /** The model on order: what the shop built, and which build it is (each build has its own errors). */
   let order: ModelOrder = { ...saved.order }
   let build = saved.build
-  // How the model broke, until it's repaired (PR 6b puts this on screen).
-  const broken: Failure | null = saved.broken
+  // How the model broke, until it's repaired or replaced (plan section 8).
+  let broken: Failure | null = saved.broken
+  /** Seconds each weak point has spent past its limit, and the worst one warning now. */
+  let strainClock: StrainClock = {}
+  let warn: Strain | null = null
+  /** The model's drag and side-force areas together at the last reading, m² at model size (the load on the posts per pascal). */
+  let loadArea = 0
   let modelSpec = modelSpecOf(order, DEMO_MODEL_SEED + build)
   const showOrder = () => {
     const words = t('shop.open', { scale: order.scale })
@@ -524,6 +539,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       const q = quote(next)
       hooks.onOrder(q.price, q.days)
       order = next
+      broken = null
       // The new model is built of the design on the bench now.
       modelDesign = structuredClone(designStore.get())
       build++
@@ -554,7 +570,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     const bench = designStore.get()
     const parts = partChanges(modelDesign, bench)
     const moved = postureChanged(modelDesign, bench)
-    staleBox.hidden = mount !== 'rider' || (!moved && parts.length === 0)
+    staleBox.hidden = mount !== 'rider' || !!broken || (!moved && parts.length === 0)
     if (staleBox.hidden) return
     const list = parts.map((p) => t(`model.part.${p}` as StringKey)).join(', ')
     setText(staleText, moved ? t('model.moved') : t('model.parts', { list }))
@@ -576,6 +592,110 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   })
   newBtn.addEventListener('click', () => shopBtn.click())
   designStore.subscribe(() => showStale())
+
+  // --- Breaks (plan section 8): the warning bar, the broken model's note, the sheet.
+  const warnBox = el('p', 'fail-warn')
+  warnBox.setAttribute('role', 'alert')
+  warnBox.hidden = true
+  app.append(warnBox)
+  let warnShown: FailurePart | null = null
+  function showWarn() {
+    const part = warn ? warn.part : null
+    view.setStrain(warn ? (warn.level - FAILURE.warnAt) / (1 - FAILURE.warnAt) : 0)
+    if (part === warnShown) return
+    warnShown = part
+    warnBox.hidden = !part
+    if (part) setText(warnBox, t(`fail.warn.${part}` as StringKey))
+  }
+  const locked = () => !!broken && mount === 'rider' && !tare
+  const brokenBox = el('div', 'model-note is-broken')
+  brokenBox.setAttribute('role', 'status')
+  const brokenText = el('p', 'model-note-text')
+  const brokenActions = el('div', 'model-note-actions')
+  const repairBtn = el('button', 'save-btn')
+  repairBtn.type = 'button'
+  const fixBtn = el('button', 'save-btn quiet')
+  fixBtn.type = 'button'
+  brokenActions.append(repairBtn, fixBtn)
+  brokenBox.append(brokenText, brokenActions)
+  brokenBox.hidden = true
+  app.append(brokenBox)
+  /** The repair as one price (screens included), and whether the job has the days for it. */
+  function repairTerms(f: Failure) {
+    const q = repairQuote(order, f)
+    return { ...q, total: q.price + q.screens, blocked: hooks.shop().block(q.days) === 'noDays' }
+  }
+  function showBroken() {
+    const on = locked()
+    brokenBox.hidden = !on
+    fanCtl.input.disabled = on
+    offBtn.disabled = on
+    if (!on || !broken) return
+    const r = repairTerms(broken)
+    setText(brokenText, r.blocked ? t('fail.noDays') : t('fail.note', { what: t(`fail.title.${broken.part}` as StringKey) }))
+    setText(repairBtn, t('fail.repairBtn', { price: fixed(r.total, 0), days: r.days }))
+    repairBtn.disabled = r.blocked
+    setText(fixBtn, t(`fail.fix.${fixFor(broken)}` as StringKey))
+  }
+  function repair() {
+    if (!broken) return
+    const r = repairTerms(broken)
+    if (r.blocked || !hooks.onRepair(r.total, r.days)) return
+    broken = null
+    breakSheet?.close()
+    placeModel()
+    showBroken()
+    showStale()
+    onChange()
+  }
+  function goFix() {
+    if (!broken) return
+    const where = fixFor(broken)
+    breakSheet?.close()
+    if (where === 'shop') shopBtn.click()
+    else hooks.goFix(where)
+  }
+  repairBtn.addEventListener('click', repair)
+  fixBtn.addEventListener('click', goFix)
+  let breakSheet: Sheet | null = null
+  function openBreakSheet(f: Failure, speed: number) {
+    breakSheet ??= createSheet({ cls: 'breaks', title: t('fail.sheetTitle'), closeLabel: t('fail.close') })
+    const r = repairTerms(f)
+    const head = el('p', 'fail-head', t('fail.headline', { what: t(`fail.title.${f.part}` as StringKey), speed: fixed(speed, 1) }))
+    const why = el('p', 'fail-why', t(`fail.why.${f.part}` as StringKey))
+    const cost = el('p', 'fail-cost', r.screens ? t('fail.costScreens', { price: fixed(r.price, 0), days: r.days, screens: fixed(r.screens, 0) }) : t('fail.cost', { price: fixed(r.price, 0), days: r.days }))
+    const actions = el('div', 'job-actions')
+    const again = el('button', 'shop-order', t('fail.repairBtn', { price: fixed(r.total, 0), days: r.days }))
+    again.type = 'button'
+    again.disabled = r.blocked
+    again.addEventListener('click', repair)
+    const change = el('button', 'save-btn quiet', t(`fail.fix.${fixFor(f)}` as StringKey))
+    change.type = 'button'
+    change.addEventListener('click', goFix)
+    actions.append(again, change)
+    breakSheet.body.replaceChildren(head, why, cost, ...(r.blocked ? [el('p', 'fail-why', t('fail.noDays'))] : []), actions)
+    breakSheet.open()
+  }
+  /** A part let go: the fan cuts, the run is marked, the part flies, and the sheet says why. */
+  function breakModel(f: Failure) {
+    const speed = fan.speed
+    broken = f
+    warn = null
+    strainClock = {}
+    showWarn()
+    view.breakPart(f.part, true)
+    view.setFlow(null, [])
+    if (rec.run) rec = { ...rec, run: { ...rec.run, failure: f } }
+    endRun()
+    showBroken()
+    onChange()
+    // Let the part fly before the sheet covers the view (straight away with reduced motion).
+    const wait = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : BREAK_SHEET_DELAY_MS
+    setTimeout(() => {
+      if (broken === f) openBreakSheet(f, speed)
+    }, wait)
+  }
+
   const balanceRng = Rng.from(saved.balanceRng)
   const shown = { cdA: 0, dragN: 0, sideN: 0 }
 
@@ -596,7 +716,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     flowAge += dt
     const mapping = inst.taps && mount === 'rider' && !tare && !!prepared
     if (cpLegend.root.hidden === mapping) cpLegend.root.hidden = !mapping
-    if (mount !== 'rider' || tare || !prepared || !anyFlow()) return
+    if (mount !== 'rider' || tare || !prepared || broken || !anyFlow()) return
     // Below reading speed the drag regime is the slow-air one; the drawing slows the smoke itself.
     const speed = Math.max(spec.readFrom, fan.speed)
     // The taps read only once there's air enough for the scanner (Cp is pressure over the dynamic pressure).
@@ -684,6 +804,12 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     chartDirty = true
   }
 
+  /** The buzz's extra scatter on one reading (1 when nothing warns). */
+  function shake(): number {
+    const w = wobbleOf(warn)
+    return w > 0 ? 1 + w * gaussian(balanceRng) : 1
+  }
+
   /** One balance sample of whatever is on the mount, or null below reading speed. */
   function takeSample(): Omit<RunSample, 't'> | null {
     const q = dynamicPressure(AIR.density, fan.speed)
@@ -703,7 +829,9 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     if (!prepared) return null
     const r = readBalance(prepared, tunnel, { speed: fan.speed, yawDeg: table.angle, mount: 'posts' }, balanceRng)
     const steady = fan.speed === fan.target && table.angle === table.target
-    return { speed: fan.speed, yawDeg: table.angle, cdA: r.cdA, cyA: r.cyA, dragN: q * r.modelCdA, steady }
+    // A buzzing part shakes the balance: the trace wobbles before anything breaks.
+    const w = shake()
+    return { speed: fan.speed, yawDeg: table.angle, cdA: r.cdA * w, cyA: r.cyA * w, dragN: q * r.modelCdA * w, steady }
   }
 
   function showRun() {
@@ -806,7 +934,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
         const text = el('span', 'run-text')
         const model = t(RUN_MODEL[run.model] ?? 'mount.rider')
         text.append(
-          el('span', 'run-title', t('runs.row', { id: run.id, model, time: clock(run.duration), cost: fixed(runCost(run), 0) })),
+          el('span', 'run-title', t('runs.row', { id: run.id, model, time: clock(run.duration), cost: fixed(runCost(run), 0) }) + (run.failure ? ` · ${t('fail.runTag')}` : '')),
           el('span', 'run-sub', groupWords(headlineGroup(yawGroups(run)), run.model.startsWith('tare') || run.model === WHEEL_RUN ? TARE_DIGITS : 4)),
         )
         b.append(badge, text)
@@ -936,6 +1064,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     view.setFlow(null, [])
     view.setTaps([], [])
     view.setModel({ kind: 'rider', state: { design, pose: riderPose(design, crank), broken: [], strained: [] }, scale: modelSpec.scale, tare })
+    // A model that broke before comes back with its part missing.
+    if (broken && !tare) view.breakPart(broken.part, false)
     runsDirty = true
   }
 
@@ -954,6 +1084,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     shown.cdA = shown.dragN = shown.sideN = 0
     placeModel()
     showStale()
+    showBroken()
     selectView(view_)
   }
 
@@ -1142,7 +1273,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     if (!prepared) return
     showSpeed(rSpeed)
     setText(rYaw.value, `${fixed(table.angle, 1)}°`)
-    if (fan.speed < spec.readFrom) {
+    // Below reading speed, or with a broken model on the posts, there's nothing worth reading.
+    if (fan.speed < spec.readFrom || broken) {
       shown.cdA = shown.dragN = shown.sideN = 0
       setText(rYaw.sub, t('read.sideNote', { force: '–' }))
       setText(rDrag.value, '–')
@@ -1151,12 +1283,14 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       return
     }
     const r = readBalance(prepared, tunnel, { speed: fan.speed, yawDeg: table.angle, mount: 'posts' }, balanceRng)
+    loadArea = Math.hypot(r.forces.cdA, r.forces.cyA)
     const q = dynamicPressure(AIR.density, fan.speed)
     const s2 = prepared.scale * prepared.scale
     const k = settle(dt)
-    shown.cdA += (r.cdA - shown.cdA) * k
-    shown.dragN += (q * r.modelCdA - shown.dragN) * k
-    shown.sideN += (q * Math.abs(r.cyA) * s2 - shown.sideN) * k
+    const w = shake()
+    shown.cdA += (r.cdA * w - shown.cdA) * k
+    shown.dragN += (q * r.modelCdA * w - shown.dragN) * k
+    shown.sideN += (q * Math.abs(r.cyA) * s2 * w - shown.sideN) * k
     setText(rYaw.sub, t('read.sideNote', { force: `${fixed(shown.sideN, 1)} N` }))
     setText(rDrag.value, `${fixed(shown.dragN, 1)} N`)
     // How near the model's Reynolds number is to the full-size rider's on the day (the Reynolds trap).
@@ -1187,6 +1321,14 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     while (carry >= STEP) {
       fan = stepFan(fan, STEP, spec)
       table = stepTurntable(table, STEP, spec.turntable)
+      // The model's weak points, checked every fixed step (the tunnel always warns first).
+      if (mount === 'rider' && !tare && prepared && !broken) {
+        const loadN = dynamicPressure(AIR.density, fan.speed) * loadArea
+        const step = stepStrain(strainClock, strains({ order, design: modelDesign }, fan.speed, loadN), STEP)
+        strainClock = step.clock
+        warn = step.warn
+        if (step.broke) breakModel(step.broke)
+      } else warn = null
       if (coasting && fan.speed < RUN_RECORDING.endBelow) coasting = false
       const step = coasting ? { recorder: rec, sampleDue: false, finished: null } : stepRecorder(rec, fan.speed, STEP, runModel())
       rec = step.recorder
@@ -1207,6 +1349,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       }
       carry -= STEP
     }
+    showWarn()
     if (tare) updateTare(dt)
     else if (mount === 'rider') {
       updateRider(dt)

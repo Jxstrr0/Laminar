@@ -350,6 +350,11 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   function jumpTo(part: RuleBreak['part']) {
     jumpToControl(BREAK_TARGET[part])
   }
+  // "Change this" after a model broke in the tunnel (plan section 8): the tail, or the rear wheel.
+  window.addEventListener('laminar:fix', (e) => {
+    const where = (e as CustomEvent<'helmet' | 'wheels'>).detail
+    jumpToControl(where === 'helmet' ? BREAK_TARGET.helmet : { tab: 'bike', id: 'ctl-rear' })
+  })
 
   function jumpToControl(target: { tab: Tab; id: string }) {
     selectTab(target.tab)

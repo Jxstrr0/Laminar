@@ -691,7 +691,7 @@ html, body {
   border: 0;
   border-radius: 10px;
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-ink);
   font: inherit;
   font-weight: 700;
   cursor: pointer;
@@ -893,7 +893,7 @@ html, body {
   position: absolute; left: 0; top: 3px;
   width: 22px; height: 22px; border-radius: 50%;
   border: 1.5px solid var(--line);
-  font: 500 0.78rem/19px 'Spline Sans Mono', monospace; text-align: center;
+  font: 500 0.78rem/19px var(--font-num); text-align: center;
 }
 .guide-step.is-done { text-decoration: line-through; text-decoration-color: var(--line); }
 .guide-step.is-done::before { content: '✓'; border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
@@ -926,3 +926,32 @@ body[data-guide='deliver'] .guide-deliver {
 @media (prefers-reduced-motion: reduce) {
   body[data-guide] .nav-button, body[data-guide] .save-btn, body[data-guide] .shop-open, body[data-guide] .fan-slider { animation: none; }
 }
+
+/* Tunnel failures (PR 6b): the warning bar over the tunnel, the broken model's note, the break sheet. */
+.fail-warn {
+  position: absolute;
+  z-index: 5;
+  top: calc(108px + var(--safe-t));
+  left: calc(16px + var(--safe-l));
+  right: calc(16px + var(--safe-r));
+  max-width: 520px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--sep);
+  color: var(--accent-ink);
+  font-weight: 700;
+  font-size: 0.85rem;
+  line-height: 1.25;
+  animation: fail-pulse 0.5s ease-in-out infinite alternate;
+}
+@keyframes fail-pulse { from { opacity: 1; } to { opacity: 0.78; } }
+@media (prefers-reduced-motion: reduce) { .fail-warn { animation: none; } }
+.model-note.is-broken { border-color: var(--sep); }
+.breaks { z-index: 400; }
+.fail-head { margin: 4px 0 8px; font-weight: 700; color: var(--sep); }
+.fail-why { margin: 0 0 8px; line-height: 1.45; }
+.fail-cost { margin: 0 0 4px; font-family: var(--font-num); font-size: 0.85rem; }
+
+.model-note.is-broken { flex-wrap: wrap; padding: 6px 6px 6px 10px; }
+.model-note.is-broken .model-note-text { flex: 1 1 100%; }

@@ -22,6 +22,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { HANDLE_TOUCH } from '../data/handles'
 import { FRAME } from '../data/pose'
 import { UNIVERSITY_TUNNEL, REFERENCE_SPHERE, REFERENCE_WHEEL } from '../data/tunnel'
+import type { FailurePart } from '../sim/failure'
 import type { FlowField, Tuft } from '../sim/flow/field'
 import type { Tap } from '../sim/flow/taps'
 import { createFlowViz, type Instruments } from './flowViz'
@@ -113,6 +114,10 @@ export interface TunnelView {
   setTaps(taps: readonly Tap[], cps: readonly number[]): void
   /** Keep the sphere clear of the bottom sheet: pass its height in CSS pixels. */
   setSheetHeight(px: number): void
+  /** How hard the rider model buzzes: 0 still, 1 at a part's limit (plan section 8). */
+  setStrain(level: number): void
+  /** A part lets go: it flies off down the section (animate) or is simply gone (a model that broke earlier). */
+  breakPart(part: FailurePart, animate: boolean): void
   dispose(): void
 }
 
@@ -565,13 +570,17 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     if (!riderGroup) return
     // The instruments outlive the model: take them off before it is thrown away.
     riderGroup.remove(flowViz.group)
-    mount.remove(riderGroup)
+    // Off the posts after a break, the model may be loose in the section.
+    riderGroup.parent?.remove(riderGroup)
     disposeGroup(riderGroup)
     riderGroup = null
   }
   /** The posts with a rider on them, the reference wheel (null), or nothing for a tare run. */
   function showRider(state: RiderState | null, scale: number, tare: boolean) {
     clearRider()
+    clearDebris()
+    strain = 0
+    rearIsDisc = state?.design.wheels.rear === 'disc'
     const g = new THREE.Group()
     // Two posts clamp the axles to the balance under the floor.
     for (const axle of [FRAME.rearAxleX, FRAME.frontAxleX]) {
@@ -592,6 +601,75 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     mount.add(g)
     riderGroup = g
   }
+  // --- Breaks (plan section 8). A warning buzzes the model on its posts; a
+  // break throws a part (or, off the posts, the whole model) down the section,
+  // where it bounces on the floor and comes to rest against the screens.
+  let strain = 0
+  let buzz = 0
+  interface Debris { obj: THREE.Object3D; v: THREE.Vector3; spin: THREE.Vector3; still: boolean }
+  let debris: Debris[] = []
+  function clearDebris() {
+    for (const d of debris) {
+      d.obj.parent?.remove(d.obj)
+      disposeGroup(d.obj)
+    }
+    debris = []
+  }
+  /** Which object a broken part is. */
+  function partObject(part: FailurePart): THREE.Object3D | null {
+    if (!riderGroup) return null
+    if (part === 'posts') return riderGroup
+    if (part === 'disc') {
+      const rear = riderGroup.getObjectByName('wheel-rear')
+      return rearIsDisc ? (rear ?? null) : (riderGroup.getObjectByName('wheel-front') ?? null)
+    }
+    return riderGroup.getObjectByName('helmet') ?? null
+  }
+  let rearIsDisc = true
+  function breakPart(part: FailurePart, animate: boolean) {
+    const obj = partObject(part)
+    if (!obj) return
+    strain = 0
+    if (!animate) {
+      // A model that broke before: the part is simply missing (off the posts, the model lies on the floor).
+      if (part === 'posts') {
+        obj.rotation.z = Math.PI / 2
+        obj.position.set(L * 0.3, floorY + 0.05, 0)
+      } else obj.visible = false
+      return
+    }
+    // Keep its place in the world as it leaves its parent.
+    scene.attach(obj)
+    const kick = part === 'posts' ? 0.6 : 1.2
+    debris.push({ obj, v: new THREE.Vector3(1.5, kick, (Math.random() - 0.5) * 0.6), spin: new THREE.Vector3(Math.random() * 6, Math.random() * 6, 3 + Math.random() * 6), still: false })
+  }
+  /** Fly the debris: blown downstream, pulled down, bouncing on the floor, stopped by the screens. */
+  function stepDebris(speed: number, step: number) {
+    for (const d of debris) {
+      if (d.still) continue
+      d.v.x += speed * 0.25 * step
+      d.v.y -= 9.8 * step
+      d.obj.position.addScaledVector(d.v, step)
+      d.obj.rotation.x += d.spin.x * step
+      d.obj.rotation.y += d.spin.y * step
+      d.obj.rotation.z += d.spin.z * step
+      const end = L / 2 - 0.1
+      if (d.obj.position.x > end) {
+        d.obj.position.x = end
+        d.v.x = -0.2 * Math.abs(d.v.x)
+      }
+      const floor = floorY + 0.04
+      if (d.obj.position.y < floor) {
+        d.obj.position.y = floor
+        d.v.y = Math.abs(d.v.y) * 0.3
+        d.v.x *= 0.5
+        d.v.z *= 0.5
+        d.spin.multiplyScalar(0.5)
+        if (d.v.y < 0.2 && speed < 1) d.still = true
+      }
+    }
+  }
+
   /** Point the camera at the model, keeping it on the observation-window side. */
   function aim(kind: TunnelModel['kind'], scale = 1) {
     const target =
@@ -689,10 +767,22 @@ export function createTunnelView(host: HTMLElement): TunnelView {
         wandToRider()
         flowViz.frame(step, speed / top)
       }
+      // A warning: the model buzzes on its posts, harder the nearer the limit.
+      if (riderGroup && riderGroup.parent === mount) {
+        buzz += step
+        const a = strain * 0.025
+        riderGroup.rotation.x = a * Math.sin(buzz * 53)
+        riderGroup.rotation.z = a * 0.6 * Math.sin(buzz * 41)
+      }
+      if (debris.length) stepDebris(speed, step)
 
       controls.update()
       renderer.render(scene, camera)
     },
+    setStrain(level) {
+      strain = Math.min(1, Math.max(0, level))
+    },
+    breakPart,
     setFlow(field, list) {
       flowViz.setField(field, list)
     },
@@ -747,6 +837,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     },
     dispose() {
       clearRider()
+      clearDebris()
       flowViz.dispose()
       observer.disconnect()
       controls.dispose()
