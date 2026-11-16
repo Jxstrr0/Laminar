@@ -21,7 +21,7 @@ import {
 import { MODEL_FINISH, MODEL_TRIPS, type ModelFinish } from '../data/model'
 import { aeroForces, type AeroForces } from './aero/forces'
 import type { Flow } from './aero/flow'
-import { cdAAt, windAveragedCdA, yawCurve, type YawCurve } from './aero/windAverage'
+import { cdAAt, steerAt, windAveragedCdA, yawCurve, type YawCurve } from './aero/windAverage'
 import { densityAt, viscosityAt } from './field/atmosphere'
 import { courseTime, type RiderSpec, type SegmentResult } from './field/timeTrial'
 import { describeShape, scaleShape, type ShapeDescriptor, type ShapeSpec } from './geom/body'
@@ -42,6 +42,8 @@ export interface EventSpec {
   refX?: number
   /** How much the day varies (standard deviations): temperature °C, wind m/s, power fraction. The reference event's if left out. */
   spread?: { temperature: number; wind: number; power: number }
+  /** Share of the rider's power lost in the last third to a position they can't hold (none if left out). */
+  fade?: number
 }
 
 export const REFERENCE_TT: EventSpec = {
@@ -237,7 +239,12 @@ export interface FieldResult {
    * the wind's direction on one day doesn't decide them.
    */
   cdA: number
+  /** The course as ridden (split where the rider sat up), one segment result per piece. */
+  course: CourseSegment[]
   segments: SegmentResult[]
+  /** Time lost easing off in gusts and sitting up late, s (0 if neither happened). */
+  lostToGusts: number
+  lostToFade: number
 }
 
 /** The day itself: seeded weather and form, the truth's yaw curve, the course. */
@@ -253,12 +260,15 @@ export function fieldResult(spec: ShapeSpec, event: EventSpec, seed: number): Fi
   const windFromDeg = rng.range(0, 360)
   const power = event.rider.power * (1 + spread.power * gaussian(rng))
   const curve = yawCurve(describeShape(spec), eventFlow(event, temperature), event.refX)
-  const run = courseTime(
-    { ...event.rider, power },
-    event.course,
-    { density: densityAt(temperature, event.altitude), windSpeed, windFromDeg },
-    (yaw) => cdAAt(curve, yaw),
-  )
+  const rider = { ...event.rider, power }
+  const air = { density: densityAt(temperature, event.altitude), windSpeed, windFromDeg }
+  const cdAOf = (yaw: number) => cdAAt(curve, yaw)
+  const fade = event.fade ?? 0
+  const run = courseTime(rider, event.course, air, cdAOf, { steerAt: (yaw) => steerAt(curve, yaw), fade })
+  // The same ride without each kind of trouble, to say how much time it cost.
+  const troubled = run.segments.some((s) => s.eased > 0) || fade > 0
+  const faded = troubled ? courseTime(rider, event.course, air, cdAOf, { fade }).time : run.time
+  const clean = fade > 0 ? courseTime(rider, event.course, air, cdAOf).time : faded
   const cdA = windAveragedCdA(curve, event.riderSpeed, windSpeed)
-  return { ...run, temperature, windSpeed, windFromDeg, power, cdA }
+  return { ...run, temperature, windSpeed, windFromDeg, power, cdA, lostToGusts: run.time - faded, lostToFade: faded - clean }
 }

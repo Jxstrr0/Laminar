@@ -19,6 +19,8 @@ export const REPLAY = {
   backDeg: 150,
   /** The race clock's sampling step when looking for the moment the two riders meet, s. */
   meetStep: 1,
+  /** The gust line comes this far into the first stretch where the rider eased off (a share of it). */
+  gustAt: 0.15,
 }
 
 /** The 3D road, the riders on it and the chase camera, m. */

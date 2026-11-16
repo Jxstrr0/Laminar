@@ -31,10 +31,29 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 5i | Guided first job | **Done** (v0.5.8.0) |
 | 6a | Failures: the tunnel's failure model (sim, saves) | **Done** (v0.6.0.0) |
 | 6b | Failures on the tunnel screen | **Done** (v0.6.1.0) |
-| 6c | Failures in the field: crosswind steer, fading position | Next |
+| 6c | Failures in the field: crosswind steer, fading position | **Done** (v0.6.2.0) |
+| 6d | Field failures in the 3D replay: the wobble in a gust, the rider sitting up | Next |
 | 7–14 | See the plan | Not started |
 
 ## Versions
+
+- **0.6.2.0** (PR 6c): trouble on race day.
+  - **Crosswind steer** (Kelbo's call: loses time in gusts). In a gust, side
+    force ahead of the rider's balance point turns the bike. Past what the
+    rider can hold (more for a heavier rider), they ease off for the gust:
+    never a stop. A deep front wheel is touchy on a windy day and a disc
+    front is a real handful; a disc at the back steadies the bike. Indoors
+    there's no wind, so no steer.
+  - **Unholdable position** (Kelbo's call: fades in the last third). Past
+    the comfort limit, the rider sits up for the last third and loses power,
+    so the drag saved comes back as lost time. It's now slower than the
+    best position the rider can hold.
+  - The debrief says how much time each cost, with a "change this" jump
+    to the front wheel or to the position slider that strains most. It
+    also says when the client's old setup lost time in the gusts.
+  - The replay commentator calls the gust and the moment the rider sits
+    up. The promise is still checked on road CdA, so trouble costs time,
+    not the fee.
 
 - **0.6.1.0** (PR 6b): failures you can see in the tunnel.
   - Push a weak part too hard and a red warning flashes at the top ("The

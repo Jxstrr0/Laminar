@@ -69,3 +69,27 @@ export const REFERENCE_EVENT = {
 
 /** Yaw curves are worked out from −max to +max in steps of this, degrees. */
 export const YAW_CURVE = { max: 30, step: 2.5 } as const
+
+/**
+ * Trouble on the road (plan section 7, Kelbo's calls of 16 November 2026).
+ * Nobody stops and nobody is hurt: a rider who can't hold the bike straight
+ * in a gust eases off, and one who can't hold the position sits up late.
+ */
+export const FIELD_TROUBLE = {
+  /** A gust is the day's wind times `factor`; riders spend `share` of every stretch in one. */
+  gust: { factor: 1.5, share: 0.3 },
+  /**
+   * The steering moment a rider can hold the bike against in a gust, per kg
+   * of rider and bike, N·m/kg. Side force ahead of their balance point (a
+   * deep front wheel, say) turns the bike; past this they ease off.
+   */
+  steerPerKg: 0.08,
+  /** Past the limit, a rider gives up `start` of their power plus `per` for each limit's worth over, at most `max`, while the gust lasts. */
+  ease: { start: 0.03, per: 0.05, max: 0.25 },
+  /**
+   * A position past the rider's comfort limit: from `from` of the distance
+   * (the last third), they sit up and lose `start` of their power plus `per`
+   * for each unit of strain over the limit, at most `max`.
+   */
+  fade: { from: 2 / 3, start: 0.1, per: 0.6, max: 0.35 },
+} as const

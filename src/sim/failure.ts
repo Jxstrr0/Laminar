@@ -108,6 +108,12 @@ export function repairQuote(order: ModelOrder, failure: Failure): Quote & { scre
   }
 }
 
+/**
+ * A part on the Shape screen a "change this" jump can go to: the helmet's
+ * tail, the rear or front wheel, or one of the position's sliders.
+ */
+export type FixTarget = 'helmet' | 'wheels' | 'front' | keyof CyclistDesign['posture']
+
 /** Where the "change this" jump goes: the part on Shape, or the model shop for a stiffer, smaller or sanded model. */
 export function fixFor(failure: Failure): 'helmet' | 'wheels' | 'shop' {
   if (failure.part === 'tail') return 'helmet'

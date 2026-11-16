@@ -955,3 +955,21 @@ body[data-guide='deliver'] .guide-deliver {
 
 .model-note.is-broken { flex-wrap: wrap; padding: 6px 6px 6px 10px; }
 .model-note.is-broken .model-note-text { flex: 1 1 100%; }
+
+/* Trouble on race day (PR 6c): what went wrong on the road, with a "change this" jump. */
+.race-trouble {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--sep);
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+.race-trouble-text {
+  flex: 1 1 100%;
+  margin: 0;
+}
