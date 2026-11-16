@@ -93,6 +93,7 @@ import { carForecast } from './carForecast'
 import { droneForecast } from './droneForecast'
 import { planeForecast } from './planeForecast'
 import { aircraftForecast } from './aircraftForecast'
+import { podForecast } from './podForecast'
 import { recordForecast } from './recordForecast'
 import { FLIGHT_ATTITUDE, JUMP_TUNNEL, PITCH } from '../data/jumper'
 import { correctJumper, forecastJump, isJumperRun, jumperReadings, prepareJumper, readJumper, type JumperFix, type JumpForecast, type PreparedJumper } from '../sim/jumpTunnel'
@@ -2349,6 +2350,13 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     const readings = podReadings(modelRuns()).map((r) => correctPod(r, fix, model, sectionArea))
     const { range, old, oldSensor } = podRun(modelDesign)
     podCast = forecastPod(readings, modelDesign, old, range, oldSensor)
+    // Kept for the Deliver sheet (PR 10ad): the declared hours start from it.
+    const f = podCast
+    podForecast.set(
+      modelDesign,
+      range.id,
+      f ? { hours: f.hours, gain: f.gain, wing: f.wing, buffet: f.buffet, blurs: f.blurs, calibrated: fix.tare !== null && fix.blockageK !== null } : null,
+    )
     runsDirty = true
   }
   function showPodForecast() {
@@ -2363,7 +2371,9 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     }
     setText(oFc.value, `${fixed(f.hours, 2)} h`)
     // A pod read on its own leaves the gap out: say so under the hours and the buffet.
-    setText(oFc.sub, t(f.wing ? 'read.podFcGain' : 'read.podFcAlone', { gain: signed(f.gain, 2) }))
+    // On a job the pod is measured against the ministry's pod as it hangs now, between jobs against the old pod.
+    const onJob = isPod(modelDesign) && podRun(modelDesign).oldSensor === 'new'
+    setText(oFc.sub, t(f.wing ? (onJob ? 'read.podFcGainJob' : 'read.podFcGain') : 'read.podFcAlone', { gain: signed(f.gain, 2) }))
     setText(oBuf.value, t(f.blurs ? 'read.blurs' : 'read.steady'))
     if (f.blurs) oBuf.value.classList.add('warn')
     setText(oBuf.sub, f.wing ? `${fixed(f.buffet, 2)} · ${t('read.shakeNote', { limit: fixed(POD_BUFFET.limit, 2) })}` : t('read.podBuffetAlone'))
@@ -2372,13 +2382,13 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   function drawPodForecast() {
     poolBox.hidden = !prepared || !isPod(modelDesign)
     if (poolBox.hidden || !isPod(modelDesign)) return
-    const { range } = podRun(modelDesign)
+    const { range, oldSensor } = podRun(modelDesign)
     setText(poolTitle, t('pod.title', { range: t(`range.${range.id}`) }))
     const f = podCast
     const lines: string[] = []
     if (!f) lines.push(t('pod.none'))
     else {
-      lines.push(t('pod.hours', { hours: fixed(f.hours, 2), gain: signed(f.gain, 2), old: fixed(f.hours - f.gain, 2) }))
+      lines.push(t(oldSensor === 'new' ? 'pod.hoursJob' : 'pod.hours', { hours: fixed(f.hours, 2), gain: signed(f.gain, 2), old: fixed(f.hours - f.gain, 2) }))
       lines.push(t(f.wing ? 'pod.winged' : 'pod.alone'))
       lines.push(t(f.blurs ? 'pod.blurs' : 'pod.steady', { index: fixed(f.buffet, 2), limit: fixed(POD_BUFFET.limit, 2) }))
     }

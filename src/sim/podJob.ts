@@ -11,10 +11,12 @@
  *   air, so the day can't save a shaking pod).
  * - The declared number is the new pod's hours on station. How good a read
  *   it was is judged on drag: the declared hours turn back into the pod's
- *   drag area that would fly them.
+ *   drag that would fly them, and the read is on the plane's whole drag
+ *   area with it (airframe and pod), as the ministry's engineers book it.
+ *   On the pod's drag alone a couple of minutes would be a poor read.
  */
 import { POD_JOBS, type BriefTemplate } from '../data/briefs'
-import { POD_BUFFET, TEST_RANGES, type PodDesign, type TestRange } from '../data/pod'
+import { POD_BUFFET, POD_CLASS, TEST_RANGES, type PodDesign, type TestRange } from '../data/pod'
 import { gaussian } from './noise'
 import { hoursOnStation, patrolDensity, podBuffet, podDrag, type Sensor } from './pod'
 import { Rng } from './rng'
@@ -76,9 +78,13 @@ export function podFlight(design: PodDesign, range: TestRange, day: RangeDay, se
   }
 }
 
-/** The pod's whole drag area as it flies, m²: the number the read is judged on. */
-export function podDragArea(design: PodDesign): number {
-  return podDrag(design).installed
+/**
+ * The plane's drag area on patrol with this pod, m² (the airframe and the
+ * pod as it flies), with the pod's drag scaled by `podScale`: the number
+ * the read is judged on.
+ */
+export function planeDragArea(design: PodDesign, podScale = 1): number {
+  return POD_CLASS[design.class].airframeCdA + podDrag(design).installed * podScale
 }
 
 /**

@@ -3,7 +3,7 @@ import { BRIEFS, POD_JOBS } from '../src/data/briefs'
 import { CLEARANCE } from '../src/data/defence'
 import { OLD_POD, POD_BUFFET, STOCK_POD, TEST_RANGES, type PodDesign } from '../src/data/pod'
 import { hoursOnStation, patrolDensity, podBuffet } from '../src/sim/pod'
-import { dragScaleForHours, podDragArea, podFlight, PRACTICE_RANGE, rangeDay, usualRangeDay } from '../src/sim/podJob'
+import { dragScaleForHours, planeDragArea, podFlight, PRACTICE_RANGE, rangeDay, usualRangeDay } from '../src/sim/podJob'
 import { boardFor, briefTemplate, clampBid, currentPodRun, daySeed, deliverPod, isPodBrief, newCareer, openTo, podEventOf, type CareerState } from '../src/sim/career'
 import { newLab } from '../src/sim/lab'
 import { readOf, reputationOf } from '../src/sim/reputation'
@@ -55,12 +55,22 @@ describe('sensor-pod briefs (PR 10ac)', () => {
     expect(hours(t)).toBeLessThan(old)
   })
 
-  it('stay off the board until clearance opens, and then only a cleared firm sees them; bids go a minute at a time', () => {
-    expect(POD_JOBS.open).toBe(false)
-    for (const b of podBriefs) expect(openTo(b, 100, true)).toBe(false)
-    const ids = new Set<string>()
-    for (let round = 1; round < 40; round++) for (const b of boardFor(3, round, false, 100, true)) ids.add(b.id)
-    for (const b of podBriefs) expect(ids.has(b.id)).toBe(false)
+  it('are on the board (PR 10ad) for a cleared, well-known firm only; bids go a minute at a time', () => {
+    expect(POD_JOBS.open).toBe(true)
+    for (const b of podBriefs) {
+      expect(openTo(b, 100, true)).toBe(true)
+      expect(openTo(b, 100, false)).toBe(false)
+      expect(openTo(b, 50, true)).toBe(false)
+    }
+    const seen = (cleared: boolean) => {
+      const ids = new Set<string>()
+      for (let round = 1; round < 80; round++) for (const b of boardFor(3, round, false, 100, cleared)) ids.add(b.id)
+      return ids
+    }
+    for (const b of podBriefs) {
+      expect(seen(true).has(b.id)).toBe(true)
+      expect(seen(false).has(b.id)).toBe(false)
+    }
     expect(clampBid('stepnoy-pod', { price: 500000, promise: 24.6 }).promise).toBe(25)
   })
 
@@ -109,11 +119,12 @@ describe('delivering a sensor pod', () => {
     expect(d.debrief.met).toBe(true)
     expect(d.debrief.cause).toBeNull()
     expect(d.debrief.buffet).toBeNull()
-    expect(d.debrief.actualCdA).toBeCloseTo(podDragArea(GOOD), 12)
-    // Declaring the true hours reads the drag true; half an hour long (the pod tested alone) is reading it low.
+    expect(d.debrief.actualCdA).toBeCloseTo(planeDragArea(GOOD), 12)
+    // Declaring the true hours reads the drag true; a couple of minutes out is still a good read, half an hour long (the pod tested alone) a poor one.
     expect(Math.abs(d.debrief.readError)).toBeLessThan(1e-6)
     expect(d.debrief.read).toBe(readOf(d.debrief.readError))
-    expect(deliverPod(job, GOOD, real + 0.5)!.debrief.readError).toBeLessThan(-0.08)
+    expect(deliverPod(job, GOOD, real + 2 / 60)!.debrief.read).toBe('good')
+    expect(deliverPod(job, GOOD, real + 0.5)!.debrief.read).toBe('poor')
     // Range day is seeded: the same air for both pods.
     expect(d.debrief.day).toEqual(rangeDay(d.event, daySeed(job.job!.brief)))
     expect(d.debrief.baselineFlight.hours).toBeCloseTo(hoursOnStation(STOCK_POD.patrol, { density: patrolDensity(range, d.debrief.day.temperature) }), 9)

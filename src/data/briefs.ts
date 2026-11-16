@@ -382,10 +382,11 @@ export const AIRCRAFT_JOBS = {
  * Range day is the show: its air, the patrol for both pods, and the
  * sensor's picture.
  *
- * Closed to the board until clearance opens (a later PR).
+ * On the board since PR 10ad, for a cleared firm only (clearance opens in a
+ * later PR).
  */
 export const POD_JOBS = {
-  open: false,
+  open: true,
   /** Hours on station in one promised point: a minute. */
   pointHours: 1 / 60,
   /** A pod bid's promise moves in these points: a minute. */
