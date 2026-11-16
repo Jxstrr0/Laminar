@@ -276,3 +276,45 @@ export const RECORD_SCENE = {
    */
   shock: { length: 40, width: 0.6, opacity: 0.55, maxDeg: 50 },
 }
+
+/**
+ * The quad race replay (PR 10h): five laps of the club's gate course, your
+ * quad with the pilot's old one as a see-through twin beside it. Every
+ * speed and lean comes from race day's races; these only set how they show.
+ */
+export const DRONE_REPLAY = {
+  /** Race seconds a replay second: a minute's race plays in under half a minute. */
+  rate: 2.25,
+  /** A tumble plays slower, from this many race seconds before it, at this rate, and holds this long once the quad is down before the replay ends. */
+  slowLead: 0.6,
+  slowRate: 0.5,
+  hold: 1.2,
+  /** The top-speed line waits at least this many race seconds after the start. */
+  topFrom: 1.8,
+  /** A straight is drawn in pieces no longer than this, m, and a corner in pieces turning no more than this, degrees. */
+  piece: 10,
+  cornerStep: 15,
+  /** A quad that tumbles spins this many half-turns as it falls onto the grass, over this many race seconds. */
+  tumble: { halfTurns: 3, seconds: 1.2 },
+}
+
+/** The meadow: a mown line through the grass, the gates, and a chase camera close behind a quad, m. */
+export const DRONE_SCENE = {
+  roadWidth: 3,
+  /** Side by side, close: a portrait phone sees only a metre or two across this near a quad. */
+  laneMine: 0.3,
+  laneOld: -0.3,
+  flagEvery: 1e9,
+  flagSide: -3,
+  /** The quads race this high over the grass. */
+  flyHeight: 1.5,
+  camera: { back: 3, up: 2, side: -0.3, ahead: 4, lookUp: 1.4, fov: 60 },
+  /** The camera sinks with a falling quad, down to this high over the grass. */
+  cameraLow: 0.7,
+  /** Once it's down, the camera looks this share nearer and this much lower, m, so the quad on the grass is the picture. */
+  fallLook: { ahead: 0.8, down: 0.6 },
+  /** A square gate over the line at the start of each straight: its opening, round the flying height, and its frame's thickness. */
+  gate: { width: 2.6, height: 1.4, bar: 0.08 },
+  /** The old quad is a see-through twin; a quad this small needs it a touch more solid than a rider's. */
+  ghostOpacity: 0.5,
+}

@@ -949,7 +949,7 @@ export const BRIEFS: readonly BriefTemplate[] = [
     id: 'shmel-quad',
     client: 'Yegor Shmel',
     who: 'Flies his own racing quad at the Lugovoy club; builds them on his kitchen table',
-    goal: 'My quad’s fine round the gates, but on the back straight everyone flies past me. Make it slippery.',
+    goal: 'My quad’s fine round the gates, but down the long straight everyone flies past me. Make it slippery.',
     event: {
       name: 'Lugovoy Club Race',
       place: 'Lugovoy meadow',

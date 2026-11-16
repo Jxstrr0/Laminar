@@ -8,7 +8,8 @@
  */
 import * as THREE from 'three'
 import { FIELD_TROUBLE, type CourseSegment } from '../data/field'
-import { CAR_REPLAY, RECORD_SCENE, REPLAY_SCENE as S } from '../data/replay'
+import { CAR_REPLAY, DRONE_REPLAY, DRONE_SCENE, RECORD_SCENE, REPLAY_SCENE as S } from '../data/replay'
+import { DRONE_BODY } from '../data/drone'
 import { designPose, type Design } from '../sim/design'
 import { recordAxis, recordLength } from '../sim/geom/record'
 import type { TrackPoint } from '../sim/replay'
@@ -35,6 +36,9 @@ const COLOURS = {
   markOld: 0x5a6875,
   /** The salt flat (PR 9v): the pan, its cracks, the graded course and its black line, and the chutes. */
   salt: 0xece8de,
+  /** The drone club's mown line through the meadow, and its gates (PR 10h). */
+  mown: 0xb3bf9e,
+  gate: 0xe08a00,
   saltGrid: 0xd6cfbf,
   saltCourse: 0xe2dccd,
   saltLine: 0x1d242b,
@@ -57,6 +61,14 @@ export interface CourseOptions {
   lap?: number
   /** Raced on ice: the boards or the road are drawn as ice. */
   ice?: boolean
+  /** A quad race (PR 10h): a gate over the line at each of these distances, m, and no cones or centre line. */
+  gates?: readonly number[]
+}
+
+/** A quad as the race clock has it (PR 10h): its lean, radians nose-down, and how far through a tumble's fall it is, 0 (flying) to 1 (on the grass). */
+export interface QuadState {
+  lean: number
+  fall: number
 }
 
 export interface ReplayOptions {
@@ -68,6 +80,8 @@ export interface ReplayOptions {
   car?: boolean
   /** A record run (PR 9v): the salt flat, the lanes and camera of RECORD_SCENE, and each car's chute. */
   record?: boolean
+  /** A quad race (PR 10h): the meadow's mown line, gates and close camera of DRONE_SCENE, the quads flying at gate height. */
+  drone?: boolean
 }
 
 /** A rider as drawn: tucked as designed, and (built the first time it's needed) sitting up. */
@@ -99,6 +113,8 @@ export interface ReplayView {
   setRiders(mine: Design, old: Design): void
   /** A record car's Mach number now, yours and the old car's (PR 9z+): past 1, its shock trails across the salt from its nose. */
   setMach(mine: number, old: number): void
+  /** Each quad's lean and fall now (PR 10h), for the next `place`. */
+  setQuads(mine: QuadState, old: QuadState): void
   /** Put both riders where the race clock says, and move the camera (dt in seconds). */
   place(mine: TrackPoint, old: TrackPoint, dt: number): void
   /** The readout panel covers this many pixels at the bottom: the picture centres above it. */
@@ -112,9 +128,12 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
   // setCourse's own options shadow these, so keep the circuit flag by name.
   const circuit = opts.car === true
   const salt = opts.record === true
+  const meadow = opts.drone === true
   const lay = salt
     ? RECORD_SCENE
-    : circuit
+    : meadow
+      ? DRONE_SCENE
+      : circuit
       ? S.car
       : opts.truck
         ? S.truck
@@ -183,7 +202,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
   const ghostMat = new THREE.MeshStandardMaterial({
     color: salt ? COLOURS.markOld : COLOURS.ghost,
     transparent: true,
-    opacity: salt ? RECORD_SCENE.ghostOpacity : S.ghostOpacity,
+    opacity: salt ? RECORD_SCENE.ghostOpacity : meadow ? DRONE_SCENE.ghostOpacity : S.ghostOpacity,
     depthWrite: false,
     roughness: 0.8,
   })
@@ -191,6 +210,9 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
   let old: Figure | null = null
   /** Seconds of replay so far, for the gusts' rhythm. */
   let clock = 0
+  /** The quads' lean and fall, set before each `place` (PR 10h). */
+  let quadMine: QuadState = { lean: 0, fall: 0 }
+  let quadOld: QuadState = { lean: 0, fall: 0 }
 
   function build(design: Design, ghost: boolean): THREE.Group {
     const g = buildRider({ design, pose: designPose(design), broken: [], strained: [] })
@@ -308,6 +330,18 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       if (f.chute) f.chute.visible = at.eased > 0
       return g
     }
+    // A quad (PR 10h) flies at gate height, leaning as the race says; one that tumbled spins down onto the grass.
+    if (f.design.sport === 'drone') {
+      const g = f.tucked
+      const q = f.ghost ? quadOld : quadMine
+      stand(g, at, lane)
+      const flying = DRONE_SCENE.flyHeight - DRONE_BODY.hover
+      // Upside down on the grass, the plate sits about its own height up.
+      g.position.y = flying * (1 - q.fall * q.fall) + 2 * DRONE_BODY.hover * q.fall
+      g.rotation.x = 0
+      g.rotation.z = -q.lean + Math.PI * DRONE_REPLAY.tumble.halfTurns * q.fall
+      return g
+    }
     if (at.faded > 0) f.sitting ??= build(sitUp(f.design), f.ghost)
     const g = at.faded > 0 && f.sitting ? f.sitting : f.tucked
     for (const other of [f.tucked, f.sitting]) if (other) other.visible = other === g
@@ -347,6 +381,26 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       course.remove(child)
       if (child instanceof THREE.InstancedMesh) child.dispose()
       if (child instanceof THREE.Mesh && child.geometry !== poleGeo && child.geometry !== flagGeo && child.geometry !== coneGeo && child.geometry !== dashGeo) child.geometry.dispose()
+    }
+  }
+
+  const gateMat = new THREE.MeshLambertMaterial({ color: COLOURS.gate })
+  /** A drone gate across the line at (x, z): two posts and two bars, the opening round the quads' flying height. */
+  function addGate(x: number, z: number, rx: number, rz: number, heading: number) {
+    const G = DRONE_SCENE.gate
+    const top = DRONE_SCENE.flyHeight + G.height / 2
+    const bottom = DRONE_SCENE.flyHeight - G.height / 2
+    for (const side of [-1, 1]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(G.bar, top + G.bar, G.bar), gateMat)
+      post.position.set(x + (rx * side * (G.width + G.bar)) / 2, (top + G.bar) / 2, z + (rz * side * (G.width + G.bar)) / 2)
+      course.add(post)
+    }
+    for (const y of [bottom, top]) {
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(G.width + G.bar * 2, G.bar, G.bar), gateMat)
+      bar.position.set(x, y + G.bar / 2, z)
+      // The bar lies across the line: its length along the road's right-hand side.
+      bar.rotation.y = -heading * DEG
+      course.add(bar)
     }
   }
 
@@ -409,7 +463,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       ringMine.visible = ringOld.visible = !!opts.lap
       grid.visible = !opts.lap
       boardsMat.color.setHex(opts.ice ? COLOURS.ice : COLOURS.boards)
-      roadMat.color.setHex(salt ? COLOURS.saltCourse : opts.ice ? COLOURS.ice : COLOURS.road)
+      roadMat.color.setHex(salt ? COLOURS.saltCourse : meadow ? COLOURS.mown : opts.ice ? COLOURS.ice : COLOURS.road)
       ;(ground.material as THREE.MeshLambertMaterial).color.setHex(salt ? COLOURS.salt : opts.lap ? COLOURS.infield : opts.ice ? COLOURS.snow : COLOURS.ground)
       if (opts.lap) {
         layTrack(segs, opts.lap)
@@ -430,7 +484,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
         road.position.set(x + (fx * seg.length) / 2, 0, z + (fz * seg.length) / 2)
         course.add(road)
         // The centre line: one instanced dash every few metres.
-        const count = Math.floor(seg.length / S.dashEvery)
+        const count = meadow ? 0 : Math.floor(seg.length / S.dashEvery)
         const dashes = new THREE.InstancedMesh(dashGeo, dashMat, count)
         dashes.renderOrder = -1
         const m = new THREE.Matrix4().makeRotationY(-seg.heading * DEG)
@@ -452,11 +506,13 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
           flag.rotation.y = downwind
           course.add(pole, flag)
         }
+        // A quad race's gate over the line at the start of each straight (PR 10h): a square frame round the flying height.
+        if (opts.gates?.some((g) => Math.abs(g - along) < 1e-3)) addGate(x, z, rx, rz, seg.heading)
         x += fx * seg.length
         z += fz * seg.length
         along += seg.length
         // A cone where the course turns (and at the finish). A circuit is drawn in short pieces: only its line gets one.
-        if (!circuit || along >= total - 1e-6) {
+        if (!meadow && (!circuit || along >= total - 1e-6)) {
           const cone = new THREE.Mesh(coneGeo, coneMat)
           cone.position.set(x, 0.45, z)
           course.add(cone)
@@ -469,6 +525,10 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       mine = figure(mineDesign, false)
       old = figure(oldDesign, true)
       camReady = false
+    },
+    setQuads(mineQuad, oldQuad) {
+      quadMine = mineQuad
+      quadOld = oldQuad
     },
     setMach(mineMach, oldMach) {
       showMach(mine, mineMach)
@@ -501,8 +561,13 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       const { fx, fz, rx, rz } = axes(camHeading)
       const c = lay.camera
       const p = gMine.position
-      camera.position.set(p.x - fx * c.back + rx * c.side, c.up, p.z - fz * c.back + rz * c.side)
-      camera.lookAt(p.x + fx * c.ahead, c.lookUp, p.z + fz * c.ahead)
+      // A quad falling from a tumble (PR 10h): the camera sinks with it and looks down at where it lands.
+      const fall = meadow ? quadMine.fall : 0
+      const sink = meadow ? Math.min(c.up - DRONE_SCENE.cameraLow, DRONE_SCENE.flyHeight - DRONE_BODY.hover - p.y) : 0
+      const ahead = c.ahead * (1 - DRONE_SCENE.fallLook.ahead * fall)
+      const lookUp = c.lookUp - sink - DRONE_SCENE.fallLook.down * fall
+      camera.position.set(p.x - fx * c.back + rx * c.side, c.up - sink, p.z - fz * c.back + rz * c.side)
+      camera.lookAt(p.x + fx * ahead, lookUp, p.z + fz * ahead)
       // The ground grid follows the camera in whole cells, so it never seems to jump.
       grid.position.x = Math.round(p.x / S.gridCell) * S.gridCell
       grid.position.z = Math.round(p.z / S.gridCell) * S.gridCell
@@ -524,7 +589,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       dropFigure(old)
       for (const geo of [poleGeo, flagGeo, coneGeo, dashGeo, ringGeo, chuteGeo, shockGeo, ground.geometry]) geo.dispose()
       grid.dispose()
-      for (const m of [roadMat, dashMat, poleMat, flagMat, coneMat, ghostMat, boardsMat, lineMat, chuteMat, chuteLineMat, shockMat, ringMine.material, ringOld.material, ground.material as THREE.Material])
+      for (const m of [roadMat, dashMat, poleMat, flagMat, coneMat, ghostMat, boardsMat, lineMat, chuteMat, chuteLineMat, shockMat, gateMat, ringMine.material, ringOld.material, ground.material as THREE.Material])
         m.dispose()
       renderer.dispose()
       renderer.forceContextLoss()

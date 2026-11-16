@@ -160,6 +160,8 @@ export interface DroneRace {
   speeds: number[]
   /** Each step's length, m. */
   lengths: number[]
+  /** The tilt it flew each step at, radians, forward positive (braking, negative), up to any tumble: for the replay to lean it. */
+  tilts: number[]
 }
 
 /** The race's steps: their lengths and the course piece each belongs to. */
@@ -179,16 +181,24 @@ function steps(segments: readonly CircuitSegment[], laps: number) {
   return { lengths, pieces }
 }
 
-/** The fastest the quad takes a corner of this radius, m/s: its spare push holds it round, less what the drag takes. */
+/**
+ * The fastest the quad takes a corner of this radius, m/s: its spare push
+ * holds it round, less what the drag takes. The push it needs sideways grows
+ * with speed and the push it has left shrinks, so halving the range finds
+ * where they meet (never past the quad's top speed, where none is left).
+ */
 function cornerSpeed(design: DroneDesign, radius: number, density: number, hot: boolean, trim: DroneTrim): number {
   const m = droneMass(design)
-  let v = Math.sqrt(radius * 10)
+  let lo = 0
+  let hi = RACE.ceiling
   for (let k = 0; k < RACE.passes; k++) {
+    const v = (lo + hi) / 2
     const f = flatOut(design, v, density, hot, trim)
     const sideways = Math.sqrt(Math.max(0, f.spare * f.spare - f.drag * f.drag))
-    v = Math.min(RACE.ceiling, Math.sqrt((radius * sideways) / m))
+    if ((m * v * v) / radius <= sideways) lo = v
+    else hi = v
   }
-  return v
+  return lo
 }
 
 /** Fly the race on the quad's true aero, with any troubles taken away. */
@@ -259,12 +269,14 @@ export function droneRace(design: DroneDesign, course: DroneCourse, temperature 
   let along = 0
   let tumble: DroneRace['tumble'] = null
   let twist: DroneRace['twist'] = { moment: 0, speed: 0, braking: false }
+  const tilts: number[] = []
   for (let i = 0; i < count; i++) {
     const entry = i === 0 ? 0 : speeds[i - 1]!
     const v = speeds[i]!
     // Speeding up, it tilts as far forward as it can; braking, as far back (the pod then meets the air
     // nearly tail-first, and a raked one twists hardest); holding its speed, just enough for the drag.
     const tilt = v > entry + 1e-9 ? flatOut(design, v, density, false, trim).tilt : v < entry - 1e-9 ? -flatOut(design, v, density, false, trim).tilt : steadyTilt(design, v, density, trim)
+    tilts.push(tilt)
     const moment = Math.abs(pitchMoment(design, v, tilt, density)) * (trim.twist ?? 1)
     if (moment > twist.moment) twist = { moment, speed: v, braking: v < entry - 1e-9 }
     if (!relief.tumble && moment > c.authority) {
@@ -275,5 +287,5 @@ export function droneRace(design: DroneDesign, course: DroneCourse, temperature 
     top = Math.max(top, v)
     along += lengths[i]!
   }
-  return { time: tumble ? null : time, top, tumble, hotAt, twist, speeds, lengths }
+  return { time: tumble ? null : time, top, tumble, hotAt, twist, speeds, lengths, tilts }
 }

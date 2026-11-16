@@ -180,8 +180,8 @@ export const DRONE_RACE = {
   /** Metres per step through the course. */
   step: 2,
   laps: 5,
-  /** Passes to settle each corner's speed. */
-  passes: 6,
+  /** Halvings to find each corner's speed (PR 10h: a search, so a wide corner can't flip between too fast and a standstill). */
+  passes: 32,
   /** The fastest the race model lets any quad fly, m/s (a cap for the search). */
   ceiling: 70,
 }
@@ -199,11 +199,15 @@ const R = (radius: number, angle: number): CircuitSegment => ({ kind: 'corner', 
 const L = (radius: number, angle: number): CircuitSegment => ({ kind: 'corner', radius, angle, dir: 'L' })
 
 export const DRONE_COURSES: Record<DroneCourse['id'], DroneCourse> = {
-  /** The Lugovoy meadow outside Stavren: the drone club's gate course, a fast back straight and two hairpins. */
+  /**
+   * The Lugovoy meadow outside Stavren: the drone club's gate course, a fast
+   * back straight, a hairpin, a tight chicane and a long sweeper home. It
+   * closes on itself (PR 10h), so the replay's five laps fly the same loop.
+   */
   lugovoy: {
     id: 'lugovoy',
     altitude: 240,
     temperature: 17,
-    segments: [S(80), R(10, 180), S(40), L(8, 90), S(30), R(8, 90), S(50), R(12, 180)],
+    segments: [S(80), R(10, 180), S(30), L(8, 90), S(10), R(8, 90), S(34), R(23, 180)],
   },
 }

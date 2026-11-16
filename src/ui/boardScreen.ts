@@ -20,6 +20,7 @@ import { CAR_CLASS, type CarDesign } from '../data/car'
 import { checkCarRules, lapTime, scrutineered } from '../sim/car'
 import { playCarReplay } from './carReplay'
 import { playRecordReplay } from './recordReplay'
+import { playDroneReplay } from './droneReplay'
 import type { BobsledDesign } from '../data/bobsled'
 import { GRAVEL_YARD, type TruckDesign } from '../data/truck'
 import { ROUTES } from '../data/routes'
@@ -1141,8 +1142,8 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       if (!d) return
       deliverSheet?.close()
       careerStore.set(d.state)
-      // Straight to the debrief; the race replay comes in PR 10h.
-      showDroneDelivery(d)
+      // The race replay (PR 10h), then the debrief.
+      replayDrone(d, quad, () => showDroneDelivery(d, quad))
     })
     deliverSheet.body.replaceChildren(
       el('p', 'shop-intro', t('deliver.introDrone', { client: b.client, course: courseName })),
@@ -1160,7 +1161,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
   let droneSheet: Sheet | null = null
 
   /** The club race for a quad: the promise judged on the usual day, race day, and a tumble or overheating with its fix. */
-  function showDroneDelivery(d: DroneDelivery) {
+  function showDroneDelivery(d: DroneDelivery, design: DroneDesign) {
     droneSheet ??= createSheet({ cls: 'raceday', title: t('qd.title'), closeLabel: t('qd.close') })
     const b = briefTemplate(d.job.brief.id)!
     const db = d.debrief
@@ -1211,8 +1212,31 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     parts.push(el('p', 'shop-note', t('qd.readNote')))
     if (d.sale) parts.push(brokeBox(d.sale, d.state.money))
     if (d.state.ended) parts.push(el('p', 'save-due', t('end.reached')))
+    const again = button('save-btn quiet', t('race.replay'))
+    again.addEventListener('click', () => {
+      droneSheet?.close()
+      replayDrone(d, design, () => showDroneDelivery(d, design))
+    })
+    parts.push(again)
     droneSheet.body.replaceChildren(...parts)
     droneSheet.open()
+  }
+
+  /** Race day's five laps round the gates, then `after`. */
+  function replayDrone(d: DroneDelivery, design: DroneDesign, after: () => void) {
+    const b = briefTemplate(d.job.brief.id)!
+    void playDroneReplay({
+      client: b.client,
+      event: b.event.name,
+      course: d.event.course,
+      design,
+      setup: b.setup as DroneDesign,
+      race: d.debrief.race,
+      baselineRace: d.debrief.baselineRace,
+      predicted: d.debrief.predicted,
+      actual: d.debrief.actual,
+      onDone: after,
+    })
   }
 
   /** The race-day replay for a delivery, then `after`. */

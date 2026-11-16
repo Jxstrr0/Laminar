@@ -94,10 +94,15 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 10e | The powered quad model: the shop's new Props option (Spinning: motors wired down the sting, ₽ 15,000 and 2 days more) spins the model's props in the tunnel, so the balance reads the downwash on the arms and the forecast stops reading faired arms slow. Each powered run costs ₽ 2,000 more. A Downwash readout; still blades on a plain model, turning ones on a powered one | **Done** (v0.10.4.0) |
 | 10f | Quad jobs in the sim: three hobby pilots at the Lugovoy Club Race (Yegor Shmel's stock quad, slow on the back straight; Inna Vertel's, its vents taped over; Strizh Racing's long camera pod, which tumbles braking once it's raked up and faired). The promise is tenths of a second off the five-lap race on the course's usual day over their own quad; a quad that tumbles crashes out and gains nothing. Race day is seeded, the read is judged on drag, and the debrief names a tumble or the overheating with a "change this". Off the board until 10g | **Done** (v0.10.5.0) |
 | 10g | Quad jobs on the board: the brief card (course, laps, the quad), bids in tenths of a second, "Shape the quad", and a Deliver sheet that fills the race time from the tunnel's forecast (warning if it tumbles, the twist wasn't measured, it was read raw or with the props stopped) or the desk estimate. The club-race debrief shows both races, the read, and a tumble or overheating with its "change this". No replay yet | **Done** (v0.10.6.0) |
-| 10h–14 | See the plan | Next: the quad race replay (10h). |
+| 10h | The quad race replay: race day's five laps from close behind your quad, the pilot's old one see-through alongside, gates over a mown line, each quad leaning forward to pull away and back to brake (the lean the race model flew). A tumble plays slowly and the quad spins down onto the grass; the replay then ends. Lap, clock, speed and gap readouts and a commentator's line. The Lugovoy course now closes on itself (it drifted 50 m a lap), and the race model finds corner speeds by a search (a wide corner could flip it to a standstill); the jobs' balance is unchanged | **Done** (v0.10.7.0) |
+| 10i–14 | See the plan | Next: survey drones (10i). |
 
 ## Versions
 
+- **0.10.7.0** (PR 10h): the quad race replay. Deliver a quad job and watch
+  the five laps before the debrief: your quad leans into the straights and
+  tips back to brake; a quad that tumbles spins down onto the grass. The
+  debrief has a Replay button.
 - **0.10.6.0** (PR 10g): quad jobs on the board. Win Yegor Shmel's, Inna
   Vertel's or Strizh Racing's job, shape the quad, read it in the tunnel,
   then Deliver: the race time is filled in for you. The club-race debrief
