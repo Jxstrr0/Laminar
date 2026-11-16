@@ -11,7 +11,8 @@
  * In flight the prop blows on the nose (Kelbo's trap, 16 November 2026):
  * the parts in its slipstream drag more, and its swirl meets the strut
  * fairings' roots at an angle. The tunnel's model has its prop stopped, so
- * it sees neither, unless it is fitted with a powered prop (a later PR).
+ * it sees neither, unless it is fitted with a powered prop (PR 10r,
+ * src/sim/aircraftTunnel.ts).
  *
  * The stall speed is certified at the most take-off mass in standard
  * sea-level air. Square tips and a pod slid forward lower the wing's most
@@ -106,17 +107,26 @@ function parasite(design: AircraftDesign, slipstream: boolean): Omit<AircraftDra
   return { fuselage, tail: A.tail, misc: A.misc, cowl, gear, struts, pod, tips: A.tipCdA * design.wingtips }
 }
 
-/** The drag at this speed and air in level flight, carrying its weight at cruise. */
-export function aircraftDrag(design: AircraftDesign, speed: number, density: number, opts: DragOpts = {}): AircraftDrag {
+/**
+ * The drag at a lift coefficient (PR 10r): what the tunnel's balance reads
+ * with the wing at an angle, and what flight makes carrying its weight.
+ * `wingCd` scales the wing's own profile drag (a stalled wing's grows).
+ */
+export function aircraftDragAtLift(design: AircraftDesign, cl: number, opts: DragOpts & { wingCd?: number } = {}): AircraftDrag {
   const c = AIRCRAFT_CLASS[design.class]
-  const q = 0.5 * density * speed * speed
-  const cl = (aircraftMass(design) * ATMOSPHERE.gravity) / (q * c.wingArea)
   const aspect = (c.span * c.span) / c.wingArea
   const induced = ((cl * cl) / (PI * aircraftSpanEfficiency(design) * aspect)) * c.wingArea
-  const wing = A.wingCd0 * c.wingArea
+  const wing = A.wingCd0 * c.wingArea * (opts.wingCd ?? 1)
   const p = parasite(design, opts.slipstream ?? true)
   const cdA = wing + induced + p.fuselage + p.tail + p.misc + p.cowl + p.gear + p.struts + p.pod + p.tips
   return { wing, induced, ...p, cdA, cl }
+}
+
+/** The drag at this speed and air in level flight, carrying its weight at cruise. */
+export function aircraftDrag(design: AircraftDesign, speed: number, density: number, opts: DragOpts = {}): AircraftDrag {
+  const q = 0.5 * density * speed * speed
+  const cl = (aircraftMass(design) * ATMOSPHERE.gravity) / (q * AIRCRAFT_CLASS[design.class].wingArea)
+  return aircraftDragAtLift(design, cl, opts)
 }
 
 /** The air at cruise height over an airfield on a day, kg/m³. */
