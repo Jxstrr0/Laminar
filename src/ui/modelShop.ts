@@ -1,14 +1,15 @@
 /**
- * The model shop sheet (plan section 9.3): pick a scale, finish, accuracy
- * grade, trip strips and pressure taps, see the price and lead time, and order. It slides
+ * The model shop sheet (plan section 9.3): pick who makes it (the outside
+ * shop or a machine you own), a scale, finish, accuracy grade, trip strips
+ * and pressure taps, see the price and lead time, and order. It slides
  * up over the tunnel like the glossary and borrows its look.
  *
  * Models are built for a job (Kelbo, PR 5): the price is charged to it and
  * the lead time comes off its days, all at once when the order is placed.
  */
-import { MODEL_FINISH, MODEL_GRADE, MODEL_SCALES, type ModelFinish, type ModelGrade, type ModelScale } from '../data/model'
+import { MAKERS, MAKER_IDS, MODEL_FINISH, MODEL_GRADE, MODEL_SCALES, type MakerId, type ModelFinish, type ModelGrade, type ModelScale } from '../data/model'
 import { t, type StringKey } from '../data/strings'
-import { matchedSpeed, quote, type ModelOrder } from '../sim/modelShop'
+import { forMaker, makerOf, matchedSpeed, quote, type ModelOrder } from '../sim/modelShop'
 import type { OrderBlock } from '../sim/career'
 import type { EventSpec } from '../sim/views'
 import { fixed } from './format'
@@ -27,7 +28,7 @@ function choice<T extends string | number>(
   label: string,
   options: readonly { value: T; text: string }[],
   onPick: (value: T) => void,
-): { box: HTMLElement; note: HTMLElement; set(value: T): void } {
+): { box: HTMLElement; note: HTMLElement; set(value: T): void; allow(values: readonly T[]): void } {
   const box = el('div', 'shop-group')
   const head = el('p', 'shop-label', label)
   head.id = `shop-${label.toLowerCase().replace(/\W+/g, '-')}`
@@ -45,8 +46,11 @@ function choice<T extends string | number>(
   let current = options[0]!.value
   group.addEventListener('keydown', (e) => {
     if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
+    // Step to the next option that can be picked, skipping any the maker can't do.
     const i = options.findIndex((o) => o.value === current)
-    const next = (i + (e.key === 'ArrowRight' ? 1 : options.length - 1)) % options.length
+    const dir = e.key === 'ArrowRight' ? 1 : options.length - 1
+    let next = (i + dir) % options.length
+    while (buttons[next]!.disabled && next !== i) next = (next + dir) % options.length
     onPick(options[next]!.value)
     buttons[next]!.focus()
   })
@@ -63,6 +67,9 @@ function choice<T extends string | number>(
         buttons[i]!.tabIndex = on ? 0 : -1
       })
     },
+    allow(values) {
+      options.forEach((o, i) => (buttons[i]!.disabled = !values.includes(o.value)))
+    },
   }
 }
 
@@ -76,6 +83,8 @@ export interface ShopContext {
   daysLeft: number
   /** The top speed of the tunnel in use, m/s (a bigger fan raises it). */
   topSpeed: number
+  /** Who can make the model: the outside shop and any machines you own. */
+  makers: readonly MakerId[]
 }
 
 interface Shop {
@@ -96,6 +105,14 @@ function buildShop(): Shop {
   let context: ShopContext | null = null
   const update = () => {
     if (!context) return
+    const m = MAKERS[makerOf(order)]
+    maker.box.hidden = context.makers.length < 2
+    maker.allow(context.makers)
+    maker.set(makerOf(order))
+    maker.note.textContent = t(`shop.makerNote.${makerOf(order)}`)
+    scale.allow(m.scales)
+    finish.allow(m.finishes)
+    grade.allow(m.grades)
     scale.set(order.scale)
     finish.set(order.finish)
     grade.set(order.grade)
@@ -123,6 +140,14 @@ function buildShop(): Shop {
     update()
   }
 
+  const maker = choice<MakerId>(
+    t('shop.maker'),
+    MAKER_IDS.map((id) => ({ value: id, text: t(`shop.maker.${id}`) })),
+    (id) => {
+      order = forMaker(order, id)
+      update()
+    },
+  )
   const scale = choice<ModelScale>(
     t('shop.scale'),
     MODEL_SCALES.map((s) => ({ value: s, text: t('shop.scaleLabel', { scale: s }) })),
@@ -174,12 +199,13 @@ function buildShop(): Shop {
   })
   bill.append(price, free, orderBtn)
 
-  body.append(intro, scale.box, finish.box, grade.box, trips.box, taps.box, bill)
+  body.append(intro, maker.box, scale.box, finish.box, grade.box, trips.box, taps.box, bill)
 
   return {
     sheet,
     show(current, ctx, onOrder) {
-      order = { ...current }
+      // Start from the model on the mount, at a maker you still have.
+      order = ctx.makers.includes(makerOf(current)) ? { ...current } : forMaker(current, 'shop')
       context = ctx
       place = onOrder
       update()

@@ -25,7 +25,8 @@ import { readOf, reputationOf, type Read } from './reputation'
 import { REPUTATION } from '../data/reputation'
 import { RIVALS, RIVAL_IDS, type RivalId } from '../data/rivals'
 import { rivalRecord } from './rivals'
-import { buildBlock, NO_FACILITY, upgradeBlock, upkeepDays, type Facility } from './facility'
+import { buildBlock, machineBlock, NO_FACILITY, upgradeBlock, upkeepDays, type Facility } from './facility'
+import { MACHINE_PRICE, type MachineId } from '../data/model'
 import { OWN_TUNNEL_BUILD, TUNNEL_UPGRADES, type UpgradeId } from '../data/tunnel'
 import { fieldResult, REFERENCE_TT, truth, type EventSpec, type FieldResult } from './views'
 
@@ -166,6 +167,13 @@ export function passDays(state: CareerState, days: number): CareerState {
 export function buildOwnTunnel(state: CareerState): CareerState {
   if (buildBlock(state.facility, state.money)) return state
   return { ...state, money: state.money - OWN_TUNNEL_BUILD.price, facility: { ...state.facility, ownOrdered: state.day } }
+}
+
+/** Buy a workshop machine (cash only); it arrives at once. Unchanged if it can't be bought. */
+export function buyMachine(state: CareerState, id: MachineId): CareerState {
+  if (machineBlock(state.facility, state.money, id)) return state
+  const facility = { ...state.facility, machines: { ...state.facility.machines, [id]: state.day } }
+  return { ...state, money: state.money - MACHINE_PRICE[id], facility }
 }
 
 /** Pay for an upgrade to your tunnel (cash only); it's fitted TUNNEL_UPGRADES[id].days later. Unchanged if it can't be. */

@@ -84,3 +84,45 @@ export const STANDARD_ORDER = { scale: 2 as ModelScale, finish: 'sanded' as Mode
  * job its own model and seed).
  */
 export const DEMO_MODEL_SEED = 1
+
+/**
+ * The workshop chain (plan section 9.3): who makes the model. The outside
+ * shop makes anything at its price list. Your own machines make models for
+ * a share of that price and in fewer days, each with limits and a material
+ * of its own:
+ * - the resin printer is quick and smooth, but only small models fit and
+ *   resin is brittle (thin parts flutter sooner);
+ * - the FDM printer is cheap and takes any scale, but its parts are rough
+ *   and a little bendy, and it only builds to the standard grade;
+ * - the CNC mill cuts aluminium: dear to buy, but true to size and stiff.
+ * Machines are bought for cash and arrive at once.
+ */
+export type MakerId = 'shop' | 'resin' | 'fdm' | 'cnc'
+export type MachineId = Exclude<MakerId, 'shop'>
+
+export interface Maker {
+  scales: readonly ModelScale[]
+  finishes: readonly ModelFinish[]
+  grades: readonly ModelGrade[]
+  /** A model's price and days as shares of the outside shop's for the same order. */
+  priceShare: number
+  daysShare: number
+  /** Thin parts' flutter speed times this (the material's stiffness). */
+  stiffness: number
+  /** Each part's size error times this. */
+  accuracyTimes: number
+}
+
+export const MAKERS: Record<MakerId, Maker> = {
+  shop: { scales: [4, 3, 2], finishes: ['printed', 'sanded', 'polished'], grades: ['standard', 'fine'], priceShare: 1, daysShare: 1, stiffness: 1, accuracyTimes: 1 },
+  resin: { scales: [4, 3], finishes: ['sanded', 'polished'], grades: ['standard', 'fine'], priceShare: 0.3, daysShare: 0.3, stiffness: 0.8, accuracyTimes: 1 },
+  fdm: { scales: [4, 3, 2], finishes: ['printed', 'sanded'], grades: ['standard'], priceShare: 0.2, daysShare: 0.5, stiffness: 0.9, accuracyTimes: 1 },
+  cnc: { scales: [4, 3, 2], finishes: ['sanded', 'polished'], grades: ['standard', 'fine'], priceShare: 0.45, daysShare: 0.6, stiffness: 1.3, accuracyTimes: 0.5 },
+}
+
+/** What each machine costs to buy, ₽. */
+export const MACHINE_PRICE: Record<MachineId, number> = { resin: 220_000, fdm: 120_000, cnc: 900_000 }
+
+/** The order they're shown in. */
+export const MACHINE_IDS: readonly MachineId[] = ['fdm', 'resin', 'cnc']
+export const MAKER_IDS: readonly MakerId[] = ['shop', 'fdm', 'resin', 'cnc']

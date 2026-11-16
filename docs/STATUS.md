@@ -37,11 +37,22 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 7b | The named rivals, Bystro Aero and Vysota Aerolab | **Done** (v0.7.1.0) |
 | 7c | Your own tunnel: save up and build it (cash only), 90 days, cheap runs and daily upkeep | **Done** (v0.7.2.0) |
 | 7d | Tunnel upgrades: turbulence screens, bigger turntable, wheel-drive rig, bigger fan | **Done** (v0.7.3.0) |
-| 7e | Workshop chain: resin printer, FDM printer, CNC mill | Next |
-| 7f–14 | See the plan (staff, going broke, backup file, 2040 ending, then PRs 8–14) | Not started |
+| 7e | Workshop chain: FDM printer, resin printer, CNC mill | **Done** (v0.7.4.0) |
+| 7f | Staff with traits, paid per day that passes | Next |
+| 7g–14 | See the plan (going broke, backup file, 2040 ending, then PRs 8–14) | Not started |
 
 ## Versions
 
+- **0.7.4.0** (PR 7e): the workshop.
+  - A Workshop card on the Jobs screen sells three machines for cash:
+    - an FDM printer (₽120k): cheap, any scale, rough and a little bendy;
+    - a resin printer (₽220k): quick and smooth, 1:4 and 1:3 only, brittle;
+    - a CNC mill (₽900k): aluminium, twice as true to size and stiff.
+  - The model shop gains a "Made by" row for the outside shop and any
+    machine you own. Your own machines make models for a share of the
+    shop's price and days; options a machine can't do are greyed out.
+  - Material matters in the tunnel: resin parts flutter sooner, aluminium
+    later.
 - **0.7.3.0** (PR 7d): upgrades for your own tunnel.
   - Once your tunnel is open, its card lists four upgrades, each paid in
     cash and fitted over some days while you keep working:

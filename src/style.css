@@ -376,6 +376,7 @@ html, body {
   cursor: pointer;
 }
 .segment[aria-checked='true'] { background: var(--panel); color: var(--accent); font-weight: 700; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
+.segment:disabled { opacity: 0.4; cursor: not-allowed; }
 .control-toggle { display: flex; align-items: center; gap: 12px; min-height: var(--tap); cursor: pointer; }
 .toggle { width: 22px; height: 22px; margin: 0; accent-color: var(--accent); flex: none; }
 .control.flash { animation: flash 1.2s ease-out; }

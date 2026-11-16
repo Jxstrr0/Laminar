@@ -17,7 +17,7 @@ import { packSave, parseSave, SAVE_VERSION, type SaveFile } from './persist/save
 import { DEFAULT_CYCLIST } from './data/cyclist'
 import { careerStore, freshSeed } from './ui/careerStore'
 import { charge, currentEvent, newCareer, orderBlock, orderModel, repairModel } from './sim/career'
-import { tunnelSetup } from './sim/facility'
+import { makersOwned, tunnelSetup } from './sim/facility'
 import { afterDesign, afterOrder, afterRun, afterSwap, currentStep } from './sim/guide'
 import { runCost } from './sim/run'
 import { rublesShort } from './ui/format'
@@ -123,6 +123,7 @@ async function boot(): Promise<void> {
         block: (days) => orderBlock(career, days),
         daysLeft: career.job?.daysLeft ?? 0,
         topSpeed: tunnelSetup(career.seed, career.facility, career.day).build.topSpeed,
+        makers: makersOwned(career.facility),
       }
     },
     onOrder: (price, days) => careerStore.set(afterOrder(orderModel(careerStore.get(), price, days))),

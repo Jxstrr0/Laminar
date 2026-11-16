@@ -5,7 +5,7 @@
  * newer version) is turned away rather than half loaded.
  */
 import { DESIGN_CHOICES, PART_RANGE, POSTURE_RANGE, type CyclistDesign } from '../data/cyclist'
-import { MODEL_FINISH, MODEL_GRADE, MODEL_SCALES } from '../data/model'
+import { MACHINE_IDS, MAKER_IDS, MODEL_FINISH, MODEL_GRADE, MODEL_SCALES, type MachineId } from '../data/model'
 import { CRANK_DIAL, DEMO_TUNNEL_SEED } from '../data/tunnel'
 import { briefTemplate, newCareer, type Brief, type CareerState, type Job, type JobRecord } from '../sim/career'
 import { GUIDE_STEPS, type GuideStep } from '../sim/guide'
@@ -13,7 +13,7 @@ import { NO_FACILITY, type Facility } from '../sim/facility'
 import { UPGRADE_IDS, type UpgradeId } from '../data/tunnel'
 import type { Failure, FailureMode, FailurePart } from '../sim/failure'
 import type { LabState, RunNote } from '../sim/lab'
-import type { ModelOrder } from '../sim/modelShop'
+import { canMake, type ModelOrder } from '../sim/modelShop'
 import type { Run, RunSample } from '../sim/run'
 
 /**
@@ -112,7 +112,11 @@ function soundOrder(x: unknown): ModelOrder | null {
   const { scale, finish, grade, trips, taps } = x
   if (!MODEL_SCALES.includes(scale as never) || !oneOf(finish, Object.keys(MODEL_FINISH) as (keyof typeof MODEL_FINISH)[])) return null
   if (!oneOf(grade, Object.keys(MODEL_GRADE) as (keyof typeof MODEL_GRADE)[]) || typeof trips !== 'boolean') return null
-  return { scale: scale as ModelOrder['scale'], finish, grade, trips, taps: taps === true }
+  // Orders from before PR 7e were all the outside shop's.
+  const maker = x.maker === undefined ? 'shop' : x.maker
+  if (!oneOf(maker, MAKER_IDS)) return null
+  const order: ModelOrder = { scale: scale as ModelOrder['scale'], finish, grade, trips, taps: taps === true, ...(maker === 'shop' ? {} : { maker }) }
+  return canMake(order) ? order : null
 }
 
 /**
@@ -190,7 +194,15 @@ function soundFacility(x: unknown): Facility | null {
     if (!(UPGRADE_IDS as readonly string[]).includes(id) || !isCount(day)) return null
     upgrades[id as UpgradeId] = day
   }
-  return { ownOrdered: x.ownOrdered as number | null, upgrades }
+  // Facilities from before PR 7e have no machines.
+  const owned = x.machines === undefined ? {} : x.machines
+  if (!isObj(owned)) return null
+  const machines: Facility['machines'] = {}
+  for (const [id, day] of Object.entries(owned)) {
+    if (!(MACHINE_IDS as readonly string[]).includes(id) || !isCount(day)) return null
+    machines[id as MachineId] = day
+  }
+  return { ownOrdered: x.ownOrdered as number | null, upgrades, machines }
 }
 
 /** The career, or null if it isn't one the game could have written. */

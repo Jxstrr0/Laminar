@@ -8,8 +8,8 @@
  */
 import type { CyclistDesign } from '../data/cyclist'
 import { FAILURE } from '../data/failure'
-import { MODEL_SHOP } from '../data/model'
-import { quote, type ModelOrder, type Quote } from './modelShop'
+import { MAKERS, MODEL_SHOP } from '../data/model'
+import { makerOf, quote, type ModelOrder, type Quote } from './modelShop'
 
 export type FailureMode = 'flutter' | 'mount' | 'detach'
 /** The part that gives: the helmet tail, a disc wheel's cover, the mount's posts or a glued-on helmet. */
@@ -36,7 +36,7 @@ const key = (f: Failure) => `${f.mode}:${f.part}`
 /** The air speed a thin part flutters at on this model, m/s, or null if it has none. */
 export function flutterSpeed(model: MountedModel, part: 'tail' | 'disc'): number | null {
   const f = FAILURE.flutter
-  const scaled = (v: number) => v * f.scale[model.order.scale] * f.finish[model.order.finish]
+  const scaled = (v: number) => v * f.scale[model.order.scale] * f.finish[model.order.finish] * MAKERS[makerOf(model.order)].stiffness
   if (part === 'tail') {
     const h = model.design.helmet
     if (h.kind !== 'aero' || h.tail < f.tail.minTail) return null
