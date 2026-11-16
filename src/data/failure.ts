@@ -29,7 +29,7 @@ export const FAILURE = {
     disc: 42,
     /** Smaller models have shorter, stiffer parts: their flutter speed times this. */
     // Smaller models are stiffer for their size; a truck's scales (PR 9c) carry on the trend.
-    scale: { 4: 1.3, 3: 1.15, 2: 1, 12: 1.6, 10: 1.5, 8: 1.4, 1: 1 },
+    scale: { 4: 1.3, 3: 1.15, 2: 1, 12: 1.6, 10: 1.5, 8: 1.4, 1: 1, 2.5: 1.2, 1.5: 1 },
     /** Printed parts are softer. */
     finish: { printed: 0.85, sanded: 1, polished: 1 },
   },

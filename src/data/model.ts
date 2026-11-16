@@ -38,7 +38,14 @@ export const TRUCK_SCALES = [12, 10, 8] as const
  */
 export const DRONE_SCALES = [1] as const
 
-export const ALL_SCALES = [...MODEL_SCALES, ...TRUCK_SCALES, ...DRONE_SCALES] as const
+/**
+ * A survey drone's two-metre wing won't go in the tunnel full size (PR 10k):
+ * the shop builds it at 1:2.5 (an 84 cm wing) or 1:1.5 (1.4 m). The smaller
+ * the model, the lower its wing's Reynolds number at a given speed.
+ */
+export const PLANE_SCALES = [2.5, 1.5] as const
+
+export const ALL_SCALES = [...MODEL_SCALES, ...TRUCK_SCALES, ...DRONE_SCALES, ...PLANE_SCALES] as const
 
 export type ModelScale = (typeof ALL_SCALES)[number]
 
@@ -58,6 +65,9 @@ export const MODEL_SHOP = {
     8: { price: 50000, days: 7 },
     // A full-size quad: a printed pod and arm fairings on a stock frame, motors and props.
     1: { price: 20000, days: 4 },
+    // A survey drone's foam-cored wing, fuselage and tail, with the pod and winglets as printed parts.
+    2.5: { price: 34000, days: 5 },
+    1.5: { price: 58000, days: 8 },
   } satisfies Record<ModelScale, { price: number; days: number }>,
   finish: {
     printed: { times: 0.75, days: -1 },
@@ -143,10 +153,10 @@ export interface Maker {
 }
 
 export const MAKERS: Record<MakerId, Maker> = {
-  shop: { scales: [4, 3, 2, 12, 10, 8, 1], finishes: ['printed', 'sanded', 'polished'], grades: ['standard', 'fine'], priceShare: 1, daysShare: 1, stiffness: 1, accuracyTimes: 1 },
-  resin: { scales: [4, 3, 12, 10, 1], finishes: ['sanded', 'polished'], grades: ['standard', 'fine'], priceShare: 0.3, daysShare: 0.3, stiffness: 0.8, accuracyTimes: 1 },
-  fdm: { scales: [4, 3, 2, 12, 10, 8, 1], finishes: ['printed', 'sanded'], grades: ['standard'], priceShare: 0.2, daysShare: 0.5, stiffness: 0.9, accuracyTimes: 1 },
-  cnc: { scales: [4, 3, 2, 12, 10, 8, 1], finishes: ['sanded', 'polished'], grades: ['standard', 'fine'], priceShare: 0.45, daysShare: 0.6, stiffness: 1.3, accuracyTimes: 0.5 },
+  shop: { scales: [4, 3, 2, 12, 10, 8, 1, 2.5, 1.5], finishes: ['printed', 'sanded', 'polished'], grades: ['standard', 'fine'], priceShare: 1, daysShare: 1, stiffness: 1, accuracyTimes: 1 },
+  resin: { scales: [4, 3, 12, 10, 1, 2.5], finishes: ['sanded', 'polished'], grades: ['standard', 'fine'], priceShare: 0.3, daysShare: 0.3, stiffness: 0.8, accuracyTimes: 1 },
+  fdm: { scales: [4, 3, 2, 12, 10, 8, 1, 2.5, 1.5], finishes: ['printed', 'sanded'], grades: ['standard'], priceShare: 0.2, daysShare: 0.5, stiffness: 0.9, accuracyTimes: 1 },
+  cnc: { scales: [4, 3, 2, 12, 10, 8, 1, 2.5, 1.5], finishes: ['sanded', 'polished'], grades: ['standard', 'fine'], priceShare: 0.45, daysShare: 0.6, stiffness: 1.3, accuracyTimes: 0.5 },
 }
 
 /** What each machine costs to buy, ₽. */
