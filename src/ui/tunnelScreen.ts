@@ -74,6 +74,7 @@ import type { SledEvent } from '../sim/sledJob'
 import type { BobsledDesign } from '../data/bobsled'
 import { sledForecast } from './sledForecast'
 import { truckForecast } from './truckForecast'
+import { carForecast } from './carForecast'
 import { FLIGHT_ATTITUDE, JUMP_TUNNEL, PITCH } from '../data/jumper'
 import { correctJumper, forecastJump, isJumperRun, jumperReadings, prepareJumper, readJumper, type JumperFix, type JumpForecast, type PreparedJumper } from '../sim/jumpTunnel'
 import type { JumpEvent } from '../sim/jumper'
@@ -1537,7 +1538,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   }
 
   // --- The car's forecast (PR 9l): this model's settled readings, corrected, lapped on the circuit.
-  let carForecast: LapForecast | null = null
+  let lapCast: LapForecast | null = null
   const carFix = (): CarFix => ({ tare: cal.tare?.trusted ? cal.tare.mean : null, blockageK: cal.blockage?.k ?? null })
   function updateCarForecast(dt: number) {
     forecastAge += dt
@@ -1548,12 +1549,15 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     const model = carModel
     const readings = carReadings(modelRuns()).map((r) => correctCar(r, fix, model, sectionArea))
     const { circuit, old } = carRun(modelDesign)
-    carForecast = forecastLap(readings, modelDesign, old, circuit)
+    lapCast = forecastLap(readings, modelDesign, old, circuit)
+    // Kept for the Deliver sheet (PR 9n), with the floor it was read over.
+    const f = lapCast
+    carForecast.set(modelDesign, circuit.id, f ? { time: f.time, gain: f.gain, floor: model.floor, covered: f.covered, porpoise: f.porpoise } : null)
     runsDirty = true
   }
   const signedS = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${fixed(Math.abs(v), 2)}`
   function showCarForecast() {
-    const f = carForecast
+    const f = lapCast
     if (!f || !isCar(modelDesign)) {
       setText(cFc.value, '–')
       setText(cFc.sub, t('read.carLapNone'))
@@ -1577,7 +1581,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     const car = modelDesign
     const circuit = carRun(car).circuit
     setText(poolTitle, t('car.title', { circuit: t(`circuit.${circuit.id}`) }))
-    const f = carForecast
+    const f = lapCast
     const lines: string[] = []
     if (!f) lines.push(t('car.none'))
     else {

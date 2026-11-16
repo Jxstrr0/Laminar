@@ -37,7 +37,7 @@ const setupOf = (id: string) => briefTemplate(id)!.setup as CarDesign
 const pointsOf = (s: number) => s / CAR_JOBS.pointSeconds
 
 afterEach(() => {
-  CAR_JOBS.open = false
+  CAR_JOBS.open = true
 })
 
 describe('car briefs', () => {
@@ -57,16 +57,17 @@ describe('car briefs', () => {
     expect(carEventOf(briefTemplate('kovyl-haulage')!)).toBeNull()
   })
 
-  it('stay off the board until the switch opens them, then come with the firm’s name', () => {
-    for (const b of carBriefs) expect(openTo(b, 100)).toBe(false)
-    for (let round = 0; round < 30; round++) expect(boardFor(1, round, false, 100).some((b) => isCarBrief(b.id))).toBe(false)
-    CAR_JOBS.open = true
+  it('come onto the board as the firm’s name grows, the single-seater last, and can be closed', () => {
     expect(openTo(briefTemplate('belan-sport')!, 20)).toBe(true)
     expect(openTo(briefTemplate('iskra-open')!, 20)).toBe(false)
     expect(openTo(briefTemplate('iskra-open')!, 60)).toBe(true)
     let offered = false
     for (let round = 0; round < 40; round++) offered ||= boardFor(1, round, false, 100).some((b) => isCarBrief(b.id))
     expect(offered).toBe(true)
+    // The switch still shuts them away.
+    CAR_JOBS.open = false
+    for (const b of carBriefs) expect(openTo(b, 100)).toBe(false)
+    for (let round = 0; round < 30; round++) expect(boardFor(1, round, false, 100).some((b) => isCarBrief(b.id))).toBe(false)
   })
 
   it('ask for a gain a well-sorted car makes with room to spare', () => {
