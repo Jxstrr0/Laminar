@@ -67,10 +67,20 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 9e | Truck jobs in the sim: three fleets' briefs (closed until 9f), a coast route, the promise on wind-averaged fuel saved, the declared fuel figure judged on drag, the road code cutting back illegal parts, the lab's full-size friction correction on truck readings | **Done** (v0.9.4.0) |
 | 9f | Truck jobs on the board: the brief card (route, trailer), bids in per cent of fuel, the job's route and fleet truck in Shape and the tunnel, a Deliver sheet that declares a fuel figure from the tunnel's forecast, and the fuel-trial debrief with a "change this" for any part the road code cut back | **Done** (v0.9.5.0) |
 | 9g | The gravel yard: Prichal's yard on the Kosa spit is gravel, skirts lower than 0.45 m above the road crack there and the trucks run without them, judged that way; the brief card, Shape and the Deliver sheet warn, the debrief names it with a "Raise the skirts" jump | **Done** (v0.9.6.0) |
-| 9h–14 | See the plan | Next: PR 9h, the fuel-run replay. Then race cars. |
+| 9h | The fuel-run replay: the trial day down the client's route, your truck and the fleet's old one side by side, with the distance, the wind's angle, your diesel and the saving so far, a commentator for the yard, the windiest stretch, a slow climb and the arrival, then the fuel trial | **Done** (v0.9.7.0) |
+| 9i–14 | See the plan | Next: race cars (lap-time gain, the balance window, a rolling road, ground effect, porpoising), then the land-speed record. |
 
 ## Versions
 
+- **0.9.7.0** (PR 9h): the fuel-run replay. Sending a truck to the fleet
+  now plays the trial day first: both trucks down the client's route,
+  yours in the right lane and theirs see-through on the left, fast-forwarded
+  to about 26 seconds. The panel shows the distance, the wind's angle on
+  your truck, your diesel so far and the saving against theirs over the
+  same road. A commentator calls the yard (and cracked skirts, if any), the
+  windiest stretch, a climb that slows the trucks and the arrival. At the
+  end it puts your declared fuel figure next to the real one, then opens
+  the fuel trial. Skip jumps straight there.
 - **0.9.6.0** (PR 9g): the gravel yard. Prichal Logistics now works out
   of a shingle yard on the Kosa spit, and skirts that hang lower than
   0.45 m above the road crack there (the road code only asks for 0.25 m).

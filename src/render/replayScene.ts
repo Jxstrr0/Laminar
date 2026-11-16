@@ -55,6 +55,8 @@ export interface CourseOptions {
 export interface ReplayOptions {
   /** Reduced motion: nobody rocks in the gusts (they still sit up). */
   still?: boolean
+  /** A truck's fuel run (PR 9h): the wider road, lanes and camera of REPLAY_SCENE.truck. */
+  truck?: boolean
 }
 
 /** A rider as drawn: tucked as designed, and (built the first time it's needed) sitting up. */
@@ -89,6 +91,8 @@ export interface ReplayView {
 }
 
 export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): ReplayView {
+  // The road's layout and the chase camera: a rider's, or a truck's.
+  const lay = opts.truck ? S.truck : { roadWidth: S.roadWidth, laneMine: S.laneMine, laneOld: S.laneOld, flagEvery: S.flagEvery, flagSide: S.flagSide, camera: S.camera }
   const renderer = new THREE.WebGLRenderer({ antialias: true })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
   renderer.outputColorSpace = THREE.SRGBColorSpace
@@ -104,7 +108,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
   sun.position.set(30, 60, 20)
   scene.add(sun)
 
-  const camera = new THREE.PerspectiveCamera(S.camera.fov, 1, 0.1, S.fogFar + 200)
+  const camera = new THREE.PerspectiveCamera(lay.camera.fov, 1, 0.1, S.fogFar + 200)
   // Everything flat on the ground (grass, grid, road, dashes) is drawn first, in that order,
   // without writing depth: a phone's depth buffer can't tell layers a few millimetres apart.
   const flat = (o: THREE.Mesh | THREE.LineSegments, order: number) => {
@@ -298,7 +302,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       let along = 0
       for (const seg of segs) {
         const { fx, fz, rx, rz } = axes(seg.heading)
-        const road = new THREE.Mesh(new THREE.PlaneGeometry(S.roadWidth, seg.length), roadMat)
+        const road = new THREE.Mesh(new THREE.PlaneGeometry(lay.roadWidth, seg.length), roadMat)
         road.renderOrder = -2
         road.rotation.order = 'YXZ'
         road.rotation.y = -seg.heading * DEG
@@ -318,9 +322,9 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
         dashes.computeBoundingSphere()
         course.add(dashes)
         // Wind flags along the left verge, every so often from the start (none in still air).
-        for (let d = opts.calm ? seg.length : S.flagEvery - (along % S.flagEvery); d < seg.length; d += S.flagEvery) {
-          const px = x + fx * d + rx * S.flagSide
-          const pz = z + fz * d + rz * S.flagSide
+        for (let d = opts.calm ? seg.length : lay.flagEvery - (along % lay.flagEvery); d < seg.length; d += lay.flagEvery) {
+          const px = x + fx * d + rx * lay.flagSide
+          const pz = z + fz * d + rz * lay.flagSide
           const pole = new THREE.Mesh(poleGeo, poleMat)
           pole.position.set(px, S.flagHeight / 2, pz)
           const flag = new THREE.Mesh(flagGeo, flagMat)
@@ -347,9 +351,9 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     place(me, them, dt) {
       if (!mine || !old) return
       clock += Math.min(dt, 0.1)
-      const gMine = pose(mine, me, S.laneMine, 0)
+      const gMine = pose(mine, me, lay.laneMine, 0)
       // The old setup meets its gusts out of step with yours.
-      const gOld = pose(old, them, S.laneOld, S.trouble.every / 2)
+      const gOld = pose(old, them, lay.laneOld, S.trouble.every / 2)
       ringMine.position.set(gMine.position.x, 0.01, gMine.position.z)
       ringOld.position.set(gOld.position.x, 0.01, gOld.position.z)
       if (broadcast) {
@@ -361,15 +365,15 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
         camera.lookAt(broadcast.look)
         return
       }
-      if (camera.fov !== S.camera.fov) {
-        camera.fov = S.camera.fov
+      if (camera.fov !== lay.camera.fov) {
+        camera.fov = lay.camera.fov
         camera.updateProjectionMatrix()
       }
       const turn = ((((me.heading - camHeading) % 360) + 540) % 360) - 180
       camHeading = camReady ? camHeading + turn * (1 - Math.exp(-S.cameraEase * dt)) : me.heading
       camReady = true
       const { fx, fz, rx, rz } = axes(camHeading)
-      const c = S.camera
+      const c = lay.camera
       const p = gMine.position
       camera.position.set(p.x - fx * c.back + rx * c.side, c.up, p.z - fz * c.back + rz * c.side)
       camera.lookAt(p.x + fx * c.ahead, c.lookUp, p.z + fz * c.ahead)
