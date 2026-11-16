@@ -17,6 +17,7 @@ import { packSave, parseSave, SAVE_VERSION, type SaveFile } from './persist/save
 import { DEFAULT_CYCLIST } from './data/cyclist'
 import { DEFAULT_JUMPER } from './data/jumper'
 import { DEFAULT_BOBSLED } from './data/bobsled'
+import { DEFAULT_TRUCK } from './data/truck'
 import type { Design } from './data/sport'
 import { careerStore, freshSeed } from './ui/careerStore'
 import { charge, currentEvent, currentJumpEvent, currentSledEvent, newCareer, orderBlock, orderModel, repairModel } from './sim/career'
@@ -40,6 +41,7 @@ const PREVIEWS: Record<string, Design> = {
   skijump: DEFAULT_JUMPER,
   bobsled: DEFAULT_BOBSLED,
   bobsled4: { ...DEFAULT_BOBSLED, crew: 4 as const },
+  truck: DEFAULT_TRUCK,
 }
 const PREVIEW_DESIGN = PREVIEWS[new URLSearchParams(location.search).get('try') ?? ''] ?? null
 const PREVIEW = PREVIEW_DESIGN !== null

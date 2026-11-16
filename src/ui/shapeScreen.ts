@@ -16,16 +16,20 @@ import { DEFAULT_SKATER, SKATER_RANGE, type SkaterDesign } from '../data/skater'
 import { DEFAULT_JUMPER, FLIGHT_ATTITUDE, JUMPER_RANGE, PITCH, type JumperDesign } from '../data/jumper'
 import { BOBSLED_RANGE, DEFAULT_BOBSLED, SLED, type BobsledDesign } from '../data/bobsled'
 import { TRACKS } from '../data/tracks'
+import { DEFAULT_TRUCK, FAIRING_MISS, FLEET_TRUCK, TRUCK_RANGE, type TruckDesign } from '../data/truck'
+import { ROUTES } from '../data/routes'
+import { checkTruckRules, roofMismatch, skirtGap, truckParts, type TruckRuleBreak } from '../sim/truck'
+import { truckLength } from '../sim/geom/truck'
 import { checkSledRules, sightMargin, type SledRuleBreak } from '../sim/bobsled'
 import { sledLength } from '../sim/geom/bobsled'
 import { TCF_TIME_TRIAL } from '../data/rules'
 import { t, type StringKey } from '../data/strings'
 import type { RuleBreak } from '../sim/cyclist'
 import type { FixTarget } from '../sim/failure'
-import { bobDeskEstimate, deskEstimate, jumpDeskEstimate } from '../sim/desk'
+import { bobDeskEstimate, deskEstimate, jumpDeskEstimate, truckDeskEstimate } from '../sim/desk'
 import { jumperReadouts } from '../sim/jumper'
 import { crewEffects } from '../sim/staff'
-import { designPose, designReadouts, designShape, isBobsled, isCyclist, isJumper, isSkater, type Design } from '../sim/design'
+import { designPose, designReadouts, designShape, isBobsled, isCyclist, isJumper, isSkater, isTruck, type Design } from '../sim/design'
 import { availableHandles, dragHandle, handleDef, handlePoint } from '../sim/geom/handles'
 import { ruleVolumes } from '../sim/geom/ruleBox'
 import { briefTemplate, currentEvent, currentJumpEvent } from '../sim/career'
@@ -107,6 +111,11 @@ const SLED_BREAK_TARGET: Record<SledRuleBreak['part'], string> = {
   'sled.tail': 'bs-tail',
   'sled.cowl': 'bs-cowl',
 }
+/** Which truck slider each road code break jumps to, and the part that glows red. */
+const TRUCK_BREAK: Record<TruckRuleBreak['part'], { id: string; look: Highlight }> = {
+  'trailer.tail': { id: 'tk-boatTail', look: 'boat-tail' },
+  'trailer.skirts': { id: 'tk-skirts', look: 'skirts' },
+}
 
 const JUMPER_FORMAT: Record<JumperKey, (v: number) => string> = {
   leanDeg: (v) => `${fixed(v, 0)}°`,
@@ -136,6 +145,8 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   const sk = (): SkaterDesign => (isSkater(design) ? design : spareSkater)
   const jp = (): JumperDesign => (isJumper(design) ? design : spareJumper)
   const bs = (): BobsledDesign => (isBobsled(design) ? design : spareBobsled)
+  const spareTruck = structuredClone(DEFAULT_TRUCK)
+  const tk = (): TruckDesign => (isTruck(design) ? design : spareTruck)
   let selected: HandleId | null = null
 
   // --- Header
@@ -147,7 +158,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   const showPlace = () => {
     const job = careerStore.get().job
     const who = job ? briefTemplate(job.brief.id)?.client : undefined
-    const plain = isJumper(design) ? 'shape.placeJumper' : isBobsled(design) ? (design.crew === 4 ? 'shape.placeBobsled4' : 'shape.placeBobsled') : 'shape.place'
+    const plain = isTruck(design) ? 'shape.placeTruck' : isJumper(design) ? 'shape.placeJumper' : isBobsled(design) ? (design.crew === 4 ? 'shape.placeBobsled4' : 'shape.placeBobsled') : 'shape.place'
     place.textContent = who ? t('shape.placeJob', { client: who }) : t(plain)
   }
   showPlace()
@@ -180,7 +191,12 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   const sledDragR = readout(t('read.sledDrag'), 'cda')
   const sightR = readout(t('read.sight'), 'crewTuck')
   const bobBoxes = [bobDeskR.box, sledDragR.box, sightR.box]
-  grid.append(deskR.box, jumpDeskR.box, bobDeskR.box, comfortR.box, liftR.box, sledDragR.box, frontalR.box, marginR.box, sightR.box, rulesR.box)
+  // A truck's sheet (PR 9b): the desk's fuel saving on the client's route, the drag area, and what the parts weigh.
+  const truckDeskR = readout(t('read.desk'), 'fuelSaving')
+  const truckDragR = readout(t('read.truckDrag'), 'cda')
+  const partsR = readout(t('read.parts'), 'roadCode')
+  const truckBoxes = [truckDeskR.box, truckDragR.box, partsR.box]
+  grid.append(deskR.box, jumpDeskR.box, bobDeskR.box, truckDeskR.box, comfortR.box, liftR.box, sledDragR.box, truckDragR.box, frontalR.box, marginR.box, sightR.box, partsR.box, rulesR.box)
 
   const breaks = el('ul', 'breaks')
   breaks.setAttribute('aria-live', 'polite')
@@ -347,6 +363,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   const skBox = { position: box(panels.position), kit: box(panels.kit) }
   const jpBox = { position: box(panels.position), kit: box(panels.kit) }
   const bsBox = { position: box(panels.position), kit: box(panels.kit) }
+  const tkBox = { position: box(panels.position), kit: box(panels.kit) }
 
   for (const key of Object.keys(POSTURE_RANGE) as PostureKey[]) {
     slider(cycBox.position, `ctl-${key}`, t(`ctl.${key}`), POSTURE_RANGE[key], () => cyc().posture[key], (v) => (cyc().posture[key] = v), POSTURE_FORMAT[key])
@@ -370,6 +387,18 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   slider(bsBox.kit, 'bs-nose', t('ctl.sledNose'), BOBSLED_RANGE.nose, () => bs().sled.nose, (v) => (bs().sled.nose = v), metres)
   slider(bsBox.kit, 'bs-tail', t('ctl.sledTail'), BOBSLED_RANGE.tail, () => bs().sled.tail, (v) => (bs().sled.tail = v), metres)
   slider(bsBox.kit, 'bs-cowl', t('ctl.cowl'), BOBSLED_RANGE.cowl, () => bs().sled.cowl, (v) => (bs().sled.cowl = v), metres)
+  // The truck: the cab and the gap on the first tab, the trailer's parts on the second (tabs renamed for a truck).
+  const cm = (v: number) => `${fixed(v * 100, 0)} cm`
+  const offOr = (show: (v: number) => string) => (v: number) => (v <= 0 ? t('opt.off') : show(v))
+  const pctOff = offOr((v) => `${fixed(v * 100, 0)} %`)
+  slider(tkBox.position, 'tk-cabNose', t('ctl.cabNose'), TRUCK_RANGE.nose, () => tk().cab.nose, (v) => (tk().cab.nose = v), cm)
+  slider(tkBox.position, 'tk-fairing', t('ctl.fairing'), TRUCK_RANGE.fairing, () => tk().cab.fairing, (v) => (tk().cab.fairing = v), offOr(metres))
+  slider(tkBox.position, 'tk-extenders', t('ctl.extenders'), TRUCK_RANGE.extenders, () => tk().cab.extenders, (v) => (tk().cab.extenders = v), offOr(metres))
+  slider(tkBox.position, 'tk-gapLength', t('ctl.gapLength'), TRUCK_RANGE.gap, () => tk().gap.length, (v) => (tk().gap.length = v), metres)
+  slider(tkBox.position, 'tk-gapFill', t('ctl.gapFill'), TRUCK_RANGE.fill, () => tk().gap.fill, (v) => (tk().gap.fill = v), pctOff)
+  slider(tkBox.kit, 'tk-skirts', t('ctl.skirts'), TRUCK_RANGE.skirts, () => tk().trailer.skirts, (v) => (tk().trailer.skirts = v), offOr(metres))
+  slider(tkBox.kit, 'tk-boatTail', t('ctl.boatTail'), TRUCK_RANGE.tail, () => tk().trailer.tail, (v) => (tk().trailer.tail = v), offOr(metres))
+  slider(tkBox.kit, 'tk-tailAngle', t('ctl.tailAngle'), TRUCK_RANGE.tailAngle, () => tk().trailer.tailAngle, (v) => (tk().trailer.tailAngle = v), (v) => `${fixed(v, 0)}°`)
 
   const pct = (v: number) => `${fixed(v * 100, 0)} %`
   choice(cycBox.kit, 'ctl-helmet', t('ctl.helmet'), [{ value: 'road', key: 'opt.road' }, { value: 'aero', key: 'opt.aero' }], () => cyc().helmet.kind, (v) => (cyc().helmet.kind = v))
@@ -403,7 +432,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     // Back to where the job started: the client's setup (or the plain starting design between jobs).
     const job = careerStore.get().job
     // A sled keeps its crew size: that's the job's, not a shape.
-    const plain = isJumper(design) ? DEFAULT_JUMPER : isBobsled(design) ? { ...DEFAULT_BOBSLED, crew: design.crew } : isSkater(design) ? DEFAULT_SKATER : DEFAULT_CYCLIST
+    const plain = isTruck(design) ? { ...FLEET_TRUCK, trailerTop: design.trailerTop } : isJumper(design) ? DEFAULT_JUMPER : isBobsled(design) ? { ...DEFAULT_BOBSLED, crew: design.crew } : isSkater(design) ? DEFAULT_SKATER : DEFAULT_CYCLIST
     design = structuredClone((job && briefTemplate(job.brief.id)?.setup) || plain)
     selected = null
     syncAll()
@@ -416,21 +445,25 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     const skating = isSkater(design)
     const jumping = isJumper(design)
     const sliding = isBobsled(design)
-    const riding = !skating && !jumping && !sliding
+    const trucking = isTruck(design)
+    const riding = !skating && !jumping && !sliding && !trucking
     for (const b of Object.values(cycBox)) b.hidden = !riding
     for (const b of Object.values(skBox)) b.hidden = !skating
     for (const b of Object.values(jpBox)) b.hidden = !jumping
     for (const b of Object.values(bsBox)) b.hidden = !sliding
-    for (const b of bodyBoxes) b.hidden = jumping || sliding
+    for (const b of Object.values(tkBox)) b.hidden = !trucking
+    for (const b of bodyBoxes) b.hidden = jumping || sliding || trucking
+    for (const b of truckBoxes) b.hidden = !trucking
     for (const b of jumpBoxes) b.hidden = !jumping
     for (const b of bobBoxes) b.hidden = !sliding
-    tabButtons.kit.textContent = t(sliding ? 'tab.sled' : 'tab.kit')
+    tabButtons.position.textContent = t(trucking ? 'tab.cab' : 'tab.position')
+    tabButtons.kit.textContent = t(sliding ? 'tab.sled' : trucking ? 'tab.trailer' : 'tab.kit')
     // Only riders have a bike: the tab goes for the others, and the sheet falls back to Position if it was open.
     tabButtons.bike.hidden = !riding
     if (!riding && currentTab === 'bike') selectTab('position')
     tailRow.hidden = cyc().helmet.kind !== 'aero'
-    hint.textContent = t(jumping ? 'hint.shapeJumper' : sliding ? 'hint.shapeBobsled' : skating ? 'hint.shapeSkater' : 'hint.shape')
-    if (!jumping && !sliding) rulesR.sub.textContent = t(skating ? 'book.skating' : 'book.tcf-tt')
+    hint.textContent = t(trucking ? 'hint.shapeTruck' : jumping ? 'hint.shapeJumper' : sliding ? 'hint.shapeBobsled' : skating ? 'hint.shapeSkater' : 'hint.shape')
+    if (!jumping && !sliding && !trucking) rulesR.sub.textContent = t(skating ? 'book.skating' : 'book.tcf-tt')
   }
   syncAll()
   // A new job puts the client's setup on the bench: take it up.
@@ -452,6 +485,11 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   // "Change this" after a model broke in the tunnel, or after trouble on race day (plan sections 7 and 8).
   window.addEventListener('laminar:fix', (e) => {
     const where = (e as CustomEvent<FixTarget>).detail
+    if (isTruck(design)) {
+      // A truck's own failures come with its jobs (PR 9d); until then every fix lands on the skirts.
+      jumpToControl({ tab: 'kit', id: 'tk-skirts' })
+      return
+    }
     if (isBobsled(design)) {
       // A sled's fixes: the crew's tuck for anything about the crew, otherwise the cowling.
       if (where === 'helmet' || where === 'headDrop' || where === 'tuck') jumpToControl({ tab: 'position', id: 'bs-tuck' })
@@ -502,6 +540,10 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     }
     if (isBobsled(design)) {
       showBobsled(design)
+      return
+    }
+    if (isTruck(design)) {
+      showTruck(design)
       return
     }
     const r = designReadouts(design, TCF_TIME_TRIAL)
@@ -634,6 +676,61 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
       // The hull glows red outside the box; the driver's helmet amber when they can't see.
       broken: rules.length > 0 ? ['frame'] : [],
       strained: sight < 0 ? ['helmet'] : [],
+      handles: [],
+      selected: null,
+      volumes: [],
+    })
+  }
+
+  /**
+   * The truck's sheet (PR 9b): the desk's fuel saving on the client's route
+   * against the truck they run now, the drag area straight on and in a
+   * crosswind, what the parts weigh and cost, and the road code's limits
+   * with a "change this" for each break.
+   */
+  function showTruck(truck: TruckDesign) {
+    const career = careerStore.get()
+    const route = ROUTES['stavren-mostograd']
+    const job = career.job
+    // Their truck as it runs today: the job's setup, or the fleet's plain rig between jobs.
+    const setup = job ? briefTemplate(job.brief.id)?.setup : undefined
+    const old = setup && isTruck(setup) ? setup : { ...FLEET_TRUCK, trailerTop: truck.trailerTop }
+    const desk = truckDeskEstimate(truck, old, route, job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(truck), crewEffects(career.crew).deskLevel)
+    const signed = (v: number, digits: number) => `${v < 0 ? '−' : ''}${fixed(Math.abs(v), digits)}`
+    truckDeskR.value.textContent = `${signed(desk.value, 1)} %`
+    truckDeskR.sub.textContent = t('read.deskTruckNote', { spread: fixed((desk.high - desk.low) / 2, 1), fuel: fixed(desk.fuel, 1) })
+    truckDragR.value.textContent = `${fixed(desk.cdA, 2)} m²`
+    // A fairing that misses the trailer's roof says so; otherwise the drag in a crosswind, where the gap and underside bite.
+    const miss = roofMismatch(truck)
+    const missCm = fixed(Math.abs(miss) * 100, 0)
+    truckDragR.sub.textContent =
+      miss < -FAIRING_MISS ? t('read.fairingShort', { cm: missCm }) : miss > FAIRING_MISS ? t('read.fairingOver', { cm: missCm }) : t('read.truckDragNote', { yaw: fixed(desk.cdA10, 2) })
+    const parts = truckParts(truck)
+    partsR.value.textContent = `${fixed(parts.mass, 0)} kg`
+    partsR.sub.textContent = t('read.partsNote', { price: fixed(parts.price, 0) })
+
+    const rules = checkTruckRules(truck)
+    rulesR.value.textContent = rules.length === 0 ? t('read.legal') : rules.length === 1 ? t('read.oneBreak') : t('read.breaks', { count: rules.length })
+    rulesR.value.classList.toggle('over', rules.length > 0)
+    rulesR.sub.textContent = t('read.truckKit', { length: fixed(truckLength(truck), 1), gap: fixed(skirtGap(truck), 2) })
+    breaks.replaceChildren(
+      ...rules.map((b) => {
+        const li = el('li', 'break')
+        const key = b.rule === 'tail' ? 'rule.truckTail' : 'rule.truckSkirts'
+        li.append(el('span', 'break-text', t(key, { value: fixed(b.value, 2), limit: fixed(b.limit, 2), book: t('book.road') })))
+        const fix = el('button', 'break-fix', t('rule.fix'))
+        fix.type = 'button'
+        fix.addEventListener('click', () => jumpToControl({ tab: 'kit', id: TRUCK_BREAK[b.part].id }))
+        li.append(fix)
+        return li
+      }),
+    )
+    view.show({
+      design: truck,
+      pose: designPose(truck),
+      // A part outside the road code glows red; a fairing that misses the trailer's roof amber.
+      broken: rules.map((b) => TRUCK_BREAK[b.part].look),
+      strained: Math.abs(miss) > FAIRING_MISS ? ['fairing'] : [],
       handles: [],
       selected: null,
       volumes: [],

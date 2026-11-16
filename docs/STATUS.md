@@ -61,10 +61,18 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 8p | Bobsled jobs on screen: the board, the bid in hundredths, declaring a run time, the race-day debrief | **Done** (v0.8.15.0) |
 | 8q | The bobsled run replay | **Done** (v0.8.16.0) |
 | 9a | Trucks in the sim: the rig and its parts, the Tarnovian Road Code, drag over yaw, the fuel run on the Stavren–Mostograd highway | **Done** (v0.9.0.0) |
-| 9b–14 | See the plan | Next: PR 9b, the truck on Shape |
+| 9b | The truck on Shape: cab, gap and trailer sliders, the desk's fuel saving, road code breaks with "change this", the rig in 3D (`?try=truck`) | **Done** (v0.9.1.0) |
+| 9c–14 | See the plan | Next: PR 9c, the truck in the tunnel (ground board, bolt-on swaps, its own model scale) |
 
 ## Versions
 
+- **0.9.1.0** (PR 9b): the truck on the Shape screen, reached with
+  `?try=truck` until truck jobs arrive (PR 9d). Sliders for the cab corners,
+  roof fairing, side extenders, gap, gap filler, skirts and boat-tail; the
+  desk's fuel saving against the fleet's truck; drag area straight on and at
+  10° of crosswind; parts weight and price; road code breaks that jump to
+  the slider. Five new glossary entries. Known gap: in the tunnel the truck
+  is still drawn at a rider model's scale until PR 9c.
 - **0.9.0.0** (PR 9a): trucks in the sim. PR 9 (Road & motorsport) begins,
   trucks first (Kelbo, 16 November 2026). Nothing changes on screen yet.
   - A fleet's tractor and box trailer, with eight things to shape: the cab's

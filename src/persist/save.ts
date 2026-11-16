@@ -8,6 +8,7 @@ import { DESIGN_CHOICES, PART_RANGE, POSTURE_RANGE, type CyclistDesign } from '.
 import { SKATER_CHOICES, SKATER_RANGE, type SkaterDesign } from '../data/skater'
 import { JUMPER_RANGE, type JumperDesign } from '../data/jumper'
 import { BOBSLED_RANGE, type BobsledDesign } from '../data/bobsled'
+import { TRUCK_RANGE, type TruckDesign } from '../data/truck'
 import type { Design } from '../sim/design'
 import { MACHINE_IDS, MAKER_IDS, MODEL_FINISH, MODEL_GRADE, MODEL_SCALES, type MachineId } from '../data/model'
 import { CRANK_DIAL, DEMO_TUNNEL_SEED } from '../data/tunnel'
@@ -53,6 +54,7 @@ export function soundDesign(x: unknown): Design | null {
   if (x.sport === 'skating') return soundSkater(x)
   if (x.sport === 'skijump') return soundJumper(x)
   if (x.sport === 'bobsled') return soundBobsled(x)
+  if (x.sport === 'truck') return soundTruck(x)
   if (x.sport !== undefined && x.sport !== 'cycling') return null
   return soundCyclist(x)
 }
@@ -78,6 +80,23 @@ function soundBobsled(x: Obj): BobsledDesign | null {
     crew: x.crew,
     sled: { nose: clampTo(nose, BOBSLED_RANGE.nose), tail: clampTo(tail, BOBSLED_RANGE.tail), cowl: clampTo(cowl, BOBSLED_RANGE.cowl) },
     tuck: clampTo(x.tuck, BOBSLED_RANGE.tuck),
+  }
+}
+
+function soundTruck(x: Obj): TruckDesign | null {
+  if (!isObj(x.cab) || !isObj(x.gap) || !isObj(x.trailer) || !isNum(x.trailerTop)) return null
+  const { nose, fairing, extenders } = x.cab
+  const { length, fill } = x.gap
+  const { skirts, tail, tailAngle } = x.trailer
+  if (![nose, fairing, extenders, length, fill, skirts, tail, tailAngle].every(isNum)) return null
+  const R = TRUCK_RANGE
+  const n = (v: unknown, r: { min: number; max: number }) => clampTo(v as number, r)
+  return {
+    sport: 'truck',
+    trailerTop: n(x.trailerTop, R.trailerTop),
+    cab: { nose: n(nose, R.nose), fairing: n(fairing, R.fairing), extenders: n(extenders, R.extenders) },
+    gap: { length: n(length, R.gap), fill: n(fill, R.fill) },
+    trailer: { skirts: n(skirts, R.skirts), tail: n(tail, R.tail), tailAngle: n(tailAngle, R.tailAngle) },
   }
 }
 

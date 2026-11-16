@@ -15,7 +15,9 @@ import { BOB_SKELETON, FRAME, HELMET_MOUNT, SKATER_SKELETON, SKELETON } from '..
 import { SK_HEAD, type SkaterDesign } from '../../data/skater'
 import { JUMP_PARTS, JUMP_SKIS, type JumperDesign } from '../../data/jumper'
 import { SLED, type BobsledDesign } from '../../data/bobsled'
-import { isBobsled, isJumper, isSkater, type Design } from '../design'
+import { isBobsled, isJumper, isSkater, isTruck, type Design } from '../design'
+import { RIG, type TruckDesign } from '../../data/truck'
+import { truckLength } from '../geom/truck'
 import { sledLength } from '../geom/bobsled'
 import type { BobsledPose } from '../geom/bobsledPose'
 import { bodySpan } from '../jumper'
@@ -262,10 +264,31 @@ export function bobsledEllipsoids(design: BobsledDesign, pose: Pose): Ellipsoid[
   return out
 }
 
+/**
+ * The truck (PR 9b): the whole rig as one long, boxy oval round the drag
+ * model's one body, centred where the figure is (the rig's middle at x = 0).
+ * Its sides carry tufts.
+ */
+export function truckEllipsoids(design: TruckDesign): Ellipsoid[] {
+  const half = (design.trailerTop - RIG.bodyBottom) / 2
+  return [
+    {
+      id: 'rig',
+      bodyId: 'rig',
+      centre: { x: 0, y: RIG.bodyBottom + half, z: 0 },
+      axes: { a: truckLength(design) / 2, b: half, c: RIG.width / 2 },
+      pitchRad: 0,
+      wrap: 'oval',
+      part: 'rider',
+    },
+  ]
+}
+
 /** The ellipsoids for any design in its pose. */
 export function designEllipsoids(design: Design, pose: Pose): Ellipsoid[] {
   if (isJumper(design)) return jumperEllipsoids(design, pose)
   if (isBobsled(design)) return bobsledEllipsoids(design, pose)
+  if (isTruck(design)) return truckEllipsoids(design)
   return isSkater(design) ? skaterEllipsoids(design, pose) : riderEllipsoids(design, pose)
 }
 
