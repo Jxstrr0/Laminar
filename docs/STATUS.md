@@ -64,10 +64,21 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 9b | The truck on Shape: cab, gap and trailer sliders, the desk's fuel saving, road code breaks with "change this", the rig in 3D (`?try=truck`) | **Done** (v0.9.1.0) |
 | 9c | The truck in the tunnel, sim side: truck model scales (1:12, 1:10, 1:8), parts drag that grows with yaw, the still floor and the ground board, bolt-on part swaps, the fuel-saving forecast from a yaw sweep | **Done** (v0.9.2.0) |
 | 9d | The truck on the tunnel screen: its own small model on a ground board, the camera framing the rig, runs pooled by yaw into a fuel-saving forecast with the straight-on and bare-floor traps named, truck scales in the model shop, stouter struts | **Done** (v0.9.3.0) |
+| 9e | Truck jobs in the sim: three fleets' briefs (closed until 9f), a coast route, the promise on wind-averaged fuel saved, the declared fuel figure judged on drag, the road code cutting back illegal parts, the lab's full-size friction correction on truck readings | **Done** (v0.9.4.0) |
 | 9e–14 | See the plan | Next: PR 9e, truck jobs (briefs, the promise, the debrief). Then 9f the fuel-run replay. |
 
 ## Versions
 
+- **0.9.4.0** (PR 9e): truck jobs in the sim, not on the board yet (that's
+  PR 9f). Three fleets: Kovyl Haulage and Volok Freight on the
+  Stavren–Mostograd highway, Prichal Logistics on the new, windy Kosa coast
+  road. The promise is the fuel saved against the fleet's own truck,
+  wind-averaged; you declare your truck's fuel figure (litres per 100 km),
+  and the read is judged on the drag that figure means. A part the road code
+  forbids is cut back before the truck goes out, and the debrief can blame
+  that. The tunnel screen now scales each truck reading's skin friction to
+  full size (a 16 m truck's skin drags less for its size than a 2 m
+  model's), so a ground-board sweep at full fan gives a good read.
 - **0.9.3.0** (PR 9d): the truck on the tunnel screen (`?try=truck`, then
   Tunnel). It starts on a 1:8 model on a ground board. The Runs tab pools
   its runs angle by angle and runs the route on that curve for a fuel

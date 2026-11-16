@@ -31,6 +31,8 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Stavren Velodrome | An indoor 250 m track in Stavren. | PR 5h |
 | Stavren Ice Oval | An indoor 400 m speed-skating oval in Stavren. | PR 8b |
 | Stavren–Mostograd highway | A truck route across the plain and over a low ridge; the first fleet's run. | PR 9a |
+| Kosa coast road | A flat, windy truck route along the sea from Stavren to the Kosa port. | PR 9e |
+| Kosa port | The port at the Kosa spit; home of Prichal Logistics. | PR 9e |
 | Belogor | A ski-jump venue with a normal hill (HS 98) and a large hill (HS 134), and a sliding track on the same mountain. | PR 8g, 8h, 8l |
 
 ## Bodies
@@ -60,7 +62,13 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Danil Kostrov | Club bobsled driver on a borrowed old sled (Belogor Club Cup: two-man). PR 8o. |
 | Vera Kedrova | National two-man bobsled pilot (Tarnovian Two-man Championship). PR 8o. |
 | Matvei Gromov | Four-man bobsled pilot (Tarnovian Four-man Championship). PR 8o. |
-| Stavren Regional Time Trial, Club 16 km Time Trial, Lake Dolgo Hill Time Trial, Kosa Coast Time Trial, National Time Trial Championship, Track Championships: Individual Pursuit, Stavren Open: 10 000 m, Lake Dolgo Ice Marathon, Belogor Junior Cup, Belogor Winter Cup, Tarnovian Large Hill Championship, Belogor Club Cup: two-man, Tarnovian Two-man Championship, Tarnovian Four-man Championship | The events above. |
+| Lukyan Pyzhov | Owner of Kovyl Haulage (Kovyl Haulage fuel trial). PR 9e. |
+| Kovyl Haulage | A small regional truck fleet on the Mostograd run. PR 9e. |
+| Tamara Ilchuk | Fleet manager at Volok Freight (Volok Freight fuel trial). PR 9e. |
+| Volok Freight | A forty-truck fleet across the plain. PR 9e. |
+| Stepan Brovar | Runs Prichal Logistics (Prichal Logistics fuel trial). PR 9e. |
+| Prichal Logistics | A coast fleet out of the Kosa port with tall box trailers. PR 9e. |
+| Stavren Regional Time Trial, Club 16 km Time Trial, Lake Dolgo Hill Time Trial, Kosa Coast Time Trial, National Time Trial Championship, Track Championships: Individual Pursuit, Stavren Open: 10 000 m, Lake Dolgo Ice Marathon, Belogor Junior Cup, Belogor Winter Cup, Tarnovian Large Hill Championship, Belogor Club Cup: two-man, Tarnovian Two-man Championship, Tarnovian Four-man Championship, Kovyl Haulage fuel trial, Volok Freight fuel trial, Prichal Logistics fuel trial | The events above. |
 
 ## Rival firms (PR 7)
 

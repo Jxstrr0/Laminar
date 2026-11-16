@@ -14,14 +14,22 @@
  * tunnel read, instead of the truth, against their current truck (known
  * from their own fuel records). A curve read only straight on is held flat,
  * so it misses what a crosswind costs: sweep the yaw.
+ *
+ * Friction (PR 9e): a 2 m model's skin drags more for its size than a 16 m
+ * truck's, because friction falls as the Reynolds number grows. The lab
+ * scales it to full size the way ship-model tanks do: the flat-plate
+ * friction line at both sizes, over the box's skin (frictionScaleUp).
  */
+import { AIR } from '../data/air'
 import type { Route } from '../data/routes'
 import { TRUCK_TUNNEL, type TruckDesign } from '../data/truck'
+import { turbulentCf } from './aero/friction'
+import { describeShape } from './geom/body'
 import { truckShape } from './geom/truck'
 import { gaussian } from './noise'
 import { interp } from './num'
 import { Rng } from './rng'
-import { truckExtras, truckMass, windAveragedFuel, windAveragedFuelWith } from './truck'
+import { truckExtras, truckFlow, truckMass, windAveragedFuel, windAveragedFuelWith } from './truck'
 import { prepareModel, REFERENCE_TT, type EventSpec, type ModelSpec, type PreparedModel } from './views'
 
 /** The share of the wheels' and underside's drag the balance sees: less on the bare floor, nearly all on a ground board. */
@@ -78,4 +86,20 @@ export function forecastSaving(cdAOf: (yawDeg: number) => number, design: TruckD
 /** The route's air as an event, so the model shop and the Reynolds readout match the truck at the speed limit. */
 export function truckEvent(route: Route): EventSpec {
   return { ...REFERENCE_TT, temperature: route.temperature, altitude: route.altitude, riderSpeed: route.speed, windSpeed: 0 }
+}
+
+/**
+ * The full-size drag area to take off a truck model's reading for its skin,
+ * m²: the flat-plate turbulent friction coefficient at the model's size and
+ * tunnel speed, less the same at full size on the route, over the box's
+ * wetted area. It leaves the model's laminar patch and everything that
+ * isn't friction as they are, so a small error stays.
+ */
+export function frictionScaleUp(design: TruckDesign, scale: number, tunnelSpeed: number, route: Route): number {
+  const body = describeShape(truckShape(design)).bodies[0]
+  if (!body || tunnelSpeed <= 0) return 0
+  const road = truckFlow(route.temperature, route.altitude, route.speed)
+  const reModel = (AIR.density * tunnelSpeed * body.length * scale) / AIR.viscosity
+  const reFull = (road.density * road.speed * body.length) / road.viscosity
+  return Math.max(0, turbulentCf(reModel) - turbulentCf(reFull)) * body.wettedArea
 }

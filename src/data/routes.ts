@@ -15,7 +15,7 @@ export interface RouteLeg {
 }
 
 export interface Route {
-  id: 'stavren-mostograd'
+  id: 'stavren-mostograd' | 'kosa-coast'
   legs: readonly RouteLeg[]
   /** The road's height above the sea, m. */
   altitude: number
@@ -46,6 +46,28 @@ export const ROUTES: Record<Route['id'], Route> = {
       leg(10, -2, 60),
       leg(25, 0.3, 100),
       leg(8, 0, 145),
+    ],
+  },
+  /**
+   * The coast road (PR 9e): flat along the sea from Stavren to the Kosa
+   * spit's port and back, with a strong wind off the water that meets the
+   * trucks side-on for most of the way. Here a crosswind is the usual day.
+   */
+  'kosa-coast': {
+    id: 'kosa-coast',
+    altitude: 5,
+    speed: 25,
+    temperature: 14,
+    wind: 8,
+    legs: [
+      leg(14, 0.3, 10),
+      leg(22, 0, 355),
+      leg(9, 0, 20),
+      leg(16, 0, 345),
+      leg(16, 0, 165),
+      leg(9, 0, 200),
+      leg(22, 0, 175),
+      leg(14, -0.3, 190),
     ],
   },
 }
