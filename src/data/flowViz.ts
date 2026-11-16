@@ -22,6 +22,8 @@ export const ELLIPSOID_FIT = {
   /** Torso width as drawn: (base + perArm × arm width) / 2 either side, m. */
   torsoWidthBase: 0.3,
   torsoWidthPerArm: 0.25,
+  /** A skater's trunk as drawn: half its width, m. */
+  skaterTorsoHalfWidth: 0.19,
   /**
    * A capsule becomes an ellipsoid with the same tips (length × this) and a
    * fatter middle (radius × this), so it covers most of the rounded rod

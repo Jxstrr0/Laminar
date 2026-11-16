@@ -44,12 +44,29 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 7i | The 2040 ending and legacy card | **Done** (v0.7.8.0) |
 | 7j | The legacy card as a picture to share | **Done** (v0.7.9.0) |
 | 8a | Sports in the sim: the speed skater | **Done** (v0.8.0.0) |
-| 8b | The skater on screen, skating briefs | Next |
-| 8c–8f | Ski jump, bobsled | Not started |
+| 8b | The skater on screen, skating briefs | **Done** (v0.8.1.0) |
+| 8c | Ski jump in the sim | Next |
+| 8d–8f | Ski jump on screen, bobsled | Not started |
 | 9–14 | See the plan | Not started |
 
 ## Versions
 
+- **0.8.1.0** (PR 8b): the skater on screen.
+  - The skater has a figure in Shape, the tunnel and the race-day replay
+    (`src/sim/geom/skaterPose.ts`, `src/render/riderFigure.ts`): crouch,
+    arms folded or swinging, cap or hood, boots and blades. Smoke and tufts
+    follow the skater's body too.
+  - Shape shows the skater's own controls: Position (back angle, knee bend,
+    head drop, arms) and Kit (head cover, suit fabric, shin trip strips). No
+    Bike tab, no drag dots, and "Open" for rules, since skaters have none.
+    A tired part (back, legs or head) glows orange like the cyclist's.
+  - The tunnel hides the crank angle for skaters (no pedals).
+  - Two skating briefs: Sonya Lenok's 10 000 m on the indoor 400 m Stavren
+    Ice Oval, and Ilya Kosov's 40 km Lake Dolgo Ice Marathon outdoors in the
+    wind (from reputation 10). The replay draws ice, with snow round the lake.
+  - Race-day words say "skated" and "stood up" for skaters; the lap counter
+    reads "Lap 11/25" so it fits a phone; a swinging arm's extra push shows
+    as "+" power.
 - **0.8.0.0** (PR 8a): sports in the sim.
   - A design can now be for a sport other than cycling (`src/data/sport.ts`,
     `src/sim/design.ts`). Old saves are cyclists, as before.

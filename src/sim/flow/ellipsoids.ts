@@ -11,7 +11,9 @@
  */
 import { BIKE, HELMET, type CyclistDesign } from '../../data/cyclist'
 import { ELLIPSOID_FIT as FIT } from '../../data/flowViz'
-import { FRAME, HELMET_MOUNT, SKELETON } from '../../data/pose'
+import { FRAME, HELMET_MOUNT, SKATER_SKELETON, SKELETON } from '../../data/pose'
+import { SK_HEAD, type SkaterDesign } from '../../data/skater'
+import { isSkater, type Design } from '../design'
 import { detAtan2, detCos, detSin } from '../det'
 import { DEG } from '../num'
 import { cyclistShape } from '../geom/cyclist'
@@ -173,6 +175,44 @@ export function riderEllipsoids(design: CyclistDesign, pose: Pose): Ellipsoid[] 
     })
   }
   return out
+}
+
+/**
+ * Ellipsoids for a skater (PR 8b): trunk, head with its cap or hood, both
+ * arms (whole, shoulder to hand), thighs and shins. Blades are too thin to
+ * steer the smoke.
+ */
+export function skaterEllipsoids(design: SkaterDesign, pose: Pose): Ellipsoid[] {
+  const out: Ellipsoid[] = []
+  const hipC = mid(pose.hip[0], pose.hip[1])
+  const shC = mid(pose.shoulder[0], pose.shoulder[1])
+  out.push(capsule('torso', 'torso', hipC, shC, FIT.torsoRadius, 'oval', 'rider', { side: FIT.skaterTorsoHalfWidth / FIT.torsoRadius }))
+  const headR = SKATER_SKELETON.headRadius * FIT.headBall
+  out.push({ id: 'head', bodyId: 'head', centre: { ...pose.head }, axes: { a: headR, b: headR, c: headR }, pitchRad: pose.headPitchDeg * DEG, wrap: 'oval', part: 'rider' })
+  if (design.hood === 'hood') {
+    const h = SK_HEAD.hood
+    out.push({
+      id: 'hood',
+      bodyId: 'head',
+      centre: mid(pose.helmet, pose.helmetTail),
+      axes: { a: h.length / 2, b: h.height / 2, c: h.width / 2 },
+      pitchRad: pose.headPitchDeg * DEG,
+      wrap: 'oval',
+      part: 'rider',
+    })
+  }
+  for (let i = 0; i < 2; i++) {
+    const n = i + 1
+    out.push(capsule(`arm-${n}`, `arm-${n}`, pose.shoulder[i]!, pose.hand[i]!, FIT.upperArmRadius, 'cross'))
+    out.push(capsule(`thigh-${n}`, `thigh-${n}`, pose.hip[i]!, pose.knee[i]!, FIT.thighRadius, 'cross'))
+    out.push(capsule(`shin-${n}`, `shin-${n}`, pose.knee[i]!, pose.foot[i]!, FIT.shinRadius, 'cross'))
+  }
+  return out
+}
+
+/** The ellipsoids for any design in its pose. */
+export function designEllipsoids(design: Design, pose: Pose): Ellipsoid[] {
+  return isSkater(design) ? skaterEllipsoids(design, pose) : riderEllipsoids(design, pose)
 }
 
 /**

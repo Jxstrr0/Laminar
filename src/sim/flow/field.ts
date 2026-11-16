@@ -33,17 +33,16 @@
  * draws the same smoke for the same design and seed.
  */
 import { CP_VIZ, FLOW_FIELD, TUFTS, TURBULENCE, WAKE_VIZ } from '../../data/flowViz'
-import type { CyclistDesign } from '../../data/cyclist'
+import { designPose, designShape, type Design } from '../design'
 import { shapeDrag, type ShapeDrag } from '../aero/drag'
 import type { Flow } from '../aero/flow'
 import { detCos, detSin, PI } from '../det'
 import { describeShape, type BodyDescriptor, type Line, type ShapeDescriptor } from '../geom/body'
-import { cyclistShape } from '../geom/cyclist'
-import { riderPose, type Point } from '../geom/pose'
+import type { Point } from '../geom/pose'
 import { gaussian } from '../noise'
 import { clamp01, DEG, interp, smoothstep } from '../num'
 import type { Rng } from '../rng'
-import { riderEllipsoids, type Ellipsoid } from './ellipsoids'
+import { designEllipsoids, type Ellipsoid } from './ellipsoids'
 
 export type LineName = 'top' | 'bottom' | 'side'
 
@@ -462,10 +461,10 @@ export interface RiderFlowOptions {
  * tunnel, build the drag on the model's own shape and flow and call
  * flowField() with scaleEllipsoids() instead.
  */
-export function riderFlowField(design: CyclistDesign, flow: Flow, yawDeg: number, options: RiderFlowOptions = {}): FlowField {
-  const pose = riderPose(design)
-  const ellipsoids = riderEllipsoids(design, pose)
-  const shape = describeShape(cyclistShape(design))
+export function riderFlowField(design: Design, flow: Flow, yawDeg: number, options: RiderFlowOptions = {}): FlowField {
+  const pose = designPose(design)
+  const ellipsoids = designEllipsoids(design, pose)
+  const shape = describeShape(designShape(design))
   const drag = shapeDrag(shape, flow)
   return flowField({ ellipsoids, shape, drag, speed: flow.speed, yawDeg, ...(options.seed !== undefined ? { seed: options.seed } : {}) })
 }
@@ -478,8 +477,8 @@ export function riderFlowField(design: CyclistDesign, flow: Flow, yawDeg: number
  * the two line up. Only ratios of the drag result are read, so mixing the
  * model's scale with full-size ellipsoids is safe.
  */
-export function modelFlowField(design: CyclistDesign, modelShape: ShapeDescriptor, flow: Flow, yawDeg: number, options: RiderFlowOptions = {}): FlowField {
-  const ellipsoids = riderEllipsoids(design, riderPose(design, options.crankDeg))
+export function modelFlowField(design: Design, modelShape: ShapeDescriptor, flow: Flow, yawDeg: number, options: RiderFlowOptions = {}): FlowField {
+  const ellipsoids = designEllipsoids(design, designPose(design, options.crankDeg))
   const drag = shapeDrag(modelShape, flow)
   return flowField({ ellipsoids, shape: modelShape, drag, speed: flow.speed, yawDeg, ...(options.seed !== undefined ? { seed: options.seed } : {}) })
 }

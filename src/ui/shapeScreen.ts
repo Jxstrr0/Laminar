@@ -12,16 +12,15 @@ import {
   POSTURE_RANGE,
   type CyclistDesign,
 } from '../data/cyclist'
+import { DEFAULT_SKATER, SKATER_RANGE, type SkaterDesign } from '../data/skater'
 import { TCF_TIME_TRIAL } from '../data/rules'
 import { t, type StringKey } from '../data/strings'
-import { readouts, type RuleBreak } from '../sim/cyclist'
+import type { RuleBreak } from '../sim/cyclist'
 import type { FixTarget } from '../sim/failure'
 import { deskEstimate } from '../sim/desk'
 import { crewEffects } from '../sim/staff'
-import { cyclistShape } from '../sim/geom/cyclist'
-import { asCyclist } from '../sim/design'
+import { designPose, designReadouts, designShape, isSkater, type Design } from '../sim/design'
 import { availableHandles, dragHandle, handleDef, handlePoint } from '../sim/geom/handles'
-import { riderPose } from '../sim/geom/pose'
 import { ruleVolumes } from '../sim/geom/ruleBox'
 import { briefTemplate, currentEvent } from '../sim/career'
 import type { Highlight, ShapeView } from '../render/shapeScene'
@@ -34,6 +33,7 @@ import { openGlossaryIndex, glossaryTerm } from './glossary'
 
 type Tab = 'position' | 'kit' | 'bike'
 type PostureKey = keyof CyclistDesign['posture']
+type SkaterKey = keyof SkaterDesign['posture']
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag)
@@ -59,7 +59,9 @@ const BREAK_HIGHLIGHT: Record<RuleBreak['part'], Highlight> = {
   'wheels.front': 'front-wheel',
   frame: 'frame',
 }
-const STRAIN_HIGHLIGHT: Record<PostureKey, Highlight> = {
+const STRAIN_HIGHLIGHT: Record<PostureKey | SkaterKey, Highlight> = {
+  trunkDeg: 'torso',
+  kneeDeg: 'legs',
   torsoDeg: 'torso',
   headDrop: 'head',
   armWidth: 'arms',
@@ -92,16 +94,26 @@ const POSTURE_FORMAT: Record<PostureKey, (v: number) => string> = {
   handReach: (v) => `${fixed(v * 100, 0)} cm`,
   handHeight: (v) => `${v > 0 ? '+' : ''}${fixed(v * 100, 0)} cm`,
 }
+const SKATER_FORMAT: Record<SkaterKey, (v: number) => string> = {
+  trunkDeg: (v) => `${fixed(v, 0)}°`,
+  kneeDeg: (v) => `${fixed(v, 0)}°`,
+  headDrop: (v) => `${fixed(v * 100, 0)} %`,
+}
 
 export interface ScreenControl {
   setActive(active: boolean): void
 }
 
 export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenControl {
-  let design: CyclistDesign = structuredClone(asCyclist(designStore.get()))
+  let design: Design = structuredClone(designStore.get())
   let dirty = true
   /** The copy last handed to the tunnel, so a design set from elsewhere (a new job) can be told apart. */
-  let sent: CyclistDesign | null = null
+  let sent: Design | null = null
+  // Each sport's controls read and write through these; the other sport's (hidden) controls get a spare copy.
+  const spareCyclist = structuredClone(DEFAULT_CYCLIST)
+  const spareSkater = structuredClone(DEFAULT_SKATER)
+  const cyc = (): CyclistDesign => (isSkater(design) ? spareCyclist : design)
+  const sk = (): SkaterDesign => (isSkater(design) ? design : spareSkater)
   let selected: HandleId | null = null
 
   // --- Header
@@ -134,7 +146,6 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   comfortR.box.insertBefore(meter, comfortR.sub)
   const frontalR = readout(t('read.frontal'), 'frontalArea')
   const rulesR = readout(t('read.rules'), 'ruleBox')
-  rulesR.sub.textContent = t('book.tcf-tt')
   grid.append(deskR.box, comfortR.box, frontalR.box, rulesR.box)
 
   const breaks = el('ul', 'breaks')
@@ -198,9 +209,10 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     }
   }
   tabBar.addEventListener('keydown', (e) => {
-    const order: Tab[] = ['position', 'kit', 'bike']
+    const order = (['position', 'kit', 'bike'] as const).filter((k) => !tabButtons[k].hidden)
     const i = order.indexOf(currentTab)
-    const next = e.key === 'ArrowRight' ? order[(i + 1) % 3] : e.key === 'ArrowLeft' ? order[(i + 2) % 3] : null
+    const n = order.length
+    const next = e.key === 'ArrowRight' ? order[(i + 1) % n] : e.key === 'ArrowLeft' ? order[(i + n - 1) % n] : null
     if (next) {
       selectTab(next)
       tabButtons[next].focus()
@@ -291,26 +303,42 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     syncers.push(() => (input.checked = get()))
   }
 
-  for (const key of Object.keys(POSTURE_RANGE) as PostureKey[]) {
-    slider(panels.position, `ctl-${key}`, t(`ctl.${key}`), POSTURE_RANGE[key], () => design.posture[key], (v) => (design.posture[key] = v), POSTURE_FORMAT[key])
+  // Each tab holds a box of cyclist controls and a box of skater controls; the design's sport shows one.
+  const box = (panel: HTMLElement) => {
+    const b = el('div', 'sport-controls')
+    panel.append(b)
+    return b
   }
+  const cycBox = { position: box(panels.position), kit: box(panels.kit), bike: box(panels.bike) }
+  const skBox = { position: box(panels.position), kit: box(panels.kit) }
+
+  for (const key of Object.keys(POSTURE_RANGE) as PostureKey[]) {
+    slider(cycBox.position, `ctl-${key}`, t(`ctl.${key}`), POSTURE_RANGE[key], () => cyc().posture[key], (v) => (cyc().posture[key] = v), POSTURE_FORMAT[key])
+  }
+  for (const key of Object.keys(SKATER_RANGE) as SkaterKey[]) {
+    slider(skBox.position, `sk-${key}`, t(`ctl.${key}`), SKATER_RANGE[key], () => sk().posture[key], (v) => (sk().posture[key] = v), SKATER_FORMAT[key])
+  }
+  choice(skBox.position, 'sk-arms', t('ctl.arms'), [{ value: 'back', key: 'opt.armsBack' }, { value: 'swing', key: 'opt.armsSwing' }], () => sk().arms, (v) => (sk().arms = v))
+  choice(skBox.kit, 'sk-hood', t('ctl.hood'), [{ value: 'cap', key: 'opt.cap' }, { value: 'hood', key: 'opt.hood' }], () => sk().hood, (v) => (sk().hood = v))
+  choice(skBox.kit, 'sk-fabric', t('ctl.fabric'), [{ value: 'smooth', key: 'opt.smooth' }, { value: 'textured', key: 'opt.textured' }], () => sk().suit.fabric, (v) => (sk().suit.fabric = v))
+  toggle(skBox.kit, 'sk-legTrips', t('ctl.legTrips'), () => sk().suit.legTrips, (v) => (sk().suit.legTrips = v))
 
   const pct = (v: number) => `${fixed(v * 100, 0)} %`
-  choice(panels.kit, 'ctl-helmet', t('ctl.helmet'), [{ value: 'road', key: 'opt.road' }, { value: 'aero', key: 'opt.aero' }], () => design.helmet.kind, (v) => (design.helmet.kind = v))
-  const tailRow = slider(panels.kit, 'ctl-tail', t('ctl.tail'), PART_RANGE.tail, () => design.helmet.tail, (v) => (design.helmet.tail = v), pct)
-  slider(panels.kit, 'ctl-vents', t('ctl.vents'), PART_RANGE.vents, () => design.helmet.vents, (v) => (design.helmet.vents = v), pct)
-  choice(panels.kit, 'ctl-fabric', t('ctl.fabric'), [{ value: 'smooth', key: 'opt.smooth' }, { value: 'textured', key: 'opt.textured' }], () => design.suit.fabric, (v) => (design.suit.fabric = v))
-  toggle(panels.kit, 'ctl-armTrips', t('ctl.armTrips'), () => design.suit.armTrips, (v) => (design.suit.armTrips = v))
+  choice(cycBox.kit, 'ctl-helmet', t('ctl.helmet'), [{ value: 'road', key: 'opt.road' }, { value: 'aero', key: 'opt.aero' }], () => cyc().helmet.kind, (v) => (cyc().helmet.kind = v))
+  const tailRow = slider(cycBox.kit, 'ctl-tail', t('ctl.tail'), PART_RANGE.tail, () => cyc().helmet.tail, (v) => (cyc().helmet.tail = v), pct)
+  slider(cycBox.kit, 'ctl-vents', t('ctl.vents'), PART_RANGE.vents, () => cyc().helmet.vents, (v) => (cyc().helmet.vents = v), pct)
+  choice(cycBox.kit, 'ctl-fabric', t('ctl.fabric'), [{ value: 'smooth', key: 'opt.smooth' }, { value: 'textured', key: 'opt.textured' }], () => cyc().suit.fabric, (v) => (cyc().suit.fabric = v))
+  toggle(cycBox.kit, 'ctl-armTrips', t('ctl.armTrips'), () => cyc().suit.armTrips, (v) => (cyc().suit.armTrips = v))
 
-  choice(panels.bike, 'ctl-bars', t('ctl.bars'), [{ value: 'drops', key: 'opt.drops' }, { value: 'aero', key: 'opt.aeroBars' }], () => design.bars, (v) => (design.bars = v))
+  choice(cycBox.bike, 'ctl-bars', t('ctl.bars'), [{ value: 'drops', key: 'opt.drops' }, { value: 'aero', key: 'opt.aeroBars' }], () => cyc().bars, (v) => (cyc().bars = v))
   const wheels = [
     { value: 'spoked', key: 'opt.spoked' },
     { value: 'deep', key: 'opt.deep' },
     { value: 'disc', key: 'opt.disc' },
   ] as const
-  choice(panels.bike, 'ctl-front', t('ctl.front'), [...wheels], () => design.wheels.front, (v) => (design.wheels.front = v))
-  choice(panels.bike, 'ctl-rear', t('ctl.rear'), [...wheels], () => design.wheels.rear, (v) => (design.wheels.rear = v))
-  choice(panels.bike, 'ctl-frame', t('ctl.frame'), [{ value: 'round', key: 'opt.round' }, { value: 'kamm', key: 'opt.kamm' }], () => design.frame, (v) => (design.frame = v))
+  choice(cycBox.bike, 'ctl-front', t('ctl.front'), [...wheels], () => cyc().wheels.front, (v) => (cyc().wheels.front = v))
+  choice(cycBox.bike, 'ctl-rear', t('ctl.rear'), [...wheels], () => cyc().wheels.rear, (v) => (cyc().wheels.rear = v))
+  choice(cycBox.bike, 'ctl-frame', t('ctl.frame'), [{ value: 'round', key: 'opt.round' }, { value: 'kamm', key: 'opt.kamm' }], () => cyc().frame, (v) => (cyc().frame = v))
 
   // Arrow keys move between options in a segmented group.
   sheet.addEventListener('keydown', (e) => {
@@ -326,7 +354,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   reset.addEventListener('click', () => {
     // Back to where the job started: the client's setup (or the plain starting design between jobs).
     const job = careerStore.get().job
-    design = structuredClone(asCyclist((job && briefTemplate(job.brief.id)?.setup) || DEFAULT_CYCLIST))
+    design = structuredClone((job && briefTemplate(job.brief.id)?.setup) || DEFAULT_CYCLIST)
     selected = null
     syncAll()
     changed()
@@ -334,13 +362,21 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
 
   const syncAll = () => {
     syncers.forEach((s) => s())
-    tailRow.hidden = design.helmet.kind !== 'aero'
+    const skating = isSkater(design)
+    for (const b of Object.values(cycBox)) b.hidden = skating
+    for (const b of Object.values(skBox)) b.hidden = !skating
+    // Skaters have no bike: their tab goes, and the sheet falls back to Position if it was open.
+    tabButtons.bike.hidden = skating
+    if (skating && currentTab === 'bike') selectTab('position')
+    tailRow.hidden = cyc().helmet.kind !== 'aero'
+    hint.textContent = t(skating ? 'hint.shapeSkater' : 'hint.shape')
+    rulesR.sub.textContent = t(skating ? 'book.skating' : 'book.tcf-tt')
   }
   syncAll()
   // A new job puts the client's setup on the bench: take it up.
   designStore.subscribe((d) => {
     if (d === sent) return
-    design = structuredClone(asCyclist(d))
+    design = structuredClone(d)
     selected = null
     syncAll()
     dirty = true
@@ -356,6 +392,13 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   // "Change this" after a model broke in the tunnel, or after trouble on race day (plan sections 7 and 8).
   window.addEventListener('laminar:fix', (e) => {
     const where = (e as CustomEvent<FixTarget>).detail
+    if (isSkater(design)) {
+      // A skater's fixes are all in the crouch (or the head cover, for a helmet-like fault).
+      if (where === 'helmet') jumpToControl({ tab: 'kit', id: 'sk-hood' })
+      else if (where === 'trunkDeg' || where === 'kneeDeg' || where === 'headDrop') jumpToControl({ tab: 'position', id: `sk-${where}` })
+      else jumpToControl({ tab: 'position', id: 'sk-trunkDeg' })
+      return
+    }
     if (where === 'helmet') jumpToControl(BREAK_TARGET.helmet)
     else if (where === 'wheels') jumpToControl({ tab: 'bike', id: 'ctl-rear' })
     else if (where === 'front') jumpToControl(BREAK_TARGET['wheels.front'])
@@ -381,8 +424,8 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     // The tunnel tests whatever is shaped here; it gets its own copy.
     sent = structuredClone(design)
     designStore.set(sent)
-    const r = readouts(design, TCF_TIME_TRIAL)
-    const shape = cyclistShape(design)
+    const r = designReadouts(design, TCF_TIME_TRIAL)
+    const shape = designShape(design)
     // The desk estimate is for the job's event, with the job's own bias.
     const career = careerStore.get()
     const desk = deskEstimate(shape, currentEvent(career), career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(design), crewEffects(career.crew).deskLevel)
@@ -392,7 +435,9 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     const c = r.comfort
     comfortR.value.textContent = c.holdable ? `${fixed(Math.max(0, 1 - c.strain / c.limit) * 100, 0)} %` : t('read.comfortOver')
     comfortR.value.classList.toggle('over', !c.holdable)
-    comfortR.sub.textContent = t('read.comfortNote', { power: `−${fixed((1 - c.powerFactor) * 100, 1)} %` })
+    // A skater's swinging arm can add more power than the crouch takes away.
+    const change = (c.powerFactor - 1) * 100
+    comfortR.sub.textContent = t('read.comfortNote', { power: `${change > 0 ? '+' : '−'}${fixed(Math.abs(change), 1)} %` })
     meterFill.style.width = `${Math.min(100, (c.strain / c.limit) * 100)}%`
     meter.classList.toggle('warn', c.strain >= COMFORT.strainWarn * c.limit)
     meter.classList.toggle('over', !c.holdable)
@@ -401,7 +446,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     frontalR.value.textContent = `${fixed(r.frontalArea, 3)} m²`
     frontalR.sub.textContent = t('read.frontalNote', { mass: fixed(r.mass, 1), price: fixed(r.price, 0) })
 
-    rulesR.value.textContent = r.breaks.length === 0 ? t('read.legal') : r.breaks.length === 1 ? t('read.oneBreak') : t('read.breaks', { count: r.breaks.length })
+    rulesR.value.textContent = isSkater(design) ? t('read.noRules') : r.breaks.length === 0 ? t('read.legal') : r.breaks.length === 1 ? t('read.oneBreak') : t('read.breaks', { count: r.breaks.length })
     rulesR.value.classList.toggle('over', r.breaks.length > 0)
     breaks.replaceChildren(
       ...r.breaks.map((b) => {
@@ -416,16 +461,19 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
       }),
     )
 
-    const strained = c.strain >= COMFORT.strainWarn * c.limit && c.worst ? [STRAIN_HIGHLIGHT[c.worst]] : []
-    const pose = riderPose(design)
+    const worst = c.worst as PostureKey | SkaterKey | null
+    const strained = c.strain >= COMFORT.strainWarn * c.limit && worst ? [STRAIN_HIGHLIGHT[worst]] : []
+    const pose = designPose(design)
+    const bike = isSkater(design) ? null : design
     view.show({
       design,
       pose,
-      broken: r.breaks.map((b) => BREAK_HIGHLIGHT[b.part]),
+      broken: r.breaks.map((b) => BREAK_HIGHLIGHT[b.part as RuleBreak['part']]),
       strained,
-      handles: availableHandles(design).map((id) => ({ id, point: handlePoint(design, id, pose) })),
+      // Handles and rule boxes are the cyclist's: skaters set the crouch with the sliders and have no kit rules.
+      handles: bike ? availableHandles(bike).map((id) => ({ id, point: handlePoint(bike, id, pose) })) : [],
       selected,
-      volumes: ruleVolumes(design, pose, TCF_TIME_TRIAL),
+      volumes: bike ? ruleVolumes(bike, pose, TCF_TIME_TRIAL) : [],
     })
   }
 
@@ -436,7 +484,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
       changed()
     },
     move(id, target, project) {
-      design = dragHandle(design, id, target, project)
+      if (!isSkater(design)) design = dragHandle(design, id, target, project)
       changed()
     },
     end(id, tapped) {

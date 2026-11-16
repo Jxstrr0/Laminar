@@ -5,6 +5,7 @@
  * Every name here is fictional and listed in docs/NAMES.md.
  */
 import type { CyclistDesign } from './cyclist'
+import type { SkaterDesign } from './skater'
 import type { Design } from './sport'
 import type { CourseSegment } from './field'
 
@@ -78,8 +79,11 @@ export interface EventTemplate {
   /** Day-to-day spread (standard deviations): temperature °C, wind m/s, the rider's power as a fraction. */
   spread: { temperature: number; wind: number; power: number }
   course: readonly CourseSegment[]
-  /** Ridden on the indoor track: still air, laps of TRACK.lap metres (plan section 8.3). */
+  /** Raced indoors: still air, laps of `lap` metres (TRACK.lap if left out; plan section 8.3). */
   indoor?: true
+  lap?: number
+  /** Raced on ice (the replay draws an ice surface). */
+  ice?: true
 }
 
 export interface BriefTemplate {
@@ -122,19 +126,40 @@ export const TRACK = {
   bendPieces: 8,
 }
 
-/** `km` of laps on the indoor track, starting at the head of the home straight (heading east). */
-const trackCourse = (km: number): CourseSegment[] => {
-  const straight = TRACK.lap * TRACK.straight
-  const piece = (TRACK.lap * (1 - 2 * TRACK.straight)) / 2 / TRACK.bendPieces
-  const step = 180 / TRACK.bendPieces
+/** The indoor 400 m ice oval (PR 8b): longer straights than the velodrome, skated anticlockwise too. */
+export const OVAL = {
+  lap: 400,
+  straight: 0.28,
+  bendPieces: 8,
+}
+
+type Oval = { lap: number; straight: number; bendPieces: number }
+
+/** `km` of laps of an oval, starting at the head of the home straight (heading east). */
+const ovalCourse = (oval: Oval, km: number): CourseSegment[] => {
+  const straight = oval.lap * oval.straight
+  const piece = (oval.lap * (1 - 2 * oval.straight)) / 2 / oval.bendPieces
+  const step = 180 / oval.bendPieces
   const lap: CourseSegment[] = []
   for (const start of [90, 270]) {
     lap.push({ length: straight, gradient: 0, heading: start })
     // Anticlockwise: the heading swings left through the bend.
-    for (let k = 0; k < TRACK.bendPieces; k++) lap.push({ length: piece, gradient: 0, heading: (start - step * (k + 0.5) + 360) % 360 })
+    for (let k = 0; k < oval.bendPieces; k++) lap.push({ length: piece, gradient: 0, heading: (start - step * (k + 0.5) + 360) % 360 })
   }
-  const laps = Math.round((km * 1000) / TRACK.lap)
+  const laps = Math.round((km * 1000) / oval.lap)
   return Array.from({ length: laps }, () => lap).flat()
+}
+
+/**
+ * The Lake Dolgo ice marathon's loop (PR 8b): a ploughed lap on the frozen
+ * lake, each side facing the wind a different way.
+ */
+const LAKE_LOOP = { sides: [20, 110, 200, 290], side: 1250 }
+
+const lakeCourse = (km: number): CourseSegment[] => {
+  const loop = LAKE_LOOP.sides.map((heading) => ({ length: LAKE_LOOP.side, gradient: 0, heading }))
+  const laps = Math.round((km * 1000) / (LAKE_LOOP.side * LAKE_LOOP.sides.length))
+  return Array.from({ length: laps }, () => loop).flat()
 }
 
 /** Bits of course shared by several briefs. */
@@ -142,6 +167,15 @@ const outAndBack = (km: number, heading: number): CourseSegment[] => [
   { length: (km * 1000) / 2, gradient: 0, heading },
   { length: (km * 1000) / 2, gradient: 0, heading: (heading + 180) % 360 },
 ]
+
+const skater = (posture: SkaterDesign['posture'], parts: Partial<Omit<SkaterDesign, 'posture' | 'sport'>> = {}): SkaterDesign => ({
+  sport: 'skating',
+  posture,
+  arms: 'back',
+  hood: 'cap',
+  suit: { fabric: 'smooth', legTrips: false },
+  ...parts,
+})
 
 const setup = (
   posture: CyclistDesign['posture'],
@@ -291,7 +325,7 @@ export const BRIEFS: readonly BriefTemplate[] = [
       windSpeed: 0,
       riderSpeed: 14.5,
       spread: { temperature: 1, wind: 0, power: 0.02 },
-      course: trackCourse(4),
+      course: ovalCourse(TRACK, 4),
       indoor: true,
     },
     rider: { power: 420, mass: 68 },
@@ -303,5 +337,52 @@ export const BRIEFS: readonly BriefTemplate[] = [
     days: 18,
     minRep: 35,
     target: 5,
+  },
+  {
+    id: 'lenok-oval',
+    client: 'Sonya Lenok',
+    who: 'Young distance skater, fast on the straights',
+    goal: 'I fade in the 10 000. My coach says I stand up too tall and my cap is a parachute. Can you prove it?',
+    event: {
+      name: 'Stavren Open: 10 000 m',
+      place: 'Stavren Ice Oval (indoors)',
+      temperature: 12,
+      altitude: 180,
+      windSpeed: 0,
+      riderSpeed: 11.4,
+      spread: { temperature: 1, wind: 0, power: 0.02 },
+      course: ovalCourse(OVAL, 10),
+      indoor: true,
+      lap: OVAL.lap,
+      ice: true,
+    },
+    rider: { power: 210, mass: 62 },
+    setup: skater({ trunkDeg: 32, kneeDeg: 130, headDrop: 0.15 }, { arms: 'swing' }),
+    fee: { min: 50000, max: 75000 },
+    days: 14,
+    target: 8,
+  },
+  {
+    id: 'kosov-marathon',
+    client: 'Ilya Kosov',
+    who: 'Marathon skater, races outdoors all winter',
+    goal: 'Forty kilometres on the lake, and the wind changes every side of the loop. I want to sit lower and still last the distance.',
+    event: {
+      name: 'Lake Dolgo Ice Marathon',
+      place: 'Lake Dolgo, a ploughed loop on the ice',
+      temperature: -8,
+      altitude: 620,
+      windSpeed: 4,
+      riderSpeed: 11.6,
+      spread: { temperature: 4, wind: 2, power: 0.03 },
+      course: lakeCourse(40),
+      ice: true,
+    },
+    rider: { power: 240, mass: 74 },
+    setup: skater({ trunkDeg: 26, kneeDeg: 122, headDrop: 0.25 }, { suit: { fabric: 'textured', legTrips: false } }),
+    fee: { min: 70000, max: 100000 },
+    days: 18,
+    minRep: 10,
+    target: 6,
   },
 ]

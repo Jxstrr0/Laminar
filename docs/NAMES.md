@@ -29,6 +29,7 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Lake Dolgo | A lake and ridge loop, site of a hill time trial. | PR 5c |
 | Kosa spit | A coastal spit with a sea-wall road, site of a windy time trial. | PR 5c |
 | Stavren Velodrome | An indoor 250 m track in Stavren. | PR 5h |
+| Stavren Ice Oval | An indoor 400 m speed-skating oval in Stavren. | PR 8b |
 
 ## Bodies
 
@@ -47,7 +48,9 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Yana Korolets | National team hopeful (Kosa Coast Time Trial). |
 | Ruslan Tvardov | Defending national time-trial champion (National Time Trial Championship). |
 | Alina Vesnina | Track pursuiter on the national team (Track Championships: Individual Pursuit). PR 5h. |
-| Stavren Regional Time Trial, Club 16 km Time Trial, Lake Dolgo Hill Time Trial, Kosa Coast Time Trial, National Time Trial Championship, Track Championships: Individual Pursuit | The events above. |
+| Sonya Lenok | Young distance speed skater (Stavren Open: 10 000 m). PR 8b. |
+| Ilya Kosov | Outdoor marathon skater (Lake Dolgo Ice Marathon). PR 8b. |
+| Stavren Regional Time Trial, Club 16 km Time Trial, Lake Dolgo Hill Time Trial, Kosa Coast Time Trial, National Time Trial Championship, Track Championships: Individual Pursuit, Stavren Open: 10 000 m, Lake Dolgo Ice Marathon | The events above. |
 
 ## Rival firms (PR 7)
 
