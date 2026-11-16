@@ -234,6 +234,9 @@ export function soundCareer(x: unknown): CareerState | null {
   // Careers from before PR 7f have no staff.
   const crew = soundCrew(x.crew === undefined ? NO_CREW : x.crew)
   if (!crew) return null
+  // Careers from before PR 7g never went broke. Each entry is a count of jobs on the record, in order.
+  const broke = x.broke === undefined ? [] : x.broke
+  if (!Array.isArray(broke) || !broke.every((n, i) => isCount(n) && n <= history.length && (i === 0 || n >= broke[i - 1]))) return null
   return {
     seed: x.seed,
     money: x.money,
@@ -247,6 +250,7 @@ export function soundCareer(x: unknown): CareerState | null {
     guide: { off: guide.off, done: guide.done as GuideStep[] },
     facility,
     crew,
+    broke: broke as number[],
   }
 }
 

@@ -39,11 +39,20 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 7d | Tunnel upgrades: turbulence screens, bigger turntable, wheel-drive rig, bigger fan | **Done** (v0.7.3.0) |
 | 7e | Workshop chain: FDM printer, resin printer, CNC mill | **Done** (v0.7.4.0) |
 | 7f | Staff with traits, paid per day that passes | **Done** (v0.7.5.0) |
-| 7g | Going broke: the soft landing | Next |
-| 7h–14 | See the plan (backup file, 2040 ending, then PRs 8–14) | Not started |
+| 7g | Going broke: the soft landing | **Done** (v0.7.6.0) |
+| 7h | Backup file and reminder | Next |
+| 7i–14 | See the plan (2040 ending, then PRs 8–14) | Not started |
 
 ## Versions
 
+- **0.7.6.0** (PR 7g): going broke, the soft landing.
+  - If a job leaves cash below zero, kit is sold for half what it cost,
+    cheapest first, until cash is back above zero. Your own tunnel goes
+    only once every machine and upgrade has, and then runs are back in the
+    university's tunnel.
+  - Staff stay. Reputation drops 5. There is no game over: small briefs
+    are always on the board.
+  - The race-day debrief shows a "Cash ran out" box with what was sold.
 - **0.7.5.0** (PR 7f): staff.
   - A Staff card on the Jobs screen: one person per role (model maker,
     tunnel tech, analyst), two to choose from in each, three at most.

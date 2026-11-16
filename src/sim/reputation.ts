@@ -1,10 +1,10 @@
 /**
  * The firm's reputation and correlation score (plan section 9). Both come
- * straight from the record of finished jobs, so a save needs nothing new:
- * replay the record and you have them.
+ * straight from the record of finished jobs (and the times the firm went
+ * broke), so replaying the record gives them back.
  */
 import { PROMISE } from '../data/briefs'
-import { CORRELATION, REPUTATION } from '../data/reputation'
+import { BROKE, CORRELATION, REPUTATION } from '../data/reputation'
 
 /** What a finished job leaves on the record that the firm's name depends on. */
 export interface Delivered {
@@ -36,10 +36,21 @@ export function reputationChange(job: Delivered): number {
 
 const clampRep = (x: number) => Math.min(REPUTATION.max, Math.max(REPUTATION.min, x))
 
-/** The firm's reputation after these jobs (oldest first), whole points. */
-export function reputationOf(history: readonly Delivered[]): number {
+/**
+ * The firm's reputation after these jobs (oldest first), whole points.
+ * `broke` lists when the firm went broke, as the number of jobs done by then;
+ * each costs BROKE.dip right after that job.
+ */
+export function reputationOf(history: readonly Delivered[], broke: readonly number[] = []): number {
   let rep: number = REPUTATION.start
-  for (const job of history) rep = clampRep(rep + reputationChange(job))
+  const dipAfter = (n: number) => {
+    for (const at of broke) if (at === n) rep = clampRep(rep - BROKE.dip)
+  }
+  dipAfter(0)
+  history.forEach((job, i) => {
+    rep = clampRep(rep + reputationChange(job))
+    dipAfter(i + 1)
+  })
   return Math.round(rep)
 }
 

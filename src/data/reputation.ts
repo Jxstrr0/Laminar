@@ -25,3 +25,16 @@ export const CORRELATION = {
   jobs: 5,
   zeroAt: 0.1,
 }
+
+/**
+ * Going broke (plan section 9.8; Kelbo, 16 November 2026): when cash is below
+ * zero after a job, kit is sold, cheapest first, for `saleShare` of what it
+ * cost, until cash is back above zero; your own tunnel goes only if that
+ * isn't enough. Staff stay. Clients notice: reputation drops by `dip`.
+ */
+export const BROKE = {
+  saleShare: 0.5,
+  /** Sale prices are rounded to this many ₽. */
+  round: 1000,
+  dip: 5,
+}
