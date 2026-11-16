@@ -16,6 +16,8 @@ import { lastSlot, readSlot, setLastSlot, writeSlot } from './persist/db'
 import { packSave, parseSave, SAVE_VERSION, type SaveFile } from './persist/save'
 import { DEFAULT_CYCLIST } from './data/cyclist'
 import { DEFAULT_JUMPER } from './data/jumper'
+import { DEFAULT_BOBSLED } from './data/bobsled'
+import type { Design } from './data/sport'
 import { careerStore, freshSeed } from './ui/careerStore'
 import { charge, currentEvent, currentJumpEvent, newCareer, orderBlock, orderModel, repairModel } from './sim/career'
 import { makersOwned, tunnelSetup } from './sim/facility'
@@ -30,10 +32,17 @@ const SLOT = lastSlot()
 
 /**
  * A preview of a sport before its jobs arrive (PR 8d): `?try=skijump` puts a
- * ski jumper on the bench in a fresh, throwaway career. Nothing is read from
+ * ski jumper on the bench in a fresh, throwaway career (`?try=bobsled` and
+ * `?try=bobsled4` a two- or four-man sled, PR 8m). Nothing is read from
  * or written to the save slots, so a real career is never touched.
  */
-const PREVIEW = new URLSearchParams(location.search).get('try') === 'skijump'
+const PREVIEWS: Record<string, Design> = {
+  skijump: DEFAULT_JUMPER,
+  bobsled: DEFAULT_BOBSLED,
+  bobsled4: { ...DEFAULT_BOBSLED, crew: 4 as const },
+}
+const PREVIEW_DESIGN = PREVIEWS[new URLSearchParams(location.search).get('try') ?? ''] ?? null
+const PREVIEW = PREVIEW_DESIGN !== null
 
 const loading = bindLoadingScreen()
 
@@ -98,8 +107,8 @@ async function boot(): Promise<void> {
   loading.progress(0.2)
   // Pick up where the last visit left off. A save that can't be trusted is left alone, unread.
   const saved = PREVIEW ? null : parseSave(await readSlot(SLOT).catch(() => null))
-  if (PREVIEW) {
-    designStore.set(structuredClone(DEFAULT_JUMPER))
+  if (PREVIEW_DESIGN) {
+    designStore.set(structuredClone(PREVIEW_DESIGN))
     careerStore.set(newCareer(freshSeed()))
   } else if (saved) {
     designStore.set(saved.design)
@@ -120,7 +129,7 @@ async function boot(): Promise<void> {
   const tunnelHost = screenHost(app, 'tunnel')
   // The tunnel calls back when something worth keeping changes; so do the design and the career.
   let touch = () => {}
-  const tunnel = startTunnelScreen(tunnelHost, createTunnelView(tunnelHost), saved?.lab ?? newLab(PREVIEW ? DEFAULT_JUMPER : undefined), {
+  const tunnel = startTunnelScreen(tunnelHost, createTunnelView(tunnelHost), saved?.lab ?? newLab(PREVIEW_DESIGN ?? undefined), {
     onChange: () => touch(),
     onRun: (run) => careerStore.set(afterRun(charge(careerStore.get(), runCost(run)))),
     tunnelSeed: careerStore.get().seed,

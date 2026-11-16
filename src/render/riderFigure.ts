@@ -10,10 +10,13 @@
  */
 import * as THREE from 'three'
 import { BIKE, HELMET, type CyclistDesign } from '../data/cyclist'
-import { FRAME, JUMPER_SKELETON, SKATER_SKELETON, SKELETON } from '../data/pose'
+import { BOB_SKELETON, FRAME, JUMPER_SKELETON, SKATER_SKELETON, SKELETON } from '../data/pose'
 import type { SkaterDesign } from '../data/skater'
 import { JUMP_SKIS, type JumperDesign } from '../data/jumper'
 import type { JumperPose } from '../sim/geom/jumperPose'
+import { SLED, type BobsledDesign } from '../data/bobsled'
+import { sledShape } from '../sim/geom/bobsled'
+import type { BobsledPose } from '../sim/geom/bobsledPose'
 import type { Design } from '../data/sport'
 import { cyclistShape } from '../sim/geom/cyclist'
 import { skaterShape } from '../sim/geom/skater'
@@ -36,6 +39,7 @@ const COLOURS = {
   cap: 0x5d6873,
   ski: 0xe6ebef,
   skiStripe: 0x2456e8,
+  sled: 0x2456e8,
   broken: 0xd2462b,
   strain: 0xe08a00,
 }
@@ -72,6 +76,7 @@ const M = {
   cap: mat(COLOURS.cap, 0.95),
   ski: mat(COLOURS.ski, 0.3, 0.1),
   skiStripe: mat(COLOURS.skiStripe, 0.4),
+  sled: new THREE.MeshStandardMaterial({ color: COLOURS.sled, roughness: 0.3, metalness: 0.1, side: THREE.DoubleSide }),
   broken: new THREE.MeshStandardMaterial({ color: COLOURS.broken, emissive: COLOURS.broken, emissiveIntensity: 0.35, roughness: 0.5 }),
   strain: new THREE.MeshStandardMaterial({ color: COLOURS.strain, emissive: COLOURS.strain, emissiveIntensity: 0.25, roughness: 0.6 }),
 }
@@ -152,6 +157,7 @@ export function buildRider(state: RiderState): THREE.Group {
   const { pose } = state
   if (state.design.sport === 'skating') return buildSkater(state.design, state)
   if (state.design.sport === 'skijump') return buildJumper(state.design, state)
+  if (state.design.sport === 'bobsled') return buildBobsled(state.design, state)
   const design = state.design
   const g = new THREE.Group()
   const isBroken = (h: Highlight) => state.broken.includes(h)
@@ -423,6 +429,115 @@ function buildJumper(design: JumperDesign, state: RiderState): THREE.Group {
   visor.rotation.z = (pose.headPitchDeg * Math.PI) / 180
   g.add(visor)
   return g
+}
+
+/**
+ * The bobsled (PR 8m): the hull from the sim's own cross-sections (the
+ * same stations the drag model reads), open over the cockpit, on four
+ * runners, with the crew folded inside. The hull glows red when it breaks
+ * the rule box; the driver's helmet glows amber when they can't see over
+ * the cowling.
+ */
+function buildBobsled(design: BobsledDesign, state: RiderState): THREE.Group {
+  const pose = state.pose as BobsledPose
+  const g = new THREE.Group()
+  const isBroken = (h: Highlight) => state.broken.includes(h)
+  const isStrained = (h: Highlight) => state.strained.includes(h)
+  const hullMat = isBroken('frame') ? M.broken : M.sled
+  g.add(sledHull(design, hullMat))
+
+  // Runners: a pair at the front of the cockpit (they steer) and a pair at its back.
+  const body = SLED.body[design.crew]
+  const runnerLen = 0.62
+  for (const x of [body / 2 - runnerLen / 2, -body / 2 + runnerLen / 2]) {
+    for (const z of [-1, 1]) {
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(runnerLen, SLED.floor * 0.7, 0.014), M.blade)
+      blade.position.set(x, SLED.floor * 0.35, z * SLED.width * 0.42)
+      g.add(blade)
+      const strut = new THREE.Mesh(new THREE.BoxGeometry(0.06, SLED.floor * 0.5, 0.02), M.frame)
+      strut.position.set(x, SLED.floor * 0.8, z * SLED.width * 0.42)
+      g.add(strut)
+    }
+  }
+
+  // The crew: the same fold at each seat, the driver first.
+  pose.seats.forEach((dx, i) => {
+    const at = (p: Point) => v3(p).add(new THREE.Vector3(dx, 0, 0))
+    const S = BOB_SKELETON
+    for (let k = 0; k < 2; k++) {
+      g.add(rod(at(pose.hip[k]!), at(pose.knee[k]!), 0.065, M.suit))
+      g.add(rod(at(pose.knee[k]!), at(pose.foot[k]!), 0.05, M.suit))
+      g.add(rod(at(pose.shoulder[k]!), at(pose.elbow[k]!), 0.045, M.suit))
+      g.add(rod(at(pose.elbow[k]!), at(pose.hand[k]!), 0.04, M.suit))
+      g.add(ball(at(pose.hand[k]!), 0.035, M.tyre))
+    }
+    const hipC = at(pose.hip[0]).add(at(pose.hip[1])).multiplyScalar(0.5)
+    const shC = at(pose.shoulder[0]).add(at(pose.shoulder[1])).multiplyScalar(0.5)
+    const torso = rod(hipC, shC, 0.11, M.suit)
+    torso.scale.set(0.9, 1, S.shoulderWidth / 0.22)
+    g.add(torso)
+    g.add(rod(shC, at(pose.neck), 0.05, M.suit))
+    const driver = i === 0
+    const helmetMat = driver && isBroken('helmet') ? M.broken : driver && isStrained('helmet') ? M.strain : M.helmet
+    const helmet = ball(at(pose.head), S.helmetRadius, helmetMat)
+    helmet.scale.set(1.1, 1, 0.92)
+    g.add(helmet)
+    const visor = new THREE.Mesh(new THREE.SphereGeometry(S.helmetRadius * 1.02, 16, 8, -0.9, 1.8, 1.3, 0.6), M.visor)
+    visor.rotation.y = Math.PI / 2
+    visor.rotation.z = (pose.headPitchDeg * Math.PI) / 180
+    visor.position.copy(at(pose.head))
+    g.add(visor)
+  })
+  return g
+}
+
+/** Sides of each hull ring. */
+const HULL_SIDES = 28
+
+/**
+ * The hull as a shell through the sim's stations: each a rounded-square
+ * ring (as square as the drag model reads it), laid nose forward with the
+ * cockpit's middle at x = 0. Over the cockpit the top of each ring is left
+ * open, so the crew sit in it.
+ */
+function sledHull(design: BobsledDesign, material: THREE.Material): THREE.Mesh {
+  const body = sledShape(design).bodies[0]!
+  const half = (design.sled.cowl - SLED.floor) / 2
+  const centreY = SLED.floor + half
+  const toX = (x: number) => design.sled.nose + SLED.body[design.crew] / 2 - x
+  const exp = 2 / (2 + 6 * SLED.squareness)
+  const sgnPow = (v: number) => Math.sign(v) * Math.pow(Math.abs(v), exp)
+  const positions: number[] = []
+  for (const st of body.stations) {
+    for (let k = 0; k < HULL_SIDES; k++) {
+      const a = (k / HULL_SIDES) * Math.PI * 2
+      positions.push(toX(st.x), centreY + st.top * sgnPow(Math.sin(a)), st.half * sgnPow(Math.cos(a)))
+    }
+  }
+  // The cockpit opening: from just behind the nose to the tail's start, the top third of the ring.
+  const openFrom = design.sled.nose + 0.08
+  const openTo = design.sled.nose + SLED.body[design.crew] + 0.1
+  const index: number[] = []
+  const n = body.stations.length
+  for (let i = 0; i < n - 1; i++) {
+    const x = body.stations[i]!.x
+    const open = x >= openFrom && x <= openTo
+    for (let k = 0; k < HULL_SIDES; k++) {
+      const k2 = (k + 1) % HULL_SIDES
+      const mid = Math.sin(((k + 0.5) / HULL_SIDES) * Math.PI * 2)
+      if (open && mid > 0.55) continue
+      const a = i * HULL_SIDES + k
+      const b = i * HULL_SIDES + k2
+      const c = (i + 1) * HULL_SIDES + k
+      const d = (i + 1) * HULL_SIDES + k2
+      index.push(a, c, b, b, c, d)
+    }
+  }
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  geo.setIndex(index)
+  geo.computeVertexNormals()
+  return new THREE.Mesh(geo, material)
 }
 
 /** The baggiest suit draws limbs and body this much fatter (× 1 + this). */

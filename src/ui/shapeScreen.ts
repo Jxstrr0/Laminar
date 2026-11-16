@@ -14,14 +14,18 @@ import {
 } from '../data/cyclist'
 import { DEFAULT_SKATER, SKATER_RANGE, type SkaterDesign } from '../data/skater'
 import { DEFAULT_JUMPER, FLIGHT_ATTITUDE, JUMPER_RANGE, PITCH, type JumperDesign } from '../data/jumper'
+import { BOBSLED_RANGE, DEFAULT_BOBSLED, SLED, type BobsledDesign } from '../data/bobsled'
+import { TRACKS } from '../data/tracks'
+import { checkSledRules, sightMargin, type SledRuleBreak } from '../sim/bobsled'
+import { sledLength } from '../sim/geom/bobsled'
 import { TCF_TIME_TRIAL } from '../data/rules'
 import { t, type StringKey } from '../data/strings'
 import type { RuleBreak } from '../sim/cyclist'
 import type { FixTarget } from '../sim/failure'
-import { deskEstimate, jumpDeskEstimate } from '../sim/desk'
+import { bobDeskEstimate, deskEstimate, jumpDeskEstimate } from '../sim/desk'
 import { jumperReadouts } from '../sim/jumper'
 import { crewEffects } from '../sim/staff'
-import { designPose, designReadouts, designShape, isCyclist, isJumper, isSkater, type Design } from '../sim/design'
+import { designPose, designReadouts, designShape, isBobsled, isCyclist, isJumper, isSkater, type Design } from '../sim/design'
 import { availableHandles, dragHandle, handleDef, handlePoint } from '../sim/geom/handles'
 import { ruleVolumes } from '../sim/geom/ruleBox'
 import { briefTemplate, currentEvent, currentJumpEvent } from '../sim/career'
@@ -97,6 +101,13 @@ const POSTURE_FORMAT: Record<PostureKey, (v: number) => string> = {
   handReach: (v) => `${fixed(v * 100, 0)} cm`,
   handHeight: (v) => `${v > 0 ? '+' : ''}${fixed(v * 100, 0)} cm`,
 }
+/** Which sled slider each Sliding Federation break jumps to. */
+const SLED_BREAK_TARGET: Record<SledRuleBreak['part'], string> = {
+  'sled.nose': 'bs-nose',
+  'sled.tail': 'bs-tail',
+  'sled.cowl': 'bs-cowl',
+}
+
 const JUMPER_FORMAT: Record<JumperKey, (v: number) => string> = {
   leanDeg: (v) => `${fixed(v, 0)}°`,
   vAngleDeg: (v) => `${fixed(v, 0)}°`,
@@ -120,9 +131,11 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   const spareCyclist = structuredClone(DEFAULT_CYCLIST)
   const spareSkater = structuredClone(DEFAULT_SKATER)
   const spareJumper = structuredClone(DEFAULT_JUMPER)
+  const spareBobsled = structuredClone(DEFAULT_BOBSLED)
   const cyc = (): CyclistDesign => (isCyclist(design) ? design : spareCyclist)
   const sk = (): SkaterDesign => (isSkater(design) ? design : spareSkater)
   const jp = (): JumperDesign => (isJumper(design) ? design : spareJumper)
+  const bs = (): BobsledDesign => (isBobsled(design) ? design : spareBobsled)
   let selected: HandleId | null = null
 
   // --- Header
@@ -134,7 +147,8 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   const showPlace = () => {
     const job = careerStore.get().job
     const who = job ? briefTemplate(job.brief.id)?.client : undefined
-    place.textContent = who ? t('shape.placeJob', { client: who }) : t(isJumper(design) ? 'shape.placeJumper' : 'shape.place')
+    const plain = isJumper(design) ? 'shape.placeJumper' : isBobsled(design) ? (design.crew === 4 ? 'shape.placeBobsled4' : 'shape.placeBobsled') : 'shape.place'
+    place.textContent = who ? t('shape.placeJob', { client: who }) : t(plain)
   }
   showPlace()
   header.append(titleBlock)
@@ -161,7 +175,12 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   const marginR = readout(t('read.margin'), 'staticMargin')
   const bodyBoxes = [deskR.box, comfortR.box, frontalR.box]
   const jumpBoxes = [jumpDeskR.box, liftR.box, marginR.box]
-  grid.append(deskR.box, jumpDeskR.box, comfortR.box, liftR.box, frontalR.box, marginR.box, rulesR.box)
+  // A sled's sheet (PR 8m): the desk's run time, the drag area by part, and whether the driver can see.
+  const bobDeskR = readout(t('read.desk'), 'deskEstimate')
+  const sledDragR = readout(t('read.sledDrag'), 'cda')
+  const sightR = readout(t('read.sight'), 'crewTuck')
+  const bobBoxes = [bobDeskR.box, sledDragR.box, sightR.box]
+  grid.append(deskR.box, jumpDeskR.box, bobDeskR.box, comfortR.box, liftR.box, sledDragR.box, frontalR.box, marginR.box, sightR.box, rulesR.box)
 
   const breaks = el('ul', 'breaks')
   breaks.setAttribute('aria-live', 'polite')
@@ -327,6 +346,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   const cycBox = { position: box(panels.position), kit: box(panels.kit), bike: box(panels.bike) }
   const skBox = { position: box(panels.position), kit: box(panels.kit) }
   const jpBox = { position: box(panels.position), kit: box(panels.kit) }
+  const bsBox = { position: box(panels.position), kit: box(panels.kit) }
 
   for (const key of Object.keys(POSTURE_RANGE) as PostureKey[]) {
     slider(cycBox.position, `ctl-${key}`, t(`ctl.${key}`), POSTURE_RANGE[key], () => cyc().posture[key], (v) => (cyc().posture[key] = v), POSTURE_FORMAT[key])
@@ -343,6 +363,13 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   }
   const roomy = (v: number) => (v <= 0 ? t('opt.suitTight') : t('opt.suitRoomy', { pct: fixed(v * 100, 0) }))
   slider(jpBox.kit, 'jp-bagginess', t('ctl.bagginess'), JUMPER_RANGE.bagginess, () => jp().suit.bagginess, (v) => (jp().suit.bagginess = v), roomy)
+  // The sled: the crew's tuck on Position, the shell on the Kit tab (named Sled for a bobsled).
+  const tuckShow = (v: number) => (v <= 0 ? t('opt.tuckLoose') : v >= 1 ? t('opt.tuckDeep') : `${fixed(v * 100, 0)} %`)
+  const metres = (v: number) => `${fixed(v, 2)} m`
+  slider(bsBox.position, 'bs-tuck', t('ctl.tuck'), BOBSLED_RANGE.tuck, () => bs().tuck, (v) => (bs().tuck = v), tuckShow)
+  slider(bsBox.kit, 'bs-nose', t('ctl.sledNose'), BOBSLED_RANGE.nose, () => bs().sled.nose, (v) => (bs().sled.nose = v), metres)
+  slider(bsBox.kit, 'bs-tail', t('ctl.sledTail'), BOBSLED_RANGE.tail, () => bs().sled.tail, (v) => (bs().sled.tail = v), metres)
+  slider(bsBox.kit, 'bs-cowl', t('ctl.cowl'), BOBSLED_RANGE.cowl, () => bs().sled.cowl, (v) => (bs().sled.cowl = v), metres)
 
   const pct = (v: number) => `${fixed(v * 100, 0)} %`
   choice(cycBox.kit, 'ctl-helmet', t('ctl.helmet'), [{ value: 'road', key: 'opt.road' }, { value: 'aero', key: 'opt.aero' }], () => cyc().helmet.kind, (v) => (cyc().helmet.kind = v))
@@ -375,7 +402,8 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   reset.addEventListener('click', () => {
     // Back to where the job started: the client's setup (or the plain starting design between jobs).
     const job = careerStore.get().job
-    const plain = isJumper(design) ? DEFAULT_JUMPER : isSkater(design) ? DEFAULT_SKATER : DEFAULT_CYCLIST
+    // A sled keeps its crew size: that's the job's, not a shape.
+    const plain = isJumper(design) ? DEFAULT_JUMPER : isBobsled(design) ? { ...DEFAULT_BOBSLED, crew: design.crew } : isSkater(design) ? DEFAULT_SKATER : DEFAULT_CYCLIST
     design = structuredClone((job && briefTemplate(job.brief.id)?.setup) || plain)
     selected = null
     syncAll()
@@ -387,18 +415,22 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     showPlace()
     const skating = isSkater(design)
     const jumping = isJumper(design)
-    const riding = !skating && !jumping
+    const sliding = isBobsled(design)
+    const riding = !skating && !jumping && !sliding
     for (const b of Object.values(cycBox)) b.hidden = !riding
     for (const b of Object.values(skBox)) b.hidden = !skating
     for (const b of Object.values(jpBox)) b.hidden = !jumping
-    for (const b of bodyBoxes) b.hidden = jumping
+    for (const b of Object.values(bsBox)) b.hidden = !sliding
+    for (const b of bodyBoxes) b.hidden = jumping || sliding
     for (const b of jumpBoxes) b.hidden = !jumping
+    for (const b of bobBoxes) b.hidden = !sliding
+    tabButtons.kit.textContent = t(sliding ? 'tab.sled' : 'tab.kit')
     // Only riders have a bike: the tab goes for the others, and the sheet falls back to Position if it was open.
     tabButtons.bike.hidden = !riding
     if (!riding && currentTab === 'bike') selectTab('position')
     tailRow.hidden = cyc().helmet.kind !== 'aero'
-    hint.textContent = t(jumping ? 'hint.shapeJumper' : skating ? 'hint.shapeSkater' : 'hint.shape')
-    if (!jumping) rulesR.sub.textContent = t(skating ? 'book.skating' : 'book.tcf-tt')
+    hint.textContent = t(jumping ? 'hint.shapeJumper' : sliding ? 'hint.shapeBobsled' : skating ? 'hint.shapeSkater' : 'hint.shape')
+    if (!jumping && !sliding) rulesR.sub.textContent = t(skating ? 'book.skating' : 'book.tcf-tt')
   }
   syncAll()
   // A new job puts the client's setup on the bench: take it up.
@@ -420,6 +452,12 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   // "Change this" after a model broke in the tunnel, or after trouble on race day (plan sections 7 and 8).
   window.addEventListener('laminar:fix', (e) => {
     const where = (e as CustomEvent<FixTarget>).detail
+    if (isBobsled(design)) {
+      // A sled's fixes: the crew's tuck for anything about the crew, otherwise the cowling.
+      if (where === 'helmet' || where === 'headDrop') jumpToControl({ tab: 'position', id: 'bs-tuck' })
+      else jumpToControl({ tab: 'kit', id: 'bs-cowl' })
+      return
+    }
     if (isJumper(design)) {
       // A jumper's fixes: the lean or the V if named, otherwise the suit (where stability is won and lost).
       if (where === 'leanDeg' || where === 'vAngleDeg') jumpToControl({ tab: 'position', id: `jp-${where}` })
@@ -460,6 +498,10 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     designStore.set(sent)
     if (isJumper(design)) {
       showJumper(design)
+      return
+    }
+    if (isBobsled(design)) {
+      showBobsled(design)
       return
     }
     const r = designReadouts(design, TCF_TIME_TRIAL)
@@ -543,6 +585,55 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
       pose: designPose(jumper),
       broken: state === 'bad' ? ['torso'] : [],
       strained: state === 'low' ? ['torso'] : [],
+      handles: [],
+      selected: null,
+      volumes: [],
+    })
+  }
+
+  /**
+   * The sled's sheet (PR 8m): the desk's run time down the track, its drag
+   * area split by part, whether the driver can see over the cowling, and
+   * the Sliding Federation's rule box with a "change this" for each break.
+   */
+  function showBobsled(sled: BobsledDesign) {
+    const career = careerStore.get()
+    const track = TRACKS.belogor
+    const desk = bobDeskEstimate(sled, track, career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(sled), crewEffects(career.crew).deskLevel)
+    bobDeskR.value.textContent = `${fixed(desk.value, 2)} s`
+    bobDeskR.sub.textContent = t('read.deskBobNote', { spread: fixed((desk.high - desk.low) / 2, 2), track: t(`track.${track.id}`) })
+    const d = desk.drag
+    sledDragR.value.textContent = `${fixed(d.cdA, 3)} m²`
+    // The split as shares: the crew over the cowling against the sled itself (hull, nose and runners).
+    const crewShare = Math.round((d.crew / d.cdA) * 100)
+    sledDragR.sub.textContent = t('read.sledDragNote', { crew: crewShare, sled: 100 - crewShare })
+    const sight = sightMargin(sled)
+    const cm = sight * 100
+    sightR.value.textContent = `${cm > 0 ? '+' : cm < 0 ? '−' : ''}${fixed(Math.abs(cm), 0)} cm`
+    sightR.value.classList.toggle('over', sight < 0)
+    sightR.sub.textContent = t(sight < 0 ? 'read.sightBad' : 'read.sightOk')
+
+    const rules = checkSledRules(sled)
+    rulesR.value.textContent = rules.length === 0 ? t('read.legal') : rules.length === 1 ? t('read.oneBreak') : t('read.breaks', { count: rules.length })
+    rulesR.value.classList.toggle('over', rules.length > 0)
+    rulesR.sub.textContent = t('read.sledKit', { length: fixed(sledLength(sled), 2), mass: fixed(SLED.mass[sled.crew], 0), price: fixed(SLED.price[sled.crew], 0) })
+    breaks.replaceChildren(
+      ...rules.map((b) => {
+        const li = el('li', 'break')
+        li.append(el('span', 'break-text', t(b.rule === 'length' ? 'rule.sledLength' : 'rule.sledCowl', { value: fixed(b.value, 2), limit: fixed(b.limit, 2), book: t('book.tsf') })))
+        const fix = el('button', 'break-fix', t('rule.fix'))
+        fix.type = 'button'
+        fix.addEventListener('click', () => jumpToControl({ tab: 'kit', id: SLED_BREAK_TARGET[b.part] }))
+        li.append(fix)
+        return li
+      }),
+    )
+    view.show({
+      design: sled,
+      pose: designPose(sled),
+      // The hull glows red outside the box; the driver's helmet amber when they can't see.
+      broken: rules.length > 0 ? ['frame'] : [],
+      strained: sight < 0 ? ['helmet'] : [],
       handles: [],
       selected: null,
       volumes: [],

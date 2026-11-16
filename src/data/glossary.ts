@@ -437,6 +437,27 @@ export const GLOSSARY = defineGlossary({
     aliases: ['tarnovian cycling federation', 'federation'],
     seeAlso: ['ruleBox'],
   },
+  cowling: {
+    term: 'Cowling',
+    short: 'The bobsled’s shell, and how high it stands over the ice.',
+    long: 'A taller cowling hides more of the crew from the air, but it is a bigger front to push, it makes loading after the push slower, and the driver still has to see the track over it. The sliding federation caps its height.',
+    aliases: ['cowl', 'cowling height', 'sled shell', 'hull'],
+    seeAlso: ['frontalArea', 'tsf', 'crewTuck'],
+  },
+  crewTuck: {
+    term: 'Crew tuck',
+    short: 'How low a bobsled crew fold behind the cowling.',
+    long: 'Lower means less helmet and shoulder in the air. But a cramped crew loads slower after the push and loses speed doing it, and the deepest tuck can drop the driver’s eyes below the line they need to read the curves. The crew behind the driver ride in the wake, so they matter less.',
+    aliases: ['tuck', 'bobsled tuck'],
+    seeAlso: ['cowling', 'cda'],
+  },
+  tsf: {
+    term: 'Sliding Federation',
+    short: 'The Tarnovian Sliding Federation, which writes Tarnovia’s bobsled rules.',
+    long: 'Its rule box caps a sled’s whole length (nose and tail share it) and its cowling’s height; the runners fix the width. A two-man sled may be 2.70 m long, a four-man 3.80 m. Like everything in Tarnovia, it is made up for Laminar.',
+    aliases: ['tarnovian sliding federation', 'sliding rules'],
+    seeAlso: ['ruleBox', 'cowling'],
+  },
 })
 
 /** Every glossary id, checked by TypeScript wherever one is written. */

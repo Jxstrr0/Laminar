@@ -137,3 +137,41 @@ export const JUMPER_SKELETON = {
    */
   landed: { trunkDeg: 35, hipsUp: 0.8, hipsBack: 0.12, kneesForward: 0.22 },
 }
+
+/**
+ * The bobsled crew in the cockpit (PR 8m), for drawing: each sits low with
+ * knees up and feet forward under the one ahead. The helmet's top sits where
+ * the sim puts it (sim/bobsled.ts `helmetTop`), so what shows over the
+ * cowling on screen is what meets the air. Metres; the ice is y = 0 and x
+ * points down the track, with the cockpit's middle at x = 0.
+ */
+export const BOB_SKELETON = {
+  /** The driver's hips: this far behind the cockpit's front, and this high above the ice. */
+  driverBack: 0.95,
+  hipY: 0.22,
+  /** Each crew member behind sits this far behind the one ahead, m. */
+  spacing: 0.6,
+  hipWidth: 0.2,
+  shoulderWidth: 0.4,
+  torso: 0.5,
+  /** The shoulders sit this far below the helmet's top; the head's centre this far, and this far ahead of the shoulders. */
+  shoulderBelowTop: 0.3,
+  headBelowTop: 0.13,
+  headAhead: 0.08,
+  headRadius: 0.11,
+  /** The sliding helmet's radius round the head's centre, m (its top is the helmet top the sim uses). */
+  helmetRadius: 0.13,
+  /** The helmet tips this far nose down, degrees. */
+  helmetPitchDeg: -8,
+  /** Feet on the floor this far ahead of the hips, this high, m. */
+  feetAhead: 0.75,
+  footY: 0.14,
+  thigh: 0.45,
+  shin: 0.45,
+  /** Hands on the steering ropes or the grips: this far ahead of the shoulders, above the hips and out from the middle, m. */
+  handsAhead: 0.25,
+  handsUp: 0.16,
+  handsOut: 0.2,
+  upperArm: 0.28,
+  forearm: 0.3,
+}
