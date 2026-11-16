@@ -288,6 +288,7 @@ html, body {
 .shape-sheet { padding-top: 12px; }
 .shape-sheet .readouts { margin-top: 0; }
 .readout-value.over { color: var(--sep); }
+.readout-value.warn { color: var(--warn-text); }
 
 .meter {
   height: 6px;

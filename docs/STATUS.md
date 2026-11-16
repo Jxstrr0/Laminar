@@ -69,10 +69,22 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 9g | The gravel yard: Prichal's yard on the Kosa spit is gravel, skirts lower than 0.45 m above the road crack there and the trucks run without them, judged that way; the brief card, Shape and the Deliver sheet warn, the debrief names it with a "Raise the skirts" jump | **Done** (v0.9.6.0) |
 | 9h | The fuel-run replay: the trial day down the client's route, your truck and the fleet's old one side by side, with the distance, the wind's angle, your diesel and the saving so far, a commentator for the yard, the windiest stretch, a slow climb and the arrival, then the fuel trial | **Done** (v0.9.7.0) |
 | 9i | Racing cars in the sim: touring cars and single-seaters, front and rear wings, the floor in ground effect (stall and porpoising), ride heights that squash at speed, the balance window, the cooling inlet, the Tarnovian Motor Racing Federation's rulebook, and a flying lap on two circuits | **Done** (v0.9.8.0) |
-| 9j–14 | See the plan | Next: PR 9j, the car on Shape. Then the car in the tunnel (rolling road), car jobs, the lap replay, then the land-speed record. |
+| 9j | The racing car on Shape: a 3D touring car and single-seater drawn from the drag model's own shell, Floor and Wings tabs, the desk's lap-time gain on the Dolgo Ring, downforce and drag at 200 km/h, the balance against the drivers' window, the Motor Racing Federation's rule box, and amber warnings for porpoising, heat and balance. Try it with `?try=car` and `?try=car-open` | **Done** (v0.9.9.0) |
+| 9k–14 | See the plan | Next: the car in the tunnel (rolling road upgrade, ground board, downforce readings). Then car jobs, the lap replay, then the land-speed record. |
 
 ## Versions
 
+- **0.9.9.0** (PR 9j): the racing car on Shape. `?try=car` puts a touring
+  car on the bench and `?try=car-open` a single-seater (nothing is saved).
+  The Floor tab sets the ride heights, the diffuser and the floor's edge
+  seal; the Wings tab the front wing (a splitter flap on a touring car),
+  the rear wing's angle and chord, and the cooling inlets. The sheet reads
+  the desk's lap-time gain against the class's stock car, the downforce
+  and drag at 200 km/h, the balance, and the rule box. Breaking the rules
+  is red; porpoising, an engine running hot and a balance outside the
+  drivers' window are amber warnings, each with a "Change this". New
+  glossary entries: lap-time gain, aero balance, ride height, diffuser and
+  the Motor Racing Federation.
 - **0.9.8.0** (PR 9i): racing cars in the sim (nothing on screen yet).
   Kelbo chose touring cars and open-wheel single-seaters together, a
   promise in lap time, a balance window that costs the driver time, a

@@ -9,10 +9,12 @@
  * fairing, extenders, gap filler, skirts and boat-tail swap like a rider's
  * helmet. The cab's corners, the gap's length and the trailer's height are
  * the model's body, so changing them needs a new one.
+ * A car model (PR 9j) is one piece for now, like a bobsled: any change is a
+ * new model, until its tunnel work decides which parts bolt on.
  */
 import { MODEL_SHOP } from '../data/model'
 import type { Design } from './design'
-import { isBobsled, isJumper, isSkater, isTruck } from './design'
+import { isBobsled, isCar, isJumper, isSkater, isTruck } from './design'
 import type { TruckDesign } from '../data/truck'
 
 export type PartName = 'helmet' | 'suit' | 'bars' | 'frontWheel' | 'rearWheel' | 'frame' | 'hood' | TruckPart
@@ -34,7 +36,7 @@ function truckPartChanges(model: TruckDesign, bench: TruckDesign): TruckPart[] {
 export function partChanges(model: Design, bench: Design): PartName[] {
   const out: PartName[] = []
   if (isTruck(model) && isTruck(bench)) return truckPartChanges(model, bench)
-  if (isJumper(model) || isJumper(bench) || isBobsled(model) || isBobsled(bench) || isTruck(model) || isTruck(bench)) return out
+  if (isJumper(model) || isJumper(bench) || isBobsled(model) || isBobsled(bench) || isTruck(model) || isTruck(bench) || isCar(model) || isCar(bench)) return out
   if (isSkater(model) || isSkater(bench)) {
     if (!isSkater(model) || !isSkater(bench)) return out
     if (model.hood !== bench.hood) out.push('hood')
@@ -60,6 +62,7 @@ export function postureChanged(model: Design, bench: Design): boolean {
   if (isSkater(model) !== isSkater(bench) || isJumper(model) !== isJumper(bench) || isBobsled(model) !== isBobsled(bench) || isTruck(model) !== isTruck(bench)) return true
   if (isTruck(model) && isTruck(bench)) return model.cab.nose !== bench.cab.nose || model.gap.length !== bench.gap.length || model.trailerTop !== bench.trailerTop
   if (isTruck(model) || isTruck(bench)) return true
+  if (isCar(model) || isCar(bench)) return !isCar(model) || !isCar(bench) || JSON.stringify(model) !== JSON.stringify(bench)
   if (isBobsled(model) || isBobsled(bench)) {
     if (!isBobsled(model) || !isBobsled(bench)) return true
     const a = model.sled
@@ -79,7 +82,7 @@ export function swapParts(model: Design, bench: Design): Design {
   if (isTruck(model) && isTruck(bench)) {
     return structuredClone({ ...bench, trailerTop: model.trailerTop, cab: { ...bench.cab, nose: model.cab.nose }, gap: { ...bench.gap, length: model.gap.length } })
   }
-  if (isJumper(model) || isJumper(bench) || isBobsled(model) || isBobsled(bench) || isTruck(model) || isTruck(bench)) return structuredClone(model)
+  if (isJumper(model) || isJumper(bench) || isBobsled(model) || isBobsled(bench) || isTruck(model) || isTruck(bench) || isCar(model) || isCar(bench)) return structuredClone(model)
   if (isSkater(bench)) return isSkater(model) ? structuredClone({ ...bench, posture: model.posture, arms: model.arms }) : structuredClone(model)
   return isSkater(model) ? structuredClone(model) : structuredClone({ ...bench, posture: model.posture })
 }

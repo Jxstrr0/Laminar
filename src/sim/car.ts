@@ -205,15 +205,25 @@ export function circuitDensity(circuit: Circuit, temperature = circuit.temperatu
 }
 
 /**
+ * Scales on the car's downforce and drag, for a guess at them rather than
+ * the truth (the desk's estimate, PR 9j). 1 and 1 is the car as it is.
+ */
+export interface AeroTrim {
+  down: number
+  drag: number
+}
+const NO_TRIM: AeroTrim = { down: 1, drag: 1 }
+
+/**
  * One flying lap. The lap is cut into steps; each corner step gets the
  * speed its grip holds (with downforce, and less grip if the balance is out
  * of the window), then a pass forward accelerates out of each corner and a
  * pass backward brakes into the next. Two laps forward give a flying start.
  */
-export function lapTime(design: CarDesign, circuit: Circuit, temperature = circuit.temperature): Lap {
+export function lapTime(design: CarDesign, circuit: Circuit, temperature = circuit.temperature, trim: AeroTrim = NO_TRIM): Lap {
   const c = CAR_CLASS[design.class]
   const density = circuitDensity(circuit, temperature)
-  const table = carAeroTable(design, density)
+  const table = carAeroTable(design, density).map((a) => ({ ...a, clA: a.clA * trim.down, cdA: a.cdA * trim.drag }))
   const at = aeroLookup(table)
   const g = ATMOSPHERE.gravity
   const m = c.mass

@@ -9,6 +9,7 @@ import { SKATER_CHOICES, SKATER_RANGE, type SkaterDesign } from '../data/skater'
 import { JUMPER_RANGE, type JumperDesign } from '../data/jumper'
 import { BOBSLED_RANGE, type BobsledDesign } from '../data/bobsled'
 import { TRUCK_RANGE, type TruckDesign } from '../data/truck'
+import { CAR_RANGE, type CarDesign } from '../data/car'
 import type { Design } from '../sim/design'
 import { ALL_SCALES, MACHINE_IDS, MAKER_IDS, MODEL_FINISH, MODEL_GRADE, type MachineId } from '../data/model'
 import { CRANK_DIAL, DEMO_TUNNEL_SEED } from '../data/tunnel'
@@ -55,6 +56,7 @@ export function soundDesign(x: unknown): Design | null {
   if (x.sport === 'skijump') return soundJumper(x)
   if (x.sport === 'bobsled') return soundBobsled(x)
   if (x.sport === 'truck') return soundTruck(x)
+  if (x.sport === 'car') return soundCar(x)
   if (x.sport !== undefined && x.sport !== 'cycling') return null
   return soundCyclist(x)
 }
@@ -97,6 +99,26 @@ function soundTruck(x: Obj): TruckDesign | null {
     cab: { nose: n(nose, R.nose), fairing: n(fairing, R.fairing), extenders: n(extenders, R.extenders) },
     gap: { length: n(length, R.gap), fill: n(fill, R.fill) },
     trailer: { skirts: n(skirts, R.skirts), tail: n(tail, R.tail), tailAngle: n(tailAngle, R.tailAngle) },
+  }
+}
+
+function soundCar(x: Obj): CarDesign | null {
+  if (!oneOf(x.class, ['touring', 'open'] as const) || !isObj(x.ride) || !isObj(x.rearWing)) return null
+  const { front, rear } = x.ride
+  const { angle, chord } = x.rearWing
+  if (![front, rear, angle, chord, x.frontWing, x.diffuser, x.floorEdge, x.inlet].every(isNum)) return null
+  // Each class has its own ranges: a touring car rides higher than a single-seater.
+  const R = CAR_RANGE[x.class]
+  const n = (v: unknown, r: { min: number; max: number }) => clampTo(v as number, r)
+  return {
+    sport: 'car',
+    class: x.class,
+    ride: { front: n(front, R.front), rear: n(rear, R.rear) },
+    frontWing: n(x.frontWing, R.frontWing),
+    rearWing: { angle: n(angle, R.angle), chord: n(chord, R.chord) },
+    diffuser: n(x.diffuser, R.diffuser),
+    floorEdge: n(x.floorEdge, R.floorEdge),
+    inlet: n(x.inlet, R.inlet),
   }
 }
 

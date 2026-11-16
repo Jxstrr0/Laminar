@@ -508,6 +508,41 @@ export const GLOSSARY = defineGlossary({
     aliases: ['tarnovian road code', 'road rules', 'highway code'],
     seeAlso: ['ruleBox', 'boatTail', 'skirts'],
   },
+  lapGain: {
+    term: 'Lap-time gain',
+    short: 'How many seconds a lap your car saves over the team’s car as it runs now.',
+    long: 'A racing team’s promise is in tenths of a second a lap on their circuit. Downforce helps in the corners and under braking; drag costs on the straights. A circuit of slow corners rewards downforce, one with a long straight punishes drag, so the same car can gain more on one than another.',
+    aliases: ['lap time', 'lap gain'],
+    seeAlso: ['downforce', 'drag', 'carBalance'],
+  },
+  carBalance: {
+    term: 'Aero balance',
+    short: 'The share of a car’s downforce on its front axle.',
+    long: 'Too little at the front and the car runs wide in corners (understeer); too much and the rear steps out (oversteer). Each class has a window the drivers can live with. Outside it they lift, and the lap slows however much downforce there is. The front wing and the rake move it forward; the rear wing moves it back.',
+    aliases: ['balance window', 'understeer', 'oversteer'],
+    seeAlso: ['downforce', 'rideHeight', 'lapGain'],
+  },
+  rideHeight: {
+    term: 'Ride height',
+    short: 'How far the car’s floor sits above the road, at the front and the rear.',
+    long: 'Lower makes the floor pull harder, until it stalls and the car starts porpoising. Downforce squashes the springs, so the car rides lower the faster it goes. Running the rear higher than the front (rake) lets the floor work harder and moves its pull forward. A skid plank under the floor sets how low the rules let it go.',
+    aliases: ['rake', 'ride', 'skid plank', 'plank'],
+    seeAlso: ['groundEffect', 'porpoising', 'diffuser'],
+  },
+  diffuser: {
+    term: 'Diffuser',
+    short: 'The ramp at the back of a race car’s floor, where the air under it slows and rises.',
+    long: 'Opening the floor out at the back lets the air underneath run faster, so it pulls harder. A steeper diffuser pulls more, until the flow can’t follow the ramp and separates, and then it pulls less. Seals down the floor’s edges keep the side air out so it works.',
+    aliases: ['floor edge', 'edge seal'],
+    seeAlso: ['groundEffect', 'separation', 'rideHeight'],
+  },
+  tmrf: {
+    term: 'Motor Racing Federation',
+    short: 'The Tarnovian Motor Racing Federation, which writes Tarnovia’s racing car rules.',
+    long: 'Laminar works with two of its rules: a minimum ride height at each axle (a touring car 5 cm, a single-seater 2.5 cm, measured at the skid plank) and a maximum rear-wing chord (30 cm and 38 cm). Scrutineers raise or trim a car that breaks them before it races. Like everything in Tarnovia, it is made up for Laminar.',
+    aliases: ['tarnovian motor racing federation', 'racing rules', 'scrutineers'],
+    seeAlso: ['ruleBox', 'rideHeight'],
+  },
 })
 
 /** Every glossary id, checked by TypeScript wherever one is written. */
