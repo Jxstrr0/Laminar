@@ -13,6 +13,12 @@ export const CAREER = {
   startMoney: 150000,
   /** Day 0 of the career (UTC). */
   start: { year: 2010, month: 3, day: 1 },
+  /** The career's last day: 1 January 2040, as a career day. It closes after the first job or wait that reaches it. */
+  endDay: 10898,
+  /** Ready-made firm names (one is picked by the career's seed); the player can keep it or type their own. */
+  firmNames: ['Potok Aero', 'Strela Aero Works', 'Krilo Aerodynamics', 'Tikha Wind Lab', 'Svetla Aero'],
+  /** Longest firm name, in characters. */
+  firmNameMax: 28,
   /** Briefs on the board at a time. */
   boardSize: 3,
   /** Fees round to this many rubles. */

@@ -1012,3 +1012,41 @@ body[data-guide='deliver'] .guide-deliver {
 .save-file { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .save-file-label { display: inline-block; margin: 8px 8px 0 0; cursor: pointer; }
 .save-file-label:has(+ .save-file:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* The firm's name and the end of a career (PR 7i). */
+.firm-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.firm-title-name { margin: 0 0 2px; font-weight: 700; font-size: 1rem; overflow-wrap: anywhere; }
+.link-btn {
+  min-height: var(--tap);
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.name-card { display: grid; gap: 8px; }
+.name-card .shop-note, .name-card .shop-label { margin: 0; }
+.name-input {
+  min-height: var(--tap);
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+}
+.name-card .save-btn { justify-self: start; }
+.legacy-card {
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--accent);
+  border-radius: 12px;
+  background: var(--panel);
+}
+.legacy-kicker { margin: 0; color: var(--accent); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.legacy-firm { margin: 2px 0 0; font-size: 1.4rem; overflow-wrap: anywhere; }
+.legacy-best { margin: 12px 0 0; font-weight: 600; }

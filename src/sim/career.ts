@@ -13,6 +13,9 @@
  * - Staff (one per role) are paid their wage for every day that passes too.
  * - A job that leaves cash below zero sells kit to cover it (src/sim/broke.ts)
  *   and costs a little reputation; there is no game over.
+ * - The career ends when the player retires or the calendar reaches 2040
+ *   (Kelbo, 16 November 2026); an ended career is closed, and nothing in it
+ *   changes any more.
  * - Delivering runs the event, pays the fee, jumps the calendar to the
  *   event and refreshes the board.
  */
@@ -97,6 +100,16 @@ export interface CareerState {
   crew: Crew
   /** Each time the firm went broke, as the number of jobs done by then. */
   broke: number[]
+  /** The name the player gave the firm, or null while it keeps its ready-made one. */
+  firm: string | null
+  /** How and when the career ended, or null while it runs. */
+  ended: Ending | null
+}
+
+/** The end of a career: the player retired, or 2040 came. */
+export interface Ending {
+  day: number
+  why: 'retired' | 'year2040'
 }
 
 /** Why a model can't be ordered now, or null if it can. */
@@ -157,7 +170,42 @@ export function newCareer(seed: number): CareerState {
     facility: NO_FACILITY,
     crew: NO_CREW,
     broke: [],
+    firm: null,
+    ended: null,
   }
+}
+
+/** The ready-made name for a career's firm. */
+export function defaultFirmName(seed: number): string {
+  return CAREER.firmNames[new Rng(seed).fork('firm-name').int(0, CAREER.firmNames.length - 1)]!
+}
+
+/** The firm's name as players read it. */
+export function firmName(state: Pick<CareerState, 'seed' | 'firm'>): string {
+  return state.firm ?? defaultFirmName(state.seed)
+}
+
+/** A typed name, tidied: spaces squeezed and trimmed, cut to CAREER.firmNameMax. Empty if nothing's left. */
+export function tidyFirmName(raw: string): string {
+  return raw.replace(/\s+/g, ' ').trim().slice(0, CAREER.firmNameMax).trim()
+}
+
+/** Name the firm (an empty name keeps the ready-made one, now chosen). */
+export function nameFirm(state: CareerState, raw: string): CareerState {
+  if (state.ended) return state
+  return { ...state, firm: tidyFirmName(raw) || defaultFirmName(state.seed) }
+}
+
+/** Retire: the career ends today. Not with a job in hand. */
+export function retire(state: CareerState): CareerState {
+  if (state.ended || state.job) return state
+  return { ...state, ended: { day: state.day, why: 'retired' } }
+}
+
+/** Close the career once the calendar has reached 2040. */
+function closeIfOver(state: CareerState): CareerState {
+  if (state.ended || state.day < CAREER.endDay) return state
+  return { ...state, ended: { day: state.day, why: 'year2040' } }
 }
 
 /** The firm's reputation now: its record, less a dip for each time it went broke. */
@@ -187,6 +235,7 @@ export function passDays(state: CareerState, days: number): CareerState {
 
 /** Take someone on (whoever held their role leaves). Wages start with the next day that passes. */
 export function hireStaff(state: CareerState, id: StaffId): CareerState {
+  if (state.ended) return state
   return { ...state, crew: hire(state.crew, id) }
 }
 
@@ -197,20 +246,20 @@ export function letStaffGo(state: CareerState, id: StaffId): CareerState {
 
 /** Pay for your own tunnel (cash only); it opens OWN_TUNNEL_BUILD.days later. Unchanged if it can't be bought. */
 export function buildOwnTunnel(state: CareerState): CareerState {
-  if (buildBlock(state.facility, state.money)) return state
+  if (state.ended || buildBlock(state.facility, state.money)) return state
   return { ...state, money: state.money - OWN_TUNNEL_BUILD.price, facility: { ...state.facility, ownOrdered: state.day } }
 }
 
 /** Buy a workshop machine (cash only); it arrives at once. Unchanged if it can't be bought. */
 export function buyMachine(state: CareerState, id: MachineId): CareerState {
-  if (machineBlock(state.facility, state.money, id)) return state
+  if (state.ended || machineBlock(state.facility, state.money, id)) return state
   const facility = { ...state.facility, machines: { ...state.facility.machines, [id]: state.day } }
   return { ...state, money: state.money - MACHINE_PRICE[id], facility }
 }
 
 /** Pay for an upgrade to your tunnel (cash only); it's fitted TUNNEL_UPGRADES[id].days later. Unchanged if it can't be. */
 export function orderUpgrade(state: CareerState, id: UpgradeId): CareerState {
-  if (upgradeBlock(state.facility, state.day, state.money, id)) return state
+  if (state.ended || upgradeBlock(state.facility, state.day, state.money, id)) return state
   const facility = { ...state.facility, upgrades: { ...state.facility.upgrades, [id]: state.day } }
   return { ...state, money: state.money - TUNNEL_UPGRADES[id].price, facility }
 }
@@ -238,7 +287,7 @@ export function currentEvent(state: CareerState): EventSpec {
 /** Take a brief off the board at its suggested fee and the client's ask. Only one job at a time. */
 export function acceptBrief(state: CareerState, id: string): CareerState {
   const brief = state.board.find((b) => b.id === id)
-  if (!brief) return state
+  if (!brief || state.ended) return state
   return take(state, brief, { price: brief.fee, promise: template(id).target })
 }
 
@@ -334,7 +383,7 @@ export function rivalBids(state: Pick<CareerState, 'seed' | 'day'>, brief: Brief
  */
 export function placeBid(state: CareerState, id: string, bid: Bid): BidResult | null {
   const brief = state.board.find((b) => b.id === id)
-  if (!brief || state.job) return null
+  if (!brief || state.job || state.ended) return null
   const mine = clampBid(id, bid)
   const rivals = rivalBids(state, brief)
   const worth = pointWorth(id)
@@ -356,13 +405,14 @@ export function placeBid(state: CareerState, id: string, bid: Bid): BidResult | 
 
 /** Wait a week for a fresh board (when the rivals have taken every brief). */
 export function waitForBriefs(state: CareerState): CareerState {
-  if (state.job) return state
+  if (state.job || state.ended) return state
   const round = state.round + 1
-  return { ...passDays(state, BID.waitDays), round, board: boardFor(state.seed, round, state.jobsDone === 0, firmReputation(state)), lost: [] }
+  return closeIfOver({ ...passDays(state, BID.waitDays), round, board: boardFor(state.seed, round, state.jobsDone === 0, firmReputation(state)), lost: [] })
 }
 
 /** Spend money (a run, a model). Goes on the job's tally when there is one. */
 export function charge(state: CareerState, amount: number): CareerState {
+  if (state.ended) return state
   return {
     ...state,
     money: state.money - amount,
@@ -532,7 +582,7 @@ export function deliver(state: CareerState, design: CyclistDesign, predicted: nu
     sale = covered.sale
     broke = [...broke, history.length]
   }
-  const next: CareerState = {
+  const next: CareerState = closeIfOver({
     ...state,
     money,
     day: raceDay,
@@ -544,7 +594,7 @@ export function deliver(state: CareerState, design: CyclistDesign, predicted: nu
     history,
     facility,
     broke,
-  }
+  })
   // The reputation after includes any dip for going broke.
   const after = firmReputation(next)
   return { state: next, job, event, result, debrief: { ...debrief, reputation: { ...debrief.reputation, after } }, paid, upkeep, wages, sale }

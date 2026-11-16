@@ -121,6 +121,10 @@ quirks you have to learn.
 | Going broke: sale price | **Half** of what each thing cost. *(16 Nov 2026, for PR 7)* |
 | Going broke: staff | **Staff stay** (and keep being paid). *(16 Nov 2026, for PR 7)* |
 | Going broke: reputation | **Small dip, −5.** *(16 Nov 2026, for PR 7)* |
+| The 2040 end | **Legacy card, then the career closes**; start a new one from Saves. *(16 Nov 2026, for PR 7)* |
+| Retiring early | **Ends it, two taps**, the same legacy card. *(16 Nov 2026, for PR 7)* |
+| Sharing the legacy | **A picture to share** (PR 7j). *(16 Nov 2026, for PR 7)* |
+| Firm name | **Asked at career start**, with a ready-made name to keep; renamable. *(16 Nov 2026, for PR 7)* |
 
 ---
 
