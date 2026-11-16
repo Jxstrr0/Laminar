@@ -20,7 +20,9 @@
  *   event and refreshes the board.
  */
 import { RECORD_TUNNEL, STOCK_RECORD, type RecordClass, type RecordDesign } from '../data/record'
-import { AIRFIELDS, STOCK_AIRCRAFT, type AircraftClass, type AircraftDesign, type Airfield } from '../data/aircraft'
+import { STOCK_AIRCRAFT, type AircraftClass, type AircraftDesign, type Airfield } from '../data/aircraft'
+import { stallFix } from './aircraft'
+import { aircraftEventFrom, cruiseDragArea, dragScaleForCruise, PRACTICE_FIELD, testDay, testFlight, usualTestDay, type AircraftEvent, type TestDay, type TestFlight } from './aircraftJob'
 import { STOCK_DRONE, type DroneClass, type DroneCourse, type DroneDesign } from '../data/drone'
 import { STOCK_PLANE, type PlaneClass, type PlaneDesign, type SurveySite } from '../data/plane'
 import { cameraTooHigh } from './plane'
@@ -28,7 +30,7 @@ import { dragScaleForRange, looseFix, planeEventFrom, PRACTICE_SITE, surveyDay, 
 import { droneRace, type DroneRace } from './drone'
 import { dragScaleForTime, droneDayAir, droneEventFrom, heatCost, PRACTICE_COURSE, raceDragArea, type DroneEvent } from './droneJob'
 import type { SaltFlat } from '../data/saltFlats'
-import { BID, BRIEFS, CAREER, CAR_JOBS, DRONE_JOBS, JUMP_JOBS, PLANE_JOBS, PROMISE, RECORD_JOBS, SLED_JOBS, TRUCK_JOBS, type BriefTemplate } from '../data/briefs'
+import { AIRCRAFT_JOBS, BID, BRIEFS, CAREER, CAR_JOBS, DRONE_JOBS, JUMP_JOBS, PLANE_JOBS, PROMISE, RECORD_JOBS, SLED_JOBS, TRUCK_JOBS, type BriefTemplate } from '../data/briefs'
 import { recordAero, recordDayAir, sightLoss, soundSpeed, twoWay, type RecordAttempt, type RecordDay } from './record'
 import { dragScaleForSpeed, PRACTICE_FLAT, recordEventFrom, sightCost, stillAttempt, type RecordEvent } from './recordJob'
 import type { BobsledDesign } from '../data/bobsled'
@@ -163,6 +165,7 @@ export function openTo(b: BriefTemplate, reputation: number): boolean {
   if (b.event.record && !RECORD_JOBS.open) return false
   if (b.event.drone && !DRONE_JOBS.open) return false
   if (b.event.plane && !PLANE_JOBS.open) return false
+  if (b.event.aircraft && !AIRCRAFT_JOBS.open) return false
   return (b.minRep ?? 0) <= reputation
 }
 
@@ -233,6 +236,16 @@ export function droneEventOf(brief: Pick<Brief, 'id'>): DroneEvent | null {
 /** True for a survey-drone brief: its promise is kilometres of range, its declaration a range. */
 export function isPlaneBrief(id: string): boolean {
   return briefTemplate(id)?.event.plane !== undefined
+}
+
+/** True for a light-aircraft brief: its promise is km/h of cruise, its declaration a cruise speed (PR 10t). */
+export function isAircraftBrief(id: string): boolean {
+  return briefTemplate(id)?.event.aircraft !== undefined
+}
+
+/** A light-aircraft brief's test flight. Null for any other brief. */
+export function aircraftEventOf(brief: Pick<Brief, 'id'>): AircraftEvent | null {
+  return aircraftEventFrom(template(brief.id))
 }
 
 /** A survey brief's contract. Null for any other brief. */
@@ -453,14 +466,19 @@ export function currentPlaneEvent(state: CareerState): PlaneEvent {
   return (state.job && planeEventOf(state.job.brief)) ?? PRACTICE_SITE
 }
 
+/** The test flight a kit plane is built for: the job's, or Belyanka on its usual day between jobs (PR 10t). */
+export function currentAircraftEvent(state: CareerState): AircraftEvent {
+  return (state.job && aircraftEventOf(state.job.brief)) ?? PRACTICE_FIELD
+}
+
 /**
  * The airfield a kit plane is forecast over and the client's plane it's
- * measured against (PR 10q): Belyanka and the kit as its builders fly it,
- * until light-aircraft jobs bring their own (a later PR).
+ * measured against: the job's (PR 10t), or Belyanka and the kit as its
+ * builders fly it between jobs.
  */
 export function currentAircraftRun(state: CareerState, cls: AircraftClass): { field: Airfield; old: AircraftDesign } {
   const setup = state.job ? template(state.job.brief.id).setup : null
-  return { field: AIRFIELDS.belyanka, old: setup && setup.sport === 'aircraft' && setup.class === cls ? setup : STOCK_AIRCRAFT[cls] }
+  return { field: currentAircraftEvent(state).field, old: setup && setup.sport === 'aircraft' && setup.class === cls ? setup : STOCK_AIRCRAFT[cls] }
 }
 
 /**
@@ -555,7 +573,7 @@ export function promiseLimits(id: string): { min: number; max: number } {
 export function clampBid(id: string, bid: Bid): Bid {
   const b = template(id)
   const price = Math.min(b.fee.max, Math.max(b.fee.min, roundTo(bid.price, BID.priceStep)))
-  // A sled's promise moves in hundredths of a second, a car's and a quad's in tenths, a record car's 2 km/h at a time, a survey drone's a kilometre.
+  // A sled's promise moves in hundredths of a second, a car's and a quad's in tenths, a record car's 2 km/h at a time, a survey drone's a kilometre, a kit plane's a km/h.
   const step = isSledBrief(id)
     ? SLED_JOBS.promiseStep
     : isCarBrief(id)
@@ -566,7 +584,9 @@ export function clampBid(id: string, bid: Bid): Bid {
           ? DRONE_JOBS.promiseStep
           : isPlaneBrief(id)
             ? PLANE_JOBS.promiseStep
-            : BID.promiseStep
+            : isAircraftBrief(id)
+              ? AIRCRAFT_JOBS.promiseStep
+              : BID.promiseStep
   const limits = promiseLimits(id)
   const promise = Math.min(limits.max, Math.max(limits.min, roundTo(bid.promise, step)))
   return { price, promise }
@@ -1537,6 +1557,96 @@ export function deliverPlane(state: CareerState, design: PlaneDesign, predicted:
     cause: met ? null : usual.stall ? 'stall' : 'design',
     stall: usual.stall ? { gust: site.gust * 3.6, limit: usual.limit * 3.6, fix: looseFix(design) } : null,
     camera: cameraTooHigh(design) ? { fix: 'cameraDrop' } : null,
+    reputation: { before: firmReputation(state), after: 0 },
+  }
+  const closed = closeJob(state, job, penalty, { achieved, predicted: predictedCdA, actual: actualCdA })
+  return { ...closed, job, event, debrief: { ...debrief, reputation: { ...debrief.reputation, after: firmReputation(closed.state) } } }
+}
+
+/** What test day showed for a light aircraft (plan section 9: cruise speed on the airfield's usual day). */
+export interface AircraftDebrief {
+  /** Promised and achieved gain in cruise speed on the usual day, points (km/h). */
+  promised: number
+  achieved: number
+  met: boolean
+  /** Points short after the allowance (0 if met). */
+  shortfall: number
+  /** ₽ taken off the fee. */
+  penalty: number
+  /** Declared cruise, km/h, and the real one on the usual day (null if the inspector won't sign the mod off). */
+  predicted: number
+  actual: number | null
+  /** The client's plane's cruise on paper on the usual day, km/h. */
+  baseline: number
+  /** The drag areas at cruise the declared and real speeds come from, m²: the read is judged on these. */
+  predictedCdA: number
+  actualCdA: number
+  /** (declared − real) ÷ real, on drag. */
+  readError: number
+  read: Read
+  /** Test day: its air, and both planes' flights in it. */
+  day: TestDay
+  flight: TestFlight
+  baselineFlight: TestFlight
+  /** Why a miss happened: not enough speed ('design'), or a stall speed past the certified figure ('stall'). */
+  cause: 'design' | 'stall' | null
+  /** The stall speed and the certified limit, km/h, with the slider to change; null if the inspector signs it off. */
+  stall: { stall: number; limit: number; fix: FixTarget } | null
+  reputation: { before: number; after: number }
+}
+
+export interface AircraftDelivery extends Closed {
+  job: Job
+  event: AircraftEvent
+  debrief: AircraftDebrief
+}
+
+/**
+ * Deliver a light aircraft with a declared cruise speed, km/h. The promise
+ * is judged on the airfield's usual day, over the client's plane on paper;
+ * a mod the inspector won't sign off (its stall speed past the certified
+ * figure) gains nothing. Test day, both planes in the same air, is the
+ * show. The firm's record keeps the read on drag. Null if there's no job,
+ * it isn't a light-aircraft job, or the plane isn't the client's class.
+ */
+export function deliverAircraft(state: CareerState, design: AircraftDesign, predicted: number): AircraftDelivery | null {
+  const job = state.job
+  if (!job) return null
+  const event = aircraftEventOf(job.brief)
+  const setup = template(job.brief.id).setup
+  if (!event || setup.sport !== 'aircraft' || design.class !== setup.class) return null
+  const field = event.field
+  const usual = testFlight(design, field, usualTestDay(field))
+  const actual = usual.passes ? usual.cruise : null
+  // Their plane on paper: the speed it would cruise, signed off or not (Ozerov's isn't, and that's why he called).
+  const baseline = testFlight(setup, field, usualTestDay(field)).cruise
+  const gainOf = (cruise: number | null) => (cruise === null ? 0 : (cruise - baseline) / AIRCRAFT_JOBS.pointKmh)
+  const achieved = gainOf(actual)
+  const { shortfall, penalty } = penaltyFor(job.brief.fee, job.promise, achieved)
+  const met = shortfall === 0
+  const day = testDay(event, daySeed(job.brief))
+  // The read is on drag: the drag at cruise the declared speed is worth.
+  const actualCdA = cruiseDragArea(design, field)
+  const predictedCdA = dragScaleForCruise(predicted, design, field) * actualCdA
+  const readError = (predictedCdA - actualCdA) / actualCdA
+  const debrief: AircraftDebrief = {
+    promised: job.promise,
+    achieved,
+    met,
+    shortfall,
+    penalty,
+    predicted,
+    actual,
+    baseline,
+    predictedCdA,
+    actualCdA,
+    readError,
+    read: readOf(readError),
+    day,
+    flight: testFlight(design, field, day),
+    baselineFlight: testFlight(setup, field, day),
+    cause: met ? null : usual.passes ? 'design' : 'stall',
+    stall: usual.passes ? null : { stall: usual.stall, limit: usual.limit, fix: stallFix(design) },
     reputation: { before: firmReputation(state), after: 0 },
   }
   const closed = closeJob(state, job, penalty, { achieved, predicted: predictedCdA, actual: actualCdA })

@@ -19,6 +19,7 @@ import type { Circuit } from './circuits'
 import { STOCK_RECORD, type RecordDesign } from './record'
 import { STOCK_DRONE, type DroneCourse, type DroneDesign } from './drone'
 import { STOCK_PLANE, type PlaneDesign, type SurveySite } from './plane'
+import { STOCK_AIRCRAFT, type AircraftDesign, type Airfield } from './aircraft'
 import type { SaltFlat } from './saltFlats'
 
 /** How a career starts, and how the brief board works. */
@@ -142,6 +143,13 @@ export interface EventTemplate {
    * `spread.temperature` says how far survey day's air strays from it.
    */
   plane?: { site: SurveySite['id'] }
+  /**
+   * A light-aircraft mod (PR 10t): the airfield the test pilot flies it
+   * from. `temperature` and `altitude` copy the airfield's usual day for
+   * the brief card, and `spread.temperature` says how far test day's air
+   * strays from it.
+   */
+  aircraft?: { field: Airfield['id'] }
 }
 
 export interface BriefTemplate {
@@ -324,6 +332,33 @@ export const PLANE_JOBS = {
   gustKm: { min: 15, max: 80 },
 }
 
+/**
+ * Light-aircraft jobs (PR 10t; Kelbo, 16 November 2026: "cruise speed"):
+ * owners and clubs with Lastochka L-2 kit planes, late in the career. The
+ * promise is km/h gained at cruise power at cruise height over the
+ * airfield on its usual day, over the client's own plane on paper. A mod
+ * whose stall speed creeps past the certified figure won't be signed off
+ * by the inspector: it never flies, so it gains nothing (nobody is hurt;
+ * the plane flies on as it was). One point is a km/h. The declared number
+ * is the new plane's cruise speed.
+ *
+ * Test day is the show: its air, the test pilot's timed cruise runs for
+ * both planes, and the inspector's stall check.
+ *
+ * Closed to the board until PR 10u puts them on it.
+ */
+export const AIRCRAFT_JOBS = {
+  open: false,
+  /** km/h in one promised point. */
+  pointKmh: 1,
+  /** A light-aircraft bid's promise moves in these points: a km/h. */
+  promiseStep: 1,
+  /** The cruise speeds the Deliver sheet takes, km/h. */
+  declared: { min: 120, max: 260 },
+  /** A declared cruise is turned back into drag by trying drag scales between these (1: the plane's own drag). */
+  dragScale: { min: 0.25, max: 4 },
+}
+
 /** The indoor 400 m ice oval (PR 8b): longer straights than the velodrome, skated anticlockwise too. */
 export const OVAL = {
   lap: 400,
@@ -398,6 +433,22 @@ const streamliner = (change: Partial<Omit<RecordDesign, 'sport' | 'class'>> = {}
 const quad = (pod: Partial<DroneDesign['pod']> = {}, arms = STOCK_DRONE.racer.arms): DroneDesign => ({ ...STOCK_DRONE.racer, pod: { ...STOCK_DRONE.racer.pod, ...pod }, arms })
 
 const plane = (change: Partial<Omit<PlaneDesign, 'sport' | 'class'>> = {}): PlaneDesign => ({ ...STOCK_PLANE.survey, ...change })
+
+/** A kit plane: the L-2 as its builders fly it, with the changes they've already made. */
+const kitPlane = (change: Partial<Omit<AircraftDesign, 'sport' | 'class'>> = {}): AircraftDesign => ({ ...STOCK_AIRCRAFT.kit, ...change })
+
+/** A light-aircraft mod's test day at Belyanka: the airfield's usual day for the card, with its spread. */
+const belyankaTest = {
+  name: 'Belyanka test flight',
+  place: 'Belyanka airfield',
+  temperature: 6,
+  altitude: 150,
+  windSpeed: 0,
+  riderSpeed: 49,
+  spread: { temperature: 5, wind: 0, power: 0 },
+  course: [],
+  aircraft: { field: 'belyanka' as const },
+}
 
 const jetCar = (change: Partial<Omit<RecordDesign, 'sport' | 'class'>> = {}): RecordDesign => ({ ...STOCK_RECORD.jet, ...change })
 
@@ -1132,5 +1183,48 @@ export const BRIEFS: readonly BriefTemplate[] = [
     minRep: 50,
     // 12 km over their plane on paper: the tail has to grow back, so the rest must pay for it.
     target: 12,
+  },
+  // Light aircraft (PR 10t): owners and clubs with Lastochka L-2 kit planes, late in the career, all at Belyanka.
+  {
+    id: 'belyanka-club',
+    client: 'Nadia Pernatova',
+    who: 'Treasurer of the Belyanka Aero Club, which hires out two Lastochka L-2s by the hour',
+    goal: 'Members pay by the hour in the air. A faster L-2 gets them to the coast and back inside it. Find us the speed, and keep it legal.',
+    event: { ...belyankaTest, spread: { ...belyankaTest.spread } },
+    rider: { power: 0, mass: 0 },
+    setup: kitPlane(),
+    fee: { min: 150000, max: 200000 },
+    days: 22,
+    minRep: 55,
+    // 12 km/h: spats and a tight cowl do half of it.
+    target: 12,
+  },
+  {
+    id: 'ozerov-tips',
+    client: 'Arkady Ozerov',
+    who: 'Large-animal vet who flies his L-2 out to the farms, a medicine pod under the right wing',
+    goal: 'I fitted square tips for speed and slid the pod forward to balance it. The inspector says it stalls too fast to sign off. Make it legal, and faster than the kit.',
+    event: { ...belyankaTest, spread: { ...belyankaTest.spread } },
+    rider: { power: 0, mass: 0 },
+    setup: kitPlane({ wingtips: 1, pod: { fairing: 0, at: 0.5 } }),
+    fee: { min: 160000, max: 220000 },
+    days: 22,
+    minRep: 60,
+    // 10 km/h over their plane on paper: the tips and the pod have to come back, so the rest must pay for it.
+    target: 10,
+  },
+  {
+    id: 'dalny-ferry',
+    client: 'Lyuba Strelnikova',
+    who: 'Runs Dalny Ferry, flying finished kit planes from Belyanka to their owners; the last shop faired her own L-2’s struts',
+    goal: 'They faired the struts and it’s slower than before. Their tunnel said it was faster. I want the speed they promised, and more.',
+    event: { ...belyankaTest, spread: { ...belyankaTest.spread } },
+    rider: { power: 0, mass: 0 },
+    setup: kitPlane({ struts: { fairing: 1, toe: -4 } }),
+    fee: { min: 170000, max: 230000 },
+    days: 24,
+    minRep: 65,
+    // 16 km/h: the fairings toed into the prop's swirl, and the rest of the plane sorted.
+    target: 16,
   },
 ]

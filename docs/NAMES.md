@@ -102,6 +102,12 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Alina Tropova | Chief pilot at Vekha Geodata (Ozimka crop survey). PR 10m. |
 | Vekha Geodata | Maps pipeline routes with survey drones. PR 10m. |
 | Ozimka crop survey | A survey contract over the Ozimka fields: range on one charge at survey speed. PR 10m. |
+| Nadia Pernatova | Treasurer of the Belyanka Aero Club (Belyanka test flight). PR 10t. |
+| Belyanka Aero Club | The flying club at Belyanka airfield; hires out two Lastochka L-2s by the hour. PR 10t. |
+| Arkady Ozerov | Large-animal vet who flies his own L-2 to the farms (Belyanka test flight). PR 10t. |
+| Lyuba Strelnikova | Runs Dalny Ferry (Belyanka test flight). PR 10t. |
+| Dalny Ferry | Flies finished kit planes from Belyanka to their owners. PR 10t. |
+| Belyanka test flight | A light-aircraft mod's test day: the test pilot's cruise runs and the inspector's stall check. PR 10t. |
 | Lastochka Aero | Makes the Lastochka L-2, a two-seat high-wing kit plane on struts. PR 10p. |
 | Stavren Regional Time Trial, Club 16 km Time Trial, Lake Dolgo Hill Time Trial, Kosa Coast Time Trial, National Time Trial Championship, Track Championships: Individual Pursuit, Stavren Open: 10 000 m, Lake Dolgo Ice Marathon, Belogor Junior Cup, Belogor Winter Cup, Tarnovian Large Hill Championship, Belogor Club Cup: two-man, Tarnovian Two-man Championship, Tarnovian Four-man Championship, Kovyl Haulage fuel trial, Volok Freight fuel trial, Prichal Logistics fuel trial | The events above. |
 
