@@ -119,7 +119,8 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 10ad | Sensor-pod jobs on the board, for a cleared firm: the brief card names the range, the buffet limit and the ministry's pod (a "Defence · secret" line), bids go a minute at a time, Deliver fills in the tunnel's forecast (or the desk's) and warns about a pod read on its own, a buffet past the limit or raw readings, and the range-day debrief shows both pods' patrols, the buffet, "Lengthen the tail" or "Open the gap", and the public name unchanged. The read is now judged on the plane's whole drag area with the pod | **Done** (v0.10.29.0) |
 | 10ae | Defence clearance opens: a "Defence clearance" card on the Jobs screen shows what the ministry wants (reputation 60, correlation score 70), the ₽ 250,000 fee and the 42 days of vetting; a two-tap Apply, then the vetting date, then "Cleared"; a lost clearance says why and when the firm may apply again. A glossary entry explains it. The ministry's pod jobs now reach a cleared firm's board | **Done** (v0.10.30.0) |
 | 10af | Range day from the pod's sensor (Kelbo's pick): the sensor's grey picture of the Stepnoy steppe slides under a crosshair, shaking with the pod's buffet and blurring past the limit, while both pods' clocks on station run; a blurred run is called off part-way. Then the declared hours next to the real ones, and the debrief. Plain 2D, reduced motion holds the picture still | **Done** (v0.10.31.0) |
-| 10ag–14 | See the plan | Next: PIV, the last of PR 10. |
+| 10ag | PIV in the sim (Kelbo's "wake slice + hint"): a side sheet of air speed down the middle of the model and a cross slice behind it, from the same field as the smoke. The wake's depth is fitted to the drag the tunnel measured (half the drag area, spread over the slice), with a thin friction wake for what the smoke doesn't draw, so the speed-loss number and the colours always agree. The hint nudges each wake-shaping slider a little and names the one that cuts drag most (sliders for downforce, stability, cooling or lift are left out) | **Done** (v0.10.32.0) |
+| 10ah–14 | See the plan | Next: PIV on screen, bought as an own-tunnel upgrade. |
 
 ## Versions
 
@@ -129,6 +130,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 - **0.10.29.0** (PR 10ad): sensor-pod jobs on the board (seen once clearance opens).
 - **0.10.30.0** (PR 10ae): defence clearance opens.
 - **0.10.31.0** (PR 10af): the sensor pod's range day from its sensor.
+- **0.10.32.0** (PR 10ag): PIV's wake slices, speed loss and hint, in the sim only.
 - **0.10.25.0** (PR 10z): the sensor pod on the Shape screen.
 - **0.10.24.0** (PR 10y): the patrol plane's sensor pod in the sim only.
 - **0.10.23.0** (PR 10x): defence clearance and secrecy in the sim only.
