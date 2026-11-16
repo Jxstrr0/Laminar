@@ -97,6 +97,8 @@ export interface ShopContext {
   truck?: boolean
   /** The model is a racing car: the ground board is on offer, at a rider's scales (PR 9l). */
   car?: boolean
+  /** The model is a land-speed car: a truck's small scales and the ground board (PR 9s). */
+  record?: boolean
 }
 
 interface Shop {
@@ -122,9 +124,10 @@ function buildShop(): Shop {
     maker.allow(context.makers)
     maker.set(makerOf(order))
     maker.note.textContent = t(`shop.makerNote.${makerOf(order)}`)
-    // A truck's scales and a rider's are different lists; the maker may not build them all.
+    // A truck's scales and a rider's are different lists (a land-speed car takes a truck's); the maker may not build them all.
     const truck = context.truck === true
-    scale.only(ALL_SCALES.filter((s) => isTruckScale(s) === truck))
+    const big = truck || context.record === true
+    scale.only(ALL_SCALES.filter((s) => isTruckScale(s) === big))
     scale.allow(m.scales)
     finish.allow(m.finishes)
     grade.allow(m.grades)
@@ -133,8 +136,8 @@ function buildShop(): Shop {
     grade.set(order.grade)
     trips.set(order.trips ? 'on' : 'off')
     taps.set(order.taps ? 'on' : 'off')
-    board.box.hidden = context.sled !== true && !truck && context.car !== true
-    boardText.data = t(truck ? 'shop.boardNoteTruck' : context.car ? 'shop.boardNoteCar' : 'shop.boardNote')
+    board.box.hidden = context.sled !== true && !big && context.car !== true
+    boardText.data = t(truck ? 'shop.boardNoteTruck' : context.car ? 'shop.boardNoteCar' : context.record ? 'shop.boardNoteRecord' : 'shop.boardNote')
     board.set(order.board ? 'on' : 'off')
     const speed = matchedSpeed(1 / order.scale, context.event)
     const top = context.topSpeed
@@ -234,10 +237,11 @@ function buildShop(): Shop {
     show(current, ctx, onOrder) {
       // Start from the model on the mount, at a maker you still have.
       order = ctx.makers.includes(makerOf(current)) ? { ...current } : forMaker(current, 'shop')
-      // Only a sled or a truck sits on a ground board.
-      if (!ctx.sled && !ctx.truck && !ctx.car) delete order.board
-      // A truck's model comes at a truck's scale, and a rider's at a rider's.
-      if (isTruckScale(order.scale) !== (ctx.truck === true)) order = forMaker({ ...order, scale: ctx.truck ? 8 : 2 }, makerOf(order))
+      // Only a sled, a truck or a car sits on a ground board.
+      const big = ctx.truck === true || ctx.record === true
+      if (!ctx.sled && !big && !ctx.car) delete order.board
+      // A truck's model (or a land-speed car's) comes at a truck's scale, and a rider's at a rider's.
+      if (isTruckScale(order.scale) !== big) order = forMaker({ ...order, scale: big ? 8 : 2 }, makerOf(order))
       context = ctx
       place = onOrder
       update()

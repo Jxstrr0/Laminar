@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { RECORD_TUNNEL, STOCK_RECORD, type RecordDesign } from '../src/data/record'
 import { SALT_FLATS } from '../src/data/saltFlats'
 import { crossHeld, frontKept, flatDensity, recordAero, sideCentre, stillDay, twoWay } from '../src/sim/record'
-import { correctRecord, forecastRecord, prepareRecord, readRecord, type RecordFloor } from '../src/sim/recordTunnel'
+import { correctRecord, forecastRecord, isRecordRun, prepareRecord, readRecord, recordEvent, recordReadings, type RecordFloor } from '../src/sim/recordTunnel'
+import { strains } from '../src/sim/failure'
+import { STANDARD_ORDER } from '../src/data/model'
+import { newLab } from '../src/sim/lab'
+import type { RunSample } from '../src/sim/run'
 import { Rng } from '../src/sim/rng'
 import type { ModelSpec, TunnelSpec } from '../src/sim/views'
 
@@ -113,5 +117,46 @@ describe('the record forecast', () => {
     const plain = twoWay(GOOD, flat, stillDay(flat), { squeeze: false }).mean!
     expect(f.speed!).toBeCloseTo(plain, 0)
     expect(forecastRecord([], GOOD, STOCK, flat)).toBeNull()
+  })
+})
+
+describe('a record model on the Tunnel screen (PR 9s)', () => {
+  it('keeps its lift and side-force centre in run samples, and reads them back for the forecast', () => {
+    const p = prepareRecord(GOOD, MODEL, 'rolling')
+    const rng = new Rng(4)
+    const samples: RunSample[] = [0, 6].map((yawDeg, i) => {
+      const r = readRecord(p, IDEAL, { speed: 40, yawDeg }, rng)
+      const s: RunSample = { t: i, speed: 40, yawDeg, cdA: r.cdA, cyA: r.cyA, dragN: r.dragN, clA: r.liftFront + r.liftRear, liftFront: r.liftFront, steady: true }
+      if (r.centre !== null) s.centre = r.centre
+      return s
+    })
+    // A sample taken while the fan was still spinning up is left out.
+    samples.push({ ...samples[0]!, steady: false })
+    const run = { samples }
+    expect(isRecordRun(run)).toBe(true)
+    expect(isRecordRun({ samples: [{ ...samples[0]!, liftFront: undefined }] })).toBe(false)
+    const back = recordReadings([run])
+    expect(back).toHaveLength(2)
+    const a = recordAero(GOOD)
+    expect(back[0]!.liftFront).toBeCloseTo(a.liftFront, 9)
+    expect(back[0]!.liftRear).toBeCloseTo(a.liftRear, 9)
+    expect(back[0]!.centre).toBeNull()
+    expect(back[1]!.centre!).toBeCloseTo(sideCentre(GOOD).centre, 9)
+    expect(forecastRecord(back, GOOD, STOCK, flat)!.crossHeld).not.toBeNull()
+  })
+
+  it('matches the model to the salt at about record speed, which no tunnel reaches', () => {
+    const e = recordEvent(flat)
+    expect(e.riderSpeed).toBe(RECORD_TUNNEL.matchSpeed)
+    expect(e.altitude).toBe(flat.altitude)
+  })
+
+  it('starts a land-speed car at a truck’s scale, and its posts give under a hard sweep in a fast fan', () => {
+    expect(newLab(STOCK).order.scale).toBe(8)
+    const model = { order: { ...STANDARD_ORDER, scale: 8 as const }, design: STOCK }
+    const post = (loadN: number) => strains(model, 40, loadN).find((s) => s.part === 'posts')!.level
+    // About 35 N at 40 m/s and 20° on a 1:8 model: well inside; twice that breaks them.
+    expect(post(35)).toBeLessThan(0.7)
+    expect(post(70)).toBeGreaterThan(1)
   })
 })

@@ -23,6 +23,9 @@ export interface RunSample {
   pitchA?: number
   /** A racing car only (PR 9l): the downforce area on the front axle, m² (clA is the whole car's; yawDeg holds the drop in mm). */
   clAFront?: number
+  /** A land-speed car only (PR 9s): the nose's lift area, m² (clA is the whole car's lift, up), and where the side force acts, m from the nose's tip (left out near straight). */
+  liftFront?: number
+  centre?: number
   /** The model's drag as the balance felt it, N. */
   dragN: number
   /** Fan and turntable were at rest on their settings: a clean data point. */

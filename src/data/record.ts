@@ -204,6 +204,8 @@ export const RECORD_TUNNEL = {
   minYaw: 2,
   /** Readings within this much yaw of straight count as straight ahead, degrees. */
   straight: 1,
+  /** The speed a model's Reynolds number is matched to in the model shop, m/s (about a record run's top speed, so no tunnel matches it). */
+  matchSpeed: 170,
 }
 
 /** A client's car as the team runs it now. */

@@ -78,10 +78,19 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 9p | The land-speed streamliner in the sim: nose cone (length and droop), canopy, tail fin and wheel fairings; drag, nose lift and pointing straight (the side force behind the mass); the air squeezing near the speed of sound, which a longer nose puts off; a run from a standstill through the timed kilometre on the salt at Lake Sukhoye; chutes out if the nose goes light or the car wanders; the record as the mean of a run each way. Not on screen yet | **Done** (v0.9.15.0) |
 | 9q | The streamliner on Shape: the car drawn from the drag model's own shell with its nose drooped, a glass canopy, the fin and the wheel fairings; Body and Fin & wheels tabs; the desk's record speed against the team's car at Lake Sukhoye, the nose's weight at top speed and the crosswind it holds straight in; a light nose, a wander, a low canopy and the air squeezing as amber warnings with a "Change this". Saves and the model shop know the car. Preview with `?try=record`. The tunnel reads it in 9r | **Done** (v0.9.16.0) |
 | 9r | The streamliner in the tunnel, in the sim: a scale model read for drag, nose lift and side force over a still floor, a moving board or the rolling road; still wheels add drag unless the fairings cover them; the still floor reads the nose's lift low, so a nose that goes light on the salt can pass in a still tunnel; a yaw sweep finds the centre of side force. The forecast turns the readings into a record speed, the nose's weight and the crosswind held | **Done** (v0.9.17.0) |
-| 9s–14 | See the plan | Next: the streamliner on the Tunnel screen. |
+| 9s | The streamliner on the Tunnel screen: it stands on two slim posts on the turntable (they take 60 N) over the bare floor, a ground board or the rolling road, at a truck's model scales. Readouts for yaw (with where the side force acts against the mass), nose lift, drag and the record forecast; the forecast in full on the Runs tab, with what the floor does to the nose's lift. Preview with `?try=record` | **Done** (v0.9.18.0) |
+| 9t–14 | See the plan | Next: record jobs in the sim. |
 
 ## Versions
 
+- **0.9.18.0** (PR 9s): the streamliner on the Tunnel screen. Open
+  `?try=record` and tap Tunnel. Turn the fan up: you get the nose's lift,
+  the drag and a record-speed forecast at Lake Sukhoye. Then yaw the car
+  a few degrees each way and the Yaw box says where the side force acts:
+  behind the car's mass, it points itself into a crosswind. The Runs tab
+  has the forecast in full, and it warns that the bare floor reads the
+  nose's lift low. Do a tare run and a sphere calibration first, or the
+  drag reads high.
 - **0.9.17.0** (PR 9r): the streamliner in the tunnel, in the sim only
   (nothing new on screen yet). The tunnel reads a scale model of the car;
   a still floor reads the nose's lift about 15% low, so a nose that lifts

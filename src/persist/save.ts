@@ -192,7 +192,9 @@ function soundSample(x: unknown): x is RunSample {
     typeof x.steady === 'boolean' &&
     (x.clA === undefined || isNum(x.clA)) &&
     (x.pitchA === undefined || isNum(x.pitchA)) &&
-    (x.clAFront === undefined || isNum(x.clAFront))
+    (x.clAFront === undefined || isNum(x.clAFront)) &&
+    (x.liftFront === undefined || isNum(x.liftFront)) &&
+    (x.centre === undefined || isNum(x.centre))
   )
 }
 
