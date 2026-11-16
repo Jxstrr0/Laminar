@@ -17,6 +17,7 @@ import {
   type CareerState,
 } from '../src/sim/career'
 import { cdAForTime, PRACTICE_RUN, raceConditions } from '../src/sim/sledJob'
+import { legacyOf } from '../src/sim/legacy'
 
 const track = TRACKS.belogor
 const sledBriefs = BRIEFS.filter((b) => b.event.sled)
@@ -28,7 +29,7 @@ function onJob(id: string, promise: number, fee = 60000): CareerState {
 }
 
 afterEach(() => {
-  SLED_JOBS.open = false
+  SLED_JOBS.open = true
 })
 
 describe('bobsled briefs', () => {
@@ -45,13 +46,17 @@ describe('bobsled briefs', () => {
     expect(isSledBrief('zorin-junior')).toBe(false)
   })
 
-  it('stay off the board until the screens can show them', () => {
-    for (const b of sledBriefs) expect(openTo(b, 100)).toBe(false)
-    for (let round = 0; round < 30; round++) expect(boardFor(1, round, false, 100).some((b) => isSledBrief(b.id))).toBe(false)
-    SLED_JOBS.open = true
+  it('come onto the board as the firm’s name grows, four-man last, and can be closed', () => {
     expect(openTo(briefTemplate('kostrov-club')!, 20)).toBe(true)
     expect(openTo(briefTemplate('gromov-four')!, 20)).toBe(false)
     expect(openTo(briefTemplate('gromov-four')!, 50)).toBe(true)
+    let offered = false
+    for (let round = 0; round < 40; round++) offered ||= boardFor(1, round, false, 100).some((b) => isSledBrief(b.id))
+    expect(offered).toBe(true)
+    // The switch still shuts them away.
+    SLED_JOBS.open = false
+    for (const b of sledBriefs) expect(openTo(b, 100)).toBe(false)
+    for (let round = 0; round < 30; round++) expect(boardFor(1, round, false, 100).some((b) => isSledBrief(b.id))).toBe(false)
   })
 
   it('ask for a gain the desk can see from the old sled', () => {
@@ -135,5 +140,13 @@ describe('race day for a sled', () => {
   it('won’t deliver a two-man sled to a four-man job, or a sled to no job', () => {
     expect(deliverSled(onJob('gromov-four', 6, 170000), DEFAULT_BOBSLED, 49)).toBeNull()
     expect(deliverSled(newCareer(1), DEFAULT_BOBSLED, 49)).toBeNull()
+  })
+
+  it('counts a sled’s best job in seconds on the legacy card', () => {
+    const d = deliverSled(onJob('kostrov-club', 12), DEFAULT_BOBSLED, 50)!
+    const best = legacyOf(d.state).best!
+    expect(best.unit).toBe('s')
+    // Points are tenths of a second.
+    expect(best.cut).toBeCloseTo(d.debrief.achieved * SLED_JOBS.pointSeconds, 9)
   })
 })

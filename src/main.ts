@@ -19,7 +19,7 @@ import { DEFAULT_JUMPER } from './data/jumper'
 import { DEFAULT_BOBSLED } from './data/bobsled'
 import type { Design } from './data/sport'
 import { careerStore, freshSeed } from './ui/careerStore'
-import { charge, currentEvent, currentJumpEvent, newCareer, orderBlock, orderModel, repairModel } from './sim/career'
+import { charge, currentEvent, currentJumpEvent, currentSledEvent, newCareer, orderBlock, orderModel, repairModel } from './sim/career'
 import { makersOwned, tunnelSetup } from './sim/facility'
 import { crewEffects } from './sim/staff'
 import { afterDesign, afterOrder, afterRun, afterSwap, currentStep } from './sim/guide'
@@ -140,6 +140,8 @@ async function boot(): Promise<void> {
     event: () => currentEvent(careerStore.get()),
     // A jumper is forecast on the job's hill and day, or the practice jump between jobs.
     jumpEvent: () => currentJumpEvent(careerStore.get()),
+    // A sled is forecast on the job's track, or Belogor between jobs.
+    sledRace: () => currentSledEvent(careerStore.get()),
     shop: () => {
       const career = careerStore.get()
       return {

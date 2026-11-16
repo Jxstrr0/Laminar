@@ -5,7 +5,7 @@
  */
 import { briefTemplate, firmName, firmReputation, type CareerState, type Ending } from './career'
 import { correlationScore } from './reputation'
-import { PROMISE } from '../data/briefs'
+import { PROMISE, SLED_JOBS } from '../data/briefs'
 
 export interface Legacy {
   firm: string
@@ -22,10 +22,12 @@ export interface Legacy {
   correlation: number | null
   /**
    * The biggest cut delivered: who for, at what event, and how much (% of
-   * drag, or metres for a ski jump). A cut in % always beats metres, since the
-   * two can't be weighed; a career of only jumps shows its longest gain.
+   * drag, metres for a ski jump, seconds for a bobsled). A cut in % always
+   * beats the others, since they can't be weighed; between metres and
+   * seconds the first one delivered stands. A career of only jumps (or only
+   * sleds) shows its biggest gain.
    */
-  best: { client: string; event: string; cut: number; unit: 'pct' | 'm' } | null
+  best: { client: string; event: string; cut: number; unit: 'pct' | 'm' | 's' } | null
   /** Fees the clients paid in all, ₽. */
   earned: number
   /** Cash at the end, ₽. */
@@ -40,9 +42,11 @@ export function legacyOf(state: CareerState): Legacy {
   for (const job of state.history) {
     const b = briefTemplate(job.id)
     if (!b) continue
-    const unit = b.event.jump ? 'm' : 'pct'
-    const beats = !best || (unit === best.unit ? job.achieved > best.cut : unit === 'pct')
-    if (beats) best = { client: b.client, event: b.event.name, cut: job.achieved, unit }
+    const unit = b.event.jump ? 'm' : b.event.sled ? 's' : 'pct'
+    // A sled's achieved gain is in points, a tenth of a second each.
+    const cut = unit === 's' ? job.achieved * SLED_JOBS.pointSeconds : job.achieved
+    const beats = !best || (unit === best.unit ? cut > best.cut : unit === 'pct')
+    if (beats) best = { client: b.client, event: b.event.name, cut, unit }
   }
   return {
     firm: firmName(state),

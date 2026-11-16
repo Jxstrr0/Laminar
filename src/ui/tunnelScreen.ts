@@ -63,7 +63,9 @@ import { sphere } from '../sim/geom/shapes'
 import { Rng } from '../sim/rng'
 import { designPose, designShape, isBobsled, isJumper, type Design } from '../sim/design'
 import { forecastRun, prepareSled, sledEvent } from '../sim/sledTunnel'
-import { TRACKS } from '../data/tracks'
+import type { SledEvent } from '../sim/sledJob'
+import type { BobsledDesign } from '../data/bobsled'
+import { sledForecast } from './sledForecast'
 import { FLIGHT_ATTITUDE, JUMP_TUNNEL, PITCH } from '../data/jumper'
 import { correctJumper, forecastJump, isJumperRun, jumperReadings, prepareJumper, readJumper, type JumperFix, type JumpForecast, type PreparedJumper } from '../sim/jumpTunnel'
 import type { JumpEvent } from '../sim/jumper'
@@ -193,6 +195,8 @@ export interface TunnelHooks {
   event(): EventSpec
   /** The jump a ski jumper is forecast on (the job's hill and day). */
   jumpEvent(): JumpEvent
+  /** The race a bobsled is forecast on (the job's track, or Belogor between jobs). */
+  sledRace(): SledEvent
   /** The model shop's view of the job. */
   shop(): ShopContext
   /** A model was ordered: charge it and spend its days. */
@@ -240,7 +244,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   /** Where the angle row's "level" button goes: square on, or the flight angle. */
   const home = () => (jumper ? FLIGHT_ATTITUDE.hold : 0)
   /** The track a sled is forecast on (the job's from PR 8o; Belogor until then). */
-  const sledTrack = () => TRACKS.belogor
+  const sledTrack = () => hooks.sledRace().track
   /** The event the model's Reynolds number is matched to: a sled's track at its usual speed, else the job's. */
   const reEvent = (): EventSpec => (isBobsled(modelDesign) ? sledEvent(sledTrack()) : hooks.event())
   /** What holds the model on the mount now. */
@@ -1090,12 +1094,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   }
 
   /** This design's runs, pooled at each crank angle, with corrections taken off. */
-  function drawPool() {
-    if (jumper) {
-      drawForecast()
-      return
-    }
-    const now = modelDesign
+  /** This model's runs that pool together (same build, same design), by crank angle. */
+  function poolable(now: Design): Map<number, Run[]> {
     const byCrank = new Map<number, Run[]>()
     for (const run of here()) {
       const d = designs.get(run.id)
@@ -1103,6 +1103,44 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       if (run.model !== 'rider' || !d || c === undefined || builds.get(run.id) !== build || changedControls(d, now).length > 0) continue
       byCrank.set(c, [...(byCrank.get(c) ?? []), run])
     }
+    return byCrank
+  }
+  /** A sled's reference run on its pooled, corrected reading, s (null until a run is steady enough to trust). */
+  function sledPoolTime(sled: BobsledDesign, byCrank: Map<number, Run[]>): number | null {
+    const only = [...byCrank.values()][0]
+    if (!only || !prepared) return null
+    const g = headlineGroup(poolRuns(only).filter((p) => p.trusted))
+    if (!g) return null
+    const s2 = prepared.scale * prepared.scale
+    return forecastRun(correct(g.mean * s2, fix) / s2, sled, sledTrack()).time
+  }
+  let sledKey = ''
+  let sledAge = Infinity
+  /**
+   * Keep the Deliver sheet's run time up to date (PR 8p), whichever tab is
+   * open: worked out again when the runs, the build, the fixes, the board or
+   * the track change, no more than twice a second.
+   */
+  function updateSledForecast(dt: number, now = false) {
+    sledAge += dt
+    if (!isBobsled(modelDesign) || (!now && sledAge < 0.5)) return
+    sledAge = 0
+    const sled = modelDesign
+    const byCrank = poolable(sled)
+    const ids = [...byCrank.values()].flat().map((r) => r.id)
+    const key = JSON.stringify([ids, build, fix, sledTrack().id, order.board === true, rec.run?.id ?? null])
+    if (key === sledKey) return
+    sledKey = key
+    const time = sledPoolTime(sled, byCrank)
+    sledForecast.set(sled, sledTrack().id, time === null ? null : { time, board: order.board === true })
+  }
+  function drawPool() {
+    if (jumper) {
+      drawForecast()
+      return
+    }
+    const now = modelDesign
+    const byCrank = poolable(now)
     poolBox.hidden = byCrank.size === 0 || !prepared
     if (poolBox.hidden || !prepared) return
     // The jumper's forecast hides the cycle line; a rider's and a sled's use it.
@@ -1139,11 +1177,10 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     const more = cycle ? Math.max(0, RUN_STATS.legAngles - cycle.angles.length) : 0
     if (isBobsled(now)) {
       // A sled has no legs to crank: the pooled reading flies the reference run instead.
-      const only = [...byCrank.values()][0]!
-      const g = headlineGroup(poolRuns(only).filter((p) => p.trusted))
       const track = sledTrack()
       setText(poolTitle, t('pool.titleSled'))
-      const run = g ? t('pool.sledRun', { time: fixed(forecastRun(fixCdA(g.mean), now, track).time, 2), track: t(`track.${track.id}`) }) : t('runs.rowNone')
+      const time = sledPoolTime(now, byCrank)
+      const run = time !== null ? t('pool.sledRun', { time: fixed(time, 2), track: t(`track.${track.id}`) }) : t('runs.rowNone')
       // The trap a sled model falls into (PR 8n): on the bare floor the runners read low.
       setText(poolCycle, order.board ? run : `${run} ${t('pool.sledFloor')}`)
       const words = fixWords(fix)
@@ -1633,6 +1670,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     else updateSphere(dt)
     showRun()
     drawChart()
+    updateSledForecast(dt)
     drawRuns()
     drawCal()
     view.setYaw(yawOpen() && !jumper ? table.angle : 0)
@@ -1651,7 +1689,11 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
         view.setSheetHeight(sheet.offsetHeight)
         last = performance.now()
         raf = requestAnimationFrame(loop)
-      } else cancelAnimationFrame(raf)
+      } else {
+        cancelAnimationFrame(raf)
+        // Leaving the tunnel: the Deliver sheet gets the latest run time.
+        updateSledForecast(0, true)
+      }
     },
     lab() {
       const notes: LabState['notes'] = {}
