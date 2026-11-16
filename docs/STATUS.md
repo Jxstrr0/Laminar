@@ -66,10 +66,20 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 9d | The truck on the tunnel screen: its own small model on a ground board, the camera framing the rig, runs pooled by yaw into a fuel-saving forecast with the straight-on and bare-floor traps named, truck scales in the model shop, stouter struts | **Done** (v0.9.3.0) |
 | 9e | Truck jobs in the sim: three fleets' briefs (closed until 9f), a coast route, the promise on wind-averaged fuel saved, the declared fuel figure judged on drag, the road code cutting back illegal parts, the lab's full-size friction correction on truck readings | **Done** (v0.9.4.0) |
 | 9f | Truck jobs on the board: the brief card (route, trailer), bids in per cent of fuel, the job's route and fleet truck in Shape and the tunnel, a Deliver sheet that declares a fuel figure from the tunnel's forecast, and the fuel-trial debrief with a "change this" for any part the road code cut back | **Done** (v0.9.5.0) |
-| 9e–14 | See the plan | Next: PR 9e, truck jobs (briefs, the promise, the debrief). Then 9f the fuel-run replay. |
+| 9g | The gravel yard: Prichal's yard on the Kosa spit is gravel, skirts lower than 0.45 m above the road crack there and the trucks run without them, judged that way; the brief card, Shape and the Deliver sheet warn, the debrief names it with a "Raise the skirts" jump | **Done** (v0.9.6.0) |
+| 9h–14 | See the plan | Next: PR 9h, the fuel-run replay. Then race cars. |
 
 ## Versions
 
+- **0.9.6.0** (PR 9g): the gravel yard. Prichal Logistics now works out
+  of a shingle yard on the Kosa spit, and skirts that hang lower than
+  0.45 m above the road crack there (the road code only asks for 0.25 m).
+  The trucks then run without them, and the saving and the read are judged
+  on the truck as it ran (Kelbo's call, 16 November 2026). On the windy
+  coast that's about 10 points of saving gone. The brief card shows the
+  yard, Shape lists it under the rules with a "change this" and tints the
+  skirts amber, the Deliver sheet warns, and the fuel trial names the
+  cracked skirts with a "Raise the skirts" jump.
 - **0.9.5.0** (PR 9f): truck jobs are on the board. Kovyl Haulage calls
   once the firm has a small name (reputation 5), Volok Freight at 20,
   Prichal Logistics at 35. Bids promise per cent of fuel saved. Winning puts

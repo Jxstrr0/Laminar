@@ -13,9 +13,10 @@ import { buildBlock, machineBlock, ownReadyDay, upgradeBlock, upgradeReadyDay } 
 import { MACHINE_IDS, MACHINE_PRICE } from '../data/model'
 import { designShape, isBobsled, isJumper, isSkater, isTruck, type Design } from '../sim/design'
 import type { BobsledDesign } from '../data/bobsled'
-import type { TruckDesign } from '../data/truck'
+import { GRAVEL_YARD, type TruckDesign } from '../data/truck'
 import { ROUTES } from '../data/routes'
-import { checkTruckRules } from '../sim/truck'
+import { checkTruckRules, skirtGap } from '../sim/truck'
+import { cracksOnGravel, roadLegal } from '../sim/truckJob'
 import { PITCH, type JumperDesign } from '../data/jumper'
 import { HILLS } from '../data/hills'
 import { jumpForecast } from './jumpForecast'
@@ -44,6 +45,7 @@ import {
   isJumpBrief,
   isSledBrief,
   isTruckBrief,
+  truckEventOf,
   sledEventOf,
   jumpEventOf,
   placeBid,
@@ -551,6 +553,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
    * and the declared wind-averaged fuel figure, filled in from the tunnel's
    * forecast for this design, or the desk estimate until the tunnel has read
    * one. A part the road code forbids gets a warning: the depot cuts it back.
+   * So do skirts too low for the fleet's gravel yard (PR 9g): they'll crack.
    */
   function openDeliverTruck(design: Design) {
     const career = careerStore.get()
@@ -585,6 +588,9 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     } else
       notes.push(el('p', 'shop-note', t('deliver.noForecastTruck', { fuel: fixed(desk.fuel, 1), pct: fixed(desk.value, 1), spread: fixed((desk.high - desk.low) / 2, 1) })))
     if (checkTruckRules(truck).length > 0) notes.push(el('p', 'save-due', t('deliver.truckBreaks')))
+    const event = truckEventOf(job.brief)
+    if (event && cracksOnGravel(roadLegal(truck), event))
+      notes.push(el('p', 'save-due', t('deliver.gravel', { client: b.client, limit: fixed(GRAVEL_YARD.minSkirtGap, 2), gap: fixed(skirtGap(roadLegal(truck)), 2) })))
     const status = el('p', 'shop-note')
     status.setAttribute('aria-live', 'polite')
     const go = button('shop-order', t('deliver.truck'))
@@ -615,6 +621,19 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
   }
 
   let truckSheet: Sheet | null = null
+
+  /** A trouble line on the fuel trial with a "change this" jump to that part on Shape. */
+  function troubleBox(text: string, fixLabel: string, target: FixTarget): HTMLElement {
+    const box = el('div', 'race-trouble')
+    const fix = button('save-btn quiet', fixLabel)
+    fix.addEventListener('click', () => {
+      truckSheet?.close()
+      go('shape')
+      window.dispatchEvent(new CustomEvent<FixTarget>('laminar:fix', { detail: target }))
+    })
+    box.append(el('p', 'race-trouble-text', text), fix)
+    return box
+  }
 
   /** The fuel trial for a truck: the promise judged wind-averaged, the trial day, and any part the road code cut back with its fix. */
   function showTruckDelivery(d: TruckDelivery) {
@@ -652,20 +671,13 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       ),
     )
     const parts: HTMLElement[] = [el('p', 'shop-intro', t('td.intro', { client: b.client, route: t(`route.${d.event.route.id}`) })), verdict, facts]
-    if (db.cause) parts.push(el('p', 'shop-note', t(db.cause === 'roadCode' ? 'td.causeRoadCode' : 'td.causeDesign')))
+    if (db.cause) parts.push(el('p', 'shop-note', t(db.cause === 'gravel' ? 'td.causeGravel' : db.cause === 'roadCode' ? 'td.causeRoadCode' : 'td.causeDesign')))
+    // Skirts that cracked on the gravel yard, with a jump to raise them (PR 9g).
+    if (db.cracked) parts.push(troubleBox(t('td.cracked', { gap: fixed(db.cracked.gap, 2), limit: fixed(db.cracked.limit, 2) }), t('td.fixSkirts'), 'skirts'))
     // Each part the road code made the depot cut back, with a "change this" jump to it on Shape.
     for (const cut of db.cutBack) {
-      const box = el('div', 'race-trouble')
       const tail = cut.rule === 'tail'
-      const fix = button('save-btn quiet', t(tail ? 'td.fixTail' : 'td.fixSkirts'))
-      const target: FixTarget = tail ? 'boatTail' : 'skirts'
-      fix.addEventListener('click', () => {
-        truckSheet?.close()
-        go('shape')
-        window.dispatchEvent(new CustomEvent<FixTarget>('laminar:fix', { detail: target }))
-      })
-      box.append(el('p', 'race-trouble-text', t(tail ? 'td.cutTail' : 'td.cutSkirts', { value: fixed(cut.value, 2), limit: fixed(cut.limit, 2) })), fix)
-      parts.push(box)
+      parts.push(troubleBox(t(tail ? 'td.cutTail' : 'td.cutSkirts', { value: fixed(cut.value, 2), limit: fixed(cut.limit, 2) }), t(tail ? 'td.fixTail' : 'td.fixSkirts'), tail ? 'boatTail' : 'skirts'))
     }
     parts.push(el('p', 'shop-note', t('td.readNote')))
     if (d.sale) parts.push(brokeBox(d.sale, d.state.money))
@@ -1179,6 +1191,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       fact(t('board.wind'), b.event.indoor ? t('board.indoors') : `~${fixed(b.event.windSpeed, 0)} m/s`),
       ...(sled ? [fact(t('board.ice'), `${fixed(sled.iceTemp, 0)} °C`)] : []),
       who,
+      ...(road?.gravel ? [fact(t('board.yard'), t('board.gravel', { gap: fixed(GRAVEL_YARD.minSkirtGap, 2) }))] : []),
       fact(t('board.where'), b.event.place),
     )
     const bidders = biddersFor(brief.id)

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { BRIEFS, PROMISE, TRUCK_JOBS } from '../src/data/briefs'
 import { ROUTES } from '../src/data/routes'
-import { DEFAULT_TRUCK, RIG, ROAD_CODE, type TruckDesign } from '../src/data/truck'
+import { DEFAULT_TRUCK, GRAVEL_YARD, RIG, ROAD_CODE, type TruckDesign } from '../src/data/truck'
 import { UNIVERSITY_TUNNEL } from '../src/data/tunnel'
 import {
   boardFor,
@@ -18,8 +18,8 @@ import {
 import { legacyOf } from '../src/sim/legacy'
 import { Rng } from '../src/sim/rng'
 import { cdAAt } from '../src/sim/aero/windAverage'
-import { checkTruckRules, fuelSaving, truckCurve, truckFlow, truckMass, windAveragedFuel, windAveragedFuelWith } from '../src/sim/truck'
-import { dragScaleForFuel, PRACTICE_ROUTE, roadLegal, trialDay } from '../src/sim/truckJob'
+import { checkTruckRules, fuelRun, fuelSaving, truckCurve, truckFlow, truckMass, windAveragedFuel, windAveragedFuelWith } from '../src/sim/truck'
+import { asRun, cracksOnGravel, dragScaleForFuel, PRACTICE_ROUTE, roadLegal, trialDay } from '../src/sim/truckJob'
 import { frictionScaleUp, prepareTruck, readCurve } from '../src/sim/truckTunnel'
 import { readBalance, type ModelSpec } from '../src/sim/views'
 
@@ -176,6 +176,67 @@ describe('delivering a truck', () => {
     expect(best.unit).toBe('fuel')
     expect(best.cut).toBeCloseTo(d.debrief.achieved, 9)
   })
+})
+
+describe('the gravel yard (PR 9g)', () => {
+  const coast = ROUTES['kosa-coast']
+  const prichal = briefTemplate('prichal-coast')!
+  const setup = prichal.setup as TruckDesign
+  /** A good kit for Prichal with skirts this deep: legal on the road, but how low for the gravel? */
+  const withSkirts = (skirts: number): TruckDesign => {
+    const kit = kitFor(setup)
+    return { ...kit, trailer: { ...kit.trailer, skirts } }
+  }
+
+  it('is Prichal’s yard only, and sits higher than the road code’s gap', () => {
+    expect(truckBriefs.filter((b) => b.event.truck!.gravel).map((b) => b.id)).toEqual(['prichal-coast'])
+    expect(truckEventOf(prichal)!.gravel).toBe(true)
+    expect(PRACTICE_ROUTE.gravel).toBe(false)
+    expect(GRAVEL_YARD.minSkirtGap).toBeGreaterThan(ROAD_CODE.minSkirtGap)
+  })
+
+  it('cracks skirts lower than the yard allows, even legal ones, and leaves higher ones and paved yards alone', () => {
+    const gravel = truckEventOf(prichal)!
+    const paved = truckEventOf(briefTemplate('kovyl-haulage')!)!
+    const low = withSkirts(0.95)
+    expect(checkTruckRules(low)).toEqual([])
+    expect(cracksOnGravel(low, gravel)).toBe(true)
+    expect(cracksOnGravel(low, paved)).toBe(false)
+    // The good kit's skirts stop right at the yard's limit.
+    expect(cracksOnGravel(kitFor(setup), gravel)).toBe(false)
+    expect(cracksOnGravel(withSkirts(0), gravel)).toBe(false)
+    const ran = asRun(low, gravel)
+    expect(ran.cracked).toBe(true)
+    expect(ran.truck.trailer.skirts).toBe(0)
+    expect(asRun(low, paved)).toEqual({ truck: low, cracked: false })
+  })
+
+  it('judges the saving and the read on the truck that ran, and blames the gravel', () => {
+    const low = withSkirts(0.95)
+    const bare = withSkirts(0)
+    const withOn = fuelSaving(low, setup, coast)
+    const without = fuelSaving(bare, setup, coast)
+    // On the crosswind coast the skirts are worth a lot.
+    expect(withOn).toBeGreaterThan(without + 8)
+    const promise = Math.floor((without + 3) * 2) / 2
+    const d = deliverTruck(onJob('prichal-coast', promise, 150000), low, windAveragedFuel(bare, coast))!
+    expect(d.debrief.cracked).toEqual({ gap: RIG.floor - 0.95, limit: GRAVEL_YARD.minSkirtGap })
+    expect(d.debrief.achieved).toBeCloseTo(without, 9)
+    expect(d.debrief.met).toBe(false)
+    expect(d.debrief.cause).toBe('gravel')
+    // The declared figure was the bare truck's, so the read is good.
+    expect(d.debrief.read).toBe('good')
+    expect(d.debrief.run.per100).toBeCloseTo(fuelRunPer100(bare, d.debrief.day), 9)
+    // Skirts the yard allows keep the promise.
+    const ok = deliverTruck(onJob('prichal-coast', promise, 150000), kitFor(setup), windAveragedFuel(kitFor(setup), coast))!
+    expect(ok.debrief.cracked).toBeNull()
+    expect(ok.debrief.met).toBe(true)
+  })
+
+  /** The trial day's figure for a truck on the coast. */
+  function fuelRunPer100(truck: TruckDesign, day: Parameters<typeof fuelRun>[2]): number {
+    return fuelRun(truck, coast, day).per100
+  }
 })
 
 describe('the lab’s full-size friction correction', () => {
