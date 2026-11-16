@@ -149,6 +149,9 @@ export const JUMPER_COST = {
 export const JUMP_TUNNEL = {
   /** The sting's pitch dial, degrees (the skis' angle to the air). */
   pitch: { min: 6, max: 44, step: 1 },
+  /** How fast the sting pitches, degrees per second, and where it starts. */
+  rate: 6,
+  start: 30,
   /** Readings within this many degrees count as the same angle. */
   sameAngle: 0.25,
   /**

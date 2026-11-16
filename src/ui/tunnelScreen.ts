@@ -61,12 +61,15 @@ import { describeShape, scaleShape } from '../sim/geom/body'
 import { referenceWheel } from '../sim/geom/cyclist'
 import { sphere } from '../sim/geom/shapes'
 import { Rng } from '../sim/rng'
-import { designPose, designShape, type Design } from '../sim/design'
+import { designPose, designShape, isJumper, type Design } from '../sim/design'
+import { FLIGHT_ATTITUDE, JUMP_TUNNEL, PITCH } from '../data/jumper'
+import { correctJumper, forecastJump, isJumperRun, jumperReadings, prepareJumper, readJumper, type JumperFix, type JumpForecast, type PreparedJumper } from '../sim/jumpTunnel'
+import type { JumpEvent } from '../sim/jumper'
 import type { LabState } from '../sim/lab'
 import { changedControls } from '../sim/designDiff'
 import { compareRuns, headlineCompare, headlineGroup, legCycle, poolRuns, yawGroups, type YawGroup } from '../sim/runStats'
 import { addSample, newRecorder, runCost, runTunnel, stepRecorder, type Recorder, type Run, type RunSample } from '../sim/run'
-import { setYawTarget, stepTurntable, turntableAtRest, type TurntableState } from '../sim/turntable'
+import { setYawTarget, stepTurntable, turntableAtRest, type TurntableSpec, type TurntableState } from '../sim/turntable'
 import type { MountKind } from '../sim/quirks'
 import type { TunnelBuild, TunnelId, TunnelSetup } from '../sim/facility'
 import { FAILURE } from '../data/failure'
@@ -185,6 +188,8 @@ export interface TunnelHooks {
   tunnel(): TunnelSetup
   /** The event the design is being built for (the job's). */
   event(): EventSpec
+  /** The jump a ski jumper is forecast on (the job's hill and day). */
+  jumpEvent(): JumpEvent
   /** The model shop's view of the job. */
   shop(): ShopContext
   /** A model was ordered: charge it and spend its days. */
@@ -222,6 +227,17 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   let mount: Mount = 'rider'
   /** A tare run: the model off, the mount alone. */
   let tare = false
+  /** A ski jumper is on the bench model: it flies on a pitching sting, not on the posts. */
+  let jumper = false
+  let jumperModel: PreparedJumper | null = null
+  /** The sting's pitch dial: the same turning control as the turntable, on its own range. */
+  const pitchSpec: TurntableSpec = { ...JUMP_TUNNEL.pitch, rate: JUMP_TUNNEL.rate }
+  /** The dial the angle row drives: yaw for a rider, pitch for a jumper. */
+  const dial = () => (jumper ? pitchSpec : spec.turntable)
+  /** Where the angle row's "level" button goes: square on, or the flight angle. */
+  const home = () => (jumper ? FLIGHT_ATTITUDE.hold : 0)
+  /** What holds the model on the mount now. */
+  const mountKind = (): MountKind => (mount === 'rider' && jumper ? 'sting' : MOUNT_KIND[mount])
   // The calibration sphere, made exactly: a reference body has no build errors.
   const sphereModel = prepareExact({ bodies: [sphere('calibration-sphere', REFERENCE_SPHERE.diameter)] })
   const ball = sphereModel.shape.bodies[0]!
@@ -285,6 +301,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
 
   // Yaw turntable.
   const yawCtl = rangeRow('yaw-slider', t('yaw.label'), spec.turntable)
+  const yawLabel = yawCtl.row.querySelector('label')!
   const squareBtn = el('button', 'fan-off', t('yaw.square'))
   squareBtn.type = 'button'
   yawCtl.row.append(squareBtn)
@@ -315,6 +332,14 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   const rCdA = readout(t('read.cda'), 'cda')
   riderGrid.append(rSpeed.box, rYaw.box, rDrag.box, rCdA.box)
   rCdA.sub.textContent = t('read.cdaRaw', { scale: fixed(1 / STANDARD_MODEL.scale, 0) })
+
+  // Readouts for a ski jumper on the sting.
+  const jumperGrid = el('div', 'readouts')
+  const jSpeed = readout(t('read.speed'), 'airSpeed')
+  const jPitch = readout(t('read.pitch'), 'angleOfAttack')
+  const jLD = readout(t('read.ld'), 'liftToDrag')
+  const jFc = readout(t('read.forecast'), 'staticMargin')
+  jumperGrid.append(jSpeed.box, jPitch.box, jLD.box, jFc.box)
 
   // Readouts for the sphere.
   const sphereGrid = el('div', 'readouts')
@@ -464,7 +489,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   tapsChip.hidden = true
   const cpLegend = createCpLegend()
 
-  sheet.append(mountRow, fanCtl.row, yawCtl.row, runLine, viewBar, riderGrid, sphereGrid, wheelGrid, tareGrid, chartBox, calBox, runsBox, foot)
+  sheet.append(mountRow, fanCtl.row, yawCtl.row, runLine, viewBar, riderGrid, jumperGrid, sphereGrid, wheelGrid, tareGrid, chartBox, calBox, runsBox, foot)
   app.append(header, sheet, instBar, cpLegend.root)
 
   // Keep the 3D model centred in the space above the sheet.
@@ -482,7 +507,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     offBtn.disabled = fan.target === 0
     setText(yawCtl.target, t('fan.target', { target: `${fixed(table.target, 0)}°` }))
     yawCtl.input.setAttribute('aria-valuetext', `${fixed(table.target, 0)} degrees`)
-    squareBtn.disabled = table.target === 0
+    squareBtn.disabled = table.target === home()
   }
   fanCtl.input.addEventListener('input', () => {
     if (locked()) fanCtl.input.value = '0'
@@ -495,12 +520,12 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     showTargets()
   })
   yawCtl.input.addEventListener('input', () => {
-    table = setYawTarget(table, Number(yawCtl.input.value), spec.turntable)
+    table = setYawTarget(table, Number(yawCtl.input.value), dial())
     showTargets()
   })
   squareBtn.addEventListener('click', () => {
-    table = setYawTarget(table, 0, spec.turntable)
-    yawCtl.input.value = '0'
+    table = setYawTarget(table, home(), dial())
+    yawCtl.input.value = String(home())
     showTargets()
   })
   // Desktop: arrow keys already move a focused slider; Space stops the fan anywhere else.
@@ -718,7 +743,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   const tapsRng = new Rng(DEMO_MODEL_SEED).fork('taps')
   function applyInstruments() {
     view.setInstruments({ ...inst })
-    setText(footHint, t(inst.wand && mount === 'rider' ? 'hint.wand' : 'hint.orbit'))
+    setText(footHint, t(jumper && mount === 'rider' ? 'hint.jumper' : inst.wand && mount === 'rider' ? 'hint.wand' : 'hint.orbit'))
     flowKey = ''
     flowAge = Infinity
   }
@@ -727,7 +752,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     flowAge += dt
     const mapping = inst.taps && mount === 'rider' && !tare && !!prepared
     if (cpLegend.root.hidden === mapping) cpLegend.root.hidden = !mapping
-    if (mount !== 'rider' || tare || !prepared || broken || !anyFlow()) return
+    // The instruments read a rider's air; a jumper's plates come later.
+    if (mount !== 'rider' || tare || !prepared || broken || jumper || !anyFlow()) return
     // Below reading speed the drag regime is the slow-air one; the drawing slows the smoke itself.
     const speed = Math.max(spec.readFrom, fan.speed)
     // The taps read only once there's air enough for the scanner (Cp is pressure over the dynamic pressure).
@@ -779,6 +805,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   /** What comes off the reference wheel's own readings: the posts and its (small) blockage. */
   let wheelFix: Corrections = NO_CORRECTIONS
   const refreshCal = () => {
+    forecastDirty = true
     const mine = here()
     cal = calibrate(mine, ball, sectionArea)
     const posts = latestTare(mine, 'posts')
@@ -811,8 +838,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     place.textContent = t(current === 'own' ? 'tunnel.placeOwn' : 'tunnel.place')
     // A bigger fan or turntable widens the controls and the yaw chart.
     fanCtl.input.max = String(spec.topSpeed)
-    yawCtl.input.min = String(spec.turntable.min)
-    yawCtl.input.max = String(spec.turntable.max)
+    yawCtl.input.min = String(dial().min)
+    yawCtl.input.max = String(dial().max)
     yawAxes.x.min = spec.turntable.min
     yawAxes.x.max = spec.turntable.max
     // Driven wheels change the model itself (its spokes no longer read still).
@@ -822,7 +849,11 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     chartDirty = true
   }
   /** The run name for what's on the mount now. */
-  const runModel = () => (tare ? tareModel(MOUNT_KIND[mount]) : mount === 'wheel' ? WHEEL_RUN : mount)
+  const runModel = () => (tare ? tareModel(mountKind()) : mount === 'wheel' ? WHEEL_RUN : mount)
+  const pitchAxes = {
+    x: { label: t('axis.pitch'), unit: '°', digits: 0, min: JUMP_TUNNEL.pitch.min, max: JUMP_TUNNEL.pitch.max },
+    y: { label: t('axis.cla'), unit: 'm²', digits: 3 },
+  }
   const yawAxes = {
     x: { label: t('axis.yaw'), unit: '°', digits: 0, min: spec.turntable.min, max: spec.turntable.max },
     y: { label: t('axis.cda'), unit: 'm²', digits: 3 },
@@ -856,7 +887,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     const q = dynamicPressure(AIR.density, fan.speed)
     if (fan.speed < spec.readFrom) return null
     if (tare) {
-      const cdA = readTare(tunnel, { speed: fan.speed, yawDeg: 0, mount: MOUNT_KIND[mount] }, balanceRng)
+      const cdA = readTare(tunnel, { speed: fan.speed, yawDeg: 0, mount: mountKind() }, balanceRng)
       return { speed: fan.speed, yawDeg: 0, cdA, cyA: 0, dragN: q * cdA, steady: fan.speed === fan.target }
     }
     if (mount === 'sphere') {
@@ -868,8 +899,13 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       return { speed: fan.speed, yawDeg: 0, cdA: r.modelCdA, cyA: 0, dragN: q * r.modelCdA, steady: fan.speed === fan.target }
     }
     if (!prepared) return null
-    const r = readBalance(prepared, tunnel, { speed: fan.speed, yawDeg: table.angle, mount: 'posts' }, balanceRng)
     const steady = fan.speed === fan.target && table.angle === table.target
+    if (jumper && jumperModel) {
+      // The sting's angle goes where a rider's yaw would; lift and the pitch moment ride along.
+      const j = readJumper(jumperModel, tunnel, { speed: fan.speed, alphaDeg: table.angle, mount: 'sting' }, balanceRng)
+      return { speed: fan.speed, yawDeg: table.angle, cdA: j.cdA, cyA: 0, dragN: j.dragN, clA: j.clA, pitchA: j.pitchA, steady }
+    }
+    const r = readBalance(prepared, tunnel, { speed: fan.speed, yawDeg: table.angle, mount: 'posts' }, balanceRng)
     // A buzzing part shakes the balance: the trace wobbles before anything breaks.
     const w = shake()
     return { speed: fan.speed, yawDeg: table.angle, cdA: r.cdA * w, cyA: r.cyA * w, dragN: q * r.modelCdA * w, steady }
@@ -902,8 +938,10 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       viewButtons[i]!.tabIndex = on ? 0 : -1
     })
     viewButtons[2]!.hidden = !yawOpen()
+    setText(viewButtons[2]!, t(jumper ? 'view.pitch' : 'view.yaw'))
     const reading = view_ === 'readouts'
-    riderGrid.hidden = !(reading && mount === 'rider' && !tare)
+    riderGrid.hidden = !(reading && mount === 'rider' && !tare && !jumper)
+    jumperGrid.hidden = !(reading && mount === 'rider' && !tare && jumper)
     sphereGrid.hidden = !(reading && mount === 'sphere' && !tare)
     wheelGrid.hidden = !(reading && mount === 'wheel' && !tare)
     tareGrid.hidden = !(reading && tare)
@@ -937,6 +975,14 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
         series: [{ points: pts(faint), mark: 'faint' }, { points: pts(bold), mark: 'dot', latest: true }],
         caption: describeLast(axes, pts(bold), t('chart.emptyTime')),
       })
+    } else if (jumper) {
+      // Only points taken with the fan and sting settled: lift area against pitch.
+      const pts = (s: RunSample[]): ChartPoint[] => s.filter((p) => p.steady && p.clA !== undefined).map((p) => ({ x: p.yawDeg, y: p.clA! }))
+      chart.draw({
+        ...pitchAxes,
+        series: [{ points: pts(faint), mark: 'faint' }, { points: pts(bold), mark: 'dot', latest: true }],
+        caption: describeLast(pitchAxes, pts(bold), t('chart.emptyPitch')),
+      })
     } else {
       // Only points taken with the fan and table settled: CdA against yaw, not against a moving table.
       const pts = (s: RunSample[]): ChartPoint[] => s.filter((p) => p.steady).map((p) => ({ x: p.yawDeg, y: p.cdA }))
@@ -949,9 +995,9 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   }
 
   // --- The Runs tab: the list, and A against B.
-  const groupWords = (g: YawGroup | null, digits: number) =>
+  const groupWords = (g: YawGroup | null, digits: number, pitch = false) =>
     g
-      ? t('runs.rowCdA', { cda: fixed(g.mean, digits), band: fixed(g.band, digits), yaw: fixed(g.yawDeg, 0), speed: fixed(g.speed, 0), n: g.n })
+      ? t(pitch ? 'runs.rowPitch' : 'runs.rowCdA', { cda: fixed(g.mean, digits), band: fixed(g.band, digits), yaw: fixed(g.yawDeg, 0), speed: fixed(g.speed, 0), n: g.n })
       : t('runs.rowNone')
 
   function togglePick(id: number) {
@@ -973,10 +1019,11 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
         b.setAttribute('aria-pressed', String(slot >= 0))
         const badge = el('span', 'run-badge', slot === 0 ? 'A' : slot === 1 ? 'B' : '')
         const text = el('span', 'run-text')
-        const model = t(RUN_MODEL[run.model] ?? 'mount.rider')
+        const jumped = isJumperRun(run)
+        const model = t(jumped ? 'mount.jumper' : (RUN_MODEL[run.model] ?? 'mount.rider'))
         text.append(
           el('span', 'run-title', t('runs.row', { id: run.id, model, time: clock(run.duration), cost: fixed(runCost(run), 0) }) + (run.failure ? ` · ${t('fail.runTag')}` : '')),
-          el('span', 'run-sub', groupWords(headlineGroup(yawGroups(run)), run.model.startsWith('tare') || run.model === WHEEL_RUN ? TARE_DIGITS : 4)),
+          el('span', 'run-sub', groupWords(headlineGroup(yawGroups(run)), run.model.startsWith('tare') || run.model === WHEEL_RUN ? TARE_DIGITS : 4, jumped)),
         )
         b.append(badge, text)
         b.addEventListener('click', () => togglePick(run.id))
@@ -1028,6 +1075,10 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
 
   /** This design's runs, pooled at each crank angle, with corrections taken off. */
   function drawPool() {
+    if (jumper) {
+      drawForecast()
+      return
+    }
     const now = modelDesign
     const byCrank = new Map<number, Run[]>()
     for (const run of here()) {
@@ -1097,6 +1148,9 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     }
     if (prepared) endRun()
     const design = modelDesign
+    setJumper(isJumper(design))
+    jumperModel = isJumper(design) ? prepareJumper(design, modelSpec) : null
+    forecastDirty = true
     prepared = prepareModel(designShape(design, { crankDeg: crank, staticWheels: !spec.wheelDrive }), modelSpec)
     refreshCal()
     // The CdA's note names the model's scale before any reading (it changes with a new order).
@@ -1110,6 +1164,120 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     runsDirty = true
   }
 
+  /**
+   * A jumper on the bench model swaps the posts for the sting: the angle row
+   * pitches instead of yawing, and the readouts read lift and the forecast.
+   */
+  function setJumper(on: boolean) {
+    if (on === jumper) return
+    jumper = on
+    table = on ? { target: JUMP_TUNNEL.start, angle: JUMP_TUNNEL.start } : turntableAtRest()
+    const d = dial()
+    yawCtl.input.min = String(d.min)
+    yawCtl.input.max = String(d.max)
+    yawCtl.input.step = String(d.step)
+    yawCtl.input.value = String(table.target)
+    setText(yawLabel, t(on ? 'pitch.label' : 'yaw.label'))
+    setText(squareBtn, t(on ? 'pitch.hold' : 'yaw.square'))
+    setText(mountButtons[0]!, t(on ? 'mount.jumperShort' : 'mount.riderShort'))
+    showTargets()
+    applyInstruments()
+  }
+
+  // --- The jumper's forecast: this model's settled readings, corrected, flown on the job's hill.
+  let forecast: JumpForecast | null = null
+  let forecastDirty = true
+  let forecastAge = Infinity
+  /** What the calibration runs let you take off a jumper's readings: the sting's tare and the blockage. */
+  const jumperFix = (): JumperFix => ({ tare: cal.tare?.trusted ? cal.tare.mean : null, blockageK: cal.blockage?.k ?? null })
+  const jumperFixWords = (f: JumperFix) => {
+    const list = [f.tare !== null ? t('fix.sting') : '', f.blockageK !== null ? t('fix.blockage') : ''].filter(Boolean)
+    return list.join(t('fix.and'))
+  }
+  /** This model's runs in the tunnel in use, and the run going now. A jumper can't swap parts, so the build says it all. */
+  function modelRuns(): Run[] {
+    const list = here().filter((r) => r.model === 'rider' && builds.get(r.id) === build)
+    if (rec.run && rec.run.model === 'rider' && runTunnel(rec.run) === current) list.push(rec.run)
+    return list
+  }
+  /** Fly the forecast again when something new came in, no more than twice a second. */
+  function updateForecast(dt: number) {
+    forecastAge += dt
+    if (!forecastDirty || forecastAge < 0.5 || !jumperModel) return
+    forecastDirty = false
+    forecastAge = 0
+    const fix = jumperFix()
+    const model = jumperModel
+    const readings = jumperReadings(modelRuns()).map((r) => correctJumper(r, fix, model, sectionArea))
+    forecast = forecastJump(readings, hooks.jumpEvent())
+    runsDirty = true
+  }
+  function showForecastReadout() {
+    const f = forecast
+    if (!f) {
+      setText(jFc.value, '–')
+      setText(jFc.sub, t('read.forecastNone'))
+      return
+    }
+    setText(jFc.value, `${fixed(f.distance, 1)} m`)
+    setText(
+      jFc.sub,
+      f.covered ? t('read.forecastNote', { margin: fixed(f.minMargin * 100, 1) }) : t('read.forecastWider', { from: fixed(f.need.from, 0), to: fixed(f.need.to, 0) }),
+    )
+  }
+  /** The Runs tab's record for a jumper: the forecast in full. */
+  function drawForecast() {
+    poolBox.hidden = !prepared
+    if (poolBox.hidden) return
+    const ev = hooks.jumpEvent()
+    setText(poolTitle, t('jump.title', { hill: t(`hill.${ev.hill.id}`) }))
+    const f = forecast
+    const lines: string[] = []
+    if (!f) lines.push(t('jump.none'))
+    else {
+      const slots = { margin: fixed(f.minMargin * 100, 1), floor: fixed(PITCH.floor * 100, 0) }
+      const range = { from: fixed(f.have.from, 0), to: fixed(f.have.to, 0), needFrom: fixed(f.need.from, 0), needTo: fixed(f.need.to, 0) }
+      lines.push(
+        t('jump.distance', { distance: fixed(f.distance, 1), size: fixed(ev.hill.hs, 0) }),
+        t(f.minMargin < 0 ? 'jump.marginBad' : f.stable ? 'jump.margin' : 'jump.marginLow', slots),
+        t(f.covered ? 'jump.cover' : 'jump.wider', range),
+      )
+    }
+    poolRows.replaceChildren(...lines.map((line) => el('p', 'compare-detail', line)))
+    setText(poolCycle, '')
+    poolCycle.hidden = true
+    const words = jumperFixWords(jumperFix())
+    setText(poolFix, words ? t('jump.fixed', { list: words }) : t('jump.raw'))
+  }
+  const updateJumper = (dt: number) => {
+    if (!jumperModel) return
+    updateForecast(dt)
+    showForecastReadout()
+    const reading = fan.speed >= spec.readFrom
+    setText(jSpeed.value, `${fixed(fan.speed, 1)} m/s`)
+    // The helmet and boots' Reynolds number against the hill's: the plates hardly care, they do.
+    const pct = (fan.speed * jumperModel.scale * 100) / hooks.jumpEvent().hill.takeoffSpeed
+    setText(jSpeed.sub, t('read.reMatch', { pct: reading ? fixed(pct, 0) : '–' }))
+    setText(jPitch.value, `${fixed(table.angle, 1)}°`)
+    if (!reading) {
+      shown.cdA = shown.dragN = shown.sideN = 0
+      setText(jPitch.sub, t('read.pitchNote', { force: '–' }))
+      setText(jLD.value, '–')
+      setText(jLD.sub, t('read.ldNote', { cla: '–', cda: '–' }))
+      return
+    }
+    const r = readJumper(jumperModel, tunnel, { speed: fan.speed, alphaDeg: table.angle, mount: 'sting' }, balanceRng)
+    const c = correctJumper(r, jumperFix(), jumperModel, sectionArea)
+    // shown: dragN holds the model's lift, N; sideN the lift area; cdA the drag area.
+    const k = settle(dt)
+    shown.dragN += (r.liftN - shown.dragN) * k
+    shown.sideN += (c.clA - shown.sideN) * k
+    shown.cdA += (c.cdA - shown.cdA) * k
+    setText(jPitch.sub, t('read.pitchNote', { force: `${fixed(shown.dragN, 0)} N` }))
+    setText(jLD.value, shown.cdA > 0 ? fixed(shown.sideN / shown.cdA, 2) : '–')
+    setText(jLD.sub, t('read.ldNote', { cla: fixed(shown.sideN, 2), cda: fixed(shown.cdA, 2) }))
+  }
+
   /** Show the controls that fit what's on the mount. */
   function showMount() {
     mountButtons.forEach((b, i) => {
@@ -1118,12 +1286,13 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       b.tabIndex = on ? 0 : -1
     })
     tareBtn.setAttribute('aria-pressed', String(tare))
-    yawCtl.row.hidden = !yawOpen()
-    crankBox.hidden = !yawOpen() || modelDesign.sport === 'skating'
-    shopBtn.hidden = !yawOpen()
-    instBar.hidden = !yawOpen()
+    // The model first: it says whether a jumper is on, which picks the controls.
     shown.cdA = shown.dragN = shown.sideN = 0
     placeModel()
+    yawCtl.row.hidden = !yawOpen()
+    crankBox.hidden = !yawOpen() || modelDesign.sport === 'skating' || jumper
+    shopBtn.hidden = !yawOpen()
+    instBar.hidden = !yawOpen() || jumper
     showStale()
     showBroken()
     selectView(view_)
@@ -1311,6 +1480,10 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   }
 
   const updateRider = (dt: number) => {
+    if (jumper) {
+      updateJumper(dt)
+      return
+    }
     if (!prepared) return
     showSpeed(rSpeed)
     setText(rYaw.value, `${fixed(table.angle, 1)}°`)
@@ -1364,7 +1537,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       fan = stepFan(fan, STEP, spec)
       table = stepTurntable(table, STEP, spec.turntable)
       // The model's weak points, checked every fixed step (the tunnel always warns first).
-      if (mount === 'rider' && !tare && prepared && !broken) {
+      // A jumper on the sting has no weak points yet (they come with the ski-jump briefs).
+      if (mount === 'rider' && !tare && prepared && !broken && !jumper) {
         const loadN = dynamicPressure(AIR.density, fan.speed) * loadArea
         const step = stepStrain(strainClock, strains({ order, design: modelDesign }, fan.speed, loadN, setup.mountStrength), STEP)
         strainClock = step.clock
@@ -1387,6 +1561,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
         if (sample) {
           rec = addSample(rec, sample)
           chartDirty = true
+          if (sample.clA !== undefined) forecastDirty = true
         }
       }
       carry -= STEP
@@ -1402,7 +1577,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     drawChart()
     drawRuns()
     drawCal()
-    view.setYaw(yawOpen() ? table.angle : 0)
+    view.setYaw(yawOpen() && !jumper ? table.angle : 0)
+    if (jumper) view.setPitch(table.angle)
     view.frame(fan.speed, dt)
     raf = requestAnimationFrame(loop)
   }

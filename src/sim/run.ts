@@ -13,10 +13,14 @@ export interface RunSample {
   /** Seconds since the run started. */
   t: number
   speed: number
+  /** The turntable's yaw, or the sting's pitch with a ski jumper on it, degrees. */
   yawDeg: number
   /** Full-size drag area and side-force area, m². */
   cdA: number
   cyA: number
+  /** A ski jumper only: full-size lift area, m², and pitch moment about the hips per unit dynamic pressure, m³. */
+  clA?: number
+  pitchA?: number
   /** The model's drag as the balance felt it, N. */
   dragN: number
   /** Fan and turntable were at rest on their settings: a clean data point. */
