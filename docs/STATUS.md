@@ -33,10 +33,22 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 6b | Failures on the tunnel screen | **Done** (v0.6.1.0) |
 | 6c | Failures in the field: crosswind steer, fading position | **Done** (v0.6.2.0) |
 | 6d | Field failures in the 3D replay: the wobble in a gust, the rider sitting up | **Done** (v0.6.3.0) |
-| 7–14 | See the plan | Not started |
+| 7a | Reputation and correlation score: bigger clients and close bids for a good name | **Done** (v0.7.0.0) |
+| 7b | The named rivals, Bystro Aero and Vysota Aerolab | Next |
+| 7c–14 | See the plan | Not started |
 
 ## Versions
 
+- **0.7.0.0** (PR 7a): reputation and correlation score.
+  - The Jobs screen shows your reputation (out of 100, starting at 20) and
+    your correlation score: how close your predictions came to the road over
+    the last five jobs (100 is spot on, 0 is 10 % off or worse).
+  - Keeping a promise and a close read raise your name; a missed promise
+    costs more the further you fell short.
+  - The coast, pursuit and national championship clients only call once your
+    name is big enough (25, 35 and 45).
+  - In sealed bids, every 50 reputation counts as a point of promised cut,
+    so a better-known firm wins close bids. The debrief shows the change.
 - **0.6.3.0** (PR 6d): race-day trouble in the 3D replay.
   - On a stretch where the rider eased off in the gusts, they rock side to
     side every couple of seconds (more the harder they fought it). The old

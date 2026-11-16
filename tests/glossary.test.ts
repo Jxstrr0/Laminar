@@ -83,7 +83,7 @@ describe('Canadian spelling', () => {
   // rise, precise...) are fine; "analyse" keeps its -yse.
   const ALWAYS_ISE = new Set([
     'size', 'sizes', 'sized', 'noise', 'noises', 'rise', 'rises', 'risen', 'wise', 'otherwise', 'precise',
-    'exercise', 'surprise', 'promise', 'advise', 'devise', 'revise', 'comprise', 'compromise', 'expertise',
+    'exercise', 'surprise', 'promise', 'promises', 'promised', 'advise', 'devise', 'revise', 'comprise', 'compromise', 'expertise',
     'raise', 'raised', 'seize', 'prize', 'premise', 'enterprise', 'porpoise', 'cruise', 'praise', 'concise',
     'demise', 'paradise', 'disguise', 'supervise', 'improvise', 'televise', 'despise', 'incise', 'excise',
     'arise', 'arises', 'porpoising', 'poise', 'bruise', 'chastise', 'guise', 'franchise', 'merchandise', 'apprise',

@@ -49,7 +49,14 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Alina Vesnina | Track pursuiter on the national team (Track Championships: Individual Pursuit). PR 5h. |
 | Stavren Regional Time Trial, Club 16 km Time Trial, Lake Dolgo Hill Time Trial, Kosa Coast Time Trial, National Time Trial Championship, Track Championships: Individual Pursuit | The events above. |
 
+## Rival firms (PR 7)
+
+| Name | What it is |
+| --- | --- |
+| Bystro Aero | Cheap, quick rival consultancy whose tunnel numbers don't always hold up on the road. |
+| Vysota Aerolab | Prestige rival with a big tunnel and big prices. |
+
 ## Still to name (later PRs)
 
-The university and its tunnel, the two rival firms, the outside model shop,
+The university and its tunnel, the outside model shop,
 staff, other sport federations, more venues and export countries.

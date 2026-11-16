@@ -6,6 +6,7 @@
  * event and pays the fee.
  */
 import { BID, CAREER, PROMISE, TRACK, type BriefTemplate } from '../data/briefs'
+import { REPUTATION } from '../data/reputation'
 import type { CyclistDesign } from '../data/cyclist'
 import { t } from '../data/strings'
 import {
@@ -20,6 +21,7 @@ import {
   type Delivery,
 } from '../sim/career'
 import { deskEstimate } from '../sim/desk'
+import { correlationScore, reputationOf } from '../sim/reputation'
 import type { FixTarget } from '../sim/failure'
 import { cyclistShape } from '../sim/geom/cyclist'
 import { careerStore } from './careerStore'
@@ -65,11 +67,16 @@ function stepper(id: string, value: string, unit: string, less: string, more: st
 }
 
 /** A label and a value, side by side in a card's facts grid. */
-function fact(label: string, value: string): HTMLElement {
+function fact(label: string | HTMLElement, value: string): HTMLElement {
   const box = el('div', 'job-fact')
-  box.append(el('span', 'job-fact-label', label), el('span', 'job-fact-value', value))
+  const name = el('span', 'job-fact-label')
+  name.append(label)
+  box.append(name, el('span', 'job-fact-value', value))
   return box
 }
+
+/** A change in reputation, signed: "+6", "−4", "±0". */
+const signed = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `\u2212${-n}` : '\u00b10')
 
 export interface BoardControl {
   setActive(active: boolean): void
@@ -203,6 +210,10 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       fact(t('race.fee'), rubles(d.job.brief.fee)),
       fact(t('race.penalty'), db.penalty ? `−${rubles(db.penalty)}` : rubles(0)),
       fact(t('race.paid'), rubles(d.paid)),
+      fact(
+        glossaryTerm('reputation', t('race.reputation')),
+        t('race.repChange', { after: db.reputation.after, change: signed(db.reputation.after - db.reputation.before) }),
+      ),
     )
     const parts: HTMLElement[] = [
       el('p', 'shop-intro', t('race.intro', { client: b.client, event: b.event.name, km: fixed(km(b), 0) })),
@@ -316,12 +327,17 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       facts.append(
         fact(t('bids.theirPrice'), rubles(r.rival.price)),
         fact(t('bids.theirPromise'), t('board.promiseValue', { pct: pct(r.rival.promise) })),
-        fact(t('bids.yourValue'), rubles(bidScore(id, r.mine))),
-        fact(t('bids.theirValue'), rubles(bidScore(id, r.rival))),
+        fact(glossaryTerm('reputation', t('bids.yourRep')), String(r.myRep)),
+        fact(glossaryTerm('reputation', t('bids.theirRep')), String(r.rivalRep)),
+        fact(t('bids.yourValue'), rubles(bidScore(id, r.mine, r.myRep))),
+        fact(t('bids.theirValue'), rubles(bidScore(id, r.rival, r.rivalRep))),
       )
     }
     const parts: HTMLElement[] = [verdict, facts]
-    if (r.rival) parts.push(el('p', 'shop-note', t('bids.how', { worth: rubles(r.worth), max: rubles(briefTemplate(id)!.fee.max) })))
+    if (r.rival)
+      parts.push(
+        el('p', 'shop-note', t('bids.how', { worth: rubles(r.worth), max: rubles(briefTemplate(id)!.fee.max), rep: String(Math.round(1 / REPUTATION.bidPerPoint)) })),
+      )
     if (r.won) {
       parts.push(el('p', 'shop-note', t('bids.wonNote')))
       const toShape = button('shop-order', t('bids.toShape'))
@@ -453,9 +469,17 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     firm.setAttribute('aria-label', t('board.firmName'))
     const money = el('p', 'firm-money', rubles(career.money))
     money.classList.toggle('over', career.money < 0)
+    // The firm's name: reputation and correlation score, both from the record of finished jobs.
+    const corr = correlationScore(career.history)
+    const name = el('div', 'firm-name')
+    name.append(
+      fact(glossaryTerm('reputation', t('board.reputation')), t('board.outOf', { n: reputationOf(career.history) })),
+      fact(glossaryTerm('correlationScore', t('board.correlation')), corr === null ? t('board.noRecord') : t('board.outOf', { n: corr })),
+    )
     firm.append(
       money,
       el('p', 'firm-date', t(career.jobsDone === 1 ? 'board.dateOne' : 'board.date', { date: careerDate(career.day, CAREER.start), jobs: career.jobsDone })),
+      name,
     )
     const now = jobCard()
     const boardHead = el('h2', 'board-heading', t('board.title'))
