@@ -25,7 +25,7 @@ import { cameraTooHigh, gustLimit, gustTurn, planeMass, planeRange, staticMargin
 import { AIRCRAFT_DESK, type AircraftDesign, type Airfield } from '../data/aircraft'
 import { aircraftMass, cruiseSpeed, KMH, stallCheck } from './aircraft'
 import { POD_DESK, type PodDesign, type TestRange } from '../data/pod'
-import { hoursOnStation, patrolDensity, podBuffet, podMass, type Buffet } from './pod'
+import { hoursOnStation, patrolDensity, podBuffet, podMass, type Buffet, type Sensor } from './pod'
 import type { ShapeSpec } from './geom/body'
 import { gaussian } from './noise'
 import { hashString, Rng } from './rng'
@@ -366,7 +366,7 @@ export interface PodDeskEstimate {
  * design's jitter, against the ministry's plane with its old pod. The desk
  * works from the pod under the real wing, pylon and all.
  */
-export function podDeskEstimate(design: PodDesign, old: PodDesign, range: TestRange, jobSeed: number, designKey: string, analystLevel = 0): PodDeskEstimate {
+export function podDeskEstimate(design: PodDesign, old: PodDesign, range: TestRange, jobSeed: number, designKey: string, analystLevel = 0, oldSensor: Sensor = 'old'): PodDeskEstimate {
   const narrow = Math.max(DESK.floor, 1 - DESK.perLevel * analystLevel)
   const job = new Rng(jobSeed)
   const mine = new Rng(jobSeed ^ hashString(designKey))
@@ -378,7 +378,7 @@ export function podDeskEstimate(design: PodDesign, old: PodDesign, range: TestRa
     value: at(drag),
     low: at(drag * (1 + sd)),
     high: at(drag * (1 - sd)),
-    old: hoursOnStation(old, { sensor: 'old', density }),
+    old: hoursOnStation(old, { sensor: oldSensor, density }),
     buffet: podBuffet(design),
     mass: podMass(design),
   }

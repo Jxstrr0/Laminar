@@ -1185,8 +1185,8 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
    */
   function showPod(p: PodDesign) {
     const career = careerStore.get()
-    const { range, old } = currentPodRun(career, p.class)
-    const desk = podDeskEstimate(p, old, range, career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(p), crewEffects(career.crew).deskLevel)
+    const { range, old, oldSensor } = currentPodRun(career, p.class)
+    const desk = podDeskEstimate(p, old, range, career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(p), crewEffects(career.crew).deskLevel, oldSensor)
     podDeskR.value.textContent = `${fixed(desk.value, 2)} h`
     podDeskR.sub.textContent = t('read.deskPodNote', { spread: fixed(((desk.high - desk.low) / 2) * 60, 0), old: fixed(desk.old, 2) })
     const b = desk.buffet

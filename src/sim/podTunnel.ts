@@ -21,7 +21,7 @@ import { POD_BODY, POD_BUFFET, POD_CLASS, POD_TUNNEL as T, type PodDesign, type 
 import { describeShape } from './geom/body'
 import { podShape } from './geom/pod'
 import { gaussian } from './noise'
-import { hoursOnStation, patrolDensity, podBuffet, podDrag, podLengths } from './pod'
+import { hoursOnStation, patrolDensity, podBuffet, podDrag, podLengths, type Sensor } from './pod'
 import { blockageFactor, type MountKind } from './quirks'
 import { Rng } from './rng'
 import type { Run } from './run'
@@ -122,13 +122,14 @@ const mean = (xs: readonly number[]) => (xs.length ? xs.reduce((s, x) => s + x, 
 
 /**
  * Hours on station and the buffet on the tunnel's readings, against the
- * ministry's plane with its old pod. The pod's drag is the readings' mean;
+ * ministry's plane with its old pod (or, on a job, its pod as it hangs now,
+ * `oldSensor` 'new'). The pod's drag is the readings' mean;
  * read on its own, the firm adds the pylon's drag from the handbook, but
  * nothing for the gap, so a tight pod looks better than it flies. The trim
  * drag of the stagger is worked out by hand either way. Null until
  * something has been read.
  */
-export function forecastPod(readings: readonly Omit<PodReading, 'dragN'>[], design: PodDesign, old: PodDesign, range: TestRange): PodForecast | null {
+export function forecastPod(readings: readonly Omit<PodReading, 'dragN'>[], design: PodDesign, old: PodDesign, range: TestRange, oldSensor: Sensor = 'old'): PodForecast | null {
   if (readings.length === 0) return null
   const wing = readings.every((r) => r.wing)
   const d = podDrag(design)
@@ -136,7 +137,7 @@ export function forecastPod(readings: readonly Omit<PodReading, 'dragN'>[], desi
   const density = patrolDensity(range)
   const hours = hoursOnStation(design, { density, podCdA: cdA })
   const buffet = mean(readings.map((r) => r.shake))
-  return { hours, gain: hours - hoursOnStation(old, { sensor: 'old', density }), cdA, wing, buffet, blurs: buffet > POD_BUFFET.limit }
+  return { hours, gain: hours - hoursOnStation(old, { sensor: oldSensor, density }), cdA, wing, buffet, blurs: buffet > POD_BUFFET.limit }
 }
 
 /**
