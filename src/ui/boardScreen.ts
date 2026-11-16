@@ -13,7 +13,8 @@ import { buildBlock, machineBlock, ownReadyDay, upgradeBlock, upgradeReadyDay } 
 import { MACHINE_IDS, MACHINE_PRICE } from '../data/model'
 import { designShape, isBobsled, isCar, isJumper, isSkater, isTruck, type Design } from '../sim/design'
 import { CAR_CLASS, type CarDesign } from '../data/car'
-import { checkCarRules, lapTime } from '../sim/car'
+import { checkCarRules, lapTime, scrutineered } from '../sim/car'
+import { playCarReplay } from './carReplay'
 import type { BobsledDesign } from '../data/bobsled'
 import { GRAVEL_YARD, type TruckDesign } from '../data/truck'
 import { ROUTES } from '../data/routes'
@@ -774,8 +775,8 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       if (!d) return
       deliverSheet?.close()
       careerStore.set(d.state)
-      // The lap replay comes in a later PR: straight to the debrief for now.
-      showCarDelivery(d)
+      // The lap replay (PR 9o), then the debrief.
+      replayCar(d, car, () => showCarDelivery(d, car))
     })
     deliverSheet.body.replaceChildren(
       el('p', 'shop-intro', t('deliver.introCar', { client: b.client, circuit: circuitName })),
@@ -792,8 +793,25 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
 
   let carSheet: Sheet | null = null
 
+  /** Race day's lap replay for a car as the scrutineers passed it, then `after`. */
+  function replayCar(d: CarDelivery, design: CarDesign, after: () => void) {
+    const b = briefTemplate(d.job.brief.id)!
+    void playCarReplay({
+      client: b.client,
+      event: b.event.name,
+      circuit: d.event.circuit,
+      design: scrutineered(design),
+      setup: b.setup as CarDesign,
+      lap: d.debrief.lap,
+      baselineLap: d.debrief.baselineLap,
+      predicted: d.debrief.predicted,
+      actual: d.debrief.actual,
+      onDone: after,
+    })
+  }
+
   /** Race weekend for a car: the promise judged on the usual day's lap, race day, and each trouble or trim with its fix. */
-  function showCarDelivery(d: CarDelivery) {
+  function showCarDelivery(d: CarDelivery, design: CarDesign) {
     carSheet ??= createSheet({ cls: 'raceday', title: t('cd.title'), closeLabel: t('cd.close') })
     const b = briefTemplate(d.job.brief.id)!
     const db = d.debrief
@@ -846,6 +864,12 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     parts.push(el('p', 'shop-note', t('cd.readNote')))
     if (d.sale) parts.push(brokeBox(d.sale, d.state.money))
     if (d.state.ended) parts.push(el('p', 'save-due', t('end.reached')))
+    const again = button('save-btn quiet', t('race.replay'))
+    again.addEventListener('click', () => {
+      carSheet?.close()
+      replayCar(d, design, () => showCarDelivery(d, design))
+    })
+    parts.push(again)
     carSheet.body.replaceChildren(...parts)
     carSheet.open()
   }

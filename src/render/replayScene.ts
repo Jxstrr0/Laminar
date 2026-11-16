@@ -8,7 +8,7 @@
  */
 import * as THREE from 'three'
 import { FIELD_TROUBLE, type CourseSegment } from '../data/field'
-import { REPLAY_SCENE as S } from '../data/replay'
+import { CAR_REPLAY, REPLAY_SCENE as S } from '../data/replay'
 import { designPose, type Design } from '../sim/design'
 import type { TrackPoint } from '../sim/replay'
 import { buildRider, disposeGroup } from './riderFigure'
@@ -57,6 +57,8 @@ export interface ReplayOptions {
   still?: boolean
   /** A truck's fuel run (PR 9h): the wider road, lanes and camera of REPLAY_SCENE.truck. */
   truck?: boolean
+  /** A race lap (PR 9o): the circuit's road, lanes and camera of REPLAY_SCENE.car, and no cones but the line. */
+  car?: boolean
 }
 
 /** A rider as drawn: tucked as designed, and (built the first time it's needed) sitting up. */
@@ -92,7 +94,9 @@ export interface ReplayView {
 
 export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): ReplayView {
   // The road's layout and the chase camera: a rider's, or a truck's.
-  const lay = opts.truck ? S.truck : { roadWidth: S.roadWidth, laneMine: S.laneMine, laneOld: S.laneOld, flagEvery: S.flagEvery, flagSide: S.flagSide, camera: S.camera }
+  // setCourse's own options shadow these, so keep the circuit flag by name.
+  const circuit = opts.car === true
+  const lay = circuit ? S.car : opts.truck ? S.truck : { roadWidth: S.roadWidth, laneMine: S.laneMine, laneOld: S.laneOld, flagEvery: S.flagEvery, flagSide: S.flagSide, camera: S.camera }
   const renderer = new THREE.WebGLRenderer({ antialias: true })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
   renderer.outputColorSpace = THREE.SRGBColorSpace
@@ -200,6 +204,14 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     if (at.faded > 0) f.sitting ??= build(sitUp(f.design), f.ghost)
     const g = at.faded > 0 && f.sitting ? f.sitting : f.tucked
     for (const other of [f.tucked, f.sitting]) if (other) other.visible = other === g
+    // A car's `eased` marks porpoising (PR 9o): it bounces on its springs instead of rocking.
+    if (f.design.sport === 'car') {
+      stand(g, at, lane)
+      const b = CAR_REPLAY.bounce
+      g.position.y = at.eased > 0 && !opts.still ? b.height * Math.abs(Math.sin(2 * Math.PI * b.perSecond * (clock + phase))) : 0
+      g.rotation.x = 0
+      return g
+    }
     const roll = rollFor(at.eased, phase)
     stand(g, at, lane + (S.trouble.swayM * roll) / S.trouble.rollDeg)
     g.rotation.x = roll * DEG
@@ -297,6 +309,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
         return
       }
       const downwind = (90 - (opts.windFromDeg + 180)) * DEG
+      const total = segs.reduce((sum, seg) => sum + seg.length, 0)
       let x = 0
       let z = 0
       let along = 0
@@ -335,10 +348,12 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
         x += fx * seg.length
         z += fz * seg.length
         along += seg.length
-        // A cone where the course turns (and at the finish).
-        const cone = new THREE.Mesh(coneGeo, coneMat)
-        cone.position.set(x, 0.45, z)
-        course.add(cone)
+        // A cone where the course turns (and at the finish). A circuit is drawn in short pieces: only its line gets one.
+        if (!circuit || along >= total - 1e-6) {
+          const cone = new THREE.Mesh(coneGeo, coneMat)
+          cone.position.set(x, 0.45, z)
+          course.add(cone)
+        }
       }
     },
     setRiders(mineDesign, oldDesign) {

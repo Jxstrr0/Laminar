@@ -74,10 +74,17 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 9l | The racing car on the Tunnel screen: it hangs from a strut over the bare floor, the shop's ground board or the rolling road; the angle row becomes the ride drop; readouts for downforce, balance, drag and the lap forecast; the ride sweep chart (downforce against drop); the forecast in full on the Runs tab; the strut breaks past 1,500 N | **Done** (v0.9.11.0) |
 | 9m | Car jobs in the sim: three teams (Belan Sport and Granit Motorsport in touring cars, Iskra Racing in the open-wheel series), the promise in tenths of a second off the lap on the circuit's usual day, scrutineers who raise or trim an illegal car, a seeded race day, the read judged on downforce, and a debrief that blames the rules, porpoising, balance or heat when one of them cost the promise. The Shape and Tunnel screens forecast at the job's circuit against the team's own car. Closed to the board until 9n | **Done** (v0.9.12.0) |
 | 9n | Car jobs on the board: brief cards with the circuit, the car and the air; bids in tenths of a second; the Deliver sheet (the declared lap, filled in from the tunnel's lap forecast or the desk, with warnings for the floor it was read over, a map not read low enough, porpoising and the rulebook); the race weekend debrief with each trim and trouble and a "change this" | **Done** (v0.9.13.0) |
-| 9o–14 | See the plan | Next: the lap replay (9o). Then the land-speed record. |
+| 9o | The lap replay: race day round the circuit from behind your car, the team's old car as a see-through twin alongside, the lap clock, speed and gap, the commentator on the slowest corner, the top speed and porpoising (the car bounces where it porpoises), then the declared lap against the real one | **Done** (v0.9.14.0) |
+| 9p–14 | See the plan | Next: the land-speed record. |
 
 ## Versions
 
+- **0.9.14.0** (PR 9o): the lap replay. Delivering a car job now plays
+  race day's lap before the race weekend sheet: your car from behind,
+  their car as a see-through twin alongside, with the lap clock, your
+  speed and the gap to their car. The commentator calls the slowest
+  corner, the top speed and porpoising, and a porpoising car bounces
+  where it does. "Watch again" is on the race weekend sheet.
 - **0.9.13.0** (PR 9n): car jobs on the board. Belan Sport, Granit
   Motorsport and Iskra Racing come up as the firm's name grows. Bids are
   in tenths of a second off the lap. Delivering asks for the lap on the

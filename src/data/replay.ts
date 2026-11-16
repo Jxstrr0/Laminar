@@ -61,6 +61,19 @@ export const REPLAY_SCENE = {
     flagSide: -8,
     camera: { back: 34, up: 11, side: -2.2, ahead: 24, lookUp: 0, fov: 50 },
   },
+  /**
+   * A race lap (PR 9o): a circuit-wide road with your car on the right and
+   * the team's old car on the left, no wind flags, and the chase camera
+   * low behind your car.
+   */
+  car: {
+    roadWidth: 12,
+    laneMine: 2,
+    laneOld: -2,
+    flagEvery: 1e9,
+    flagSide: -8,
+    camera: { back: 11, up: 3.2, side: -1, ahead: 12, lookUp: 0.4, fov: 55 },
+  },
   /** The indoor track: the boards' width, a fixed broadcast camera and the rider markers. */
   track: {
     width: 7,
@@ -195,4 +208,22 @@ export const TRUCK_REPLAY = {
   slowBy: 0.5,
   /** A line comes this far into its stretch (a share of it), so the picture has turned first. */
   noteAt: 0.08,
+}
+
+/**
+ * The lap replay (PR 9o): both cars round the circuit on race day, side by
+ * side, sped up. Every speed comes from the day's two laps; these numbers
+ * only set how they are shown.
+ */
+export const CAR_REPLAY = {
+  /** The lap (to the slower car's line) plays in this many seconds; a lap takes a minute or two. */
+  seconds: 24,
+  /** A straight is drawn in pieces no longer than this, m, so braking and pulling away show. */
+  piece: 40,
+  /** A corner is drawn in pieces turning no more than this, degrees. */
+  cornerStep: 10,
+  /** A line comes this far into its stretch (a share of it), so the picture has turned first. */
+  noteAt: 0.15,
+  /** A porpoising car bounces this high, m, this many times a second of the replay. */
+  bounce: { height: 0.06, perSecond: 4 },
 }
