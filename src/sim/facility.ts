@@ -8,6 +8,7 @@ import { OWN_BILLING, OWN_QUIRKS, OWN_TUNNEL_BUILD, TUNNEL_BILLING, TUNNEL_UPGRA
 import { MACHINE_PRICE, MAKER_IDS, type MachineId, type MakerId } from '../data/model'
 import { rollQuirks, type QuirkRanges, type TunnelQuirks } from './quirks'
 import { hashString } from './rng'
+import { crewEffects, NO_CREW, type Crew } from './staff'
 
 export type TunnelId = 'university' | 'own'
 
@@ -99,8 +100,9 @@ export function tunnelRunCost(id: TunnelId, energyKWh: number): number {
   return b.perRun + energyKWh * b.perKWh
 }
 
-export type TunnelBuild = Omit<typeof UNIVERSITY_TUNNEL, 'topSpeed' | 'wheelDrive' | 'turntable'> & {
+export type TunnelBuild = Omit<typeof UNIVERSITY_TUNNEL, 'topSpeed' | 'wheelDrive' | 'turntable' | 'balanceNoise'> & {
   topSpeed: number
+  balanceNoise: number
   wheelDrive: boolean
   turntable: { min: number; max: number; step: number; rate: number }
 }
@@ -111,24 +113,29 @@ export interface TunnelSetup {
   build: TunnelBuild
   quirks: TunnelQuirks
   fitted: UpgradeId[]
-  /** Changes whenever the setup does (a new tunnel, an upgrade fitted). */
+  /** How much load the mount posts take, times FAILURE.mountN (a tunnel tech can raise it). */
+  mountStrength: number
+  /** Changes whenever the setup does (a new tunnel, an upgrade fitted, a new tech). */
   key: string
 }
 
-/** The tunnel the firm tests in on this day, with whatever upgrades are fitted. */
-export function tunnelSetup(careerSeed: number, f: Facility, day: number): TunnelSetup {
+/** The tunnel the firm tests in on this day, with whatever upgrades are fitted and whoever's on staff. */
+export function tunnelSetup(careerSeed: number, f: Facility, day: number, crew: Crew = NO_CREW): TunnelSetup {
   const id = activeTunnel(f, day)
   const fitted = id === 'own' ? fittedUpgrades(f, day) : []
   const has = (u: UpgradeId) => fitted.includes(u)
   const base = UNIVERSITY_TUNNEL
   const yaw = has('turntable') ? TUNNEL_UPGRADES.turntable.yawRange : base.turntable.max
+  const hands = crewEffects(crew)
   const build: TunnelBuild = {
     ...base,
+    balanceNoise: base.balanceNoise * hands.balanceNoise,
     topSpeed: has('fan') ? TUNNEL_UPGRADES.fan.topSpeed : base.topSpeed,
     wheelDrive: has('wheelDrive'),
     turntable: { ...base.turntable, min: -yaw, max: yaw },
   }
   const raw = tunnelQuirks(id, careerSeed)
   const quirks = has('screens') ? { ...raw, turbulence: raw.turbulence * TUNNEL_UPGRADES.screens.turbulenceShare } : raw
-  return { id, build, quirks, fitted, key: [id, ...fitted].join(':') }
+  const tech = crew.tech ? [crew.tech] : []
+  return { id, build, quirks, fitted, mountStrength: hands.mountStrength, key: [id, ...fitted, ...tech].join(':') }
 }

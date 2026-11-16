@@ -38,11 +38,22 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 7c | Your own tunnel: save up and build it (cash only), 90 days, cheap runs and daily upkeep | **Done** (v0.7.2.0) |
 | 7d | Tunnel upgrades: turbulence screens, bigger turntable, wheel-drive rig, bigger fan | **Done** (v0.7.3.0) |
 | 7e | Workshop chain: FDM printer, resin printer, CNC mill | **Done** (v0.7.4.0) |
-| 7f | Staff with traits, paid per day that passes | Next |
-| 7g–14 | See the plan (going broke, backup file, 2040 ending, then PRs 8–14) | Not started |
+| 7f | Staff with traits, paid per day that passes | **Done** (v0.7.5.0) |
+| 7g | Going broke: the soft landing | Next |
+| 7h–14 | See the plan (backup file, 2040 ending, then PRs 8–14) | Not started |
 
 ## Versions
 
+- **0.7.5.0** (PR 7f): staff.
+  - A Staff card on the Jobs screen: one person per role (model maker,
+    tunnel tech, analyst), two to choose from in each, three at most.
+  - Each is paid their wage for every day that passes, job or not, and
+    stays until you let them go (nobody gets poached). Wages show on the
+    race-day debrief.
+  - Model makers make models and repairs quicker (Daria Orlik) or cheaper
+    (Bogdan Venko). Tunnel techs halve the balance's scatter (Timur Basov)
+    or make the mount posts hold 40 % more (Lidiya Krasna). Analysts
+    narrow the desk estimate (Artyom Zhelin a lot, Milena Sorokova a little).
 - **0.7.4.0** (PR 7e): the workshop.
   - A Workshop card on the Jobs screen sells three machines for cash:
     - an FDM printer (₽120k): cheap, any scale, rough and a little bendy;

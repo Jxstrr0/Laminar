@@ -544,9 +544,10 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       applyInstruments()
     }
   }
-  shopBtn.addEventListener('click', () =>
-    openModelShop(order, hooks.shop(), (next) => {
-      const q = quote(next)
+  shopBtn.addEventListener('click', () => {
+    const ctx = hooks.shop()
+    openModelShop(order, ctx, (next) => {
+      const q = quote(next, ctx.hand)
       hooks.onOrder(q.price, q.days)
       order = next
       broken = null
@@ -559,8 +560,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       placeModel()
       showStale()
       onChange()
-    }),
-  )
+    })
+  })
   showTapsChip()
 
   // --- When the bench design has moved on from the model: swap parts, or order a new one.
@@ -632,8 +633,9 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   app.append(brokenBox)
   /** The repair as one price (screens included), and whether the job has the days for it. */
   function repairTerms(f: Failure) {
-    const q = repairQuote(order, f)
-    return { ...q, total: q.price + q.screens, blocked: hooks.shop().block(q.days) === 'noDays' }
+    const ctx = hooks.shop()
+    const q = repairQuote(order, f, ctx.hand)
+    return { ...q, total: q.price + q.screens, blocked: ctx.block(q.days) === 'noDays' }
   }
   function showBroken() {
     const on = locked()
@@ -1365,7 +1367,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       // The model's weak points, checked every fixed step (the tunnel always warns first).
       if (mount === 'rider' && !tare && prepared && !broken) {
         const loadN = dynamicPressure(AIR.density, fan.speed) * loadArea
-        const step = stepStrain(strainClock, strains({ order, design: modelDesign }, fan.speed, loadN), STEP)
+        const step = stepStrain(strainClock, strains({ order, design: modelDesign }, fan.speed, loadN, setup.mountStrength), STEP)
         strainClock = step.clock
         warn = step.warn
         if (step.broke) breakModel(step.broke)

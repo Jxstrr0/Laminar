@@ -10,6 +10,7 @@
  *   leaves the board and another takes its place while any are left.
  * - Your own tunnel is bought with cash and opens OWN_TUNNEL_BUILD.days later;
  *   from then on its upkeep is paid for every day that passes (passDays).
+ * - Staff (one per role) are paid their wage for every day that passes too.
  * - Delivering runs the event, pays the fee, jumps the calendar to the
  *   event and refreshes the board.
  */
@@ -28,6 +29,8 @@ import { rivalRecord } from './rivals'
 import { buildBlock, machineBlock, NO_FACILITY, upgradeBlock, upkeepDays, type Facility } from './facility'
 import { MACHINE_PRICE, type MachineId } from '../data/model'
 import { OWN_TUNNEL_BUILD, TUNNEL_UPGRADES, type UpgradeId } from '../data/tunnel'
+import { hire, letGo, NO_CREW, wagesPerDay, type Crew } from './staff'
+import type { StaffId } from '../data/staff'
 import { fieldResult, REFERENCE_TT, truth, type EventSpec, type FieldResult } from './views'
 
 /** A brief as it sits on the board: which client, and the terms on offer. */
@@ -87,6 +90,8 @@ export interface CareerState {
   guide: Guide
   /** Where the firm tests: the university's tunnel, and your own once it's paid for. */
   facility: Facility
+  /** Who's on the staff (one per role). */
+  crew: Crew
 }
 
 /** Why a model can't be ordered now, or null if it can. */
@@ -145,6 +150,7 @@ export function newCareer(seed: number): CareerState {
     history: [],
     guide: { off: false, done: [] },
     facility: NO_FACILITY,
+    crew: NO_CREW,
   }
 }
 
@@ -153,14 +159,29 @@ export function upkeepFor(state: CareerState, days: number): number {
   return upkeepDays(state.facility, state.day, state.day + days) * OWN_TUNNEL_BUILD.upkeepPerDay
 }
 
+/** The staff's wages for `days` more days, ₽. */
+export function wagesFor(state: CareerState, days: number): number {
+  return Math.max(0, days) * wagesPerDay(state.crew)
+}
+
 /**
- * Let days pass: the calendar moves on and the open tunnel's upkeep is paid
- * for each of them. Upkeep is the firm's cost, not the job's, so it stays
- * off the job's tally.
+ * Let days pass: the calendar moves on, and the open tunnel's upkeep and the
+ * staff's wages are paid for each of them. They're the firm's costs, not the
+ * job's, so they stay off the job's tally.
  */
 export function passDays(state: CareerState, days: number): CareerState {
   if (days <= 0) return state
-  return { ...state, money: state.money - upkeepFor(state, days), day: state.day + days }
+  return { ...state, money: state.money - upkeepFor(state, days) - wagesFor(state, days), day: state.day + days }
+}
+
+/** Take someone on (whoever held their role leaves). Wages start with the next day that passes. */
+export function hireStaff(state: CareerState, id: StaffId): CareerState {
+  return { ...state, crew: hire(state.crew, id) }
+}
+
+/** Let someone go. Nothing more is owed. */
+export function letStaffGo(state: CareerState, id: StaffId): CareerState {
+  return { ...state, crew: letGo(state.crew, id) }
 }
 
 /** Pay for your own tunnel (cash only); it opens OWN_TUNNEL_BUILD.days later. Unchanged if it can't be bought. */
@@ -419,6 +440,8 @@ export interface Delivery {
   paid: number
   /** Your tunnel's upkeep for the days up to race day, ₽ (0 before it's open). */
   upkeep: number
+  /** The staff's wages for the days up to race day, ₽. */
+  wages: number
 }
 
 /** The seed for a job's event day. */
@@ -482,9 +505,10 @@ export function deliver(state: CareerState, design: CyclistDesign, predicted: nu
     actual: result.cdA,
   }
   const upkeep = upkeepFor(state, job.daysLeft)
+  const wages = wagesFor(state, job.daysLeft)
   const next: CareerState = {
     ...state,
-    money: state.money + paid - upkeep,
+    money: state.money + paid - upkeep - wages,
     day: raceDay,
     jobsDone,
     round: state.round + 1,
@@ -493,5 +517,5 @@ export function deliver(state: CareerState, design: CyclistDesign, predicted: nu
     job: null,
     history: [...state.history, record],
   }
-  return { state: next, job, event, result, debrief, paid, upkeep }
+  return { state: next, job, event, result, debrief, paid, upkeep, wages }
 }

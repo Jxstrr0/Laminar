@@ -56,7 +56,17 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Bystro Aero | Cheap, quick rival consultancy whose tunnel numbers don't always hold up on the road. |
 | Vysota Aerolab | Prestige rival with a big tunnel and big prices. |
 
+## Staff (PR 7f)
+
+| Name | What they are |
+| --- | --- |
+| Daria Orlik | Model maker with quick hands. |
+| Bogdan Venko | Thrifty model maker. |
+| Timur Basov | Steady tunnel tech. |
+| Lidiya Krasna | Tunnel tech who's good with mounts. |
+| Artyom Zhelin | Sharp analyst. |
+| Milena Sorokova | Junior analyst. |
+
 ## Still to name (later PRs)
 
-The university and its tunnel, the outside model shop,
-staff, other sport federations, more venues and export countries.
+The university and its tunnel, the outside model shop, other sport federations, more venues and export countries.

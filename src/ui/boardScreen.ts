@@ -19,6 +19,8 @@ import {
   briefTemplate,
   buildOwnTunnel,
   buyMachine,
+  hireStaff,
+  letStaffGo,
   orderUpgrade,
   deliver,
   eventOf,
@@ -30,6 +32,9 @@ import {
   type Delivery,
 } from '../sim/career'
 import { deskEstimate } from '../sim/desk'
+import { crewEffects, wagesPerDay } from '../sim/staff'
+import { STAFF, STAFF_IDS, STAFF_ROLES, type StaffId } from '../data/staff'
+import { DESK } from '../data/cyclist'
 import { correlationScore, reputationOf } from '../sim/reputation'
 import { rivalRecord } from '../sim/rivals'
 import type { FixTarget } from '../sim/failure'
@@ -121,7 +126,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     deliverSheet ??= createSheet({ cls: 'deliver', title: t('deliver.title'), closeLabel: t('deliver.close') })
     const b = briefTemplate(job.brief.id)!
     const design = designStore.get()
-    const desk = deskEstimate(cyclistShape(design), eventOf(job.brief), job.brief.seed, JSON.stringify(design))
+    const desk = deskEstimate(cyclistShape(design), eventOf(job.brief), job.brief.seed, JSON.stringify(design), crewEffects(career.crew).deskLevel)
     const input = el('input', 'deliver-input')
     input.type = 'number'
     input.id = 'deliver-cda'
@@ -221,6 +226,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       fact(t('race.penalty'), db.penalty ? `−${rubles(db.penalty)}` : rubles(0)),
       fact(t('race.paid'), rubles(d.paid)),
       ...(d.upkeep > 0 ? [fact(t('race.upkeep'), `−${rubles(d.upkeep)}`)] : []),
+      ...(d.wages > 0 ? [fact(t('race.wages'), `−${rubles(d.wages)}`)] : []),
       fact(
         glossaryTerm('reputation', t('race.reputation')),
         t('race.repChange', { after: db.reputation.after, change: signed(db.reputation.after - db.reputation.before) }),
@@ -459,6 +465,60 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     return card
   }
 
+  /** What one person's trait does, in words with its number. */
+  function traitText(id: StaffId): string {
+    const tr = STAFF[id].trait
+    const pct = (x: number) => fixed(Math.abs(x) * 100, 0)
+    if (tr.modelDays !== undefined) return t('staff.trait.modelDays', { pct: pct(1 - tr.modelDays) })
+    if (tr.modelPrice !== undefined) return t('staff.trait.modelPrice', { pct: pct(1 - tr.modelPrice) })
+    if (tr.balanceNoise !== undefined) return t('staff.trait.balanceNoise', { pct: pct(1 - tr.balanceNoise) })
+    if (tr.mountStrength !== undefined) return t('staff.trait.mountStrength', { pct: pct(tr.mountStrength - 1) })
+    const level = tr.deskLevel ?? 0
+    return t('staff.trait.deskLevel', { pct: pct(Math.min(1 - DESK.floor, DESK.perLevel * level)) })
+  }
+
+  /** The staff: one per role, hired and let go any time, paid for every day that passes. */
+  function staffCard(): HTMLElement {
+    const career = careerStore.get()
+    const card = el('section', 'job-card own-card')
+    card.setAttribute('aria-labelledby', 'staff-title')
+    const head = el('h2', 'job-client', t('staff.title'))
+    head.id = 'staff-title'
+    card.append(head, el('p', 'shop-note', t('staff.intro')))
+    const payroll = wagesPerDay(career.crew)
+    if (payroll > 0) card.append(el('p', 'shop-note staff-payroll', t('staff.payroll', { rub: rubles(payroll) })))
+    for (const role of STAFF_ROLES) {
+      card.append(el('h3', 'staff-role', t(`staff.role.${role}`)))
+      const list = el('ul', 'upgrade-list')
+      for (const id of STAFF_IDS.filter((x) => STAFF[x].role === role)) {
+        const p = STAFF[id]
+        const row = el('li', 'upgrade')
+        const name = el('p', 'upgrade-name', p.name)
+        row.append(name, el('p', 'job-who', traitText(id)))
+        const line = el('div', 'upgrade-buy')
+        const holder = career.crew[role]
+        const btn = button('save-btn', '')
+        if (holder === id) {
+          name.append(' ', el('span', 'save-slot-tag', t('staff.on')))
+          btn.classList.add('quiet')
+          btn.textContent = t('staff.letGo')
+          twoTap(btn, t('staff.letGo'), t('staff.letGoConfirm', { name: p.name }), () => careerStore.set(letStaffGo(careerStore.get(), id)))
+        } else if (holder) {
+          btn.textContent = t('staff.hire')
+          twoTap(btn, t('staff.hire'), t('staff.hireOver', { name: STAFF[holder].name }), () => careerStore.set(hireStaff(careerStore.get(), id)))
+        } else {
+          btn.textContent = t('staff.hire')
+          btn.addEventListener('click', () => careerStore.set(hireStaff(careerStore.get(), id)))
+        }
+        line.append(el('span', 'upgrade-cost', t('staff.wage', { rub: rubles(p.wage) })), btn)
+        row.append(line)
+        list.append(row)
+      }
+      card.append(list)
+    }
+    return card
+  }
+
   /** Your tunnel's upgrades: what each does, its price and days, and whether it's fitted. */
   function upgradeList(): HTMLElement[] {
     const career = careerStore.get()
@@ -616,7 +676,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     if (career.board.length === 0 && !career.job) list.append(emptyCard())
     const intro = el('p', 'shop-note', t(career.job ? 'board.oneAtATime' : 'board.intro'))
     const guide = guideCard()
-    page.replaceChildren(firm, ...(guide ? [guide] : []), ...(now ? [now] : []), boardHead, intro, list, workshopCard(), ownTunnelCard(), rivals)
+    page.replaceChildren(firm, ...(guide ? [guide] : []), ...(now ? [now] : []), boardHead, intro, list, staffCard(), workshopCard(), ownTunnelCard(), rivals)
   }
 
   return {

@@ -10,6 +10,7 @@ import { CRANK_DIAL, DEMO_TUNNEL_SEED } from '../data/tunnel'
 import { briefTemplate, newCareer, type Brief, type CareerState, type Job, type JobRecord } from '../sim/career'
 import { GUIDE_STEPS, type GuideStep } from '../sim/guide'
 import { NO_FACILITY, type Facility } from '../sim/facility'
+import { NO_CREW, soundCrew } from '../sim/staff'
 import { UPGRADE_IDS, type UpgradeId } from '../data/tunnel'
 import type { Failure, FailureMode, FailurePart } from '../sim/failure'
 import type { LabState, RunNote } from '../sim/lab'
@@ -230,6 +231,9 @@ export function soundCareer(x: unknown): CareerState | null {
   // Careers from before PR 7c rent the university's tunnel.
   const facility = soundFacility(x.facility === undefined ? NO_FACILITY : x.facility)
   if (!facility) return null
+  // Careers from before PR 7f have no staff.
+  const crew = soundCrew(x.crew === undefined ? NO_CREW : x.crew)
+  if (!crew) return null
   return {
     seed: x.seed,
     money: x.money,
@@ -242,6 +246,7 @@ export function soundCareer(x: unknown): CareerState | null {
     history: history as JobRecord[],
     guide: { off: guide.off, done: guide.done as GuideStep[] },
     facility,
+    crew,
   }
 }
 
