@@ -68,6 +68,8 @@ import { sellToCover, type Sale } from './broke'
 import { hire, letGo, NO_CREW, wagesPerDay, type Crew } from './staff'
 import type { StaffId } from '../data/staff'
 import { fieldResult, REFERENCE_TT, truth, type EventSpec, type FieldResult } from './views'
+import { claim, recordBoard, type Holding, type RecordMark } from './records'
+import { RECORD_RULES, type RecordId } from '../data/records'
 
 /** A brief as it sits on the board: which client, and the terms on offer. */
 export interface Brief {
@@ -106,6 +108,8 @@ export interface JobRecord {
   actual: number
   /** A defence job (PR 10x): counts toward the correlation score, never the public reputation or the legacy card. */
   secret?: true
+  /** A Tarnovian record this job's result broke (PR 11a). */
+  mark?: RecordMark
 }
 
 export interface CareerState {
@@ -815,7 +819,8 @@ export interface Delivery {
   /** The staff's wages for the days up to race day, ₽. */
   wages: number
   /** If the job left cash below zero: the kit sold to cover it (the firm also lost BROKE.dip reputation). */
-  sale: Sale | null
+  sale: Sale | null  /** The Tarnovian record the job broke (PR 11a), or null. */
+  mark: RecordMark | null
 }
 
 /** The seed for a job's event day. */
@@ -865,8 +870,22 @@ export function deliver(state: CareerState, design: Design, predicted: number): 
       after: reputationOf([...state.history, { promised: job.promise, achieved, predicted, actual: result.cdA }], state.broke),
     },
   }
-  const closed = closeJob(state, job, penalty, { achieved, predicted, actual: result.cdA })
+  const closed = closeJob(state, job, penalty, { achieved, predicted, actual: result.cdA }, cyclingAttempt(b, result))
   return { ...closed, job, event, result, debrief: { ...debrief, reputation: { ...debrief.reputation, after: firmReputation(closed.state) } } }
+}
+
+/**
+ * The record a cycling result might break (PR 11a): the hour, for an hour
+ * attempt on the boards, or the time trial, for a road race long enough.
+ * Skaters set no records here.
+ */
+function cyclingAttempt(b: BriefTemplate, result: FieldResult): Attempt | null {
+  if (sportOf(b.setup) !== 'cycling' || result.time <= 0) return null
+  // km/h, which is also the km an hour at that pace covers.
+  const kmh = (result.distance / result.time) * 3.6
+  if (b.event.hour) return { record: 'hour', value: kmh }
+  if (!b.event.indoor && result.distance >= RECORD_RULES.timeTrialMin) return { record: 'timeTrial', value: kmh }
+  return null
 }
 
 /** What closing a job leaves: the career on race day, and the money that moved. */
@@ -876,6 +895,22 @@ interface Closed {
   upkeep: number
   wages: number
   sale: Sale | null
+  /** The Tarnovian record the job broke (PR 11a), or null. */
+  mark: RecordMark | null
+}
+
+/** A result on the day that might break a record: which one, and the mark in its unit. */
+interface Attempt {
+  record: RecordId
+  value: number
+}
+
+/**
+ * The Tarnovian records board as the firm's history leaves it (PR 11a).
+ * Defence jobs never set records.
+ */
+export function firmRecords(state: Pick<CareerState, 'history'>): Holding[] {
+  return recordBoard(state.history.filter((j) => !j.secret).map((j) => ({ day: j.day, mark: j.mark, holder: briefTemplate(j.id)?.client ?? '' })))
 }
 
 /**
@@ -884,12 +919,16 @@ interface Closed {
  * record and a fresh board comes up. If that leaves cash below zero, the
  * soft landing sells kit and the firm takes the dip.
  */
-function closeJob(state: CareerState, job: Job, penalty: number, result: Pick<JobRecord, 'achieved' | 'predicted' | 'actual'>): Closed {
+function closeJob(state: CareerState, job: Job, penalty: number, result: Pick<JobRecord, 'achieved' | 'predicted' | 'actual'>, attempt: Attempt | null = null): Closed {
   const paid = job.brief.fee - penalty
   const jobsDone = state.jobsDone + 1
   const raceDay = state.day + job.daysLeft
   const record: JobRecord = { id: job.brief.id, day: raceDay, fee: job.brief.fee, paid, promised: job.promise, ...result }
-  if (template(job.brief.id).defence) record.secret = true
+  const defence = template(job.brief.id).defence
+  if (defence) record.secret = true
+  // A result that beats a Tarnovian record goes on the board (PR 11a); a secret one never does.
+  const mark = attempt && !defence ? claim(firmRecords(state), attempt.record, attempt.value) : null
+  if (mark) record.mark = mark
   const upkeep = upkeepFor(state, job.daysLeft)
   const wages = wagesFor(state, job.daysLeft)
   const history = [...state.history, record]
@@ -922,7 +961,7 @@ function closeJob(state: CareerState, job: Job, penalty: number, result: Pick<Jo
     clearance,
   })
   // The reputation after (firmReputation of the new state) includes any dip for going broke.
-  return { state: next, paid, upkeep, wages, sale }
+  return { state: next, paid, upkeep, wages, sale, mark }
 }
 
 /** What the jump showed (plan section 9: distance gain at a reference speed, with a pitch-stability floor). */
@@ -1009,7 +1048,7 @@ export function deliverJump(state: CareerState, design: JumperDesign, predicted:
     trouble,
     reputation: { before: firmReputation(state), after: 0 },
   }
-  const closed = closeJob(state, job, penalty, { achieved, predicted, actual: reference.counted })
+  const closed = closeJob(state, job, penalty, { achieved, predicted, actual: reference.counted }, { record: 'skiJump', value: day.distance })
   return { ...closed, job, event, debrief: { ...debrief, reputation: { ...debrief.reputation, after: firmReputation(closed.state) } } }
 }
 
@@ -1201,7 +1240,7 @@ export function deliverTruck(state: CareerState, design: TruckDesign, predicted:
     cause,
     reputation: { before: firmReputation(state), after: 0 },
   }
-  const closed = closeJob(state, job, penalty, { achieved, predicted: predictedCdA, actual: actualCdA })
+  const closed = closeJob(state, job, penalty, { achieved, predicted: predictedCdA, actual: actualCdA }, { record: 'truckFuel', value: actual })
   return { ...closed, job, event, debrief: { ...debrief, reputation: { ...debrief.reputation, after: firmReputation(closed.state) } } }
 }
 
@@ -1439,7 +1478,7 @@ export function deliverRecord(state: CareerState, design: RecordDesign, predicte
     sight: sight && sightLoss(design) > 0 ? { share: sight.share, lost: sight.mean !== null && still.mean !== null ? (sight.mean - still.mean) * 3.6 : 0, fix: 'canopy' } : null,
     reputation: { before: firmReputation(state), after: 0 },
   }
-  const closed = closeJob(state, job, penalty, { achieved, predicted: predictedCdA, actual: actualCdA })
+  const closed = closeJob(state, job, penalty, { achieved, predicted: predictedCdA, actual: actualCdA }, debrief.attempt.mean === null ? null : { record: 'landSpeed', value: debrief.attempt.mean * 3.6 })
   return { ...closed, job, event, debrief: { ...debrief, reputation: { ...debrief.reputation, after: firmReputation(closed.state) } } }
 }
 
