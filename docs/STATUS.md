@@ -65,10 +65,22 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 9c | The truck in the tunnel, sim side: truck model scales (1:12, 1:10, 1:8), parts drag that grows with yaw, the still floor and the ground board, bolt-on part swaps, the fuel-saving forecast from a yaw sweep | **Done** (v0.9.2.0) |
 | 9d | The truck on the tunnel screen: its own small model on a ground board, the camera framing the rig, runs pooled by yaw into a fuel-saving forecast with the straight-on and bare-floor traps named, truck scales in the model shop, stouter struts | **Done** (v0.9.3.0) |
 | 9e | Truck jobs in the sim: three fleets' briefs (closed until 9f), a coast route, the promise on wind-averaged fuel saved, the declared fuel figure judged on drag, the road code cutting back illegal parts, the lab's full-size friction correction on truck readings | **Done** (v0.9.4.0) |
+| 9f | Truck jobs on the board: the brief card (route, trailer), bids in per cent of fuel, the job's route and fleet truck in Shape and the tunnel, a Deliver sheet that declares a fuel figure from the tunnel's forecast, and the fuel-trial debrief with a "change this" for any part the road code cut back | **Done** (v0.9.5.0) |
 | 9e–14 | See the plan | Next: PR 9e, truck jobs (briefs, the promise, the debrief). Then 9f the fuel-run replay. |
 
 ## Versions
 
+- **0.9.5.0** (PR 9f): truck jobs are on the board. Kovyl Haulage calls
+  once the firm has a small name (reputation 5), Volok Freight at 20,
+  Prichal Logistics at 35. Bids promise per cent of fuel saved. Winning puts
+  the fleet's own truck on the bench; Shape's desk figure and the tunnel's
+  forecast both use the job's route and that truck. The Deliver sheet
+  declares a fuel figure (litres per 100 km), filled in from the tunnel's
+  forecast (with warnings for a bare floor or no yaw sweep) or the desk
+  until the tunnel has read one, and warns when the road code will cut a
+  part back. The fuel trial shows both trucks' figures, the trial day's air
+  and wind, the read, and a jump to the boat-tail or skirts if the depot
+  cut them. The replay of the run comes with PR 9g.
 - **0.9.4.0** (PR 9e): truck jobs in the sim, not on the board yet (that's
   PR 9f). Three fleets: Kovyl Haulage and Volok Freight on the
   Stavren–Mostograd highway, Prichal Logistics on the new, windy Kosa coast

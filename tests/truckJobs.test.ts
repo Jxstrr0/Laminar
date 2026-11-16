@@ -36,7 +36,7 @@ function onJob(id: string, promise: number, fee = 50000): CareerState {
 const kitFor = (setup: TruckDesign): TruckDesign => ({ ...DEFAULT_TRUCK, trailerTop: setup.trailerTop, cab: { ...DEFAULT_TRUCK.cab, fairing: setup.trailerTop - RIG.cabTop } })
 
 afterEach(() => {
-  TRUCK_JOBS.open = false
+  TRUCK_JOBS.open = true
 })
 
 describe('truck briefs', () => {
@@ -56,16 +56,17 @@ describe('truck briefs', () => {
     expect(truckEventOf(briefTemplate('kostrov-club')!)).toBeNull()
   })
 
-  it('stay off the board until the board can show them (PR 9f), then come as the firm’s name grows', () => {
-    for (const b of truckBriefs) expect(openTo(b, 100)).toBe(false)
-    for (let round = 0; round < 30; round++) expect(boardFor(1, round, false, 100).some((b) => isTruckBrief(b.id))).toBe(false)
-    TRUCK_JOBS.open = true
+  it('come onto the board as the firm’s name grows, the coast fleet last, and can be closed', () => {
     expect(openTo(briefTemplate('kovyl-haulage')!, 10)).toBe(true)
     expect(openTo(briefTemplate('prichal-coast')!, 10)).toBe(false)
     expect(openTo(briefTemplate('prichal-coast')!, 40)).toBe(true)
     let offered = false
     for (let round = 0; round < 40; round++) offered ||= boardFor(1, round, false, 100).some((b) => isTruckBrief(b.id))
     expect(offered).toBe(true)
+    // The switch still shuts them away.
+    TRUCK_JOBS.open = false
+    for (const b of truckBriefs) expect(openTo(b, 100)).toBe(false)
+    for (let round = 0; round < 30; round++) expect(boardFor(1, round, false, 100).some((b) => isTruckBrief(b.id))).toBe(false)
   })
 
   it('ask for a saving a good legal kit makes with room to spare', () => {

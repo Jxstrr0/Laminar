@@ -23,7 +23,8 @@ import { BID, BRIEFS, CAREER, JUMP_JOBS, PROMISE, SLED_JOBS, TRUCK_JOBS, type Br
 import type { BobsledDesign } from '../data/bobsled'
 import { dayDrag, referenceConditions, referenceRun, runWith, type BobRun, type RunConditions } from './bobsled'
 import { cdAForTime, PRACTICE_RUN, raceConditions, sledEventFrom, type SledEvent } from './sledJob'
-import type { TruckDesign } from '../data/truck'
+import { FLEET_TRUCK, type TruckDesign } from '../data/truck'
+import type { Route } from '../data/routes'
 import { checkTruckRules, fuelRun, fuelSaving, windAveragedFuel, type FuelRun, type RouteDay, type TruckRuleBreak } from './truck'
 import { dragScaleForFuel, PRACTICE_ROUTE, roadLegal, straightOnCdA, trialDay, truckEventFrom, type TruckEvent } from './truckJob'
 import { HILLS, PRACTICE_JUMP } from '../data/hills'
@@ -346,6 +347,16 @@ export function currentSledEvent(state: CareerState): SledEvent {
 /** The route a truck is built for: the job's, or the Mostograd run between jobs. */
 export function currentTruckEvent(state: CareerState): TruckEvent {
   return (state.job && truckEventOf(state.job.brief)) ?? PRACTICE_ROUTE
+}
+
+/**
+ * The route a truck is forecast on and the fleet's truck it's measured
+ * against (known from their own fuel records): the job's, or the plain
+ * fleet rig with this trailer on the Mostograd run between jobs.
+ */
+export function currentTruckRun(state: CareerState, trailerTop: number): { route: Route; old: TruckDesign } {
+  const setup = state.job ? template(state.job.brief.id).setup : null
+  return { route: currentTruckEvent(state).route, old: setup && setup.sport === 'truck' ? setup : { ...FLEET_TRUCK, trailerTop } }
 }
 
 /** Take a brief off the board at its suggested fee and the client's ask. Only one job at a time. */

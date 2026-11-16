@@ -17,7 +17,6 @@ import { DEFAULT_JUMPER, FLIGHT_ATTITUDE, JUMPER_RANGE, PITCH, type JumperDesign
 import { BOBSLED_RANGE, DEFAULT_BOBSLED, SLED, type BobsledDesign } from '../data/bobsled'
 import { TRACKS } from '../data/tracks'
 import { DEFAULT_TRUCK, FAIRING_MISS, FLEET_TRUCK, TRUCK_RANGE, type TruckDesign } from '../data/truck'
-import { ROUTES } from '../data/routes'
 import { checkTruckRules, roofMismatch, skirtGap, truckParts, type TruckRuleBreak } from '../sim/truck'
 import { truckLength } from '../sim/geom/truck'
 import { checkSledRules, sightMargin, type SledRuleBreak } from '../sim/bobsled'
@@ -32,7 +31,7 @@ import { crewEffects } from '../sim/staff'
 import { designPose, designReadouts, designShape, isBobsled, isCyclist, isJumper, isSkater, isTruck, type Design } from '../sim/design'
 import { availableHandles, dragHandle, handleDef, handlePoint } from '../sim/geom/handles'
 import { ruleVolumes } from '../sim/geom/ruleBox'
-import { briefTemplate, currentEvent, currentJumpEvent } from '../sim/career'
+import { briefTemplate, currentEvent, currentJumpEvent, currentTruckRun } from '../sim/career'
 import type { Highlight, ShapeView } from '../render/shapeScene'
 import type { GlossaryId } from '../data/glossary'
 import type { HandleId, HandleParam } from '../data/handles'
@@ -486,8 +485,8 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   window.addEventListener('laminar:fix', (e) => {
     const where = (e as CustomEvent<FixTarget>).detail
     if (isTruck(design)) {
-      // A truck's own failures come with its jobs (PR 9d); until then every fix lands on the skirts.
-      jumpToControl({ tab: 'kit', id: 'tk-skirts' })
+      // A truck's fixes (PR 9f): the boat-tail when the road code cut it back, otherwise the skirts.
+      jumpToControl({ tab: 'kit', id: where === 'boatTail' ? 'tk-boatTail' : 'tk-skirts' })
       return
     }
     if (isBobsled(design)) {
@@ -690,11 +689,9 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
    */
   function showTruck(truck: TruckDesign) {
     const career = careerStore.get()
-    const route = ROUTES['stavren-mostograd']
     const job = career.job
-    // Their truck as it runs today: the job's setup, or the fleet's plain rig between jobs.
-    const setup = job ? briefTemplate(job.brief.id)?.setup : undefined
-    const old = setup && isTruck(setup) ? setup : { ...FLEET_TRUCK, trailerTop: truck.trailerTop }
+    // Their route and their truck as it runs today: the job's, or the fleet's plain rig on the Mostograd run between jobs.
+    const { route, old } = currentTruckRun(career, truck.trailerTop)
     const desk = truckDeskEstimate(truck, old, route, job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(truck), crewEffects(career.crew).deskLevel)
     const signed = (v: number, digits: number) => `${v < 0 ? '−' : ''}${fixed(Math.abs(v), digits)}`
     truckDeskR.value.textContent = `${signed(desk.value, 1)} %`

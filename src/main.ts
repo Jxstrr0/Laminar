@@ -20,7 +20,7 @@ import { DEFAULT_BOBSLED } from './data/bobsled'
 import { DEFAULT_TRUCK } from './data/truck'
 import type { Design } from './data/sport'
 import { careerStore, freshSeed } from './ui/careerStore'
-import { charge, currentEvent, currentJumpEvent, currentSledEvent, newCareer, orderBlock, orderModel, repairModel } from './sim/career'
+import { charge, currentEvent, currentJumpEvent, currentSledEvent, currentTruckRun, newCareer, orderBlock, orderModel, repairModel } from './sim/career'
 import { makersOwned, tunnelSetup } from './sim/facility'
 import { crewEffects } from './sim/staff'
 import { afterDesign, afterOrder, afterRun, afterSwap, currentStep } from './sim/guide'
@@ -144,6 +144,8 @@ async function boot(): Promise<void> {
     jumpEvent: () => currentJumpEvent(careerStore.get()),
     // A sled is forecast on the job's track, or Belogor between jobs.
     sledRace: () => currentSledEvent(careerStore.get()),
+    // A truck is forecast on the job's route against the fleet's own truck, or the Mostograd run between jobs.
+    truckRun: (trailerTop) => currentTruckRun(careerStore.get(), trailerTop),
     shop: () => {
       const career = careerStore.get()
       return {
