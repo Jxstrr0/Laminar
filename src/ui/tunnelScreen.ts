@@ -540,9 +540,9 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   staleBox.title = t('model.noteName')
   const staleText = el('p', 'model-note-text')
   const staleActions = el('div', 'model-note-actions')
-  const swapBtn = el('button', 'save-btn')
+  const swapBtn = el('button', 'save-btn guide-remodel')
   swapBtn.type = 'button'
-  const newBtn = el('button', 'save-btn', t('model.newModel'))
+  const newBtn = el('button', 'save-btn guide-remodel guide-new', t('model.newModel'))
   newBtn.type = 'button'
   staleActions.append(newBtn, swapBtn)
   staleBox.append(staleText, staleActions)

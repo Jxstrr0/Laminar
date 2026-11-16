@@ -28,10 +28,22 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 5f | Sealed bids against a rival firm | **Done** (v0.5.5.0) |
 | 5g | Time-trial replay | **Done** (v0.5.6.0) |
 | 5h | Velodrome | **Done** (v0.5.7.0) |
-| 5i | Guided first job | Next |
-| 6–14 | See the plan | Not started |
+| 5i | Guided first job | **Done** (v0.5.8.0) |
+| 6 | Failures | Next |
+| 7–14 | See the plan | Not started |
 
 ## Versions
+
+- **0.5.8.0** (PR 5i): the guided first job.
+  - **Irina Talova**, your partner, has a card at the top of Jobs during the
+    first job: one line on what to do next, and a seven-step checklist
+    (bid, model her setup, run it, shape, model your design, run it,
+    deliver).
+  - Each step ticks when you really do it, and the button that does it
+    glows (a still outline with reduced motion).
+  - "Hide the guide" (two taps) hides it for that career; it goes on its
+    own after the first delivery. Older saves that already delivered never
+    see it.
 
 - **0.5.7.0** (PR 5h): the velodrome.
   - A new brief: **Alina Vesnina**, a track pursuiter, riding the 4 km

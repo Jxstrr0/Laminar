@@ -8,6 +8,7 @@ import { DESIGN_CHOICES, PART_RANGE, POSTURE_RANGE, type CyclistDesign } from '.
 import { MODEL_FINISH, MODEL_GRADE, MODEL_SCALES } from '../data/model'
 import { CRANK_DIAL, DEMO_TUNNEL_SEED } from '../data/tunnel'
 import { briefTemplate, newCareer, type Brief, type CareerState, type Job, type JobRecord } from '../sim/career'
+import { GUIDE_STEPS, type GuideStep } from '../sim/guide'
 import type { LabState, RunNote } from '../sim/lab'
 import type { ModelOrder } from '../sim/modelShop'
 import type { Run, RunSample } from '../sim/run'
@@ -178,7 +179,22 @@ export function soundCareer(x: unknown): CareerState | null {
   if (!isCount(round)) return null
   const lost = x.lost === undefined ? [] : x.lost
   if (!Array.isArray(lost) || !lost.every((id) => typeof id === 'string' && briefTemplate(id))) return null
-  return { seed: x.seed, money: x.money, day: x.day, jobsDone: x.jobsDone, round, board: board as Brief[], lost: lost as string[], job, history: history as JobRecord[] }
+  // Careers from before PR 5i get the guide only if they haven't finished a job.
+  const guide = x.guide === undefined ? { off: x.jobsDone > 0, done: [] } : x.guide
+  if (!isObj(guide) || typeof guide.off !== 'boolean' || !Array.isArray(guide.done)) return null
+  if (!guide.done.every((s) => (GUIDE_STEPS as readonly unknown[]).includes(s))) return null
+  return {
+    seed: x.seed,
+    money: x.money,
+    day: x.day,
+    jobsDone: x.jobsDone,
+    round,
+    board: board as Brief[],
+    lost: lost as string[],
+    job,
+    history: history as JobRecord[],
+    guide: { off: guide.off, done: guide.done as GuideStep[] },
+  }
 }
 
 /** A save file, checked (and brought up to date if it's older); null if it can't be trusted. */

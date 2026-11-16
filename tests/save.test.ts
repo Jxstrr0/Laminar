@@ -102,6 +102,19 @@ describe('the save file', () => {
     expect(parseSave(JSON.stringify(raw))).toBeNull()
   })
 
+  it('keeps the guide, and hides it for careers from before it that already delivered', () => {
+    const career = { ...newCareer(99), guide: { off: false, done: ['model' as const] } }
+    expect(roundTrip({ ...file(), career })!.career.guide).toEqual(career.guide)
+    const raw = JSON.parse(packSave({ ...file(), career: { ...newCareer(99), jobsDone: 3, round: 3 } })) as { career: Record<string, unknown> }
+    delete raw.career.guide
+    expect(parseSave(JSON.stringify(raw))!.career.guide).toEqual({ off: true, done: [] })
+    raw.career.jobsDone = 0
+    raw.career.round = 0
+    expect(parseSave(JSON.stringify(raw))!.career.guide).toEqual({ off: false, done: [] })
+    raw.career.guide = { off: false, done: ['dance'] }
+    expect(parseSave(JSON.stringify(raw))).toBeNull()
+  })
+
   it('brings a v1 save up to date with a career on the old tunnel seed', () => {
     const { career: _drop, ...rest } = file()
     const old = JSON.stringify({ ...rest, v: 1 })
