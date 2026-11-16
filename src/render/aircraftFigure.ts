@@ -63,11 +63,20 @@ const DRAW = {
   screen: 0.6,
   /** A square tip's thickness, m (a rounded one is the tip cap). */
   squareTip: 0.04,
+  /** A tunnel model's prop blades: thickness along the axis and chord, m. */
+  bladeThick: 0.03,
+  blade: 0.12,
 }
 
 export interface AircraftLook {
   broken: Highlight[]
   strained: Highlight[]
+  /**
+   * How the prop is drawn (PR 10s): a faint disc as it flies (the default),
+   * or two blades on a tunnel model, still or driven. Driven blades are
+   * named 'prop-rotor' for the tunnel scene to turn.
+   */
+  props?: 'disc' | 'stopped' | 'spinning'
 }
 
 /** A rod or flattened rod from `a` to `b`: `w` across the flow (its chord along x), `d` thick, turned `toe` radians about its own length. */
@@ -118,10 +127,22 @@ export function buildAircraft(design: AircraftDesign, look: AircraftLook): THREE
     inlet.position.set(aircraftX(B.spinner.length) + 0.005, ax - 0.04, side * B.half * front * DRAW.inletOut)
     g.add(inlet)
   }
-  // The prop, a faint disc behind the spinner.
-  const prop = new THREE.Mesh(new THREE.CircleGeometry(B.prop, 40).rotateY(Math.PI / 2), M.prop)
-  prop.position.set(aircraftX(B.spinner.length * 0.8), ax, 0)
-  g.add(prop)
+  // The prop: a faint disc behind the spinner as it flies or turns, two blades on a tunnel model.
+  const props = look.props ?? 'disc'
+  const propX = aircraftX(B.spinner.length * 0.8)
+  if (props !== 'stopped') {
+    const prop = new THREE.Mesh(new THREE.CircleGeometry(B.prop, 40).rotateY(Math.PI / 2), M.prop)
+    prop.position.set(propX, ax, 0)
+    g.add(prop)
+  }
+  if (props !== 'disc') {
+    const blades = new THREE.Group()
+    blades.name = props === 'spinning' ? 'prop-rotor' : 'prop-blades'
+    blades.position.set(propX, ax, 0)
+    blades.rotation.x = 0.4
+    blades.add(new THREE.Mesh(new THREE.BoxGeometry(DRAW.bladeThick, DRAW.blade, B.prop * 2), M.grey))
+    g.add(blades)
+  }
 
   // The windscreen: a dark pane sloping from the cowl's top up to the wing.
   const wingY = ax + B.halfHeight

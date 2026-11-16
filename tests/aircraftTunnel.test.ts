@@ -14,6 +14,7 @@ import {
   readAircraft,
 } from '../src/sim/aircraftTunnel'
 import { strains } from '../src/sim/failure'
+import { newLab } from '../src/sim/lab'
 import { makerScales, scaleFamily } from '../src/sim/modelShop'
 import { DEG } from '../src/sim/num'
 import { isPlaneRun } from '../src/sim/planeTunnel'
@@ -136,6 +137,9 @@ describe('kit-plane models in the shop and on the sting', () => {
       expect(AIRCRAFT_CLASS.kit.span / s).toBeLessThan(UNIVERSITY_TUNNEL.section.width)
     }
     expect(makerScales('shop', 'aircraft')).toEqual([...AIRCRAFT_SCALES])
+    // A kit plane's bench starts on the smaller model, its prop stopped (PR 10s).
+    expect(newLab(GOOD).order.scale).toBe(6)
+    expect(newLab(GOOD).order.powered).toBeUndefined()
     expect(MAKERS.resin.scales).not.toContain(5)
   })
 

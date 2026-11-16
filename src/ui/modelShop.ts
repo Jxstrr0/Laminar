@@ -104,10 +104,13 @@ export interface ShopContext {
   drone?: boolean
   /** The model is a survey drone: a plane's scales, trip strips on the wing (PR 10l). */
   plane?: boolean
+  /** The model is a light aircraft: a kit plane's scales, and its prop stopped or driven (PR 10s). */
+  aircraft?: boolean
 }
 
 /** Which scale list the model takes: a truck's for a truck or a land-speed car, full size for a quad, else a rider's. */
-const familyOf = (ctx: ShopContext) => (ctx.truck === true || ctx.record === true ? 'truck' : ctx.drone === true ? 'drone' : ctx.plane === true ? 'plane' : 'rider')
+const familyOf = (ctx: ShopContext) =>
+  ctx.truck === true || ctx.record === true ? 'truck' : ctx.drone === true ? 'drone' : ctx.plane === true ? 'plane' : ctx.aircraft === true ? 'aircraft' : 'rider'
 
 interface Shop {
   sheet: Sheet
@@ -146,20 +149,30 @@ function buildShop(): Shop {
     trips.set(order.trips ? 'on' : 'off')
     taps.set(order.taps ? 'on' : 'off')
     // A quad's pod is too small for trip strips or taps to tell you anything (the air's own instruments come later).
-    trips.box.hidden = taps.box.hidden = family === 'drone'
+    // A kit plane's wing is clear of the Reynolds trouble, so trip strips would change nothing (PR 10s).
+    trips.box.hidden = taps.box.hidden = family === 'drone' || family === 'aircraft'
     // A plane's trip strips go on its wing (PR 10l); its taps would say nothing a tuft can't.
     if (family === 'plane') taps.box.hidden = true
     trips.note.textContent = t(family === 'plane' ? 'shop.tripsNotePlane' : 'shop.tripsNote')
     // A quad's model can have its motors wired up, so its props spin in the tunnel (PR 10e).
-    props.box.hidden = family !== 'drone'
+    // A kit plane's model can have its prop driven too, so its slipstream blows the nose as in flight (PR 10s).
+    props.box.hidden = family !== 'drone' && family !== 'aircraft'
     props.set(order.powered ? 'spinning' : 'stopped')
+    const nose = family === 'aircraft'
+    propsHead.textContent = t(nose ? 'shop.prop' : 'shop.props')
+    props.note.replaceChildren(
+      t(nose ? 'shop.propNote' : 'shop.propsNote', { run: fixed(DRONE_TUNNEL.poweredRun, 0) }),
+      ' ',
+      nose ? glossaryTerm('slipstream', t('shop.propLink')) : glossaryTerm('downwash', t('shop.propsLink')),
+    )
     board.box.hidden = context.sled !== true && !big && context.car !== true
     boardText.data = t(truck ? 'shop.boardNoteTruck' : context.car ? 'shop.boardNoteCar' : context.record ? 'shop.boardNoteRecord' : 'shop.boardNote')
     board.set(order.board ? 'on' : 'off')
     const speed = matchedSpeed(1 / order.scale, context.event)
     const top = context.topSpeed
-    reText.data =
-      speed <= top
+    reText.data = nose
+      ? t('shop.matchAircraft')
+      : speed <= top
         ? t('shop.match', { speed: fixed(speed, 0) })
         : t('shop.noMatch', { speed: fixed(speed, 0), top: `${fixed(top, 0)} m/s` })
     finish.note.textContent = t('shop.finishNote', { um: fixed(MODEL_FINISH[order.finish] * 1e6, 0) })
@@ -238,7 +251,8 @@ function buildShop(): Shop {
     ],
     (v) => pick({ powered: v === 'spinning' }),
   )
-  props.note.append(t('shop.propsNote', { run: fixed(DRONE_TUNNEL.poweredRun, 0) }), ' ', glossaryTerm('downwash', t('shop.propsLink')))
+  // The label and note say "prop" for a kit plane and "props" for a quad (set in update).
+  const propsHead = props.box.querySelector('.shop-label')!
   const boardText = document.createTextNode(t('shop.boardNote'))
   board.note.append(boardText, ' ', glossaryTerm('groundBoard', t('shop.boardLink')))
 
@@ -267,7 +281,7 @@ function buildShop(): Shop {
       const family = familyOf(ctx)
       if (!ctx.sled && family !== 'truck' && !ctx.car) delete order.board
       // A truck's model (or a land-speed car's) comes at a truck's scale, a quad's full size, and a rider's at a rider's.
-      if (family === 'drone') order = { ...order, trips: false, taps: false }
+      if (family === 'drone' || family === 'aircraft') order = { ...order, trips: false, taps: false }
       else delete order.powered
       if (family === 'plane') order = { ...order, taps: false }
       if (scaleFamily(order.scale) !== family) order = forMaker({ ...order, scale: FAMILY_START[family] }, makerOf(order))

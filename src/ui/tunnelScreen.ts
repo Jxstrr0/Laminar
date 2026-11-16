@@ -61,7 +61,9 @@ import { describeShape, scaleShape } from '../sim/geom/body'
 import { referenceWheel } from '../sim/geom/cyclist'
 import { sphere } from '../sim/geom/shapes'
 import { Rng } from '../sim/rng'
-import { designPose, designShape, isBobsled, isCar, isDrone, isJumper, isPlane, isRecord, isTruck, type Design } from '../sim/design'
+import { designPose, designShape, isAircraft, isBobsled, isCar, isDrone, isJumper, isPlane, isRecord, isTruck, type Design } from '../sim/design'
+import { AIRCRAFT_CLASS, type AircraftClass, type AircraftDesign, type Airfield } from '../data/aircraft'
+import { aircraftEvent, aircraftReadings, aircraftReynolds, correctAircraft, forecastAircraft, isAircraftRun, prepareAircraft, readAircraft, type AircraftFix, type AircraftForecast, type PreparedAircraft } from '../sim/aircraftTunnel'
 import { PLANE_CLASS, PLANE_TUNNEL, type PlaneClass, type PlaneDesign, type SurveySite } from '../data/plane'
 import { correctPlane, fieldReynolds, forecastPlane, isPlaneRun, modelReynolds, planeEvent, planeReadings, preparePlane, readPlane, type PlaneFix, type PlaneForecast, type PreparedPlane } from '../sim/planeTunnel'
 import { DRONE_RACE, DRONE_TUNNEL, type DroneClass, type DroneCourse, type DroneDesign } from '../data/drone'
@@ -228,6 +230,8 @@ export interface TunnelHooks {
   droneRun(cls: DroneClass): { course: DroneCourse; old: DroneDesign }
   /** The site a survey drone is forecast at, and the client's plane as it flies now (PR 10l). */
   planeRun(cls: PlaneClass): { site: SurveySite; old: PlaneDesign }
+  /** The airfield a kit plane is forecast over, and the client's plane as it flies now (PR 10s). */
+  aircraftRun(cls: AircraftClass): { field: Airfield; old: AircraftDesign }
   /** The model shop's view of the job. */
   shop(): ShopContext
   /** A model was ordered: charge it and spend its days. */
@@ -298,6 +302,13 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   let planeModel: PreparedPlane | null = null
   const aoaSpec: TurntableSpec = PLANE_TUNNEL.pitch
   const planeRun = (d: PlaneDesign) => hooks.planeRun(d.class)
+  /**
+   * A kit plane is on the bench model (PR 10s): a scale model on the same
+   * pitching sting as a survey drone (so `flyer` is set for both), its prop
+   * stopped or driven.
+   */
+  let aircraftModel: PreparedAircraft | null = null
+  const aircraftRun = (d: AircraftDesign) => hooks.aircraftRun(d.class)
   /** The strut's drop dial, mm below the car's static ride height: its range is the class's. */
   let dropSpec: TurntableSpec = { min: 0, max: 40, step: 5, rate: 10 }
   /** The dial the angle row drives: yaw for a rider, pitch for a jumper, the drop for a car. */
@@ -326,7 +337,9 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
             ? droneEvent(droneRun(modelDesign).course)
             : isPlane(modelDesign)
               ? planeEvent(planeRun(modelDesign).site)
-              : hooks.event()
+              : isAircraft(modelDesign)
+                ? aircraftEvent(aircraftRun(modelDesign).field, modelDesign)
+                : hooks.event()
   /** What holds the model on the mount now. */
   const mountKind = (): MountKind => (mount === 'rider' && (jumper || quad || flyer) ? 'sting' : MOUNT_KIND[mount])
   // The calibration sphere, made exactly: a reference body has no build errors.
@@ -474,6 +487,16 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   const pMoment = readout(t('read.moment'), 'staticMargin')
   const pFc = readout(t('read.planeDesk'), 'surveyRange')
   planeGrid.append(pSpeed.box, pAoa.box, pDrag.box, pLift.box, pMoment.box, pFc.box)
+
+  // Readouts for a kit plane's model on its sting (PR 10s): no pitching moment, but the cruise and the stall.
+  const aircraftGrid = el('div', 'readouts')
+  const aSpeed = readout(t('read.speed'), 'airSpeed')
+  const aAoa = readout(t('read.aoa'), 'angleOfAttack')
+  const aDrag = readout(t('read.cda'), 'cda')
+  const aLift = readout(t('read.liftCl'), 'lift')
+  const aFc = readout(t('read.aircraftDesk'), 'cruiseSpeed')
+  const aStall = readout(t('read.stallSpeed'), 'stallSpeed')
+  aircraftGrid.append(aSpeed.box, aAoa.box, aDrag.box, aLift.box, aFc.box, aStall.box)
 
   // Readouts for the sphere.
   const sphereGrid = el('div', 'readouts')
@@ -623,7 +646,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   tapsChip.hidden = true
   const cpLegend = createCpLegend()
 
-  sheet.append(mountRow, fanCtl.row, yawCtl.row, runLine, viewBar, riderGrid, jumperGrid, carGrid, recGrid, droneGrid, planeGrid, sphereGrid, wheelGrid, tareGrid, chartBox, calBox, runsBox, foot)
+  sheet.append(mountRow, fanCtl.row, yawCtl.row, runLine, viewBar, riderGrid, jumperGrid, carGrid, recGrid, droneGrid, planeGrid, aircraftGrid, sphereGrid, wheelGrid, tareGrid, chartBox, calBox, runsBox, foot)
   app.append(header, sheet, instBar, cpLegend.root)
 
   // Keep the 3D model centred in the space above the sheet.
@@ -689,7 +712,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   let loadArea = 0
   let modelSpec = modelSpecOf(order, DEMO_MODEL_SEED + build)
   const showOrder = () => {
-    const words = t(order.powered ? 'shop.openPowered' : 'shop.open', { scale: order.scale })
+    const words = t(order.powered ? (isAircraft(modelDesign) ? 'shop.openPropDriven' : 'shop.openPowered') : 'shop.open', { scale: order.scale })
     setText(shopBtn, words)
     shopBtn.setAttribute('aria-label', `${words}. ${t('shop.openName')}`)
   }
@@ -716,11 +739,13 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       record: isRecord(bench),
       drone: isDrone(bench),
       plane: isPlane(bench),
+      aircraft: isAircraft(bench),
       ...(sled ? { event: sledEvent(sledTrack()) } : {}),
       ...(truck ? { event: truckEvent(truckRun(bench).route) } : {}),
       ...(isRecord(bench) ? { event: recordEvent(recordRun(bench).flat) } : {}),
       ...(isDrone(bench) ? { event: droneEvent(droneRun(bench).course) } : {}),
       ...(isPlane(bench) ? { event: planeEvent(planeRun(bench).site) } : {}),
+      ...(isAircraft(bench) ? { event: aircraftEvent(aircraftRun(bench).field, bench) } : {}),
     }
     openModelShop(order, ctx, (next) => {
       const q = quote(next, ctx.hand)
@@ -851,7 +876,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     const r = repairTerms(f)
     const head = el('p', 'fail-head', t('fail.headline', { what: t(`fail.title.${f.part}` as StringKey), speed: fixed(speed, 1) }))
     // A truck's posts are its own stouter struts.
-    const why = el('p', 'fail-why', t(f.part === 'sting' && isDrone(modelDesign) ? 'fail.why.droneSting' : f.part === 'sting' && isPlane(modelDesign) ? 'fail.why.planeSting' : f.part === 'posts' && isTruck(modelDesign) ? 'fail.why.truckPosts' : f.part === 'posts' && isCar(modelDesign) ? 'fail.why.carPosts' : f.part === 'posts' && isRecord(modelDesign) ? 'fail.why.recordPosts' : (`fail.why.${f.part}` as StringKey)))
+    const why = el('p', 'fail-why', t(f.part === 'sting' && isDrone(modelDesign) ? 'fail.why.droneSting' : f.part === 'sting' && isPlane(modelDesign) ? 'fail.why.planeSting' : f.part === 'sting' && isAircraft(modelDesign) ? 'fail.why.aircraftSting' : f.part === 'posts' && isTruck(modelDesign) ? 'fail.why.truckPosts' : f.part === 'posts' && isCar(modelDesign) ? 'fail.why.carPosts' : f.part === 'posts' && isRecord(modelDesign) ? 'fail.why.recordPosts' : (`fail.why.${f.part}` as StringKey)))
     const cost = el('p', 'fail-cost', r.screens ? t('fail.costScreens', { price: fixed(r.price, 0), days: r.days, screens: fixed(r.screens, 0) }) : t('fail.cost', { price: fixed(r.price, 0), days: r.days }))
     const actions = el('div', 'job-actions')
     const again = el('button', 'shop-order', t('fail.repairBtn', { price: fixed(r.total, 0), days: r.days }))
@@ -896,7 +921,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   const tapsRng = new Rng(DEMO_MODEL_SEED).fork('taps')
   function applyInstruments() {
     view.setInstruments({ ...inst })
-    setText(footHint, t(flyer && mount === 'rider' ? 'hint.plane' : quad && mount === 'rider' ? 'hint.quad' : jumper && mount === 'rider' ? 'hint.jumper' : inst.wand && mount === 'rider' ? 'hint.wand' : 'hint.orbit'))
+    setText(footHint, t(flyer && mount === 'rider' ? (aircraftModel ? 'hint.aircraft' : 'hint.plane') : quad && mount === 'rider' ? 'hint.quad' : jumper && mount === 'rider' ? 'hint.jumper' : inst.wand && mount === 'rider' ? 'hint.wand' : 'hint.orbit'))
     flowKey = ''
     flowAge = Infinity
   }
@@ -1078,6 +1103,12 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       const w = shake()
       return { speed: fan.speed, yawDeg: table.angle, cdA: c.cdA * w, cyA: 0, dragN: c.dragN * w, clA: (c.clAFront + c.clARear) * w, clAFront: c.clAFront * w, steady }
     }
+    if (flyer && aircraftModel) {
+      // The wing's angle goes where a rider's yaw would; the lift and the model's Reynolds number ride along (no moment: that marks a survey drone's run).
+      const a = readAircraft(aircraftModel, tunnel, { speed: fan.speed, pitchDeg: table.angle, mount: 'sting' }, balanceRng)
+      const w = shake()
+      return { speed: fan.speed, yawDeg: table.angle, cdA: a.cdA * w, cyA: 0, dragN: a.dragN * w, cl: a.cl * w, re: a.re, steady }
+    }
     if (flyer && planeModel) {
       // The wing's angle goes where a rider's yaw would; the lift, the moment and the model's Reynolds number ride along.
       const p = readPlane(planeModel, tunnel, { speed: fan.speed, pitchDeg: table.angle, mount: 'sting' }, balanceRng)
@@ -1145,7 +1176,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     setText(viewButtons[2]!, t(jumper ? 'view.pitch' : racing ? 'view.drop' : quad ? 'view.tilt' : flyer ? 'view.aoa' : 'view.yaw'))
     const reading = view_ === 'readouts'
     riderGrid.hidden = !(reading && mount === 'rider' && !tare && !jumper && !racing && !recordCar && !quad && !flyer)
-    planeGrid.hidden = !(reading && mount === 'rider' && !tare && flyer)
+    planeGrid.hidden = !(reading && mount === 'rider' && !tare && flyer && !aircraftModel)
+    aircraftGrid.hidden = !(reading && mount === 'rider' && !tare && flyer && aircraftModel !== null)
     droneGrid.hidden = !(reading && mount === 'rider' && !tare && quad)
     recGrid.hidden = !(reading && mount === 'rider' && !tare && recordCar)
     jumperGrid.hidden = !(reading && mount === 'rider' && !tare && jumper)
@@ -1258,10 +1290,11 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
         const raced = isCarRun(run)
         const flown = isDroneRun(run)
         const surveyed = isPlaneRun(run)
-        const model = t(surveyed ? 'mount.plane' : flown ? 'mount.quad' : jumped ? 'mount.jumper' : raced || isRecordRun(run) ? 'mount.car' : trucked ? 'mount.truck' : (RUN_MODEL[run.model] ?? 'mount.rider'))
+        const kitFlown = isAircraftRun(run)
+        const model = t(kitFlown ? 'mount.aircraft' : surveyed ? 'mount.plane' : flown ? 'mount.quad' : jumped ? 'mount.jumper' : raced || isRecordRun(run) ? 'mount.car' : trucked ? 'mount.truck' : (RUN_MODEL[run.model] ?? 'mount.rider'))
         text.append(
           el('span', 'run-title', t('runs.row', { id: run.id, model, time: clock(run.duration), cost: fixed(runCost(run), 0) }) + (run.failure ? ` · ${t('fail.runTag')}` : '')),
-          el('span', 'run-sub', groupWords(headlineGroup(yawGroups(run)), run.model.startsWith('tare') || run.model === WHEEL_RUN ? TARE_DIGITS : 4, jumped ? 'runs.rowPitch' : flown ? 'runs.rowTilt' : surveyed ? 'runs.rowAoa' : 'runs.rowCdA')),
+          el('span', 'run-sub', groupWords(headlineGroup(yawGroups(run)), run.model.startsWith('tare') || run.model === WHEEL_RUN ? TARE_DIGITS : 4, jumped ? 'runs.rowPitch' : flown ? 'runs.rowTilt' : surveyed || kitFlown ? 'runs.rowAoa' : 'runs.rowCdA')),
         )
         b.append(badge, text)
         b.addEventListener('click', () => togglePick(run.id))
@@ -1412,7 +1445,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       return
     }
     if (flyer) {
-      drawPlaneForecast()
+      if (aircraftModel) drawAircraftForecast()
+      else drawPlaneForecast()
       return
     }
     const now = modelDesign
@@ -1527,9 +1561,9 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     }
     if (prepared) endRun()
     const design = modelDesign
-    setDial(isJumper(design) ? 'pitch' : isCar(design) ? 'drop' : isDrone(design) ? 'tilt' : isPlane(design) ? 'aoa' : 'yaw', design)
+    setDial(isJumper(design) ? 'pitch' : isCar(design) ? 'drop' : isDrone(design) ? 'tilt' : isPlane(design) || isAircraft(design) ? 'aoa' : 'yaw', design)
     // The first mount button names what's on it: a truck or a car isn't a rider.
-    setText(mountButtons[0]!, t(flyer ? 'mount.planeShort' : quad ? 'mount.quadShort' : jumper ? 'mount.jumperShort' : racing || isRecord(design) ? 'mount.carShort' : isTruck(design) ? 'mount.truckShort' : 'mount.riderShort'))
+    setText(mountButtons[0]!, t(isAircraft(design) ? 'mount.aircraftShort' : flyer ? 'mount.planeShort' : quad ? 'mount.quadShort' : jumper ? 'mount.jumperShort' : racing || isRecord(design) ? 'mount.carShort' : isTruck(design) ? 'mount.truckShort' : 'mount.riderShort'))
     jumperModel = isJumper(design) ? prepareJumper(design, modelSpec) : null
     carModel = isCar(design) ? prepareCar(design, modelSpec, carFloor(spec.rollingRoad, order.board === true)) : null
     // A land-speed car stands on the turntable over the same floors as a racing car (PR 9s).
@@ -1539,6 +1573,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     droneModel = isDrone(design) ? prepareDrone(design, modelSpec, order.powered ? 'powered' : 'stopped') : null
     // A survey drone's model is a plane model, trip strips on its wing if ordered (PR 10l).
     planeModel = isPlane(design) ? preparePlane(design, modelSpec) : null
+    // A kit plane's model, its prop stopped or driven down the sting (PR 10s).
+    aircraftModel = isAircraft(design) ? prepareAircraft(design, modelSpec, order.powered === true) : null
     forecastDirty = true
     prepared = isBobsled(design)
       ? prepareSled(design, modelSpec)
@@ -1555,7 +1591,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     view.setTaps([], [])
     view.setModel({
       kind: 'rider',
-      state: { design, pose: designPose(design, crank), broken: [], strained: [], ...(droneModel ? { props: droneModel.props === 'powered' ? ('spinning' as const) : ('stopped' as const) } : {}) },
+      state: { design, pose: designPose(design, crank), broken: [], strained: [], ...(droneModel ? { props: droneModel.props === 'powered' ? ('spinning' as const) : ('stopped' as const) } : aircraftModel ? { props: aircraftModel.powered ? ('spinning' as const) : ('stopped' as const) } : {}) },
       scale: modelSpec.scale,
       tare,
       board: order.board === true,
@@ -2004,7 +2040,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     setText(poolFix, words ? t('car.fixed', { list: words }) : t('quad.raw'))
   }
   /** A powered quad's props spin with its model on the sting (and so every run costs more), not for a tare run. */
-  const propsSpinning = () => mount === 'rider' && !tare && quad && droneModel?.props === 'powered'
+  const propsSpinning = () => mount === 'rider' && !tare && ((quad && droneModel?.props === 'powered') || (flyer && aircraftModel?.powered === true))
   /** The downwash share as shown, settled like the other readouts. */
   let shownDown = 0
   const updateDrone = (dt: number) => {
@@ -2158,6 +2194,102 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     setText(pLift.sub, t('read.liftForce', { force: fixed(q * shownCl * wing * s2, 0) }))
     setText(pMoment.value, signed(shownCm, 3))
     setText(pMoment.sub, t(shownCm <= 0 ? 'read.momentDown' : 'read.momentUp'))
+  }
+
+  // --- The kit plane's forecast (PR 10s): this model's settled readings, corrected, flown over the client's airfield.
+  let aircraftCast: AircraftForecast | null = null
+  function updateAircraftForecast(dt: number) {
+    forecastAge += dt
+    if (!forecastDirty || forecastAge < 0.5 || !aircraftModel || !isAircraft(modelDesign)) return
+    forecastDirty = false
+    forecastAge = 0
+    const fix: AircraftFix = planeFix()
+    const model = aircraftModel
+    const readings = aircraftReadings(modelRuns()).map((r) => correctAircraft(r, fix, model, sectionArea))
+    const { field, old } = aircraftRun(modelDesign)
+    aircraftCast = forecastAircraft(readings, modelDesign, old, field)
+    runsDirty = true
+  }
+  function showAircraftForecast() {
+    const f = aircraftCast
+    aFc.value.classList.remove('warn')
+    aStall.value.classList.remove('warn')
+    if (!f) {
+      for (const r of [aFc, aStall]) setText(r.value, '–')
+      setText(aFc.sub, t('read.aircraftFcNone'))
+      setText(aStall.sub, t('read.aircraftStallNone'))
+      return
+    }
+    setText(aFc.value, `${fixed(f.cruise, 0)} km/h`)
+    // A model with its prop stopped leaves the slipstream out: say so under the cruise.
+    setText(aFc.sub, t(f.powered ? 'read.aircraftFcGain' : 'read.aircraftFcStopped', { gain: signed(f.gain, 0) }))
+    if (f.stall === null) {
+      setText(aStall.value, '–')
+      setText(aStall.sub, t('read.aircraftStallNone'))
+      return
+    }
+    setText(aStall.value, `${fixed(f.stall, 1)} km/h`)
+    if (f.passes === false) aStall.value.classList.add('warn')
+    setText(aStall.sub, t(f.passes ? 'read.signOffNote' : 'read.aircraftStallOver', { limit: fixed(AIRCRAFT_CLASS[modelDesign.sport === 'aircraft' ? modelDesign.class : 'kit'].certifiedStall, 0) }))
+  }
+  /** The Runs tab's record for a kit plane: cruise, the stall and the inspector, and whether the slipstream was in the readings. */
+  function drawAircraftForecast() {
+    poolBox.hidden = !prepared || !isAircraft(modelDesign)
+    if (poolBox.hidden || !isAircraft(modelDesign)) return
+    const { field, old } = aircraftRun(modelDesign)
+    setText(poolTitle, t('aircraft.title', { field: t(`airfield.${field.id}`) }))
+    const f = aircraftCast
+    const lines: string[] = []
+    if (!f) lines.push(t('aircraft.none'))
+    else {
+      lines.push(t('aircraft.cruise', { cruise: fixed(f.cruise, 0), gain: signed(f.gain, 0), old: fixed(f.cruise - f.gain, 0) }))
+      lines.push(t(f.powered ? 'aircraft.powered' : 'aircraft.stopped'))
+      const limit = fixed(AIRCRAFT_CLASS[old.class].certifiedStall, 0)
+      if (f.stall === null || f.clMax === null) lines.push(t('aircraft.stallNone'))
+      else lines.push(t(f.passes ? 'aircraft.signsOff' : 'aircraft.noSignOff', { cl: fixed(f.clMax, 2), stall: fixed(f.stall, 1), limit }))
+    }
+    poolRows.replaceChildren(...lines.map((line) => el('p', 'compare-detail', line)))
+    setText(poolCycle, '')
+    poolCycle.hidden = true
+    const words = droneFixWords(planeFix())
+    setText(poolFix, words ? t('car.fixed', { list: words }) : t('quad.raw'))
+  }
+  /** The lift as shown, settled like the other readouts. */
+  let shownKitCl = 0
+  const updateAircraft = (dt: number) => {
+    if (!aircraftModel || !isAircraft(modelDesign)) return
+    updateAircraftForecast(dt)
+    showAircraftForecast()
+    const design = modelDesign
+    const reading = fan.speed >= spec.readFrom && !broken
+    showSpeed(aSpeed)
+    if (reading) setText(aSpeed.sub, t('read.aircraftRe', { re: fixed(aircraftReynolds(aircraftModel, fan.speed) / 1000, 0) }))
+    setText(aAoa.value, `${fixed(table.angle, 0)}°`)
+    setText(aAoa.sub, t(aircraftModel.powered ? 'read.aoaPropDriven' : 'read.aoaPropStopped'))
+    if (!reading) {
+      shown.cdA = shown.dragN = 0
+      shownKitCl = 0
+      for (const r of [aDrag, aLift]) setText(r.value, '–')
+      setText(aDrag.sub, t('read.droneDragNote', { force: '–' }))
+      setText(aLift.sub, t('read.liftForce', { force: '–' }))
+      return
+    }
+    const r = readAircraft(aircraftModel, tunnel, { speed: fan.speed, pitchDeg: table.angle, mount: 'sting' }, balanceRng)
+    const s2 = aircraftModel.scale * aircraftModel.scale
+    const wing = AIRCRAFT_CLASS[design.class].wingArea
+    // The load on the sting per pascal: the model's lift and drag together.
+    loadArea = Math.hypot(r.cl * wing, r.cdA) * s2
+    const c = correctAircraft(r, planeFix(), aircraftModel, sectionArea)
+    const q = dynamicPressure(AIR.density, fan.speed)
+    const k = settle(dt)
+    const w = shake()
+    shown.cdA += (c.cdA * w - shown.cdA) * k
+    shown.dragN += (r.dragN * w - shown.dragN) * k
+    shownKitCl += (c.cl * w - shownKitCl) * k
+    setText(aDrag.value, `${fixed(shown.cdA, 3)} m²`)
+    setText(aDrag.sub, t('read.droneDragNote', { force: fixed(shown.dragN, 1) }))
+    setText(aLift.value, fixed(shownKitCl, 2))
+    setText(aLift.sub, t('read.liftForce', { force: fixed(q * shownKitCl * wing * s2, 0) }))
   }
 
   /** Show the controls that fit what's on the mount. */
@@ -2379,7 +2511,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       return
     }
     if (flyer) {
-      updatePlane(dt)
+      if (aircraftModel) updateAircraft(dt)
+      else updatePlane(dt)
       return
     }
     if (!prepared) return
@@ -2470,7 +2603,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
         if (sample) {
           rec = addSample(rec, sample)
           chartDirty = true
-          if (sample.clA !== undefined || sample.twist !== undefined) forecastDirty = true
+          if (sample.clA !== undefined || sample.twist !== undefined || sample.cl !== undefined) forecastDirty = true
         }
       }
       carry -= STEP
