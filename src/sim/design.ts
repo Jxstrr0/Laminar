@@ -13,6 +13,7 @@ import { CAR_CLASS, type CarDesign } from '../data/car'
 import { RECORD_CLASS, type RecordDesign } from '../data/record'
 import type { DroneDesign } from '../data/drone'
 import type { PlaneDesign } from '../data/plane'
+import type { AircraftDesign } from '../data/aircraft'
 import type { Design, Sport } from '../data/sport'
 import { ICE } from '../data/skater'
 import { comfort, readouts, riderEvent, type Comfort, type Readouts } from './cyclist'
@@ -38,6 +39,8 @@ import { dronePose, droneShape } from './geom/drone'
 import { droneMass } from './drone'
 import { planePose, planeShape } from './geom/plane'
 import { planeMass } from './plane'
+import { aircraftPose, aircraftShape } from './geom/aircraft'
+import { aircraftMass } from './aircraft'
 import { describeShape } from './geom/body'
 import type { EventSpec } from './views'
 import type { RiderSpec } from './field/timeTrial'
@@ -81,9 +84,13 @@ export function isPlane(design: Design): design is PlaneDesign {
   return design.sport === 'plane'
 }
 
+export function isAircraft(design: Design): design is AircraftDesign {
+  return design.sport === 'aircraft'
+}
+
 /** A design with no athlete's comfort or pedals: a jumper, a sled, a truck, a car, a record car, a drone or a plane. */
-function noPedals(design: Design): design is JumperDesign | BobsledDesign | TruckDesign | CarDesign | RecordDesign | DroneDesign | PlaneDesign {
-  return isJumper(design) || isBobsled(design) || isTruck(design) || isCar(design) || isRecord(design) || isDrone(design) || isPlane(design)
+function noPedals(design: Design): design is JumperDesign | BobsledDesign | TruckDesign | CarDesign | RecordDesign | DroneDesign | PlaneDesign | AircraftDesign {
+  return isJumper(design) || isBobsled(design) || isTruck(design) || isCar(design) || isRecord(design) || isDrone(design) || isPlane(design) || isAircraft(design)
 }
 
 export function isCyclist(design: Design): design is CyclistDesign {
@@ -102,6 +109,7 @@ export function designShape(design: Design, options: CyclistShapeOptions = {}): 
   if (isRecord(design)) return recordShape(design)
   if (isDrone(design)) return droneShape(design)
   if (isPlane(design)) return planeShape(design)
+  if (isAircraft(design)) return aircraftShape(design)
   return isSkater(design) ? skaterShape(design) : cyclistShape(design, options)
 }
 
@@ -114,6 +122,7 @@ export function designPose(design: Design, crankDeg?: number): Pose {
   if (isRecord(design)) return recordPose(design)
   if (isDrone(design)) return dronePose(design)
   if (isPlane(design)) return planePose(design)
+  if (isAircraft(design)) return aircraftPose()
   return isSkater(design) ? skaterPose(design) : riderPose(design, crankDeg)
 }
 
@@ -152,6 +161,10 @@ export function designReadouts(design: Design, rules: CyclingRules, limit?: numb
   if (isPlane(design)) {
     // A survey drone (PR 10j) has the client's camera rule, not a rulebook: its sheet warns about the camera, the margin and gusts itself.
     return { frontalArea: describeShape(planeShape(design)).frontalArea, mass: planeMass(design), price: 0, comfort: jumperComfort(), breaks: [] }
+  }
+  if (isAircraft(design)) {
+    // A kit plane (PR 10q) answers to the inspector, not a rulebook: its sheet warns about the stall speed itself.
+    return { frontalArea: describeShape(aircraftShape(design)).frontalArea, mass: aircraftMass(design), price: 0, comfort: jumperComfort(), breaks: [] }
   }
   return isSkater(design) ? skaterReadouts(design, limit) : readouts(design, rules, limit)
 }

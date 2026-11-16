@@ -22,6 +22,8 @@ import { DRONE_CLASS, DRONE_DESK, type DroneCourse, type DroneDesign } from '../
 import { courseDensity, droneRace, heatLoss, steadyTilt, topSpeed, type DroneRace } from './drone'
 import { PLANE_DESK, type PlaneDesign, type SurveySite } from '../data/plane'
 import { cameraTooHigh, gustLimit, gustTurn, planeMass, planeRange, staticMargin } from './plane'
+import { AIRCRAFT_DESK, type AircraftDesign, type Airfield } from '../data/aircraft'
+import { aircraftMass, cruiseSpeed, KMH, stallCheck } from './aircraft'
 import type { ShapeSpec } from './geom/body'
 import { gaussian } from './noise'
 import { hashString, Rng } from './rng'
@@ -297,5 +299,47 @@ export function planeDeskEstimate(design: PlaneDesign, old: PlaneDesign, site: S
     stalls: gustTurn(design, site).stalls,
     mass: planeMass(design),
     cameraHigh: cameraTooHigh(design),
+  }
+}
+
+/** The desk's guess at a kit plane (PR 10q). */
+export interface AircraftDeskEstimate {
+  /** Cruise speed at cruise power over the airfield on its usual day, km/h; `low` the slow end (more drag), `high` the fast one. */
+  value: number
+  low: number
+  high: number
+  /** The client's plane as they fly it now (the club's figure, so known), km/h. */
+  old: number
+  /** The stall speed, km/h, the certified one, km/h, and whether the inspector would sign it off. */
+  stall: number
+  limit: number
+  passes: boolean
+  /** The plane at cruise, kg. */
+  mass: number
+}
+
+/**
+ * The desk's guess at a kit plane (PR 10q): cruise speed over the airfield
+ * on its usual day, with its drag through the job's bias and a design's
+ * jitter, against the client's plane as they fly it, and the stall speed
+ * the inspector checks. The desk works from the real plane, prop and all.
+ */
+export function aircraftDeskEstimate(design: AircraftDesign, old: AircraftDesign, field: Airfield, jobSeed: number, designKey: string, analystLevel = 0): AircraftDeskEstimate {
+  const narrow = Math.max(DESK.floor, 1 - DESK.perLevel * analystLevel)
+  const job = new Rng(jobSeed)
+  const mine = new Rng(jobSeed ^ hashString(designKey))
+  const drag = 1 + narrow * (AIRCRAFT_DESK.dragBias * gaussian(job.fork('desk-drag')) + AIRCRAFT_DESK.jitter * gaussian(mine.fork('desk-jitter')))
+  const sd = Math.sqrt(AIRCRAFT_DESK.dragBias * AIRCRAFT_DESK.dragBias + AIRCRAFT_DESK.jitter * AIRCRAFT_DESK.jitter) * narrow * DESK.bars
+  const at = (dg: number) => cruiseSpeed(design, field, { drag: dg }) * KMH
+  const check = stallCheck(design)
+  return {
+    value: at(drag),
+    low: at(drag * (1 + sd)),
+    high: at(drag * (1 - sd)),
+    old: cruiseSpeed(old, field) * KMH,
+    stall: check.stall,
+    limit: check.limit,
+    passes: check.passes,
+    mass: aircraftMass(design),
   }
 }

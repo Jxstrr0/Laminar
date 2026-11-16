@@ -21,6 +21,7 @@ import { AIRCRAFT_AERO as A, AIRCRAFT_CLASS, AIRCRAFT_CRUISE as CRUISE, PROP_WAS
 import { ATMOSPHERE } from '../data/field'
 import { PI } from './det'
 import { densityAt } from './field/atmosphere'
+import type { FixTarget } from './failure'
 
 /** m/s to km/h. */
 export const KMH = 3.6
@@ -146,4 +147,11 @@ export function cruiseSpeed(design: AircraftDesign, field: Airfield, opts: DragO
     else lo = mid
   }
   return (lo + hi) / 2
+}
+
+/** What lifted the stall speed, for its "change this": the square tips or the pod slid forward, whichever took more of the wing's lift (the tips if neither did). */
+export function stallFix(design: AircraftDesign): Extract<FixTarget, 'wingtips' | 'acPodAt'> {
+  const tips = A.tipStall * design.wingtips
+  const pod = A.podStall * Math.max(0, design.pod.at)
+  return pod > tips ? 'acPodAt' : 'wingtips'
 }

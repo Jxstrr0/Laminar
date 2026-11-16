@@ -75,7 +75,7 @@ export interface PlaneLook {
 const squarish = (v: number, pow: number) => Math.sign(v) * Math.pow(Math.abs(v), pow)
 
 /** A loft along x through sections (x, top, bottom, half), centred on the axis at height `y0`. */
-function loft(sections: { x: number; top: number; bottom: number; half: number }[], pow: number, material: THREE.Material, closeEnds = true): THREE.Mesh {
+export function loft(sections: { x: number; top: number; bottom: number; half: number }[], pow: number, material: THREE.Material, closeEnds = true): THREE.Mesh {
   const n = DRAW.ring
   const positions: number[] = []
   const index: number[] = []
@@ -109,7 +109,7 @@ function loft(sections: { x: number; top: number; bottom: number; half: number }
 }
 
 /** A symmetric airfoil (the NACA four-digit thickness), leading edge at x = 0 running to −chord, for extruding along its span. */
-function foil(chord: number, thick: number): THREE.Shape {
+export function foil(chord: number, thick: number): THREE.Shape {
   const shape = new THREE.Shape()
   const pts: [number, number][] = []
   for (let i = 0; i <= DRAW.foilPoints; i++) {
@@ -124,7 +124,7 @@ function foil(chord: number, thick: number): THREE.Shape {
 }
 
 /** A surface of `span` along +z from its root, the foil's chord along x (leading edge at x = 0). */
-function surface(chord: number, span: number, thick: number, material: THREE.Material, tipChord = chord): THREE.Mesh {
+export function surface(chord: number, span: number, thick: number, material: THREE.Material, tipChord = chord): THREE.Mesh {
   const geo = new THREE.ExtrudeGeometry(foil(chord, thick), { depth: span, bevelEnabled: false, steps: 1 })
   if (tipChord !== chord) {
     // Taper: pull the far end's points back towards the leading edge.

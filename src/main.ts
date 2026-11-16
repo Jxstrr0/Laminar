@@ -22,6 +22,7 @@ import { STOCK_CAR } from './data/car'
 import { STOCK_RECORD } from './data/record'
 import { STOCK_DRONE } from './data/drone'
 import { STOCK_PLANE } from './data/plane'
+import { STOCK_AIRCRAFT } from './data/aircraft'
 import type { Design } from './data/sport'
 import { careerStore, freshSeed } from './ui/careerStore'
 import { charge, currentCarRun, currentDroneRun, currentPlaneRun, currentRecordRun, currentEvent, currentJumpEvent, currentSledEvent, currentTruckRun, newCareer, orderBlock, orderModel, repairModel } from './sim/career'
@@ -56,6 +57,8 @@ const PREVIEWS: Record<string, Design> = {
   quad: STOCK_DRONE.racer,
   // The survey drone (PR 10j).
   plane: STOCK_PLANE.survey,
+  // The light aircraft (PR 10q).
+  aircraft: STOCK_AIRCRAFT.kit,
 }
 const PREVIEW_DESIGN = PREVIEWS[new URLSearchParams(location.search).get('try') ?? ''] ?? null
 const PREVIEW = PREVIEW_DESIGN !== null

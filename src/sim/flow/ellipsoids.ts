@@ -15,9 +15,11 @@ import { BOB_SKELETON, FRAME, HELMET_MOUNT, SKATER_SKELETON, SKELETON } from '..
 import { SK_HEAD, type SkaterDesign } from '../../data/skater'
 import { JUMP_PARTS, JUMP_SKIS, type JumperDesign } from '../../data/jumper'
 import { SLED, type BobsledDesign } from '../../data/bobsled'
-import { isBobsled, isCar, isDrone, isJumper, isPlane, isRecord, isSkater, isTruck, type Design } from '../design'
+import { isAircraft, isBobsled, isCar, isDrone, isJumper, isPlane, isRecord, isSkater, isTruck, type Design } from '../design'
 import { PLANE_BODY, PLANE_CLASS, type PlaneDesign } from '../../data/plane'
 import { planeLength, planeX, podPlace } from '../geom/plane'
+import { AIRCRAFT_BODY, AIRCRAFT_CLASS, type AircraftDesign } from '../../data/aircraft'
+import { aircraftLength, aircraftX, podPlace as kitPodPlace } from '../geom/aircraft'
 import { DRONE_AERO, DRONE_BODY, type DroneDesign } from '../../data/drone'
 import { podEnds, podHeight } from '../geom/drone'
 import { CAR_BODY, type CarDesign } from '../../data/car'
@@ -391,6 +393,31 @@ export function planeEllipsoids(design: PlaneDesign): Ellipsoid[] {
   ]
 }
 
+/**
+ * The kit plane (PR 10q): the fuselage as one long oval, the high wing as a
+ * thin wide one on top of the cabin, and the client's pod under the right
+ * wing, where the figure draws them.
+ */
+export function aircraftEllipsoids(design: AircraftDesign): Ellipsoid[] {
+  const B = AIRCRAFT_BODY
+  const len = aircraftLength()
+  const pod = kitPodPlace(design)
+  const wingY = B.axis + B.halfHeight
+  return [
+    { id: 'fuselage', bodyId: 'fuselage', centre: { x: aircraftX(len / 2), y: B.axis, z: 0 }, axes: { a: len / 2, b: B.halfHeight, c: B.half }, pitchRad: 0, wrap: 'oval', part: 'rider' },
+    { id: 'wing', bodyId: 'fuselage', centre: { x: 0, y: wingY, z: 0 }, axes: { a: B.chord / 2, b: B.chord * B.wingThick, c: AIRCRAFT_CLASS[design.class].span / 2 }, pitchRad: 0, wrap: 'oval', part: 'rider' },
+    {
+      id: 'pod',
+      bodyId: 'pod',
+      centre: { x: aircraftX(pod.x), y: wingY - B.pod.pylon - B.pod.radius, z: B.pod.out },
+      axes: { a: pod.length / 2, b: B.pod.radius, c: B.pod.radius },
+      pitchRad: 0,
+      wrap: 'oval',
+      part: 'rider',
+    },
+  ]
+}
+
 /** The ellipsoids for any design in its pose. */
 export function designEllipsoids(design: Design, pose: Pose): Ellipsoid[] {
   if (isJumper(design)) return jumperEllipsoids(design, pose)
@@ -400,6 +427,7 @@ export function designEllipsoids(design: Design, pose: Pose): Ellipsoid[] {
   if (isRecord(design)) return recordEllipsoids(design)
   if (isDrone(design)) return droneEllipsoids(design)
   if (isPlane(design)) return planeEllipsoids(design)
+  if (isAircraft(design)) return aircraftEllipsoids(design)
   return isSkater(design) ? skaterEllipsoids(design, pose) : riderEllipsoids(design, pose)
 }
 
