@@ -35,6 +35,8 @@ export interface RunSample {
   cm?: number
   /** And the model wing's Reynolds number. */
   re?: number
+  /** A sensor pod only (PR 10aa): how hard the pod shook on the balance, as the buffet index (past the ministry's limit, its sensor's picture blurs). */
+  shake?: number
   /** The model's drag as the balance felt it, N. */
   dragN: number
   /** Fan and turntable were at rest on their settings: a clean data point. */
@@ -58,6 +60,8 @@ export interface Run {
   tunnel?: 'own'
   /** A powered quad model's props spun through this run (PR 10e): it costs more. */
   powered?: true
+  /** A sensor pod model hung under its stretch of wing through this run (PR 10aa). */
+  wing?: true
 }
 
 export interface Recorder {

@@ -7,7 +7,7 @@
  * break at the same moment.
  */
 import type { CyclistDesign } from '../data/cyclist'
-import { isAircraft, isCar, isCyclist, isDrone, isJumper, isPlane, isRecord, isTruck, type Design } from './design'
+import { isAircraft, isPod, isCar, isCyclist, isDrone, isJumper, isPlane, isRecord, isTruck, type Design } from './design'
 import type { JumperDesign } from '../data/jumper'
 import type { SkaterDesign } from '../data/skater'
 import { FAILURE } from '../data/failure'
@@ -66,6 +66,7 @@ export function strains(model: MountedModel, speed: number, loadN: number, mount
   }
   if (isJumper(model.design)) out.push({ mode: 'mount', part: 'sting', level: loadN / (FAILURE.stingN * mountStrength) })
   else if (isAircraft(model.design)) out.push({ mode: 'mount', part: 'sting', level: loadN / (FAILURE.aircraftStingN * mountStrength) })
+  else if (isPod(model.design)) out.push({ mode: 'mount', part: 'sting', level: loadN / (FAILURE.podStingN * mountStrength) })
   else if (isPlane(model.design)) out.push({ mode: 'mount', part: 'sting', level: loadN / (FAILURE.planeStingN * mountStrength) })
   else if (isDrone(model.design)) out.push({ mode: 'mount', part: 'sting', level: loadN / (FAILURE.droneStingN * mountStrength) })
   else if (isTruck(model.design)) out.push({ mode: 'mount', part: 'posts', level: loadN / (FAILURE.truckMountN * mountStrength) })

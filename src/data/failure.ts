@@ -29,7 +29,7 @@ export const FAILURE = {
     disc: 42,
     /** Smaller models have shorter, stiffer parts: their flutter speed times this. */
     // Smaller models are stiffer for their size; a truck's scales (PR 9c) carry on the trend.
-    scale: { 4: 1.3, 3: 1.15, 2: 1, 12: 1.6, 10: 1.5, 8: 1.4, 1: 1, 2.5: 1.2, 1.5: 1, 6: 1.25, 5: 1.2 },
+    scale: { 4: 1.3, 3: 1.15, 2: 1, 12: 1.6, 10: 1.5, 8: 1.4, 1: 1, 2.5: 1.2, 1.5: 1, 6: 1.25, 5: 1.2, 2.4: 1.2, 1.8: 1.1 },
     /** Printed parts are softer. */
     finish: { printed: 0.85, sanded: 1, polished: 1 },
   },
@@ -73,6 +73,12 @@ export const FAILURE = {
    * the bigger fan breaks it.
    */
   aircraftStingN: 800,
+  /**
+   * The sting a sensor pod's model sits on (PR 10aa), N: a 1:1.8 pod with a
+   * cut-off tail, tight under its wing, at the university fan's top speed
+   * loads it to about 70 N; the bigger fan's 55 m/s takes it past.
+   */
+  podStingN: 120,
   /** Printed models have their helmet glued on: it lets go past this air speed. */
   detachSpeed: 36,
   repair: {

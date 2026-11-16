@@ -51,7 +51,14 @@ export const PLANE_SCALES = [2.5, 1.5] as const
  */
 export const AIRCRAFT_SCALES = [6, 5] as const
 
-export const ALL_SCALES = [...MODEL_SCALES, ...TRUCK_SCALES, ...DRONE_SCALES, ...PLANE_SCALES, ...AIRCRAFT_SCALES] as const
+/**
+ * A sensor pod (PR 10aa): about 4 m long with its fairings, so the shop
+ * builds it at 1:2.4 or 1:1.8; under a stretch of wing that spans most of
+ * the test section at the larger one.
+ */
+export const POD_SCALES = [2.4, 1.8] as const
+
+export const ALL_SCALES = [...MODEL_SCALES, ...TRUCK_SCALES, ...DRONE_SCALES, ...PLANE_SCALES, ...AIRCRAFT_SCALES, ...POD_SCALES] as const
 
 export type ModelScale = (typeof ALL_SCALES)[number]
 
@@ -77,6 +84,9 @@ export const MODEL_SHOP = {
     // A kit plane's wing, cabin and tail, with the spats, cowl, tips, fairings and pod as printed parts.
     6: { price: 62000, days: 8 },
     5: { price: 84000, days: 10 },
+    // A sensor pod: its middle turned, its nose and tail cone printed.
+    2.4: { price: 26000, days: 4 },
+    1.8: { price: 38000, days: 6 },
   } satisfies Record<ModelScale, { price: number; days: number }>,
   finish: {
     printed: { times: 0.75, days: -1 },
@@ -99,6 +109,12 @@ export const MODEL_SHOP = {
    * prop the same way, so its slipstream blows the nose as in flight.
    */
   motors: { price: 15000, days: 2 },
+  /**
+   * A sensor pod's stretch of wing (PR 10aa): a wing section with the pylon,
+   * fixed to the tunnel's walls above the pod, so the pod on the balance
+   * feels the squeezed air between them as it does under the real wing.
+   */
+  wing: { price: 24000, days: 3 },
   /** Swapping one bolt-on part (helmet, suit, bars, a wheel, the frame; a truck's fairing, skirts and the like) on a model you have, ₽ (no days). */
   partSwap: 1500,
   /** Prices round to this many rubles. */
@@ -163,10 +179,10 @@ export interface Maker {
 }
 
 export const MAKERS: Record<MakerId, Maker> = {
-  shop: { scales: [4, 3, 2, 12, 10, 8, 1, 2.5, 1.5, 6, 5], finishes: ['printed', 'sanded', 'polished'], grades: ['standard', 'fine'], priceShare: 1, daysShare: 1, stiffness: 1, accuracyTimes: 1 },
-  resin: { scales: [4, 3, 12, 10, 1, 2.5, 6], finishes: ['sanded', 'polished'], grades: ['standard', 'fine'], priceShare: 0.3, daysShare: 0.3, stiffness: 0.8, accuracyTimes: 1 },
-  fdm: { scales: [4, 3, 2, 12, 10, 8, 1, 2.5, 1.5, 6, 5], finishes: ['printed', 'sanded'], grades: ['standard'], priceShare: 0.2, daysShare: 0.5, stiffness: 0.9, accuracyTimes: 1 },
-  cnc: { scales: [4, 3, 2, 12, 10, 8, 1, 2.5, 1.5, 6, 5], finishes: ['sanded', 'polished'], grades: ['standard', 'fine'], priceShare: 0.45, daysShare: 0.6, stiffness: 1.3, accuracyTimes: 0.5 },
+  shop: { scales: [4, 3, 2, 12, 10, 8, 1, 2.5, 1.5, 6, 5, 2.4, 1.8], finishes: ['printed', 'sanded', 'polished'], grades: ['standard', 'fine'], priceShare: 1, daysShare: 1, stiffness: 1, accuracyTimes: 1 },
+  resin: { scales: [4, 3, 12, 10, 1, 2.5, 6, 2.4], finishes: ['sanded', 'polished'], grades: ['standard', 'fine'], priceShare: 0.3, daysShare: 0.3, stiffness: 0.8, accuracyTimes: 1 },
+  fdm: { scales: [4, 3, 2, 12, 10, 8, 1, 2.5, 1.5, 6, 5, 2.4, 1.8], finishes: ['printed', 'sanded'], grades: ['standard'], priceShare: 0.2, daysShare: 0.5, stiffness: 0.9, accuracyTimes: 1 },
+  cnc: { scales: [4, 3, 2, 12, 10, 8, 1, 2.5, 1.5, 6, 5, 2.4, 1.8], finishes: ['sanded', 'polished'], grades: ['standard', 'fine'], priceShare: 0.45, daysShare: 0.6, stiffness: 1.3, accuracyTimes: 0.5 },
 }
 
 /** What each machine costs to buy, ₽. */

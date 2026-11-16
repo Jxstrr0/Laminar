@@ -101,6 +101,8 @@ export interface PatrolOpts {
   density?: number
   alone?: boolean
   podDrag?: number
+  /** The pod's whole drag area as it flies, m², in place of the sim's (the tunnel's forecast). */
+  podCdA?: number
 }
 
 /** The whole plane's drag at patrol speed with this pod, N: its parasite drag, the pod's (installed or alone) and the drag of making lift. */
@@ -112,7 +114,8 @@ export function patrolDrag(design: PodDesign, opts: PatrolOpts = {}): number {
   const pod = podDrag(design, sensor)
   const weight = (c.mass + podMass(design, sensor)) * ATMOSPHERE.gravity
   const induced = (weight * weight) / (q * PI * c.oswald * c.span * c.span)
-  return q * (c.airframeCdA + (opts.alone ? pod.alone : pod.installed) * (opts.podDrag ?? 1)) + induced
+  const podCdA = opts.podCdA ?? (opts.alone ? pod.alone : pod.installed) * (opts.podDrag ?? 1)
+  return q * (c.airframeCdA + podCdA) + induced
 }
 
 /** Hours on station at patrol speed on the patrol leg's fuel. */

@@ -3,7 +3,7 @@
  * days it takes, and the model it builds. Prices and days come from
  * MODEL_SHOP; the model's build errors from its own seed.
  */
-import { AIRCRAFT_SCALES, DRONE_SCALES, MAKERS, PLANE_SCALES, MODEL_GRADE, MODEL_SHOP, TRUCK_SCALES, type MakerId, type ModelFinish, type ModelGrade, type ModelScale } from '../data/model'
+import { AIRCRAFT_SCALES, DRONE_SCALES, POD_SCALES, MAKERS, PLANE_SCALES, MODEL_GRADE, MODEL_SHOP, TRUCK_SCALES, type MakerId, type ModelFinish, type ModelGrade, type ModelScale } from '../data/model'
 import type { EventSpec, ModelSpec, PreparedModel } from './views'
 import { eventFlow } from './views'
 import { AIR } from '../data/air'
@@ -22,6 +22,8 @@ export interface ModelOrder {
   maker?: MakerId
   /** A quad model with motors that spin its props in the tunnel (left out for anything else; PR 10e). */
   powered?: boolean
+  /** A sensor pod model under a stretch of wing fixed above it (left out for anything else, and for a pod on its own; PR 10aa). */
+  wing?: boolean
 }
 
 /** Who makes an order. */
@@ -37,11 +39,11 @@ export function canMake(order: ModelOrder): boolean {
 export const isTruckScale = (scale: ModelScale): boolean => (TRUCK_SCALES as readonly number[]).includes(scale)
 
 /** Which list a scale is on: a rider's (and a car's), a truck's (and a land-speed car's), or a quad's full size (PR 10d). */
-export type ScaleFamily = 'rider' | 'truck' | 'drone' | 'plane' | 'aircraft'
+export type ScaleFamily = 'rider' | 'truck' | 'drone' | 'plane' | 'aircraft' | 'pod'
 export const scaleFamily = (scale: ModelScale): ScaleFamily =>
-  isTruckScale(scale) ? 'truck' : (DRONE_SCALES as readonly number[]).includes(scale) ? 'drone' : (PLANE_SCALES as readonly number[]).includes(scale) ? 'plane' : (AIRCRAFT_SCALES as readonly number[]).includes(scale) ? 'aircraft' : 'rider'
+  isTruckScale(scale) ? 'truck' : (DRONE_SCALES as readonly number[]).includes(scale) ? 'drone' : (PLANE_SCALES as readonly number[]).includes(scale) ? 'plane' : (AIRCRAFT_SCALES as readonly number[]).includes(scale) ? 'aircraft' : (POD_SCALES as readonly number[]).includes(scale) ? 'pod' : 'rider'
 /** The scale a family's model starts at. */
-export const FAMILY_START: Record<ScaleFamily, ModelScale> = { rider: 2, truck: 8, drone: 1, plane: 2.5, aircraft: 6 }
+export const FAMILY_START: Record<ScaleFamily, ModelScale> = { rider: 2, truck: 8, drone: 1, plane: 2.5, aircraft: 6, pod: 2.4 }
 
 /** The scales a maker builds for one family. */
 export function makerScales(maker: MakerId, family: ScaleFamily): ModelScale[] {
@@ -98,10 +100,11 @@ function shopQuote(order: ModelOrder): Quote {
   const taps = order.taps ? MODEL_SHOP.taps : { price: 0, days: 0 }
   const board = order.board ? MODEL_SHOP.board : { price: 0, days: 0 }
   const motors = order.powered ? MODEL_SHOP.motors : { price: 0, days: 0 }
-  const raw = base.price * finish.times * grade.times + trips.price + taps.price + board.price + motors.price
+  const wing = order.wing ? MODEL_SHOP.wing : { price: 0, days: 0 }
+  const raw = base.price * finish.times * grade.times + trips.price + taps.price + board.price + motors.price + wing.price
   return {
     price: Math.round(raw / MODEL_SHOP.round) * MODEL_SHOP.round,
-    days: Math.max(1, base.days + finish.days + grade.days + trips.days + taps.days + board.days + motors.days),
+    days: Math.max(1, base.days + finish.days + grade.days + trips.days + taps.days + board.days + motors.days + wing.days),
   }
 }
 
