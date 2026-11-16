@@ -62,10 +62,20 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 8q | The bobsled run replay | **Done** (v0.8.16.0) |
 | 9a | Trucks in the sim: the rig and its parts, the Tarnovian Road Code, drag over yaw, the fuel run on the Stavren–Mostograd highway | **Done** (v0.9.0.0) |
 | 9b | The truck on Shape: cab, gap and trailer sliders, the desk's fuel saving, road code breaks with "change this", the rig in 3D (`?try=truck`) | **Done** (v0.9.1.0) |
-| 9c–14 | See the plan | Next: PR 9c, the truck in the tunnel (ground board, bolt-on swaps, its own model scale) |
+| 9c | The truck in the tunnel, sim side: truck model scales (1:12, 1:10, 1:8), parts drag that grows with yaw, the still floor and the ground board, bolt-on part swaps, the fuel-saving forecast from a yaw sweep | **Done** (v0.9.2.0) |
+| 9d–14 | See the plan | Next: PR 9d, the truck on the tunnel screen. Then 9e truck jobs, 9f the fuel-run replay. |
 
 ## Versions
 
+- **0.9.2.0** (PR 9c): the truck in the tunnel, in the sim. Truck models
+  come at 1:12, 1:10 or 1:8 so the rig fits the section. The parts a box
+  can't show (gap, underside, boat-tail panels and so on) ride with the
+  model as drag that grows in a crosswind. The still floor hides some of
+  the wheels' and underside's drag; the ground board takes most of that
+  away. Fairing, extenders, gap filler, skirts and boat-tail swap on a
+  model like a helmet. The forecast runs the route on the drag curve the
+  tunnel read: read only straight on and it over-promises. Nothing new on
+  screen yet (PR 9d).
 - **0.9.1.0** (PR 9b): the truck on the Shape screen, reached with
   `?try=truck` until truck jobs arrive (PR 9d). Sliders for the cab corners,
   roof fairing, side extenders, gap, gap filler, skirts and boat-tail; the

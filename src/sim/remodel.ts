@@ -5,18 +5,35 @@
  * days; a new position needs a new model from the shop. A ski jumper's suit
  * is cut into the model's body, so any change to a jumper is a new model;
  * a bobsled model is one moulded shell with its crew, so the same goes for it.
- * A truck model (PR 9b) is treated the same for now: its bolt-on parts come
- * with the truck's tunnel work.
+ * A truck model (PR 9c) is a cab and trailer with parts bolted on: the
+ * fairing, extenders, gap filler, skirts and boat-tail swap like a rider's
+ * helmet. The cab's corners, the gap's length and the trailer's height are
+ * the model's body, so changing them needs a new one.
  */
 import { MODEL_SHOP } from '../data/model'
 import type { Design } from './design'
 import { isBobsled, isJumper, isSkater, isTruck } from './design'
+import type { TruckDesign } from '../data/truck'
 
-export type PartName = 'helmet' | 'suit' | 'bars' | 'frontWheel' | 'rearWheel' | 'frame' | 'hood'
+export type PartName = 'helmet' | 'suit' | 'bars' | 'frontWheel' | 'rearWheel' | 'frame' | 'hood' | TruckPart
+
+/** A truck's bolt-on parts. */
+export type TruckPart = 'fairing' | 'extenders' | 'gapFill' | 'skirts' | 'boatTail'
+
+function truckPartChanges(model: TruckDesign, bench: TruckDesign): TruckPart[] {
+  const out: TruckPart[] = []
+  if (model.cab.fairing !== bench.cab.fairing) out.push('fairing')
+  if (model.cab.extenders !== bench.cab.extenders) out.push('extenders')
+  if (model.gap.fill !== bench.gap.fill) out.push('gapFill')
+  if (model.trailer.skirts !== bench.trailer.skirts) out.push('skirts')
+  if (model.trailer.tail !== bench.trailer.tail || model.trailer.tailAngle !== bench.trailer.tailAngle) out.push('boatTail')
+  return out
+}
 
 /** The bolt-on parts that differ between the model and the bench design. */
 export function partChanges(model: Design, bench: Design): PartName[] {
   const out: PartName[] = []
+  if (isTruck(model) && isTruck(bench)) return truckPartChanges(model, bench)
   if (isJumper(model) || isJumper(bench) || isBobsled(model) || isBobsled(bench) || isTruck(model) || isTruck(bench)) return out
   if (isSkater(model) || isSkater(bench)) {
     if (!isSkater(model) || !isSkater(bench)) return out
@@ -41,7 +58,8 @@ export function partChanges(model: Design, bench: Design): PartName[] {
  */
 export function postureChanged(model: Design, bench: Design): boolean {
   if (isSkater(model) !== isSkater(bench) || isJumper(model) !== isJumper(bench) || isBobsled(model) !== isBobsled(bench) || isTruck(model) !== isTruck(bench)) return true
-  if (isTruck(model) || isTruck(bench)) return JSON.stringify(model) !== JSON.stringify(bench)
+  if (isTruck(model) && isTruck(bench)) return model.cab.nose !== bench.cab.nose || model.gap.length !== bench.gap.length || model.trailerTop !== bench.trailerTop
+  if (isTruck(model) || isTruck(bench)) return true
   if (isBobsled(model) || isBobsled(bench)) {
     if (!isBobsled(model) || !isBobsled(bench)) return true
     const a = model.sled
@@ -57,6 +75,10 @@ export function postureChanged(model: Design, bench: Design): boolean {
 
 /** The model with the bench design's parts bolted on, its position unchanged (same sport only). */
 export function swapParts(model: Design, bench: Design): Design {
+  // A truck takes the bench's bolt-ons and keeps its own cab corners, gap and trailer.
+  if (isTruck(model) && isTruck(bench)) {
+    return structuredClone({ ...bench, trailerTop: model.trailerTop, cab: { ...bench.cab, nose: model.cab.nose }, gap: { ...bench.gap, length: model.gap.length } })
+  }
   if (isJumper(model) || isJumper(bench) || isBobsled(model) || isBobsled(bench) || isTruck(model) || isTruck(bench)) return structuredClone(model)
   if (isSkater(bench)) return isSkater(model) ? structuredClone({ ...bench, posture: model.posture, arms: model.arms }) : structuredClone(model)
   return isSkater(model) ? structuredClone(model) : structuredClone({ ...bench, posture: model.posture })

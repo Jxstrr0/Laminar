@@ -175,6 +175,25 @@ export interface PreparedModel {
    * and crew (PR 8n). Read along with the bodies, straight on at any yaw.
    */
   fixedCdA?: number
+  /**
+   * Drag the bodies don't carry that changes with yaw, at model size, m²: a
+   * truck's gap, underside and the like (PR 9c). `cdA[i]` is at `i × stepDeg`
+   * degrees either side; held flat past the end. Read on top of `fixedCdA`.
+   */
+  fixedYaw?: { stepDeg: number; cdA: readonly number[] }
+}
+
+/** The drag a prepared model carries beside its bodies at a yaw, model size, m². */
+export function fixedDrag(prepared: PreparedModel, yawDeg: number): number {
+  const curve = prepared.fixedYaw
+  let yawed = 0
+  if (curve && curve.cdA.length > 0) {
+    const at = Math.abs(yawDeg) / curve.stepDeg
+    const i = Math.min(Math.floor(at), curve.cdA.length - 1)
+    const j = Math.min(i + 1, curve.cdA.length - 1)
+    yawed = curve.cdA[i]! + (curve.cdA[j]! - curve.cdA[i]!) * (at - Math.floor(at)) * (i === j ? 0 : 1)
+  }
+  return (prepared.fixedCdA ?? 0) + yawed
 }
 
 export function prepareModel(spec: ShapeSpec, model: ModelSpec): PreparedModel {
@@ -202,7 +221,7 @@ export function readBalance(prepared: PreparedModel, tunnel: TunnelSpec, run: Ru
   const q = tunnel.quirks
   const section = tunnel.section
   const blocked = q && section ? blockageFactor(q.blockage, shape.frontalArea, section.width * section.height) : 1
-  const modelCdA = ((forces.cdA + (prepared.fixedCdA ?? 0)) * blocked + mountDrag(tunnel, run)) * (1 + tunnel.balanceNoise * gaussian(rng))
+  const modelCdA = ((forces.cdA + fixedDrag(prepared, run.yawDeg)) * blocked + mountDrag(tunnel, run)) * (1 + tunnel.balanceNoise * gaussian(rng))
   const cyA = forces.cyA * blocked * (1 + tunnel.balanceNoise * gaussian(rng))
   const s2 = prepared.scale * prepared.scale
   return {
