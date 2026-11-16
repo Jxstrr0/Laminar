@@ -89,6 +89,11 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Raisa Belova | Lead engineer of the Proryv Project (Sukhoye Speed Week). PR 9z. |
 | Proryv Project | A jet-car team out to take a car through the sound barrier; Proryv is also the car. PR 9z. |
 | Sukhoye Speed Week | The land-speed meeting on Lake Sukhoye: a run each way, the mean counts. PR 9t. |
+| Yegor Shmel | Hobby quad pilot at the Lugovoy club who builds his own (Lugovoy Club Race). PR 10f. |
+| Inna Vertel | Club quad racer who taped over her quad's vents (Lugovoy Club Race). PR 10f. |
+| Nikita Rogov | Builds the quads for Strizh Racing (Lugovoy Club Race). PR 10f. |
+| Strizh Racing | A two-pilot quad team in the club league. PR 10f. |
+| Lugovoy Club Race | The drone club's race at the Lugovoy meadow: five laps of the gates from a standing start. PR 10f. |
 | Stavren Regional Time Trial, Club 16 km Time Trial, Lake Dolgo Hill Time Trial, Kosa Coast Time Trial, National Time Trial Championship, Track Championships: Individual Pursuit, Stavren Open: 10 000 m, Lake Dolgo Ice Marathon, Belogor Junior Cup, Belogor Winter Cup, Tarnovian Large Hill Championship, Belogor Club Cup: two-man, Tarnovian Two-man Championship, Tarnovian Four-man Championship, Kovyl Haulage fuel trial, Volok Freight fuel trial, Prichal Logistics fuel trial | The events above. |
 
 ## Rival firms (PR 7)

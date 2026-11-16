@@ -20,9 +20,11 @@
  *   event and refreshes the board.
  */
 import { RECORD_TUNNEL, STOCK_RECORD, type RecordClass, type RecordDesign } from '../data/record'
-import { DRONE_COURSES, STOCK_DRONE, type DroneClass, type DroneCourse, type DroneDesign } from '../data/drone'
+import { STOCK_DRONE, type DroneClass, type DroneCourse, type DroneDesign } from '../data/drone'
+import { droneRace, type DroneRace } from './drone'
+import { dragScaleForTime, droneDayAir, droneEventFrom, heatCost, PRACTICE_COURSE, raceDragArea, type DroneEvent } from './droneJob'
 import type { SaltFlat } from '../data/saltFlats'
-import { BID, BRIEFS, CAREER, CAR_JOBS, JUMP_JOBS, PROMISE, RECORD_JOBS, SLED_JOBS, TRUCK_JOBS, type BriefTemplate } from '../data/briefs'
+import { BID, BRIEFS, CAREER, CAR_JOBS, DRONE_JOBS, JUMP_JOBS, PROMISE, RECORD_JOBS, SLED_JOBS, TRUCK_JOBS, type BriefTemplate } from '../data/briefs'
 import { recordAero, recordDayAir, sightLoss, soundSpeed, twoWay, type RecordAttempt, type RecordDay } from './record'
 import { dragScaleForSpeed, PRACTICE_FLAT, recordEventFrom, sightCost, stillAttempt, type RecordEvent } from './recordJob'
 import type { BobsledDesign } from '../data/bobsled'
@@ -155,6 +157,7 @@ export function openTo(b: BriefTemplate, reputation: number): boolean {
   if (b.event.truck && !TRUCK_JOBS.open) return false
   if (b.event.car && !CAR_JOBS.open) return false
   if (b.event.record && !RECORD_JOBS.open) return false
+  if (b.event.drone && !DRONE_JOBS.open) return false
   return (b.minRep ?? 0) <= reputation
 }
 
@@ -210,6 +213,16 @@ export function carEventOf(brief: Pick<Brief, 'id'>): CarEvent | null {
 /** True for a land-speed record brief: its promise is km/h on the two-way mean, its declaration a record speed. */
 export function isRecordBrief(id: string): boolean {
   return briefTemplate(id)?.event.record !== undefined
+}
+
+/** True for a racing-quad brief: its promise is tenths of a second off the race, its declaration a race time. */
+export function isDroneBrief(id: string): boolean {
+  return briefTemplate(id)?.event.drone !== undefined
+}
+
+/** A quad brief's club race. Null for any other brief. */
+export function droneEventOf(brief: Pick<Brief, 'id'>): DroneEvent | null {
+  return droneEventFrom(template(brief.id))
 }
 
 /** A record brief's speed week. Null for any other brief. */
@@ -405,14 +418,19 @@ export function currentCarRun(state: CareerState, cls: CarClass): { circuit: Cir
   return { circuit: currentCarEvent(state).circuit, old: setup && setup.sport === 'car' && setup.class === cls ? setup : STOCK_CAR[cls] }
 }
 
+/** The club race a quad is built for: the job's, or the Lugovoy meadow on its usual day between jobs. */
+export function currentDroneEvent(state: CareerState): DroneEvent {
+  return (state.job && droneEventOf(state.job.brief)) ?? PRACTICE_COURSE
+}
+
 /**
- * The course a racing quad is forecast on and the club's quad it's measured
- * against: the job's (from PR 10d), or a club racer as the hobby pilots fly
- * it at the Lugovoy meadow between jobs.
+ * The course a racing quad is forecast on and the pilot's quad it's
+ * measured against: the job's (PR 10f), or a club racer as the hobby pilots
+ * fly it at the Lugovoy meadow between jobs.
  */
 export function currentDroneRun(state: CareerState, cls: DroneClass): { course: DroneCourse; old: DroneDesign } {
   const setup = state.job ? template(state.job.brief.id).setup : null
-  return { course: DRONE_COURSES.lugovoy, old: setup && setup.sport === 'drone' && setup.class === cls ? setup : STOCK_DRONE[cls] }
+  return { course: currentDroneEvent(state).course, old: setup && setup.sport === 'drone' && setup.class === cls ? setup : STOCK_DRONE[cls] }
 }
 
 /** The speed week a record car is built for: the job's, or Lake Sukhoye on its usual day between jobs. */
@@ -497,8 +515,16 @@ export function promiseLimits(id: string): { min: number; max: number } {
 export function clampBid(id: string, bid: Bid): Bid {
   const b = template(id)
   const price = Math.min(b.fee.max, Math.max(b.fee.min, roundTo(bid.price, BID.priceStep)))
-  // A sled's promise moves in hundredths of a second, a car's in tenths, a record car's 2 km/h at a time.
-  const step = isSledBrief(id) ? SLED_JOBS.promiseStep : isCarBrief(id) ? CAR_JOBS.promiseStep : isRecordBrief(id) ? RECORD_JOBS.promiseStep : BID.promiseStep
+  // A sled's promise moves in hundredths of a second, a car's and a quad's in tenths, a record car's 2 km/h at a time.
+  const step = isSledBrief(id)
+    ? SLED_JOBS.promiseStep
+    : isCarBrief(id)
+      ? CAR_JOBS.promiseStep
+      : isRecordBrief(id)
+        ? RECORD_JOBS.promiseStep
+        : isDroneBrief(id)
+          ? DRONE_JOBS.promiseStep
+          : BID.promiseStep
   const limits = promiseLimits(id)
   const promise = Math.min(limits.max, Math.max(limits.min, roundTo(bid.promise, step)))
   return { price, promise }
@@ -1277,6 +1303,105 @@ export function deliverRecord(state: CareerState, design: RecordDesign, predicte
     squeeze,
     meanMach: still.mean === null ? null : still.mean / soundSpeed(flat.temperature),
     sight: sight && sightLoss(design) > 0 ? { share: sight.share, lost: sight.mean !== null && still.mean !== null ? (sight.mean - still.mean) * 3.6 : 0, fix: 'canopy' } : null,
+    reputation: { before: firmReputation(state), after: 0 },
+  }
+  const closed = closeJob(state, job, penalty, { achieved, predicted: predictedCdA, actual: actualCdA })
+  return { ...closed, job, event, debrief: { ...debrief, reputation: { ...debrief.reputation, after: firmReputation(closed.state) } } }
+}
+
+/** What the club race showed for a racing quad (plan section 9: race time gained on the course's usual day). */
+export interface DroneDebrief {
+  /** Promised and achieved gain on the usual day's race, points (tenths of a second). */
+  promised: number
+  achieved: number
+  met: boolean
+  /** Points short after the allowance (0 if met). */
+  shortfall: number
+  /** ₽ taken off the fee. */
+  penalty: number
+  /** Declared race time, s, and the real one on the usual day (null if it tumbled). */
+  predicted: number
+  actual: number | null
+  /** The pilot's old quad's race on the usual day, s. */
+  baseline: number
+  /** The drag areas flat out the declared and real times come from, m²: the read is judged on these. */
+  predictedCdA: number
+  actualCdA: number
+  /** (declared − real) ÷ real, on drag. */
+  readError: number
+  read: Read
+  /** Race day: its air, and both quads round the gates in it. */
+  day: { temperature: number }
+  race: DroneRace
+  baselineRace: DroneRace
+  /**
+   * Why a miss happened: not enough gain ('design'), a tumble that crashed
+   * it out ('tumble'), or enough but for the speed controllers overheating
+   * ('heat').
+   */
+  cause: 'design' | 'tumble' | 'heat' | null
+  /** Where it tumbled on the usual day: how fast, km/h, and braking or flying, with the slider to change; null if it held. */
+  tumble: { speed: number; braking: boolean; fix: FixTarget } | null
+  /** What the overheating cost on the usual day's race, s, and when it started; null if it never did. */
+  heat: { at: number; lost: number; fix: FixTarget } | null
+  reputation: { before: number; after: number }
+}
+
+export interface DroneDelivery extends Closed {
+  job: Job
+  event: DroneEvent
+  debrief: DroneDebrief
+}
+
+/**
+ * Deliver a racing quad with a declared race time, s. The promise is
+ * judged on the race on the course's usual day, the same for any race day;
+ * a quad that tumbles crashes out and gains nothing. Race day, your quad and
+ * the old one in the same air, is the show. The firm's record keeps the
+ * read on drag. Null if there's no job, it isn't a quad job, or the quad
+ * isn't the pilot's class.
+ */
+export function deliverDrone(state: CareerState, design: DroneDesign, predicted: number): DroneDelivery | null {
+  const job = state.job
+  if (!job) return null
+  const event = droneEventOf(job.brief)
+  const setup = template(job.brief.id).setup
+  if (!event || setup.sport !== 'drone' || design.class !== setup.class) return null
+  const course = event.course
+  const reference = droneRace(design, course)
+  const baseline = droneRace(setup, course).time ?? 0
+  const gainOf = (time: number | null) => (time === null ? 0 : (baseline - time) / DRONE_JOBS.pointSeconds)
+  const achieved = gainOf(reference.time)
+  const { shortfall, penalty } = penaltyFor(job.brief.fee, job.promise, achieved)
+  const met = shortfall === 0
+  const day = droneDayAir(event, daySeed(job.brief))
+  // The read is on drag: the drag flat out the declared time is worth, had the motors held any twist.
+  const actualCdA = raceDragArea(design, course)
+  const predictedCdA = dragScaleForTime(predicted, design, course) * actualCdA
+  const readError = (predictedCdA - actualCdA) / actualCdA
+  const lost = heatCost(design, course, reference)
+  const keeps = (time: number | null) => penaltyFor(job.brief.fee, job.promise, gainOf(time)).shortfall === 0
+  const cause = met ? null : reference.tumble ? 'tumble' : lost > 0 && reference.time !== null && keeps(reference.time - lost) ? 'heat' : 'design'
+  const debrief: DroneDebrief = {
+    promised: job.promise,
+    achieved,
+    met,
+    shortfall,
+    penalty,
+    predicted,
+    actual: reference.time,
+    baseline,
+    predictedCdA,
+    actualCdA,
+    readError,
+    read: readOf(readError),
+    day,
+    race: droneRace(design, course, day.temperature),
+    baselineRace: droneRace(setup, course, day.temperature),
+    cause,
+    // Either way the pod's rake sets the angle the air meets it at; its length how hard that twists.
+    tumble: reference.tumble ? { speed: reference.tumble.speed * 3.6, braking: reference.twist.braking, fix: 'podRake' } : null,
+    heat: reference.hotAt !== null && lost > 0 ? { at: reference.hotAt, lost, fix: 'podVents' } : null,
     reputation: { before: firmReputation(state), after: 0 },
   }
   const closed = closeJob(state, job, penalty, { achieved, predicted: predictedCdA, actual: actualCdA })
