@@ -17,6 +17,7 @@ import { FLEET_TRUCK, type TruckDesign } from './truck'
 import { STOCK_CAR, type CarClass, type CarDesign } from './car'
 import type { Circuit } from './circuits'
 import { STOCK_RECORD, type RecordDesign } from './record'
+import { STOCK_DRONE, type DroneCourse, type DroneDesign } from './drone'
 import type { SaltFlat } from './saltFlats'
 
 /** How a career starts, and how the brief board works. */
@@ -128,6 +129,12 @@ export interface EventTemplate {
    * card; the record day's air comes from the flat's own spread.
    */
   record?: { flat: SaltFlat['id'] }
+  /**
+   * A club quad race (PR 10f): the gate course it's flown on. `temperature`
+   * and `altitude` copy the course's usual day for the brief card, and
+   * `spread.temperature` says how far race day's air strays from it.
+   */
+  drone?: { course: DroneCourse['id'] }
 }
 
 export interface BriefTemplate {
@@ -254,6 +261,28 @@ export const RECORD_JOBS = {
   declared: { min: 200, max: 2000 },
 }
 
+/**
+ * Racing-quad jobs (PR 10f; Kelbo, 16 November 2026: "racing quads, then
+ * survey"): hobby pilots early in a career. The promise is race time gained
+ * on the course's usual day over the pilot's own quad, five laps from a
+ * standing start; a quad that tumbles crashes out and gains nothing (the
+ * pilot is fine, the quad isn't). One point is a tenth of a second, and
+ * bids move a tenth at a time. The declared number is the new quad's race
+ * time.
+ *
+ * Closed until the board, the Deliver sheet and the debrief can show them
+ * (PR 10g). The switch stays so a test (or a later change) can close them.
+ */
+export const DRONE_JOBS = {
+  open: false,
+  /** Seconds in one promised point. */
+  pointSeconds: 0.1,
+  /** A quad bid's promise moves in these points: a tenth of a second. */
+  promiseStep: 1,
+  /** The race times the Deliver sheet takes, s. */
+  declared: { min: 30, max: 120 },
+}
+
 /** The indoor 400 m ice oval (PR 8b): longer straights than the velodrome, skated anticlockwise too. */
 export const OVAL = {
   lap: 400,
@@ -324,6 +353,9 @@ const sled = (crew: Crew, nose: number, tail: number, cowl: number, tuck: number
 const car = (cls: CarClass, change: Partial<Omit<CarDesign, 'sport' | 'class'>> = {}): CarDesign => ({ ...STOCK_CAR[cls], ...change })
 
 const streamliner = (change: Partial<Omit<RecordDesign, 'sport' | 'class'>> = {}): RecordDesign => ({ ...STOCK_RECORD.streamliner, ...change })
+/** A pilot's quad: the club racer with the changes they've already made. */
+const quad = (pod: Partial<DroneDesign['pod']> = {}, arms = STOCK_DRONE.racer.arms): DroneDesign => ({ ...STOCK_DRONE.racer, pod: { ...STOCK_DRONE.racer.pod, ...pod }, arms })
+
 const jetCar = (change: Partial<Omit<RecordDesign, 'sport' | 'class'>> = {}): RecordDesign => ({ ...STOCK_RECORD.jet, ...change })
 
 const jumper = (leanDeg: number, vAngleDeg: number, bagginess: number): JumperDesign => ({
@@ -911,5 +943,78 @@ export const BRIEFS: readonly BriefTemplate[] = [
     minRep: 85,
     // 108 km/h on their car: a two-way mean just over the speed of sound on the salt's usual day.
     target: 54,
+  },
+  // Racing quads (PR 10f): hobby pilots at the Lugovoy meadow, early in a career.
+  {
+    id: 'shmel-quad',
+    client: 'Yegor Shmel',
+    who: 'Flies his own racing quad at the Lugovoy club; builds them on his kitchen table',
+    goal: 'My quad’s fine round the gates, but on the back straight everyone flies past me. Make it slippery.',
+    event: {
+      name: 'Lugovoy Club Race',
+      place: 'Lugovoy meadow',
+      temperature: 17,
+      altitude: 240,
+      windSpeed: 0,
+      riderSpeed: 34,
+      spread: { temperature: 3, wind: 0, power: 0 },
+      course: [],
+      drone: { course: 'lugovoy' },
+    },
+    rider: { power: 0, mass: 0 },
+    setup: quad(),
+    fee: { min: 35000, max: 50000 },
+    days: 12,
+    minRep: 0,
+    // 1.2 s: the pod raked up to meet the air does most of it.
+    target: 12,
+  },
+  {
+    id: 'vertel-quad',
+    client: 'Inna Vertel',
+    who: 'Club racer at Lugovoy who taped over her quad’s vents to make it sleek',
+    goal: 'It flies like a rocket for half the race, then it goes soft and I get passed. I want it fast for all five laps.',
+    event: {
+      name: 'Lugovoy Club Race',
+      place: 'Lugovoy meadow',
+      temperature: 17,
+      altitude: 240,
+      windSpeed: 0,
+      riderSpeed: 34,
+      spread: { temperature: 3, wind: 0, power: 0 },
+      course: [],
+      drone: { course: 'lugovoy' },
+    },
+    rider: { power: 0, mass: 0 },
+    setup: quad({ rake: 40, vents: 0.1 }),
+    fee: { min: 45000, max: 60000 },
+    days: 14,
+    minRep: 10,
+    // 1.5 s: the vents, the rake and the arm fairings together.
+    target: 15,
+  },
+  {
+    id: 'strizh-quad',
+    client: 'Nikita Rogov',
+    who: 'Builds the quads for Strizh Racing, a two-pilot team in the club league',
+    goal: 'Our pod is long to fit a proper camera, and we want fairings on the arms like the fast teams. Find us a second without crashing.',
+    event: {
+      name: 'Lugovoy Club Race',
+      place: 'Lugovoy meadow',
+      temperature: 17,
+      altitude: 240,
+      windSpeed: 0,
+      riderSpeed: 34,
+      spread: { temperature: 3, wind: 0, power: 0 },
+      course: [],
+      drone: { course: 'lugovoy' },
+    },
+    rider: { power: 0, mass: 0 },
+    setup: quad({ length: 0.18, rake: 40, vents: 0.35 }),
+    fee: { min: 60000, max: 80000 },
+    days: 16,
+    minRep: 20,
+    // A second: a long pod raked right up with faired arms tumbles braking, so it has to come shorter.
+    target: 10,
   },
 ]

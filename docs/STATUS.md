@@ -92,10 +92,13 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 10c | The racing quad in the tunnel, in the sim: read full size on the sting at any tilt (nose down, or tipped back as when braking) for its drag and the twist on its pod; a powered model with spinning props also reads what the downwash on the arms takes. The forecast flies the race on the readings: with the props stopped it takes the motor maker's bare-arm downwash figure, so faired arms read about a second slow (Kelbo's "props stopped" trap); with no reading that meets the pod at an angle it can't see the twist, so it misses a tumble | **Done** (v0.10.2.0) |
 | 10d | The racing quad on the Tunnel screen: a full-size (1:1) model from the shop on a slim sting that tips from 30° back to 85° nose-down. Readouts for its drag, the twist on its pod (nose up or down) and the forecast race time against the club's quad; a tilt sweep plots the twist against the tilt; the Runs tab has the forecast in full, with the props-stopped warning. The sting gives past 45 N (only the bigger fan, tipped far over) | **Done** (v0.10.3.0) |
 | 10e | The powered quad model: the shop's new Props option (Spinning: motors wired down the sting, ₽ 15,000 and 2 days more) spins the model's props in the tunnel, so the balance reads the downwash on the arms and the forecast stops reading faired arms slow. Each powered run costs ₽ 2,000 more. A Downwash readout; still blades on a plain model, turning ones on a powered one | **Done** (v0.10.4.0) |
-| 10f–14 | See the plan | Next: quad jobs for hobby racers, early in a career (10f). |
+| 10f | Quad jobs in the sim: three hobby pilots at the Lugovoy Club Race (Yegor Shmel's stock quad, slow on the back straight; Inna Vertel's, its vents taped over; Strizh Racing's long camera pod, which tumbles braking once it's raked up and faired). The promise is tenths of a second off the five-lap race on the course's usual day over their own quad; a quad that tumbles crashes out and gains nothing. Race day is seeded, the read is judged on drag, and the debrief names a tumble or the overheating with a "change this". Off the board until 10g | **Done** (v0.10.5.0) |
+| 10g–14 | See the plan | Next: quad jobs on the board, the Deliver sheet and the debrief (10g). |
 
 ## Versions
 
+- **0.10.5.0** (PR 10f): quad jobs in the sim only. Nothing new to see on a
+  phone; the board shows them in 10g.
 - **0.10.4.0** (PR 10e): the powered quad model. In the model shop for a
   quad, pick Props: Spinning; in the tunnel its props turn, the Downwash
   readout fills in, and each run costs ₽ 2,000 more. Quad jobs (10f) are
