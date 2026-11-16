@@ -42,11 +42,19 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 7g | Going broke: the soft landing | **Done** (v0.7.6.0) |
 | 7h | Backup file and reminder | **Done** (v0.7.7.0) |
 | 7i | The 2040 ending and legacy card | **Done** (v0.7.8.0) |
-| 7j | The legacy card as a picture to share | Next |
-| 8–14 | See the plan | Not started |
+| 7j | The legacy card as a picture to share | **Done** (v0.7.9.0) |
+| 8 | See the plan | Next |
+| 9–14 | See the plan | Not started |
 
 ## Versions
 
+- **0.7.9.0** (PR 7j): the legacy picture.
+  - "Share as a picture" on the legacy card draws it as a 1080 × 1350 PNG in
+    the game's look (light or dark, as the screen is): streamlines over a
+    teardrop, the firm, its years, eight numbers and the best job, with the
+    game's address and the studio credit.
+  - Phones open the share sheet; where a browser can't share files, the
+    picture saves to downloads instead.
 - **0.7.8.0** (PR 7i): the ending.
   - A new career asks for the firm's name (a ready-made one is picked by the
     seed; type your own or keep it). Rename it any time from the firm strip.

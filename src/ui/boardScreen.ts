@@ -53,6 +53,7 @@ import { GUIDE_STEPS, currentStep, guideOn, hideGuide, stepDone } from '../sim/g
 import { playReplay } from './replayOverlay'
 import { createSheet, type Sheet } from './sheet'
 import { twoTap } from './twoTap'
+import { shareLegacy } from './legacyPicture'
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag)
@@ -716,7 +717,22 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     )
     card.append(el('p', 'legacy-kicker', t('end.kicker')), head, el('p', 'firm-date', span), facts)
     if (L.best) card.append(el('p', 'legacy-best', t('end.best', { client: L.best.client, event: L.best.event, cut: fixed(L.best.cut, 1) })))
-    card.append(el('p', 'shop-note', t('end.next')))
+    const share = button('save-btn', t('end.share'))
+    const said = el('p', 'shop-note legacy-said')
+    said.setAttribute('role', 'status')
+    share.addEventListener('click', () => {
+      share.disabled = true
+      share.textContent = t('end.sharing')
+      said.textContent = ''
+      void shareLegacy(L).then((r) => {
+        share.disabled = false
+        share.textContent = t('end.share')
+        if (r === 'shared') said.textContent = t('end.shared')
+        else if (r === 'saved') said.textContent = t('end.saved')
+        else if (r === 'failed') said.textContent = t('end.shareFailed')
+      })
+    })
+    card.append(share, said, el('p', 'shop-note', t('end.next')))
     return card
   }
 
