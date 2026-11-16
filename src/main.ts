@@ -17,7 +17,7 @@ import { packSave, parseSave, SAVE_VERSION, type SaveFile } from './persist/save
 import { DEFAULT_CYCLIST } from './data/cyclist'
 import { careerStore, freshSeed } from './ui/careerStore'
 import { charge, currentEvent, newCareer, orderBlock, orderModel, repairModel } from './sim/career'
-import { activeTunnel } from './sim/facility'
+import { tunnelSetup } from './sim/facility'
 import { afterDesign, afterOrder, afterRun, afterSwap, currentStep } from './sim/guide'
 import { runCost } from './sim/run'
 import { rublesShort } from './ui/format'
@@ -111,14 +111,19 @@ async function boot(): Promise<void> {
     onChange: () => touch(),
     onRun: (run) => careerStore.set(afterRun(charge(careerStore.get(), runCost(run)))),
     tunnelSeed: careerStore.get().seed,
-    tunnelId: () => {
+    tunnel: () => {
       const career = careerStore.get()
-      return activeTunnel(career.facility, career.day)
+      return tunnelSetup(career.seed, career.facility, career.day)
     },
     event: () => currentEvent(careerStore.get()),
     shop: () => {
       const career = careerStore.get()
-      return { event: currentEvent(career), block: (days) => orderBlock(career, days), daysLeft: career.job?.daysLeft ?? 0 }
+      return {
+        event: currentEvent(career),
+        block: (days) => orderBlock(career, days),
+        daysLeft: career.job?.daysLeft ?? 0,
+        topSpeed: tunnelSetup(career.seed, career.facility, career.day).build.topSpeed,
+      }
     },
     onOrder: (price, days) => careerStore.set(afterOrder(orderModel(careerStore.get(), price, days))),
     onSwap: (price) => careerStore.set(afterSwap(charge(careerStore.get(), price))),

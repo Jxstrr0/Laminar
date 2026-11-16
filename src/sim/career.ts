@@ -25,8 +25,8 @@ import { readOf, reputationOf, type Read } from './reputation'
 import { REPUTATION } from '../data/reputation'
 import { RIVALS, RIVAL_IDS, type RivalId } from '../data/rivals'
 import { rivalRecord } from './rivals'
-import { buildBlock, NO_FACILITY, upkeepDays, type Facility } from './facility'
-import { OWN_TUNNEL_BUILD } from '../data/tunnel'
+import { buildBlock, NO_FACILITY, upgradeBlock, upkeepDays, type Facility } from './facility'
+import { OWN_TUNNEL_BUILD, TUNNEL_UPGRADES, type UpgradeId } from '../data/tunnel'
 import { fieldResult, REFERENCE_TT, truth, type EventSpec, type FieldResult } from './views'
 
 /** A brief as it sits on the board: which client, and the terms on offer. */
@@ -166,6 +166,13 @@ export function passDays(state: CareerState, days: number): CareerState {
 export function buildOwnTunnel(state: CareerState): CareerState {
   if (buildBlock(state.facility, state.money)) return state
   return { ...state, money: state.money - OWN_TUNNEL_BUILD.price, facility: { ...state.facility, ownOrdered: state.day } }
+}
+
+/** Pay for an upgrade to your tunnel (cash only); it's fitted TUNNEL_UPGRADES[id].days later. Unchanged if it can't be. */
+export function orderUpgrade(state: CareerState, id: UpgradeId): CareerState {
+  if (upgradeBlock(state.facility, state.day, state.money, id)) return state
+  const facility = { ...state.facility, upgrades: { ...state.facility.upgrades, [id]: state.day } }
+  return { ...state, money: state.money - TUNNEL_UPGRADES[id].price, facility }
 }
 
 /** The event a brief is for, ready for the field model. */

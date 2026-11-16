@@ -4,7 +4,7 @@
  * (Kelbo: save up, no loans) that takes OWN_TUNNEL_BUILD.days while you keep
  * working; once it's open, its upkeep is paid for every day that passes.
  */
-import { OWN_BILLING, OWN_QUIRKS, OWN_TUNNEL_BUILD, TUNNEL_BILLING, UNIVERSITY_QUIRKS, UNIVERSITY_TUNNEL } from '../data/tunnel'
+import { OWN_BILLING, OWN_QUIRKS, OWN_TUNNEL_BUILD, TUNNEL_BILLING, TUNNEL_UPGRADES, UNIVERSITY_QUIRKS, UNIVERSITY_TUNNEL, UPGRADE_IDS, type UpgradeId } from '../data/tunnel'
 import { rollQuirks, type QuirkRanges, type TunnelQuirks } from './quirks'
 import { hashString } from './rng'
 
@@ -13,9 +13,11 @@ export type TunnelId = 'university' | 'own'
 export interface Facility {
   /** The career day your own tunnel was paid for, or null if it hasn't been. */
   ownOrdered: number | null
+  /** The career day each upgrade was paid for (left out until it is). */
+  upgrades: Partial<Record<UpgradeId, number>>
 }
 
-export const NO_FACILITY: Facility = { ownOrdered: null }
+export const NO_FACILITY: Facility = { ownOrdered: null, upgrades: {} }
 
 /** The day your own tunnel opens, or null if it hasn't been ordered. */
 export function ownReadyDay(f: Facility): number | null {
@@ -43,6 +45,29 @@ export function buildBlock(f: Facility, money: number): BuildBlock {
   return money < OWN_TUNNEL_BUILD.price ? 'money' : null
 }
 
+/** The day an upgrade is fitted, or null if it hasn't been ordered. */
+export function upgradeReadyDay(f: Facility, id: UpgradeId): number | null {
+  const ordered = f.upgrades[id]
+  return ordered === undefined ? null : ordered + TUNNEL_UPGRADES[id].days
+}
+
+/** The upgrades fitted to your tunnel by this day, in display order. */
+export function fittedUpgrades(f: Facility, day: number): UpgradeId[] {
+  return UPGRADE_IDS.filter((id) => {
+    const ready = upgradeReadyDay(f, id)
+    return ready !== null && day >= ready
+  })
+}
+
+/** Why an upgrade can't be ordered now, or null if it can. Upgrades are for your own tunnel, once it's open. */
+export type UpgradeBlock = 'noTunnel' | 'ordered' | 'money' | null
+
+export function upgradeBlock(f: Facility, day: number, money: number, id: UpgradeId): UpgradeBlock {
+  if (activeTunnel(f, day) !== 'own') return 'noTunnel'
+  if (f.upgrades[id] !== undefined) return 'ordered'
+  return money < TUNNEL_UPGRADES[id].price ? 'money' : null
+}
+
 const QUIRK_RANGES: Record<TunnelId, QuirkRanges> = { university: UNIVERSITY_QUIRKS, own: OWN_QUIRKS }
 const BILLING: Record<TunnelId, { perRun: number; perKWh: number }> = { university: TUNNEL_BILLING, own: OWN_BILLING }
 
@@ -58,7 +83,36 @@ export function tunnelRunCost(id: TunnelId, energyKWh: number): number {
   return b.perRun + energyKWh * b.perKWh
 }
 
-/** The tunnel's build: test section, fan and turntable (the same for both, for now). */
-export function tunnelBuild(_id: TunnelId): typeof UNIVERSITY_TUNNEL {
-  return UNIVERSITY_TUNNEL
+export type TunnelBuild = Omit<typeof UNIVERSITY_TUNNEL, 'topSpeed' | 'wheelDrive' | 'turntable'> & {
+  topSpeed: number
+  wheelDrive: boolean
+  turntable: { min: number; max: number; step: number; rate: number }
+}
+
+/** Everything about the tunnel in use on a day: which it is, its build and its hidden quirks. */
+export interface TunnelSetup {
+  id: TunnelId
+  build: TunnelBuild
+  quirks: TunnelQuirks
+  fitted: UpgradeId[]
+  /** Changes whenever the setup does (a new tunnel, an upgrade fitted). */
+  key: string
+}
+
+/** The tunnel the firm tests in on this day, with whatever upgrades are fitted. */
+export function tunnelSetup(careerSeed: number, f: Facility, day: number): TunnelSetup {
+  const id = activeTunnel(f, day)
+  const fitted = id === 'own' ? fittedUpgrades(f, day) : []
+  const has = (u: UpgradeId) => fitted.includes(u)
+  const base = UNIVERSITY_TUNNEL
+  const yaw = has('turntable') ? TUNNEL_UPGRADES.turntable.yawRange : base.turntable.max
+  const build: TunnelBuild = {
+    ...base,
+    topSpeed: has('fan') ? TUNNEL_UPGRADES.fan.topSpeed : base.topSpeed,
+    wheelDrive: has('wheelDrive'),
+    turntable: { ...base.turntable, min: -yaw, max: yaw },
+  }
+  const raw = tunnelQuirks(id, careerSeed)
+  const quirks = has('screens') ? { ...raw, turbulence: raw.turbulence * TUNNEL_UPGRADES.screens.turbulenceShare } : raw
+  return { id, build, quirks, fitted, key: [id, ...fitted].join(':') }
 }

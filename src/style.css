@@ -748,6 +748,11 @@ html, body {
 .job-card { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
 .own-card { margin-top: 18px; }
 .own-card h2 { margin: 0; font-size: 1rem; }
+.upgrade-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 10px; }
+.upgrade { padding-top: 10px; border-top: 1px solid var(--line); }
+.upgrade-name { margin: 0; font-weight: 600; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.upgrade-buy { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; }
+.upgrade-cost { font-family: var(--font-num); font-size: 0.85rem; }
 .job-card.is-active { margin-top: 12px; border-color: var(--accent); }
 .job-card.is-active .board-heading { margin-top: 0; }
 .job-client { margin: 0; font-weight: 700; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }

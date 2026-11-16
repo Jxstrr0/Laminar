@@ -8,8 +8,8 @@
 import { BID, CAREER, PROMISE, TRACK, type BriefTemplate } from '../data/briefs'
 import { REPUTATION } from '../data/reputation'
 import { RIVALS, RIVAL_IDS } from '../data/rivals'
-import { OWN_BILLING, OWN_TUNNEL_BUILD } from '../data/tunnel'
-import { buildBlock, ownReadyDay } from '../sim/facility'
+import { OWN_BILLING, OWN_TUNNEL_BUILD, TUNNEL_UPGRADES, UPGRADE_IDS } from '../data/tunnel'
+import { buildBlock, ownReadyDay, upgradeBlock, upgradeReadyDay } from '../sim/facility'
 import type { CyclistDesign } from '../data/cyclist'
 import { t } from '../data/strings'
 import {
@@ -17,6 +17,7 @@ import {
   biddersFor,
   briefTemplate,
   buildOwnTunnel,
+  orderUpgrade,
   deliver,
   eventOf,
   placeBid,
@@ -423,8 +424,36 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       card.append(el('p', 'job-who', days === 1 ? t('own.buildingOne', { date }) : t('own.building', { date, days })))
     } else {
       card.append(el('p', 'job-who', t('own.open', { date: careerDate(ready, CAREER.start) })), el('p', 'shop-note', t('own.fresh')))
+      card.append(...upgradeList())
     }
     return card
+  }
+
+  /** Your tunnel's upgrades: what each does, its price and days, and whether it's fitted. */
+  function upgradeList(): HTMLElement[] {
+    const career = careerStore.get()
+    const list = el('ul', 'upgrade-list')
+    for (const id of UPGRADE_IDS) {
+      const u = TUNNEL_UPGRADES[id]
+      const row = el('li', 'upgrade')
+      const head = el('p', 'upgrade-name', t(`up.${id}`))
+      const what = el('p', 'job-who', t(`up.${id}What`, { deg: TUNNEL_UPGRADES.turntable.yawRange, speed: TUNNEL_UPGRADES.fan.topSpeed }))
+      row.append(head, what)
+      const fitted = upgradeReadyDay(career.facility, id)
+      if (fitted !== null && career.day >= fitted) head.append(' ', el('span', 'save-slot-tag', t('up.fitted')))
+      else if (fitted !== null) row.append(el('p', 'shop-note', t('up.fitting', { date: careerDate(fitted, CAREER.start) })))
+      else {
+        const line = el('div', 'upgrade-buy')
+        const buy = button('save-btn', t('up.buy'))
+        const block = upgradeBlock(career.facility, career.day, career.money, id)
+        buy.disabled = block !== null
+        if (!block) twoTap(buy, t('up.buy'), t('up.buyConfirm', { price: rubles(u.price) }), () => careerStore.set(orderUpgrade(careerStore.get(), id)))
+        line.append(el('span', 'upgrade-cost', t('up.cost', { price: rubles(u.price), days: u.days })), buy)
+        row.append(line)
+      }
+      list.append(row)
+    }
+    return [el('h3', 'bids-firm', t('up.title')), el('p', 'shop-note', t('up.intro')), list]
   }
 
   function emptyCard(): HTMLElement {

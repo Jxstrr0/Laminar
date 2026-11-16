@@ -8,7 +8,6 @@
  */
 import { MODEL_FINISH, MODEL_GRADE, MODEL_SCALES, type ModelFinish, type ModelGrade, type ModelScale } from '../data/model'
 import { t, type StringKey } from '../data/strings'
-import { UNIVERSITY_TUNNEL } from '../data/tunnel'
 import { matchedSpeed, quote, type ModelOrder } from '../sim/modelShop'
 import type { OrderBlock } from '../sim/career'
 import type { EventSpec } from '../sim/views'
@@ -75,6 +74,8 @@ export interface ShopContext {
   block(days: number): OrderBlock
   /** Days left on the job (0 with none). */
   daysLeft: number
+  /** The top speed of the tunnel in use, m/s (a bigger fan raises it). */
+  topSpeed: number
 }
 
 interface Shop {
@@ -101,7 +102,7 @@ function buildShop(): Shop {
     trips.set(order.trips ? 'on' : 'off')
     taps.set(order.taps ? 'on' : 'off')
     const speed = matchedSpeed(1 / order.scale, context.event)
-    const top = UNIVERSITY_TUNNEL.topSpeed
+    const top = context.topSpeed
     reText.data =
       speed <= top
         ? t('shop.match', { speed: fixed(speed, 0) })
