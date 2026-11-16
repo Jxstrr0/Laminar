@@ -74,11 +74,11 @@ export function heatLoss(design: DroneDesign): number {
   return c.heatLoss * Math.max(0, 1 - design.pod.vents / c.coolNeed)
 }
 
-/** The props' thrust at this airspeed, N, after the downwash on the arms, and the heat once `hot`. */
-export function thrustAt(design: DroneDesign, speed: number, hot = false): number {
+/** The props' thrust at this airspeed, N, after the downwash on the arms (its share given, or the truth), and the heat once `hot`. */
+export function thrustAt(design: DroneDesign, speed: number, hot = false, downwash = downwashLoss(design)): number {
   const c = DRONE_CLASS[design.class]
   const fresh = c.thrust * Math.max(0, 1 - speed / c.pitchSpeed)
-  return fresh * (1 - downwashLoss(design)) * (1 - (hot ? heatLoss(design) : 0))
+  return fresh * (1 - downwash) * (1 - (hot ? heatLoss(design) : 0))
 }
 
 /** The pitching moment the air puts on the pod at this speed and tilt, N·m (positive: nose up). */
@@ -87,9 +87,15 @@ export function pitchMoment(design: DroneDesign, speed: number, tilt: number, de
   return A.munk * 0.5 * density * speed * speed * design.pod.length * A.podFront * detSin(2 * alpha)
 }
 
-/** Scales on the quad's drag, for a guess at it rather than the truth (the desk's and the tunnel's, later). */
+/**
+ * A guess at the quad rather than the truth (the desk's, and the tunnel's
+ * from PR 10c): a scale on its drag, and optionally a scale on its twist
+ * and the share of the thrust the downwash takes (the truth if left out).
+ */
 export interface DroneTrim {
   drag: number
+  twist?: number
+  downwash?: number
 }
 
 const NO_TRIM: DroneTrim = { drag: 1 }
@@ -97,7 +103,7 @@ const NO_TRIM: DroneTrim = { drag: 1 }
 /** What the race model needs at one speed: the push left over sideways or forward, the tilt flat out, and the drag there. */
 function flatOut(design: DroneDesign, speed: number, density: number, hot: boolean, trim: DroneTrim) {
   const w = droneMass(design) * ATMOSPHERE.gravity
-  const t = thrustAt(design, speed, hot)
+  const t = thrustAt(design, speed, hot, trim.downwash)
   const spare = Math.sqrt(Math.max(0, t * t - w * w))
   const tilt = detAtan2(spare, w)
   const drag = 0.5 * density * speed * speed * droneDrag(design, tilt).cdA * trim.drag
@@ -259,7 +265,7 @@ export function droneRace(design: DroneDesign, course: DroneCourse, temperature 
     // Speeding up, it tilts as far forward as it can; braking, as far back (the pod then meets the air
     // nearly tail-first, and a raked one twists hardest); holding its speed, just enough for the drag.
     const tilt = v > entry + 1e-9 ? flatOut(design, v, density, false, trim).tilt : v < entry - 1e-9 ? -flatOut(design, v, density, false, trim).tilt : steadyTilt(design, v, density, trim)
-    const moment = Math.abs(pitchMoment(design, v, tilt, density))
+    const moment = Math.abs(pitchMoment(design, v, tilt, density)) * (trim.twist ?? 1)
     if (moment > twist.moment) twist = { moment, speed: v, braking: v < entry - 1e-9 }
     if (!relief.tumble && moment > c.authority) {
       tumble = { at: along, speed: v }

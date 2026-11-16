@@ -140,6 +140,29 @@ export const DRONE_DESK = {
   twistWarn: 0.85,
 }
 
+/**
+ * The quad in the tunnel (PR 10c). A quad is small enough to test full
+ * size, so there's no Reynolds trap; the trap is the props (Kelbo, 16
+ * November 2026). A plain model goes in with its props stopped: the
+ * balance reads its drag and the twist on its pod as well as ever, but with
+ * no downwash it can't see what the arms take off the thrust, so the
+ * forecast falls back on the motor maker's figure, measured on bare arms,
+ * and arm fairings look less use than they are. A powered model spins its
+ * props and the balance reads the thrust the arms take.
+ */
+export const DRONE_TUNNEL = {
+  /** The share of the thrust the motor maker's data says the arms take: measured on bare arms. */
+  bookDownwash: 0.07,
+  /** How far off a powered model's downwash share reads, per unit of balance noise (0.005 in the university tunnel). */
+  downwashScatter: 0.5,
+  /** The forecast fits the pod's twist only from readings where the pod meets the air at least this far off its nose, degrees. */
+  twistFrom: 8,
+  /** The twist read with the pod head-on is just noise: this much of the twist at `twistFrom`, per unit of balance noise. */
+  twistNoise: 3,
+  /** The speed a quad model's Reynolds number is matched to in the model shop, m/s (about a racer's top speed). */
+  matchSpeed: 34,
+}
+
 /** The race (PR 10a): from a standing start, laps of the club's gate course, flown as fast as the quad can. */
 export const DRONE_RACE = {
   /** Metres per step through the course. */

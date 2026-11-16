@@ -151,6 +151,7 @@ quirks you have to learn.
 | Light aircraft | **The add-ons**: on a fixed kit plane the firm shapes the speed mods (wheel spats, engine cowling, wingtips, strut fairings, an under-wing pod), as real speed-mod shops do. The promise is cruise speed or range; stall speed and handling are the safety floors. *(16 Nov 2026, for PR 10)* |
 | Defence clearance | **Apply, then wait**: once the firm's reputation and correlation score are high enough it applies; vetting takes weeks of game time and a fee, then defence briefs appear. Going broke or a run of bad reads can lose it. *(16 Nov 2026, for PR 10)* |
 | Defence secrecy | **Big fees, no fame**: defence jobs pay well and count toward the correlation score, but never raise the firm's public reputation or appear on the records board or legacy card. Their replays are a plain test-range view. *(16 Nov 2026, for PR 10)* |
+| Quad tunnel trap | **Props stopped**: a quad model goes in with its props still, so the tunnel can't see the downwash on the arms and the arm fairings read less useful than they are. A powered model with spinning props catches it, at more ₽ per run. *(16 Nov 2026, for PR 10c)* |
 | Record rules | **Two-way mean, chutes out**: a run each way within an hour, and the mean speed counts, so the wind mostly cancels. If the nose lifts or the car wanders, the driver aborts with the parachutes: nobody's hurt, but the run doesn't count. *(16 Nov 2026, for PR 9)* |
 | Firm name | **Asked at career start**, with a ready-made name to keep; renamable. *(16 Nov 2026, for PR 7)* |
 
