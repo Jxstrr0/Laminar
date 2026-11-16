@@ -25,7 +25,8 @@ import { DEG } from './num'
 import { blockageFactor, type MountKind } from './quirks'
 import { crossHeldAt, flatDensity, frontKept, recordAero, recordLength, sideCentre, stillDay, twoWay, type RecordAbort } from './record'
 import { Rng } from './rng'
-import type { ModelSpec, TunnelSpec } from './views'
+import type { Run } from './run'
+import { REFERENCE_TT, type EventSpec, type ModelSpec, type TunnelSpec } from './views'
 
 /** The floor under a record model: still, the model shop's ground board, or your tunnel's rolling road. */
 export type RecordFloor = keyof typeof T.floor
@@ -175,3 +176,21 @@ export function forecastRecord(readings: readonly Omit<RecordReading, 'dragN'>[]
     liftFront: aero.liftFront,
   }
 }
+
+/** What the model shop matches a record model's Reynolds number to: the salt's air at about record speed (PR 9s). */
+export function recordEvent(flat: SaltFlat): EventSpec {
+  return { ...REFERENCE_TT, temperature: flat.temperature, altitude: flat.altitude, riderSpeed: T.matchSpeed, windSpeed: 0 }
+}
+
+/** A record car run's settled readings, ready to correct and forecast (PR 9s). The whole car's lift rides in clA. */
+export function recordReadings(runs: readonly Pick<Run, 'samples'>[]): Omit<RecordReading, 'dragN'>[] {
+  const out: Omit<RecordReading, 'dragN'>[] = []
+  for (const run of runs)
+    for (const s of run.samples)
+      if (s.steady && s.clA !== undefined && s.liftFront !== undefined)
+        out.push({ yawDeg: s.yawDeg, cdA: s.cdA, liftFront: s.liftFront, liftRear: s.clA - s.liftFront, cyA: s.cyA, centre: s.centre ?? null })
+  return out
+}
+
+/** True if a run read a land-speed car. */
+export const isRecordRun = (run: Pick<Run, 'samples'>): boolean => run.samples.some((s) => s.liftFront !== undefined)

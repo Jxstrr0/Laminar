@@ -44,6 +44,12 @@ export const FAILURE = {
   /** A racing car model hangs from a stout strut through its roof (PR 9l): it has its downforce to carry as well as its drag, N. */
   carMountN: 1500,
   /**
+   * A land-speed car's model stands on two slim posts on the turntable
+   * (PR 9s): a 1:8 model at 40 m/s and 20° of yaw loads them about 35 N;
+   * a faster fan swept as far breaks them, N.
+   */
+  recordMountN: 60,
+  /**
    * The sting a ski jumper's model hangs on (PR 8k): the most load it takes,
    * lift and drag together. A 1:2 model reads the whole sweep at 30 m/s; push
    * it near 35 m/s at a steep pitch and it gives.
