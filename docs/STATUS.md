@@ -122,7 +122,8 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 10ag | PIV in the sim (Kelbo's "wake slice + hint"): a side sheet of air speed down the middle of the model and a cross slice behind it, from the same field as the smoke. The wake's depth is fitted to the drag the tunnel measured (half the drag area, spread over the slice), with a thin friction wake for what the smoke doesn't draw, so the speed-loss number and the colours always agree. The hint nudges each wake-shaping slider a little and names the one that cuts drag most (sliders for downforce, stability, cooling or lift are left out) | **Done** (v0.10.32.0) |
 | 10ah | PIV on screen (Kelbo's "own-tunnel upgrade"): the PIV laser is bought for your own tunnel (₽ 900,000, 21 days). Then a PIV chip lights a colour slice of air speed down the middle of any model (one hue, dark is still air, numbered scale), the sheet shows the wake's speed loss, and the hint names the slider with most to gain, with "Change this" jumping to it on Shape. Models the smoke can't follow (jumper, cars, record cars, quads, planes, pods) get the PIV chip on its own | **Done** (v0.10.33.0) |
 | 11a | Tarnovian records in the sim: a standing board of five national records (the hour, the 40 km time trial, the ski jump, land speed, a truck fleet's fuel figure), each held by a fictional name; a job whose result on the day beats one puts the client on the board for the firm, kept on the job's record so saves carry it; defence jobs never do; the legacy card counts records held. Not on screen until 11b | **Done** (v0.12.0.0) |
-| 11b–14 | See the plan | Next: the records board on screen. |
+| 11b | The records board on screen: a Tarnovian records card on the Jobs screen (each record, its mark, who holds it and since when, and what it beat once the firm breaks it, marked "Your firm" in words), a "new Tarnovian record" box in the debrief, records held on the legacy card and its picture; a truck fleet's record goes under the fleet's name | **Done** (v0.12.1.0) |
+| 11c–14 | See the plan | Next: record-attempt briefs (the hour). |
 
 ## Versions
 
@@ -133,6 +134,10 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 - **0.10.30.0** (PR 10ae): defence clearance opens.
 - **0.10.31.0** (PR 10af): the sensor pod's range day from its sensor.
 - **0.10.32.0** (PR 10ag): PIV's wake slices, speed loss and hint, in the sim only.
+- **0.12.1.0** (PR 11b): the Tarnovian records board on the Jobs screen, a
+  "new record" box in the debrief when a job breaks one, and records held
+  on the legacy card.
+
 - **0.12.0.0** (PR 11a): Tarnovian records in the sim. Five standing national
   records with fictional holders. A job that beats one on the day (a fast
   40 km time trial, a long jump on the large hill, a jet car's two-way mean,

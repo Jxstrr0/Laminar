@@ -187,7 +187,8 @@ export interface BriefTemplate {
   /** The reputation a firm needs before this client calls (0 if left out; src/data/reputation.ts). */
   minRep?: number
   /** A defence brief (PR 10x): only a cleared firm sees it, and it never shows in public (src/data/defence.ts). */
-  defence?: true
+  defence?: true  /** The name a Tarnovian record goes under, if not the client's (a truck fleet's records are the fleet's; PR 11b). */
+  recordHolder?: string
 }
 
 /**
@@ -866,6 +867,7 @@ export const BRIEFS: readonly BriefTemplate[] = [
   {
     id: 'kovyl-haulage',
     client: 'Lukyan Pyzhov',
+    recordHolder: 'Kovyl Haulage',
     who: 'Owner of Kovyl Haulage, six trucks on the Mostograd run',
     goal: 'Diesel eats everything we earn. My trucks are bricks on wheels. Tell me what to bolt on and how much it will save.',
     event: {
@@ -889,6 +891,7 @@ export const BRIEFS: readonly BriefTemplate[] = [
   {
     id: 'volok-freight',
     client: 'Tamara Ilchuk',
+    recordHolder: 'Volok Freight',
     who: 'Fleet manager at Volok Freight, forty trucks across the plain',
     goal: 'We bought roof fairings years ago and saw nothing. Either they were wrong or we were. Find out, and find us more.',
     event: {
@@ -912,6 +915,7 @@ export const BRIEFS: readonly BriefTemplate[] = [
   {
     id: 'prichal-coast',
     client: 'Stepan Brovar',
+    recordHolder: 'Prichal Logistics',
     who: 'Runs Prichal Logistics out of the Kosa port',
     goal: 'The coast road is wind from the sea all day, side-on. Our tall boxes catch it like sails. I want the fuel bill down where the wind is.',
     event: {

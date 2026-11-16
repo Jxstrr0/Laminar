@@ -70,6 +70,7 @@ function stats(L: Legacy): [string, string][] {
     [t('end.tunnel'), t(L.ownTunnel ? 'end.yes' : 'end.no')],
   ]
   if (L.broke > 0) rows.push([t('end.broke'), String(L.broke)])
+  if (L.records > 0) rows.push([t('trec.held'), String(L.records)])
   return rows
 }
 

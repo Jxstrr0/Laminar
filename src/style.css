@@ -1084,6 +1084,22 @@ body[data-guide='deliver'] .guide-deliver {
 }
 .race-broke-title { margin: 0 0 4px; font-size: 1rem; }
 
+/* Tarnovian records (PR 11b): the board on the Jobs screen and the debrief's box. */
+.record-list { margin: 0; padding: 0; list-style: none; }
+.record-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.record-value { margin: 0; font-family: var(--font-num); font-weight: 500; }
+.record-row.is-ours { border-left: 4px solid var(--accent); }
+.record-tag { margin: 4px 0 0; color: var(--accent); font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.race-record {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+.race-record-title { margin: 0 0 4px; font-size: 1rem; }
+
 /* Backups (PR 7h): the Saves chip asks for one after two weeks; the file picker hides behind its label. */
 .saves-open.due { color: var(--warn); border-color: var(--warn); font-weight: 700; }
 .preview-chip { color: var(--accent); border-color: var(--accent); font-weight: 600; }
