@@ -64,6 +64,7 @@ import { Rng } from '../sim/rng'
 import { designPose, designShape, isAircraft, isPod, isBobsled, isCar, isDrone, isJumper, isPlane, isRecord, isTruck, type Design } from '../sim/design'
 import { AIRCRAFT_CLASS, type AircraftClass, type AircraftDesign, type Airfield } from '../data/aircraft'
 import { POD_BUFFET, type PodClass, type PodDesign, type TestRange } from '../data/pod'
+import type { Sensor } from '../sim/pod'
 import { correctPod, forecastPod, isPodRun, podEvent, podReadings, podReynolds, preparePod, readPod, type PodFix, type PodForecast, type PreparedPod } from '../sim/podTunnel'
 import { aircraftEvent, aircraftReadings, aircraftReynolds, correctAircraft, forecastAircraft, isAircraftRun, prepareAircraft, readAircraft, type AircraftFix, type AircraftForecast, type PreparedAircraft } from '../sim/aircraftTunnel'
 import { PLANE_TUNNEL, type PlaneClass, type PlaneDesign, type SurveySite } from '../data/plane'
@@ -237,7 +238,7 @@ export interface TunnelHooks {
   /** The airfield a kit plane is forecast over, and the client's plane as it flies now (PR 10s). */
   aircraftRun(cls: AircraftClass): { field: Airfield; old: AircraftDesign }
   /** The range a sensor pod is forecast over, and the ministry's plane with its old pod (PR 10ab). */
-  podRun(cls: PodClass): { range: TestRange; old: PodDesign }
+  podRun(cls: PodClass): { range: TestRange; old: PodDesign; oldSensor: Sensor }
   /** The model shop's view of the job. */
   shop(): ShopContext
   /** A model was ordered: charge it and spend its days. */
@@ -2346,8 +2347,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     const fix: PodFix = planeFix()
     const model = podModel
     const readings = podReadings(modelRuns()).map((r) => correctPod(r, fix, model, sectionArea))
-    const { range, old } = podRun(modelDesign)
-    podCast = forecastPod(readings, modelDesign, old, range)
+    const { range, old, oldSensor } = podRun(modelDesign)
+    podCast = forecastPod(readings, modelDesign, old, range, oldSensor)
     runsDirty = true
   }
   function showPodForecast() {

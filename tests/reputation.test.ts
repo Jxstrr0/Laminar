@@ -65,8 +65,8 @@ describe('a good name brings bigger clients', () => {
     // With a top name, every client can turn up.
     const seen = new Set<string>()
     for (let round = 1; round < 80; round++) for (const b of boardFor(3, round, false, REPUTATION.max)) seen.add(b.id)
-    // Light-aircraft jobs stay off the board until it can show them (PR 10u).
-    const live = BRIEFS.filter((b) => !b.event.aircraft || AIRCRAFT_JOBS.open)
+    // Light-aircraft jobs stay off the board until it can show them (PR 10u); defence jobs reach only a cleared firm (tests/podJobs.test.ts).
+    const live = BRIEFS.filter((b) => (!b.event.aircraft || AIRCRAFT_JOBS.open) && !b.defence)
     for (const b of live.filter((x) => !x.tutorial)) expect(seen.has(b.id), b.id).toBe(true)
     expect(live.every((b) => openTo(b, REPUTATION.max))).toBe(true)
   })

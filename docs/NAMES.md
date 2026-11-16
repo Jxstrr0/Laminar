@@ -142,6 +142,9 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Tarnovian Ministry of Defence | The client for sensor-pod jobs; only a cleared firm sees its briefs. |
 | Gorlitsa P-4 | The ministry's twin-engined patrol plane, which carries a sensor pod on a pylon under its left wing. |
 | Stepnoy test range | Open steppe in Tarnovia's east where the ministry tries new kit. |
+| Major Galina Tumanova | Ministry of Defence project officer for the Gorlitsa P-4's new sensor (Stepnoy sensor trial). PR 10ac. |
+| Captain Rostislav Grachyov | Flight-trials officer at the Stepnoy range (Stepnoy sensor trial). PR 10ac. |
+| Ksenia Varlamova | Sensor-integration engineer at the ministry (Stepnoy sensor trial). PR 10ac. |
 
 ## Still to name (later PRs)
 

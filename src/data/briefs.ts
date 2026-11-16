@@ -20,6 +20,7 @@ import { STOCK_RECORD, type RecordDesign } from './record'
 import { STOCK_DRONE, type DroneCourse, type DroneDesign } from './drone'
 import { STOCK_PLANE, type PlaneDesign, type SurveySite } from './plane'
 import { STOCK_AIRCRAFT, type AircraftDesign, type Airfield } from './aircraft'
+import { STOCK_POD, type PodDesign, type TestRange } from './pod'
 import type { SaltFlat } from './saltFlats'
 
 /** How a career starts, and how the brief board works. */
@@ -150,6 +151,13 @@ export interface EventTemplate {
    * strays from it.
    */
   aircraft?: { field: Airfield['id'] }
+  /**
+   * A sensor-pod trial (PR 10ac): the range the ministry flies it over.
+   * `temperature` and `altitude` copy the range's usual day for the brief
+   * card, and `spread.temperature` says how far range day's air strays
+   * from it.
+   */
+  pod?: { range: TestRange['id'] }
 }
 
 export interface BriefTemplate {
@@ -361,6 +369,34 @@ export const AIRCRAFT_JOBS = {
   dragScale: { min: 0.25, max: 4 },
 }
 
+/**
+ * Sensor-pod jobs (PR 10ac), for the Ministry of Defence: defence briefs,
+ * so only a cleared firm sees them, and they never move its public name.
+ * The promise is minutes on station gained over the Stepnoy range on its
+ * usual day, over the ministry's pod as it hangs now. A pod that buffets
+ * past the ministry's limit blurs the sensor's picture and the run is
+ * rejected: it gains nothing (nobody is hurt; the plane lands and flies on
+ * with the pod it had). One point is a minute. The declared number is the
+ * new pod's hours on station.
+ *
+ * Range day is the show: its air, the patrol for both pods, and the
+ * sensor's picture.
+ *
+ * Closed to the board until clearance opens (a later PR).
+ */
+export const POD_JOBS = {
+  open: false,
+  /** Hours on station in one promised point: a minute. */
+  pointHours: 1 / 60,
+  /** A pod bid's promise moves in these points: a minute. */
+  promiseStep: 1,
+  /** The hours on station the Deliver sheet takes. */
+  declared: { min: 6, max: 13 },
+  /** A declared figure is turned back into drag by trying drag scales between these (1: the pod's own drag), this many times. */
+  dragScale: { min: 0.25, max: 4 },
+  steps: 50,
+}
+
 /** The indoor 400 m ice oval (PR 8b): longer straights than the velodrome, skated anticlockwise too. */
 export const OVAL = {
   lap: 400,
@@ -438,6 +474,21 @@ const plane = (change: Partial<Omit<PlaneDesign, 'sport' | 'class'>> = {}): Plan
 
 /** A kit plane: the L-2 as its builders fly it, with the changes they've already made. */
 const kitPlane = (change: Partial<Omit<AircraftDesign, 'sport' | 'class'>> = {}): AircraftDesign => ({ ...STOCK_AIRCRAFT.kit, ...change })
+
+const sensorPod = (change: Partial<Omit<PodDesign, 'sport' | 'class'>> = {}): PodDesign => ({ ...STOCK_POD.patrol, ...change })
+
+/** A sensor-pod trial over the Stepnoy range: the range's usual day for the card (the ground's height, the air at patrol height), with its spread. */
+const stepnoyTrial = {
+  name: 'Stepnoy sensor trial',
+  place: 'Stepnoy test range',
+  temperature: 9,
+  altitude: 300,
+  windSpeed: 0,
+  riderSpeed: 60,
+  spread: { temperature: 6, wind: 0, power: 0 },
+  course: [],
+  pod: { range: 'stepnoy' as const },
+}
 
 /** A light-aircraft mod's test day at Belyanka: the airfield's usual day for the card, with its spread. */
 const belyankaTest = {
@@ -1228,5 +1279,51 @@ export const BRIEFS: readonly BriefTemplate[] = [
     minRep: 65,
     // 16 km/h: the fairings toed into the prop's swirl, and the rest of the plane sorted.
     target: 16,
+  },
+  // Sensor pods (PR 10ac): the Ministry of Defence's Gorlitsa P-4, all flown over Stepnoy. Defence briefs: big fees, no fame.
+  {
+    id: 'stepnoy-pod',
+    client: 'Major Galina Tumanova',
+    who: 'Ministry of Defence project officer for the Gorlitsa P-4’s new sensor',
+    goal: 'The new sensor is bigger, and our workshop’s pod for it costs the patrol over half an hour on station. Win back what you can, and keep the picture steady.',
+    event: { ...stepnoyTrial, spread: { ...stepnoyTrial.spread } },
+    rider: { power: 0, mass: 0 },
+    setup: sensorPod(),
+    fee: { min: 420000, max: 560000 },
+    days: 30,
+    minRep: 60,
+    defence: true,
+    // 25 minutes over the workshop's pod: a finer tail and a little more gap do most of it.
+    target: 25,
+  },
+  {
+    id: 'stepnoy-tight',
+    client: 'Captain Rostislav Grachyov',
+    who: 'Flight-trials officer at the Stepnoy range; the last contractor’s pod rides tight under the wing',
+    goal: 'Their tunnel said this pod beat the old one. On the range it drags, and the picture shakes so badly we can’t use it. Find out why, and fix it.',
+    event: { ...stepnoyTrial, spread: { ...stepnoyTrial.spread } },
+    rider: { power: 0, mass: 0 },
+    setup: sensorPod({ nose: 0.7, tail: 0.7, gap: 0.1 }),
+    fee: { min: 450000, max: 600000 },
+    days: 30,
+    minRep: 65,
+    defence: true,
+    // 20 minutes over their pod on paper: the gap has to open, and the pylon's drag paid for.
+    target: 20,
+  },
+  {
+    id: 'stepnoy-forward',
+    client: 'Ksenia Varlamova',
+    who: 'Sensor-integration engineer at the ministry; her team slid the pod forward to clear the wing',
+    goal: 'Forward cured the wing’s shake, but the cut-off tail still blurs the picture, and the plane needs trim to carry it. Give us a pod that sits still and stays out longer.',
+    event: { ...stepnoyTrial, spread: { ...stepnoyTrial.spread } },
+    rider: { power: 0, mass: 0 },
+    setup: sensorPod({ nose: 0.6, tail: 0.05, gap: 0.4, at: 0.6 }),
+    fee: { min: 480000, max: 640000 },
+    days: 32,
+    minRep: 70,
+    defence: true,
+    // 22 minutes over their pod on paper: a tail cone, and the pod slid back.
+    target: 22,
   },
 ]

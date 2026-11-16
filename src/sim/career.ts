@@ -21,7 +21,9 @@
  */
 import { RECORD_TUNNEL, STOCK_RECORD, type RecordClass, type RecordDesign } from '../data/record'
 import { STOCK_AIRCRAFT, type AircraftClass, type AircraftDesign, type Airfield } from '../data/aircraft'
-import { OLD_POD, TEST_RANGES, type PodClass, type PodDesign, type TestRange } from '../data/pod'
+import { OLD_POD, type PodClass, type PodDesign, type TestRange } from '../data/pod'
+import type { Sensor } from './pod'
+import { dragScaleForHours, podDragArea, podEventFrom, podFlight, PRACTICE_RANGE, rangeDay, usualRangeDay, type PodEvent, type PodFlight, type RangeDay } from './podJob'
 import { stallFix } from './aircraft'
 import { applied, applyBlock, clearanceOn, isCleared, NO_CLEARANCE, reviewClearance, type ApplyBlock, type Clearance } from './clearance'
 import { CLEARANCE } from '../data/defence'
@@ -33,7 +35,7 @@ import { dragScaleForRange, looseFix, planeEventFrom, PRACTICE_SITE, surveyDay, 
 import { droneRace, type DroneRace } from './drone'
 import { dragScaleForTime, droneDayAir, droneEventFrom, heatCost, PRACTICE_COURSE, raceDragArea, type DroneEvent } from './droneJob'
 import type { SaltFlat } from '../data/saltFlats'
-import { AIRCRAFT_JOBS, BID, BRIEFS, CAREER, CAR_JOBS, DRONE_JOBS, JUMP_JOBS, PLANE_JOBS, PROMISE, RECORD_JOBS, SLED_JOBS, TRUCK_JOBS, type BriefTemplate } from '../data/briefs'
+import { AIRCRAFT_JOBS, POD_JOBS, BID, BRIEFS, CAREER, CAR_JOBS, DRONE_JOBS, JUMP_JOBS, PLANE_JOBS, PROMISE, RECORD_JOBS, SLED_JOBS, TRUCK_JOBS, type BriefTemplate } from '../data/briefs'
 import { recordAero, recordDayAir, sightLoss, soundSpeed, twoWay, type RecordAttempt, type RecordDay } from './record'
 import { dragScaleForSpeed, PRACTICE_FLAT, recordEventFrom, sightCost, stillAttempt, type RecordEvent } from './recordJob'
 import type { BobsledDesign } from '../data/bobsled'
@@ -175,6 +177,7 @@ export function openTo(b: BriefTemplate, reputation: number, cleared = false): b
   if (b.event.drone && !DRONE_JOBS.open) return false
   if (b.event.plane && !PLANE_JOBS.open) return false
   if (b.event.aircraft && !AIRCRAFT_JOBS.open) return false
+  if (b.event.pod && !POD_JOBS.open) return false
   return (b.minRep ?? 0) <= reputation
 }
 
@@ -250,6 +253,16 @@ export function isPlaneBrief(id: string): boolean {
 /** True for a light-aircraft brief: its promise is km/h of cruise, its declaration a cruise speed (PR 10t). */
 export function isAircraftBrief(id: string): boolean {
   return briefTemplate(id)?.event.aircraft !== undefined
+}
+
+/** True for a sensor-pod brief: its promise is minutes on station, its declaration hours on station (PR 10ac). */
+export function isPodBrief(id: string): boolean {
+  return briefTemplate(id)?.event.pod !== undefined
+}
+
+/** A sensor-pod brief's range trial. Null for any other brief. */
+export function podEventOf(brief: Pick<Brief, 'id'>): PodEvent | null {
+  return podEventFrom(template(brief.id))
 }
 
 /** A light-aircraft brief's test flight. Null for any other brief. */
@@ -514,13 +527,22 @@ export function currentAircraftRun(state: CareerState, cls: AircraftClass): { fi
   return { field: currentAircraftEvent(state).field, old: setup && setup.sport === 'aircraft' && setup.class === cls ? setup : STOCK_AIRCRAFT[cls] }
 }
 
+/** The range trial a sensor pod is built for: the job's, or Stepnoy on its usual day between jobs (PR 10ac). */
+export function currentPodEvent(state: CareerState): PodEvent {
+  return (state.job && podEventOf(state.job.brief)) ?? PRACTICE_RANGE
+}
+
 /**
- * The range a sensor pod is forecast over and the ministry's plane with its
- * old pod (PR 10z): Stepnoy and the old pod, until the defence jobs bring
- * their own (a later PR).
+ * The range a sensor pod is forecast over and the pod it's measured
+ * against, with the sensor inside it: on a job, the ministry's pod as it
+ * hangs now, round the new sensor (PR 10ac); between jobs, the old pod
+ * round the old sensor, the plane as it flies today (PR 10z).
  */
-export function currentPodRun(_state: CareerState, cls: PodClass): { range: TestRange; old: PodDesign } {
-  return { range: TEST_RANGES.stepnoy, old: OLD_POD[cls] }
+export function currentPodRun(state: CareerState, cls: PodClass): { range: TestRange; old: PodDesign; oldSensor: Sensor } {
+  const setup = state.job ? template(state.job.brief.id).setup : null
+  const range = currentPodEvent(state).range
+  if (setup && setup.sport === 'pod' && setup.class === cls) return { range, old: setup, oldSensor: 'new' }
+  return { range, old: OLD_POD[cls], oldSensor: 'old' }
 }
 
 /**
@@ -615,7 +637,7 @@ export function promiseLimits(id: string): { min: number; max: number } {
 export function clampBid(id: string, bid: Bid): Bid {
   const b = template(id)
   const price = Math.min(b.fee.max, Math.max(b.fee.min, roundTo(bid.price, BID.priceStep)))
-  // A sled's promise moves in hundredths of a second, a car's and a quad's in tenths, a record car's 2 km/h at a time, a survey drone's a kilometre, a kit plane's a km/h.
+  // A sled's promise moves in hundredths of a second, a car's and a quad's in tenths, a record car's 2 km/h at a time, a survey drone's a kilometre, a kit plane's a km/h, a sensor pod's a minute.
   const step = isSledBrief(id)
     ? SLED_JOBS.promiseStep
     : isCarBrief(id)
@@ -628,7 +650,9 @@ export function clampBid(id: string, bid: Bid): Bid {
             ? PLANE_JOBS.promiseStep
             : isAircraftBrief(id)
               ? AIRCRAFT_JOBS.promiseStep
-              : BID.promiseStep
+              : isPodBrief(id)
+                ? POD_JOBS.promiseStep
+                : BID.promiseStep
   const limits = promiseLimits(id)
   const promise = Math.min(limits.max, Math.max(limits.min, roundTo(bid.promise, step)))
   return { price, promise }
@@ -1695,6 +1719,98 @@ export function deliverAircraft(state: CareerState, design: AircraftDesign, pred
     baselineFlight: testFlight(setup, field, day),
     cause: met ? null : usual.passes ? 'design' : 'stall',
     stall: usual.passes ? null : { stall: usual.stall, limit: usual.limit, fix: stallFix(design) },
+    reputation: { before: firmReputation(state), after: 0 },
+  }
+  const closed = closeJob(state, job, penalty, { achieved, predicted: predictedCdA, actual: actualCdA })
+  return { ...closed, job, event, debrief: { ...debrief, reputation: { ...debrief.reputation, after: firmReputation(closed.state) } } }
+}
+
+/** What range day showed for a sensor pod (plan section 9: hours on station over the range on its usual day). */
+export interface PodDebrief {
+  /** Promised and achieved gain in hours on station on the usual day, points (minutes). */
+  promised: number
+  achieved: number
+  met: boolean
+  /** Points short after the allowance (0 if met). */
+  shortfall: number
+  /** ₽ taken off the fee. */
+  penalty: number
+  /** Declared hours on station, and the real ones on the usual day (null if the ministry rejects the run). */
+  predicted: number
+  actual: number | null
+  /** The ministry's pod as it hangs now: its hours on station on the usual day. */
+  baseline: number
+  /** The pod's drag areas the declared and real hours come from, m²: the read is judged on these. */
+  predictedCdA: number
+  actualCdA: number
+  /** (declared − real) ÷ real, on drag. */
+  readError: number
+  read: Read
+  /** Range day: its air, and both pods' patrols in it. */
+  day: RangeDay
+  flight: PodFlight
+  baselineFlight: PodFlight
+  /** Why a miss happened: not enough hours ('design'), or a picture blurred by the buffet ('buffet'). */
+  cause: 'design' | 'buffet' | null
+  /** The buffet index and the ministry's limit, with the slider to change; null if the picture holds. */
+  buffet: { index: number; limit: number; fix: Extract<FixTarget, 'senTail' | 'senGap'> } | null
+  /** A defence job never moves the public reputation: these stay the same. */
+  reputation: { before: number; after: number }
+}
+
+export interface PodDelivery extends Closed {
+  job: Job
+  event: PodEvent
+  debrief: PodDebrief
+}
+
+/**
+ * Deliver a sensor pod with declared hours on station. The promise is
+ * judged on the range's usual day, over the ministry's pod as it hangs
+ * now; a pod whose buffet blurs the sensor's picture has its run rejected
+ * and gains nothing. Range day, both pods in the same air, is the show.
+ * The firm's record keeps the read on drag, as a secret job. Null if
+ * there's no job, it isn't a sensor-pod job, or the pod isn't for the
+ * ministry's plane.
+ */
+export function deliverPod(state: CareerState, design: PodDesign, predicted: number): PodDelivery | null {
+  const job = state.job
+  if (!job) return null
+  const event = podEventOf(job.brief)
+  const setup = template(job.brief.id).setup
+  if (!event || setup.sport !== 'pod' || design.class !== setup.class) return null
+  const range = event.range
+  const usual = podFlight(design, range, usualRangeDay(range))
+  const actual = usual.blurs ? null : usual.hours
+  // Their pod on paper: the hours it would stay out, steady picture or not (theirs may blur, and that's why they called).
+  const baseline = podFlight(setup, range, usualRangeDay(range)).hours
+  const gainOf = (hours: number | null) => (hours === null ? 0 : (hours - baseline) / POD_JOBS.pointHours)
+  const achieved = gainOf(actual)
+  const { shortfall, penalty } = penaltyFor(job.brief.fee, job.promise, achieved)
+  const met = shortfall === 0
+  const day = rangeDay(event, daySeed(job.brief))
+  // The read is on drag: the pod's drag area the declared hours are worth.
+  const actualCdA = podDragArea(design)
+  const predictedCdA = dragScaleForHours(predicted, design, range) * actualCdA
+  const readError = (predictedCdA - actualCdA) / actualCdA
+  const debrief: PodDebrief = {
+    promised: job.promise,
+    achieved,
+    met,
+    shortfall,
+    penalty,
+    predicted,
+    actual,
+    baseline,
+    predictedCdA,
+    actualCdA,
+    readError,
+    read: readOf(readError),
+    day,
+    flight: podFlight(design, range, day),
+    baselineFlight: podFlight(setup, range, day),
+    cause: met ? null : usual.blurs ? 'buffet' : 'design',
+    buffet: usual.blurs ? { index: usual.buffet, limit: usual.limit, fix: usual.cause === 'gap' ? 'senGap' : 'senTail' } : null,
     reputation: { before: firmReputation(state), after: 0 },
   }
   const closed = closeJob(state, job, penalty, { achieved, predicted: predictedCdA, actual: actualCdA })
