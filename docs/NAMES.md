@@ -135,6 +135,14 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | --- | --- |
 | Potok Aero, Strela Aero Works, Krilo Aerodynamics, Tikha Wind Lab, Svetla Aero | Ready-made names for the player's own firm; one is offered at career start. |
 
+## Defence (PR 10y)
+
+| Name | What it is |
+| --- | --- |
+| Tarnovian Ministry of Defence | The client for sensor-pod jobs; only a cleared firm sees its briefs. |
+| Gorlitsa P-4 | The ministry's twin-engined patrol plane, which carries a sensor pod on a pylon under its left wing. |
+| Stepnoy test range | Open steppe in Tarnovia's east where the ministry tries new kit. |
+
 ## Still to name (later PRs)
 
 The university and its tunnel, the outside model shop, other sport federations, more venues and export countries.
