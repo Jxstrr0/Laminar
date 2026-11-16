@@ -217,3 +217,48 @@ export const PLANE_DESK = {
   /** Riding out less than this times the site's usual gust on a turn is an amber warning on the sheet. */
   gustClose: 1.15,
 }
+
+/**
+ * The survey drone in the tunnel (PR 10k). A plane is too big to test full
+ * size, so the shop builds it smaller (PLANE_SCALES in model.ts), and a
+ * smaller, slower wing flies at a lower Reynolds number. Below `reFull` its
+ * boundary layer stays laminar further back and separates early: the wing
+ * drags more and stalls sooner, all the way down to `reLow`. That's Kelbo's
+ * trap (16 November 2026): a small model run at survey speed says the plane
+ * stalls in a gust it rides out. Trip strips on the wing take back most of
+ * it (for a little drag of their own); so does a bigger model, or a faster
+ * fan, which match the Reynolds number.
+ */
+export const PLANE_TUNNEL = {
+  /** The wing's Reynolds number (on its chord) above which it flies as full size does, and below which it's at its worst. */
+  reFull: 250_000,
+  reLow: 100_000,
+  /** At its worst, the wing's most lift falls by this much, and its own profile drag rises by this share. */
+  stallDrop: 0.35,
+  bubble: 0.35,
+  /** Trip strips take back these shares of the stall's drop and of the extra drag, and add this share to the wing's profile drag. */
+  trips: { stall: 0.85, bubble: 0.7, drag: 0.04 },
+  /** Past the stall, the lift falls to this share of the most, and the wing's profile drag grows this many times. */
+  stalledLift: 0.7,
+  stalledDrag: 6,
+  /** Past the stall, the lift falls this many times as fast as it grew, down to `stalledLift`. */
+  stallFall: 2,
+  /** The wing section's thickness, a share of its chord (its edge-on front, for the blockage). */
+  wingThickness: 0.12,
+  /**
+   * The forecast reads the stall only from a reading this far past the
+   * point where the lift stopped growing with the angle (its lift short of
+   * the straight line by this share).
+   */
+  stallSeen: 0.08,
+  /** The drag fit uses only readings with no more lift than this (where the plane flies its lines and turns, well clear of the stall). */
+  dragUpTo: 0.8,
+  /** The pitching moment fit uses only readings with at least this much lift (near zero lift the moment is all noise). */
+  momentFrom: 0.15,
+  /** The pitching moment's noise floor, per unit of balance noise, as a moment coefficient. */
+  momentNoise: 0.4,
+  /** The speed a plane model's Reynolds number is matched to in the model shop, m/s: survey speed. */
+  matchSpeed: 16,
+  /** The sting's pitch dial on the Tunnel screen (PR 10l), degrees of the wing's angle of attack, and how fast it turns, degrees per second. */
+  pitch: { min: -4, max: 20, step: 1, rate: 4 },
+}

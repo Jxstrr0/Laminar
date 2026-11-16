@@ -66,7 +66,16 @@ export interface PlaneDrag {
 export function planeDrag(design: PlaneDesign, speed: number, density: number, load = 1): PlaneDrag {
   const c = PLANE_CLASS[design.class]
   const q = 0.5 * density * speed * speed
-  const cl = (planeMass(design) * ATMOSPHERE.gravity * load) / (q * c.wingArea)
+  return dragAtLift(design, (planeMass(design) * ATMOSPHERE.gravity * load) / (q * c.wingArea))
+}
+
+/**
+ * The drag making a lift coefficient `cl` (PR 10k: the tunnel sets the
+ * wing's angle instead of its weight). `wingCd` scales the wing's own
+ * profile drag (a small model's wing, at a low Reynolds number, drags more).
+ */
+export function dragAtLift(design: PlaneDesign, cl: number, wingCd = 1): PlaneDrag {
+  const c = PLANE_CLASS[design.class]
   const aspect = (c.span * c.span) / c.wingArea
   const induced = ((cl * cl) / (PI * spanEfficiency(design) * aspect)) * c.wingArea
   const f = design.fuselage
@@ -75,7 +84,7 @@ export function planeDrag(design: PlaneDesign, speed: number, density: number, l
   const tail = A.tailCdA * design.tail
   const winglets = A.wingletCdA * design.winglets
   const trim = A.trimCdA * Math.max(0, staticMargin(design))
-  const wing = A.wingCd0 * c.wingArea
+  const wing = A.wingCd0 * c.wingArea * wingCd
   return { wing, induced, body, pod, tail, winglets, trim, misc: A.miscCdA, cdA: wing + induced + body + pod + tail + winglets + trim + A.miscCdA, cl }
 }
 
@@ -106,12 +115,16 @@ export interface GustTurn {
   stalls: boolean
 }
 
-/** A turn at survey speed in a gust of `gust` m/s, against the wing's most lift `clMax` (the full-size wing's by default). */
-export function gustTurn(design: PlaneDesign, site: SurveySite, gust = site.gust, temperature = site.temperature, clMax = PLANE_CLASS[design.class].clMax): GustTurn {
+/**
+ * A turn at survey speed in a gust of `gust` m/s, against the wing's most
+ * lift `clMax` (the full-size wing's by default), with the plane's static
+ * margin (or `margin`, as the tunnel measured it).
+ */
+export function gustTurn(design: PlaneDesign, site: SurveySite, gust = site.gust, temperature = site.temperature, clMax = PLANE_CLASS[design.class].clMax, margin = staticMargin(design)): GustTurn {
   const c = PLANE_CLASS[design.class]
   const density = siteDensity(site, temperature)
   const turn = planeDrag(design, c.survey, density, 1 / detCos(c.bank * DEG)).cl
-  const amplified = 1 + G.gain * Math.max(0, (G.steady - staticMargin(design)) / G.steady)
+  const amplified = 1 + G.gain * Math.max(0, (G.steady - margin) / G.steady)
   const lift = c.liftSlope * (gust / c.survey) * amplified
   const total = turn + lift
   return { turn, gust: lift, total, amplified, clMax, stalls: total > clMax }
@@ -121,9 +134,9 @@ export function gustTurn(design: PlaneDesign, site: SurveySite, gust = site.gust
  * The strongest gust it rides out on a turn, m/s, against `clMax` (the
  * full-size wing's by default): 0 if it can't even make the turn.
  */
-export function gustLimit(design: PlaneDesign, site: SurveySite, temperature = site.temperature, clMax = PLANE_CLASS[design.class].clMax): number {
+export function gustLimit(design: PlaneDesign, site: SurveySite, temperature = site.temperature, clMax = PLANE_CLASS[design.class].clMax, margin = staticMargin(design)): number {
   const c = PLANE_CLASS[design.class]
-  const t = gustTurn(design, site, 0, temperature, clMax)
+  const t = gustTurn(design, site, 0, temperature, clMax, margin)
   if (t.turn >= clMax) return 0
   return ((clMax - t.turn) * c.survey) / (c.liftSlope * t.amplified)
 }
