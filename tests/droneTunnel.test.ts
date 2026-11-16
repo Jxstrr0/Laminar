@@ -7,7 +7,7 @@ import { TUNNEL_UPGRADES, UNIVERSITY_TUNNEL } from '../src/data/tunnel'
 import { strains } from '../src/sim/failure'
 import { newLab } from '../src/sim/lab'
 import { forMaker, makerScales, matchedSpeed, quote, scaleFamily } from '../src/sim/modelShop'
-import type { RunSample } from '../src/sim/run'
+import { newRecorder, runCost, stepRecorder, type RunSample } from '../src/sim/run'
 import { soundLab } from '../src/persist/save'
 import { DEG } from '../src/sim/num'
 import { Rng } from '../src/sim/rng'
@@ -177,5 +177,39 @@ describe('a quad model on the Tunnel screen (PR 10d)', () => {
     expect(sting(load(TUNNEL_UPGRADES.fan.topSpeed, DRONE_TUNNEL.tilt.max))).toBeGreaterThan(1)
     // The dial reaches past the racer's flat-out lean.
     expect(DRONE_TUNNEL.tilt.max).toBeGreaterThan(70)
+  })
+})
+
+describe('a powered quad model (PR 10e)', () => {
+  it('costs more to build, with its motors, and every run with the props spinning costs more', () => {
+    const plain = quote({ ...STANDARD_ORDER, scale: 1 })
+    const powered = quote({ ...STANDARD_ORDER, scale: 1, powered: true })
+    expect(powered.price - plain.price).toBe(MODEL_SHOP.motors.price)
+    expect(powered.days - plain.days).toBe(MODEL_SHOP.motors.days)
+    // The recorder marks a run with the props spinning, and it's billed the extra.
+    let rec = newRecorder()
+    rec = stepRecorder(rec, 20, 0.01, 'rider', 'university', true).recorder
+    const run = rec.run!
+    expect(run.powered).toBe(true)
+    expect(runCost(run) - runCost({ ...run, powered: undefined })).toBeCloseTo(DRONE_TUNNEL.poweredRun, 6)
+    expect(stepRecorder(newRecorder(), 20, 0.01, 'rider').recorder.run!.powered).toBeUndefined()
+  })
+
+  it('a save keeps a powered order and a powered run', () => {
+    const lab = { ...newLab(GOOD), order: { ...STANDARD_ORDER, scale: 1 as const, powered: true } }
+    const run = { id: 1, model: 'rider', samples: [], duration: 10, energyKWh: 0.01, topSpeed: 30, powered: true }
+    const back = soundLab(JSON.parse(JSON.stringify({ ...lab, runs: [run], nextRunId: 2 })), GOOD)!
+    expect(back.order.powered).toBe(true)
+    expect(back.runs[0]!.powered).toBe(true)
+    expect(soundLab(JSON.parse(JSON.stringify({ ...lab, runs: [{ ...run, powered: 'yes' }], nextRunId: 2 })), GOOD)).toBeNull()
+  })
+
+  it('reads the downwash with its props spinning, so the forecast sees what the fairings save', () => {
+    const truth = droneRace(GOOD, course).time!
+    const stopped = forecast(GOOD, 'stopped', SWEEP, REAL)
+    const powered = forecast(GOOD, 'powered', SWEEP, REAL)
+    expect(stopped.downwashMeasured).toBe(false)
+    expect(powered.downwashMeasured).toBe(true)
+    expect(Math.abs(powered.time! - truth)).toBeLessThan(Math.abs(stopped.time! - truth))
   })
 })

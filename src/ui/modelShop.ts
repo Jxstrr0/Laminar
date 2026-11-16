@@ -13,6 +13,7 @@ import { FAMILY_START, forMaker, makerOf, scaleFamily, matchedSpeed, quote, type
 import type { OrderBlock } from '../sim/career'
 import type { EventSpec } from '../sim/views'
 import { fixed } from './format'
+import { DRONE_TUNNEL } from '../data/drone'
 import { glossaryTerm } from './glossary'
 import { createSheet, type Sheet } from './sheet'
 
@@ -144,6 +145,9 @@ function buildShop(): Shop {
     taps.set(order.taps ? 'on' : 'off')
     // A quad's pod is too small for trip strips or taps to tell you anything (the air's own instruments come later).
     trips.box.hidden = taps.box.hidden = family === 'drone'
+    // A quad's model can have its motors wired up, so its props spin in the tunnel (PR 10e).
+    props.box.hidden = family !== 'drone'
+    props.set(order.powered ? 'spinning' : 'stopped')
     board.box.hidden = context.sled !== true && !big && context.car !== true
     boardText.data = t(truck ? 'shop.boardNoteTruck' : context.car ? 'shop.boardNoteCar' : context.record ? 'shop.boardNoteRecord' : 'shop.boardNote')
     board.set(order.board ? 'on' : 'off')
@@ -221,6 +225,15 @@ function buildShop(): Shop {
     ],
     (v) => pick({ board: v === 'on' }),
   )
+  const props = choice<'stopped' | 'spinning'>(
+    t('shop.props'),
+    [
+      { value: 'stopped', text: t('shop.props.stopped') },
+      { value: 'spinning', text: t('shop.props.spinning') },
+    ],
+    (v) => pick({ powered: v === 'spinning' }),
+  )
+  props.note.append(t('shop.propsNote', { run: fixed(DRONE_TUNNEL.poweredRun, 0) }), ' ', glossaryTerm('downwash', t('shop.propsLink')))
   const boardText = document.createTextNode(t('shop.boardNote'))
   board.note.append(boardText, ' ', glossaryTerm('groundBoard', t('shop.boardLink')))
 
@@ -238,7 +251,7 @@ function buildShop(): Shop {
   })
   bill.append(price, free, orderBtn)
 
-  body.append(intro, maker.box, scale.box, finish.box, grade.box, trips.box, taps.box, board.box, bill)
+  body.append(intro, maker.box, scale.box, finish.box, grade.box, trips.box, taps.box, props.box, board.box, bill)
 
   return {
     sheet,
@@ -250,6 +263,7 @@ function buildShop(): Shop {
       if (!ctx.sled && family !== 'truck' && !ctx.car) delete order.board
       // A truck's model (or a land-speed car's) comes at a truck's scale, a quad's full size, and a rider's at a rider's.
       if (family === 'drone') order = { ...order, trips: false, taps: false }
+      else delete order.powered
       if (scaleFamily(order.scale) !== family) order = forMaker({ ...order, scale: FAMILY_START[family] }, makerOf(order))
       context = ctx
       place = onOrder
