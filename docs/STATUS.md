@@ -88,10 +88,14 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 9z | Jet car jobs: Tikhon Shatrov's Ognivo (a fighter engine in a fuel-tank body, reputation 75) and Raisa Belova's Proryv Project (reputation 85), whose target is a two-way mean just over the speed of sound. Speed week's debrief names the squeeze (the drag the tunnel can't see) with a jump to the waist, says when the shock under the nose lifted it, and says when a car went through the sound barrier both ways. Fixes found on the way: the Deliver sheet took no speed over 1,300 km/h and wrote its starting speed with a thousands comma it couldn't read back; a record bid can now promise up to 180 km/h (other jobs keep 30 points); and a missed promise costs at most 20 reputation for the points short, so one jet car that pulls its chutes can't wipe out a career | **Done** (v0.9.25.0) |
 | 9z+ | The sound barrier in the record replay: a jet car's run shows its Mach number, the replay slows from the moment it goes through the barrier, the commentator calls it with a white flash (none with reduced motion), and past Mach 1 its shock trails across the salt from the nose as a V of lines. The land-speed record (PR 9) is finished | **Done** (v0.9.26.0) |
 | 10a | The racing quad in the sim (Kelbo's PR 10 answers in the plan): the body pod's length, rake and vents and the arm fairings; drag at the quad's tilt, thrust falling with speed and lost to the downwash on the arms, the controllers overheating with too few vents, corners flown on the spare thrust, and the pod's twist tumbling the quad (hardest on the brakes); a race of five laps of the Lugovoy meadow gate course | **Done** (v0.10.0.0) |
-| 10b–14 | See the plan | Next: the racing quad on Shape (10b). |
+| 10b | The racing quad on Shape (`?try=quad`): drawn flying flat out at its true tilt with streaks of oncoming air; Pod (length, rake, vents) and Arms (fairings) tabs; the desk's race time against the club's quad, top speed with the tilt and the pod's angle to the air, and the worst twist against what the motors hold; a tumble, a twist near the limit and overheating vents are amber warnings with "Change this"; saves, run reports and the model shop know the quad; glossary: flying tilted, twist, downwash | **Done** (v0.10.1.0) |
+| 10c–14 | See the plan | Next: the racing quad in the tunnel (10c). |
 
 ## Versions
 
+- **0.10.1.0** (PR 10b): the racing quad on Shape. Open the game with
+  `?try=quad` and tap Shape: rake the pod up until it points into the
+  arrows of air, fair the arms, and watch the race time and the twist.
 - **0.10.0.0** (PR 10a): the racing quad, in the sim only. Nothing to see
   on a phone yet; Shape gets it in 10b.
 - **0.9.26.0** (PR 9z+): the sonic boom. Deliver a jet car that goes

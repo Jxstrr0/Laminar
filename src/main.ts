@@ -20,6 +20,7 @@ import { DEFAULT_BOBSLED } from './data/bobsled'
 import { DEFAULT_TRUCK } from './data/truck'
 import { STOCK_CAR } from './data/car'
 import { STOCK_RECORD } from './data/record'
+import { STOCK_DRONE } from './data/drone'
 import type { Design } from './data/sport'
 import { careerStore, freshSeed } from './ui/careerStore'
 import { charge, currentCarRun, currentRecordRun, currentEvent, currentJumpEvent, currentSledEvent, currentTruckRun, newCareer, orderBlock, orderModel, repairModel } from './sim/career'
@@ -50,6 +51,8 @@ const PREVIEWS: Record<string, Design> = {
   // The land-speed streamliner (PR 9q), and `?try=jet` the jet car (PR 9x).
   record: STOCK_RECORD.streamliner,
   jet: STOCK_RECORD.jet,
+  // The racing quad (PR 10b).
+  quad: STOCK_DRONE.racer,
 }
 const PREVIEW_DESIGN = PREVIEWS[new URLSearchParams(location.search).get('try') ?? ''] ?? null
 const PREVIEW = PREVIEW_DESIGN !== null

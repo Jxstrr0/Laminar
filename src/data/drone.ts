@@ -103,6 +103,43 @@ export const DRONE_AERO = {
   munk: 0.9,
 }
 
+/**
+ * The quad's build, for its outline and its drawing (PR 10b): the frame
+ * plate, the arms out to the motors on the diagonals, the 5-inch props, and
+ * where the pod sits. The aero above uses its own areas; these only place
+ * the parts.
+ */
+export const DRONE_BODY = {
+  /** The frame plate's length and width, m, and its thickness. */
+  plate: 0.12,
+  plateWidth: 0.09,
+  plateThick: 0.004,
+  /** Motor to motor across the diagonal, m, and each arm's width and depth, m. */
+  span: 0.22,
+  armWidth: 0.012,
+  armDepth: 0.005,
+  /** A faired arm's chord (front to back), m, at full cover. */
+  fairChord: 0.03,
+  /** Motor bell radius and height, m, and the props' radius, m (5 inches across). */
+  motor: 0.014,
+  motorHeight: 0.016,
+  prop: 0.0635,
+  /** The pod's height, m (its front is podFront, so its height is podFront ÷ podWidth), and how far its back sits behind the plate's middle, m. */
+  podBack: 0.05,
+  /** Where the quad hovers on the Shape stage, m above the floor (drawn only). */
+  hover: 0.16,
+  /** The vents: up to this many slots down each side of the pod. */
+  ventSlots: 4,
+}
+
+/** The desk's guess at a quad (PR 10b): how far off its drag can be, shared by a job and per design. */
+export const DRONE_DESK = {
+  dragBias: 0.04,
+  jitter: 0.012,
+  /** Twist past this share of what the motors hold is an amber warning on the sheet. */
+  twistWarn: 0.85,
+}
+
 /** The race (PR 10a): from a standing start, laps of the club's gate course, flown as fast as the quad can. */
 export const DRONE_RACE = {
   /** Metres per step through the course. */

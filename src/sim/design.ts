@@ -11,6 +11,7 @@ import type { BobsledDesign } from '../data/bobsled'
 import type { TruckDesign } from '../data/truck'
 import { CAR_CLASS, type CarDesign } from '../data/car'
 import { RECORD_CLASS, type RecordDesign } from '../data/record'
+import type { DroneDesign } from '../data/drone'
 import type { Design, Sport } from '../data/sport'
 import { ICE } from '../data/skater'
 import { comfort, readouts, riderEvent, type Comfort, type Readouts } from './cyclist'
@@ -32,6 +33,8 @@ import { truckPose } from './geom/truckPose'
 import { truckReadouts } from './truck'
 import { carPose, carShape } from './geom/car'
 import { recordPose, recordShape } from './geom/record'
+import { dronePose, droneShape } from './geom/drone'
+import { droneMass } from './drone'
 import { describeShape } from './geom/body'
 import type { EventSpec } from './views'
 import type { RiderSpec } from './field/timeTrial'
@@ -67,6 +70,15 @@ export function isRecord(design: Design): design is RecordDesign {
   return design.sport === 'record'
 }
 
+export function isDrone(design: Design): design is DroneDesign {
+  return design.sport === 'drone'
+}
+
+/** A design with no athlete's comfort or pedals: a jumper, a sled, a truck, a car, a record car or a drone. */
+function noPedals(design: Design): design is JumperDesign | BobsledDesign | TruckDesign | CarDesign | RecordDesign | DroneDesign {
+  return isJumper(design) || isBobsled(design) || isTruck(design) || isCar(design) || isRecord(design) || isDrone(design)
+}
+
 export function isCyclist(design: Design): design is CyclistDesign {
   return design.sport === undefined || design.sport === 'cycling'
 }
@@ -81,6 +93,7 @@ export function designShape(design: Design, options: CyclistShapeOptions = {}): 
   if (isTruck(design)) return truckShape(design)
   if (isCar(design)) return carShape(design)
   if (isRecord(design)) return recordShape(design)
+  if (isDrone(design)) return droneShape(design)
   return isSkater(design) ? skaterShape(design) : cyclistShape(design, options)
 }
 
@@ -91,11 +104,12 @@ export function designPose(design: Design, crankDeg?: number): Pose {
   if (isTruck(design)) return truckPose(design)
   if (isCar(design)) return carPose(design)
   if (isRecord(design)) return recordPose(design)
+  if (isDrone(design)) return dronePose(design)
   return isSkater(design) ? skaterPose(design) : riderPose(design, crankDeg)
 }
 
 export function designComfort(design: Design, limit?: number): Comfort<string> {
-  if (isJumper(design) || isBobsled(design) || isTruck(design) || isCar(design) || isRecord(design)) return jumperComfort()
+  if (noPedals(design)) return jumperComfort()
   return isSkater(design) ? skaterComfort(design, limit) : comfort(design, limit)
 }
 
@@ -122,12 +136,16 @@ export function designReadouts(design: Design, rules: CyclingRules, limit?: numb
     // A record car has no rulebook to break: its sheet warns about the nose, the canopy and pointing straight itself.
     return { frontalArea: describeShape(recordShape(design)).frontalArea, mass: RECORD_CLASS[design.class].mass, price: 0, comfort: jumperComfort(), breaks: [] }
   }
+  if (isDrone(design)) {
+    // A racing quad (PR 10b) flies in the club's open class: its sheet warns about the twist and the heat itself.
+    return { frontalArea: describeShape(droneShape(design)).frontalArea, mass: droneMass(design), price: 0, comfort: jumperComfort(), breaks: [] }
+  }
   return isSkater(design) ? skaterReadouts(design, limit) : readouts(design, rules, limit)
 }
 
-/** The event as this design meets it: the athlete's power through their comfort meter (a jumper, a sled crew, a truck, a car or a record car has no pedals to push). */
+/** The event as this design meets it: the athlete's power through their comfort meter (a jumper, a sled crew, a truck, a car, a record car or a drone has no pedals to push). */
 export function designEvent(design: Design, event: EventSpec, limit?: number): EventSpec {
-  if (isJumper(design) || isBobsled(design) || isTruck(design) || isCar(design) || isRecord(design)) return event
+  if (noPedals(design)) return event
   return isSkater(design) ? skaterEvent(design, event, limit) : riderEvent(design, event, limit)
 }
 

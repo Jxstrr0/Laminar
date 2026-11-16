@@ -148,6 +148,8 @@ export interface DroneRace {
   tumble: { at: number; speed: number } | null
   /** When the speed controllers overheated, s into the race, or null if they never did. */
   hotAt: number | null
+  /** The hardest the air twisted the quad (up to any tumble): the moment, N·m, the speed there, m/s, and whether it was braking. */
+  twist: { moment: number; speed: number; braking: boolean }
   /** Its speed at the end of each step, m/s (RACE.step apart, give or take a corner's rounding). */
   speeds: number[]
   /** Each step's length, m. */
@@ -250,13 +252,16 @@ export function droneRace(design: DroneDesign, course: DroneCourse, temperature 
   let top = 0
   let along = 0
   let tumble: DroneRace['tumble'] = null
+  let twist: DroneRace['twist'] = { moment: 0, speed: 0, braking: false }
   for (let i = 0; i < count; i++) {
     const entry = i === 0 ? 0 : speeds[i - 1]!
     const v = speeds[i]!
     // Speeding up, it tilts as far forward as it can; braking, as far back (the pod then meets the air
     // nearly tail-first, and a raked one twists hardest); holding its speed, just enough for the drag.
     const tilt = v > entry + 1e-9 ? flatOut(design, v, density, false, trim).tilt : v < entry - 1e-9 ? -flatOut(design, v, density, false, trim).tilt : steadyTilt(design, v, density, trim)
-    if (!relief.tumble && Math.abs(pitchMoment(design, v, tilt, density)) > c.authority) {
+    const moment = Math.abs(pitchMoment(design, v, tilt, density))
+    if (moment > twist.moment) twist = { moment, speed: v, braking: v < entry - 1e-9 }
+    if (!relief.tumble && moment > c.authority) {
       tumble = { at: along, speed: v }
       break
     }
@@ -264,5 +269,5 @@ export function droneRace(design: DroneDesign, course: DroneCourse, temperature 
     top = Math.max(top, v)
     along += lengths[i]!
   }
-  return { time: tumble ? null : time, top, tumble, hotAt, speeds, lengths }
+  return { time: tumble ? null : time, top, tumble, hotAt, twist, speeds, lengths }
 }

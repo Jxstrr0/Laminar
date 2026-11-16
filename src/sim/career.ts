@@ -20,6 +20,7 @@
  *   event and refreshes the board.
  */
 import { RECORD_TUNNEL, STOCK_RECORD, type RecordClass, type RecordDesign } from '../data/record'
+import { DRONE_COURSES, STOCK_DRONE, type DroneClass, type DroneCourse, type DroneDesign } from '../data/drone'
 import type { SaltFlat } from '../data/saltFlats'
 import { BID, BRIEFS, CAREER, CAR_JOBS, JUMP_JOBS, PROMISE, RECORD_JOBS, SLED_JOBS, TRUCK_JOBS, type BriefTemplate } from '../data/briefs'
 import { recordAero, recordDayAir, sightLoss, soundSpeed, twoWay, type RecordAttempt, type RecordDay } from './record'
@@ -402,6 +403,16 @@ export function currentCarEvent(state: CareerState): CarEvent {
 export function currentCarRun(state: CareerState, cls: CarClass): { circuit: Circuit; old: CarDesign } {
   const setup = state.job ? template(state.job.brief.id).setup : null
   return { circuit: currentCarEvent(state).circuit, old: setup && setup.sport === 'car' && setup.class === cls ? setup : STOCK_CAR[cls] }
+}
+
+/**
+ * The course a racing quad is forecast on and the club's quad it's measured
+ * against: the job's (from PR 10d), or a club racer as the hobby pilots fly
+ * it at the Lugovoy meadow between jobs.
+ */
+export function currentDroneRun(state: CareerState, cls: DroneClass): { course: DroneCourse; old: DroneDesign } {
+  const setup = state.job ? template(state.job.brief.id).setup : null
+  return { course: DRONE_COURSES.lugovoy, old: setup && setup.sport === 'drone' && setup.class === cls ? setup : STOCK_DRONE[cls] }
 }
 
 /** The speed week a record car is built for: the job's, or Lake Sukhoye on its usual day between jobs. */

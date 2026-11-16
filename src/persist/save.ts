@@ -11,6 +11,7 @@ import { BOBSLED_RANGE, type BobsledDesign } from '../data/bobsled'
 import { TRUCK_RANGE, type TruckDesign } from '../data/truck'
 import { CAR_RANGE, type CarDesign } from '../data/car'
 import { RECORD_RANGE, type RecordDesign } from '../data/record'
+import { DRONE_RANGE, type DroneDesign } from '../data/drone'
 import type { Design } from '../sim/design'
 import { ALL_SCALES, MACHINE_IDS, MAKER_IDS, MODEL_FINISH, MODEL_GRADE, type MachineId } from '../data/model'
 import { CRANK_DIAL, DEMO_TUNNEL_SEED } from '../data/tunnel'
@@ -59,6 +60,7 @@ export function soundDesign(x: unknown): Design | null {
   if (x.sport === 'truck') return soundTruck(x)
   if (x.sport === 'car') return soundCar(x)
   if (x.sport === 'record') return soundRecordCar(x)
+  if (x.sport === 'drone') return soundDrone(x)
   if (x.sport !== undefined && x.sport !== 'cycling') return null
   return soundCyclist(x)
 }
@@ -122,6 +124,15 @@ function soundCar(x: Obj): CarDesign | null {
     floorEdge: n(x.floorEdge, R.floorEdge),
     inlet: n(x.inlet, R.inlet),
   }
+}
+
+function soundDrone(x: Obj): DroneDesign | null {
+  if (!oneOf(x.class, ['racer'] as const) || !isObj(x.pod)) return null
+  const { length, rake, vents } = x.pod
+  if (![length, rake, vents, x.arms].every(isNum)) return null
+  const R = DRONE_RANGE[x.class]
+  const n = (v: unknown, r: { min: number; max: number }) => clampTo(v as number, r)
+  return { sport: 'drone', class: x.class, pod: { length: n(length, R.length), rake: n(rake, R.rake), vents: n(vents, R.vents) }, arms: n(x.arms, R.arms) }
 }
 
 function soundRecordCar(x: Obj): RecordDesign | null {

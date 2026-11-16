@@ -84,7 +84,7 @@ interface Figure {
 
 /** The same rider sitting up (a skater standing taller): back up to the trouble table's angle, head up. */
 function sitUp(design: Design): Design {
-  if (design.sport === 'skijump' || design.sport === 'bobsled' || design.sport === 'truck' || design.sport === 'car' || design.sport === 'record') return design
+  if (design.sport === 'skijump' || design.sport === 'bobsled' || design.sport === 'truck' || design.sport === 'car' || design.sport === 'record' || design.sport === 'drone') return design
   if (design.sport === 'skating') {
     const p = design.posture
     return { ...design, posture: { trunkDeg: Math.max(p.trunkDeg, S.trouble.sitUpTorso), kneeDeg: Math.max(p.kneeDeg, S.trouble.standKnee), headDrop: 0 } }
