@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { BRIEFS, PLANE_JOBS } from '../src/data/briefs'
-import { PLANE_CLASS, STOCK_PLANE, SURVEY_SITES, type PlaneDesign } from '../src/data/plane'
+import { PLANE_CLASS, STOCK_PLANE, SURVEY_PATTERN, SURVEY_SITES, type PlaneDesign } from '../src/data/plane'
 import {
   briefTemplate,
   clampBid,
@@ -15,7 +15,7 @@ import {
 } from '../src/sim/career'
 import { newLab } from '../src/sim/lab'
 import { gustLimit, planeRange } from '../src/sim/plane'
-import { dragScaleForRange, looseFix, PRACTICE_SITE, surveyDay, surveyDragArea, surveyFlight, usualDay } from '../src/sim/planeJob'
+import { dragScaleForRange, looseFix, nextTurn, PRACTICE_SITE, surveyDay, surveyDragArea, surveyFlight, turnRadius, turnStart, usualDay } from '../src/sim/planeJob'
 import { readOf } from '../src/sim/reputation'
 
 const planeBriefs = BRIEFS.filter((b) => b.event.plane)
@@ -70,7 +70,7 @@ describe('survey briefs (PR 10m)', () => {
 })
 
 describe('survey day', () => {
-  it('is seeded, gusts about the site’s usual, and comes partway through the flight', () => {
+  it('is seeded, gusts about the site’s usual, and comes on a turn partway through the flight', () => {
     const event = planeEventOf({ id: 'kolos-survey' })!
     expect(surveyDay(event, 9)).toEqual(surveyDay(event, 9))
     const gusts = Array.from({ length: 200 }, (_, i) => surveyDay(event, i + 1))
@@ -78,19 +78,33 @@ describe('survey day', () => {
     expect(mean).toBeCloseTo(site.gust, 1)
     for (const d of gusts) {
       expect(d.gust).toBeGreaterThanOrEqual(0)
-      expect(d.gustAt).toBeGreaterThanOrEqual(PLANE_JOBS.gustAt.min)
-      expect(d.gustAt).toBeLessThanOrEqual(PLANE_JOBS.gustAt.max)
+      expect(d.gustAt).toBeGreaterThanOrEqual(PLANE_JOBS.gustKm.min)
+      expect(d.gustAt).toBeLessThan(PLANE_JOBS.gustKm.max + (SURVEY_PATTERN.line + Math.PI * turnRadius('survey')) / 1000)
+      // On a turn's start.
+      expect(nextTurn('survey', d.gustAt)).toBeCloseTo(d.gustAt, 9)
     }
   })
 
-  it('flies the whole range if it rides the gust out, and lands in the crop where the gust comes if not', () => {
-    const calm = surveyFlight(GOOD, site, { temperature: 16, gust: 1.5, gustAt: 0.4 })
+  it('flies the whole range if it rides the gust out, lands in the crop where the gust comes if not, and misses a gust after it has landed', () => {
+    const calm = surveyFlight(GOOD, site, { temperature: 16, gust: 1.5, gustAt: 40 })
     expect(calm.stall).toBeNull()
     expect(calm.flown).toBe(calm.range)
-    const rough = surveyFlight(GOOD, site, { temperature: 16, gust: 3, gustAt: 0.4 })
-    expect(rough.stall!.gust).toBe(3)
-    expect(rough.flown).toBeCloseTo(rough.range * 0.4, 9)
+    const rough = surveyFlight(GOOD, site, { temperature: 16, gust: 3, gustAt: 40 })
+    expect(rough.stall).toEqual({ gust: 3, at: 40 })
+    expect(rough.flown).toBe(40)
     expect(rough.limit).toBeLessThan(3)
+    expect(surveyFlight(GOOD, site, { temperature: 16, gust: 3, gustAt: 200 }).stall).toBeNull()
+  })
+
+  it('flies lines 600 m long, turning round in a half circle at the bank its class flies', () => {
+    // 16 m/s at 35°: about a 37 m radius.
+    expect(turnRadius('survey')).toBeGreaterThan(35)
+    expect(turnRadius('survey')).toBeLessThan(39)
+    expect(turnStart('survey', 0)).toBeCloseTo(0.6, 9)
+    expect(turnStart('survey', 1) - turnStart('survey', 0)).toBeCloseTo((600 + Math.PI * turnRadius('survey')) / 1000, 9)
+    expect(nextTurn('survey', 0)).toBeCloseTo(0.6, 9)
+    expect(nextTurn('survey', 0.61)).toBeCloseTo(turnStart('survey', 1), 9)
+    expect(usualDay(site).gustAt).toBeCloseTo(0.6, 9)
   })
 })
 

@@ -318,3 +318,47 @@ export const DRONE_SCENE = {
   /** The old quad is a see-through twin; a quad this small needs it a touch more solid than a rider's. */
   ghostOpacity: 0.5,
 }
+
+/**
+ * The survey-day highlights (PR 10o; Kelbo chose highlights in 3D, 16
+ * November 2026). A survey flight runs most of two hours, so the replay
+ * plays clips of it, cutting between them with a time-lapse line: the
+ * launch and the first turn, the day's big gust on a turn, then each plane
+ * gliding down when its battery reaches the reserve. Flight seconds a
+ * replay second in each clip, and how much flight each clip shows round its
+ * moment, s.
+ */
+export const SURVEY_REPLAY = {
+  /** The launch: from the start, this much flight, at this rate. */
+  launch: { seconds: 50, rate: 9 },
+  /** The gust's turn: from this long before it to this long after, at this rate (slow, so the stall can be watched). */
+  gust: { before: 6, after: 9, rate: 1.6 },
+  /** A landing: from this long before touchdown to this long after, at this rate. */
+  land: { before: 9, after: 3, rate: 3 },
+  /** A turn is drawn in pieces turning no more than this, degrees. */
+  turnStep: 15,
+  /** The bank rolls in and out over this many metres at each end of a turn. */
+  rollIn: 18,
+  /** A stalled plane spins this many turns as it falls into the crop, over this many flight seconds, its nose this far down, degrees. */
+  spin: { turns: 1.5, seconds: 4, noseDeg: 55 },
+  /** A plane at its reserve glides down over this many flight seconds before it touches the stubble. */
+  glide: 9,
+  /** The replay holds this long on the last clip's end, replay seconds. */
+  hold: 1.2,
+}
+
+/** The survey fields from a chase camera behind your plane, m. */
+export const SURVEY_SCENE = {
+  /** The planes fly their lines this high over the crop. */
+  flyHeight: 40,
+  /** Side by side in close formation, so a portrait phone sees both: yours right of the line, theirs left of it. */
+  laneMine: 1.3,
+  laneOld: -1.7,
+  /** The chase camera: behind, above and to the side of your plane (between the two), and how far ahead and how far below it it looks. */
+  camera: { back: 11, up: 2.2, side: -1.5, ahead: 14, below: 1.5, fov: 55 },
+  /** The camera never sinks below this height, following a plane down into the crop. */
+  cameraLow: 4,
+  /** The crop's rows run this far apart (the ground grid). */
+  rows: 8,
+  ghostOpacity: 0.45,
+}

@@ -168,6 +168,16 @@ export interface SurveySite {
   gust: number
 }
 
+/**
+ * How a survey plane flies its lines (PR 10o): back and forth across the
+ * field, each line this long, m, turning round at each end in a half
+ * circle banked as the class says (its radius follows from the bank and
+ * the survey speed). The first turn comes after the first line.
+ */
+export const SURVEY_PATTERN = {
+  line: 600,
+}
+
 export const SURVEY_SITES: Record<SurveySite['id'], SurveySite> = {
   /** The Ozimka fields east of Stavren: a farm co-operative's wheat, flat and open to the wind. */
   ozimka: { id: 'ozimka', altitude: 180, temperature: 16, gust: 2 },

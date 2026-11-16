@@ -24,6 +24,7 @@ import { checkCarRules, lapTime, scrutineered } from '../sim/car'
 import { playCarReplay } from './carReplay'
 import { playRecordReplay } from './recordReplay'
 import { playDroneReplay } from './droneReplay'
+import { playPlaneReplay } from './planeReplay'
 import type { BobsledDesign } from '../data/bobsled'
 import { GRAVEL_YARD, type TruckDesign } from '../data/truck'
 import { ROUTES } from '../data/routes'
@@ -1315,8 +1316,8 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       if (!d) return
       deliverSheet?.close()
       careerStore.set(d.state)
-      // Straight to the debrief; the survey replay comes in PR 10o.
-      showPlaneDelivery(d)
+      // The survey-day highlights (PR 10o), then the debrief.
+      replayPlane(d, plane, () => showPlaneDelivery(d))
     })
     deliverSheet.body.replaceChildren(
       el('p', 'shop-intro', t('deliver.introPlane', { client: b.client, site: siteName })),
@@ -1329,6 +1330,23 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       go,
     )
     deliverSheet.open()
+  }
+
+  /** Survey day's highlights, then `after`. */
+  function replayPlane(d: PlaneDelivery, design: PlaneDesign, after: () => void) {
+    const b = briefTemplate(d.job.brief.id)!
+    void playPlaneReplay({
+      client: b.client,
+      event: b.event.name,
+      design,
+      setup: b.setup as PlaneDesign,
+      day: d.debrief.day,
+      flight: d.debrief.flight,
+      baselineFlight: d.debrief.baselineFlight,
+      predicted: d.debrief.predicted,
+      actual: d.debrief.actual,
+      onDone: after,
+    })
   }
 
   let planeSheet: Sheet | null = null

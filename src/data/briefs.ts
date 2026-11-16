@@ -300,8 +300,8 @@ export const DRONE_JOBS = {
  * range.
  *
  * Survey day is the show: its air, and its strongest gust on a turn, which
- * comes somewhere along the flight. A plane that can't ride that gust out
- * lands in the crop there.
+ * comes on one turn along the survey lines. A plane that can't ride that
+ * gust out lands in the crop there.
  *
  * On the board since PR 10n. The switch stays so a test (or a later change)
  * can close them.
@@ -316,8 +316,12 @@ export const PLANE_JOBS = {
   declared: { min: 20, max: 300 },
   /** Survey day's strongest gust on a turn strays this far from the site's usual one (standard deviation), m/s. */
   gustSpread: 0.4,
-  /** It comes somewhere between these shares of the way through the flight. */
-  gustAt: { min: 0.15, max: 0.9 },
+  /**
+   * It comes on the first turn past somewhere between these distances, km
+   * (PR 10o: a moment in the day, the same for both planes; a plane that
+   * has already landed misses it).
+   */
+  gustKm: { min: 15, max: 80 },
 }
 
 /** The indoor 400 m ice oval (PR 8b): longer straights than the velodrome, skated anticlockwise too. */
