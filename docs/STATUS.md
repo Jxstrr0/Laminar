@@ -72,10 +72,21 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 9j | The racing car on Shape: a 3D touring car and single-seater drawn from the drag model's own shell, Floor and Wings tabs, the desk's lap-time gain on the Dolgo Ring, downforce and drag at 200 km/h, the balance against the drivers' window, the Motor Racing Federation's rule box, and amber warnings for porpoising, heat and balance. Try it with `?try=car` and `?try=car-open` | **Done** (v0.9.9.0) |
 | 9k | The racing car in the tunnel, in the sim: the mount lowers the model to read an aero map (the model can't squat as the real car does), the floor read through the tunnel's floor (still floor, ground board, or the new rolling road upgrade at ₽900,000 and 30 days), standing wheels read draggy, and the lap forecast on the map, porpoising and all | **Done** (v0.9.10.0) |
 | 9l | The racing car on the Tunnel screen: it hangs from a strut over the bare floor, the shop's ground board or the rolling road; the angle row becomes the ride drop; readouts for downforce, balance, drag and the lap forecast; the ride sweep chart (downforce against drop); the forecast in full on the Runs tab; the strut breaks past 1,500 N | **Done** (v0.9.11.0) |
-| 9m–14 | See the plan | Next: car jobs (a touring team and an open-wheel series, the promise in tenths, scrutineering, balance and porpoising in the debrief). Then the lap replay, then the land-speed record. |
+| 9m | Car jobs in the sim: three teams (Belan Sport and Granit Motorsport in touring cars, Iskra Racing in the open-wheel series), the promise in tenths of a second off the lap on the circuit's usual day, scrutineers who raise or trim an illegal car, a seeded race day, the read judged on downforce, and a debrief that blames the rules, porpoising, balance or heat when one of them cost the promise. The Shape and Tunnel screens forecast at the job's circuit against the team's own car. Closed to the board until 9n | **Done** (v0.9.12.0) |
+| 9n–14 | See the plan | Next: car jobs on the board, the Deliver sheet and the debrief (9n). Then the lap replay, then the land-speed record. |
 
 ## Versions
 
+- **0.9.12.0** (PR 9m): car jobs in the sim, not yet on the board. Three
+  teams: Belan Sport (a touring car at Stavren Park), Granit Motorsport (a
+  touring car that understeers at the Dolgo Ring) and Iskra Racing (a
+  single-seater that porpoises at Stavren Park). The promise is tenths of
+  a second off the team's lap on the circuit's usual day, after the
+  scrutineers raise the ride height or trim the rear wing to the rules.
+  Race day is seeded. The read is judged on downforce, and the debrief
+  names the rules, porpoising, balance or heat when one of them cost the
+  promise. Shape and Tunnel now forecast at the job's circuit against the
+  team's own car.
 - **0.9.11.0** (PR 9l): the racing car on the Tunnel screen. Try it with
   `?try=car` or `?try=car-open`, then the Tunnel tab. The car hangs from
   a strut through its roof, over the bare floor, the model shop's ground

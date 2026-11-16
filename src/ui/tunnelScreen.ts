@@ -62,8 +62,8 @@ import { referenceWheel } from '../sim/geom/cyclist'
 import { sphere } from '../sim/geom/shapes'
 import { Rng } from '../sim/rng'
 import { designPose, designShape, isBobsled, isCar, isJumper, isTruck, type Design } from '../sim/design'
-import { CAR_CLASS, STOCK_CAR, type CarDesign } from '../data/car'
-import { CIRCUITS } from '../data/circuits'
+import { CAR_CLASS, type CarClass, type CarDesign } from '../data/car'
+import type { Circuit } from '../data/circuits'
 import { carFloor, carReadings, correctCar, forecastLap, heightsAt, isCarRun, maxDrop, prepareCar, readCar, type CarFix, type LapForecast, type PreparedCar } from '../sim/carTunnel'
 import { forecastSaving, frictionScaleUp, prepareTruck, readCurve, truckEvent } from '../sim/truckTunnel'
 import { truckMass, windAveragedFuelWith } from '../sim/truck'
@@ -207,6 +207,8 @@ export interface TunnelHooks {
   sledRace(): SledEvent
   /** The route a truck is forecast on and the fleet's truck it's measured against (the job's, or the plain rig between jobs). */
   truckRun(trailerTop: number): { route: Route; old: TruckDesign }
+  /** The circuit a car is forecast on, and the team's car as it runs now. */
+  carRun(cls: CarClass): { circuit: Circuit; old: CarDesign }
   /** The model shop's view of the job. */
   shop(): ShopContext
   /** A model was ordered: charge it and spend its days. */
@@ -261,11 +263,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   const dial = () => (racing ? dropSpec : jumper ? pitchSpec : spec.turntable)
   /** Where the angle row's "level" button goes: square on, the flight angle, or the static height. */
   const home = () => (jumper ? FLIGHT_ATTITUDE.hold : 0)
-  /**
-   * The circuit a car is forecast on and the team's car as it runs now:
-   * the Dolgo Ring and the class's stock setup until car jobs arrive.
-   */
-  const carRun = (car: CarDesign) => ({ circuit: CIRCUITS['dolgo-ring'], old: STOCK_CAR[car.class] })
+  /** The circuit a car is forecast on and the team's car as it runs now (the job's, or the Dolgo Ring between jobs). */
+  const carRun = (car: CarDesign) => hooks.carRun(car.class)
   /** The track a sled is forecast on (the job's from PR 8o; Belogor until then). */
   const sledTrack = () => hooks.sledRace().track
   /**

@@ -5,7 +5,7 @@
  */
 import { briefTemplate, firmName, firmReputation, type CareerState, type Ending } from './career'
 import { correlationScore } from './reputation'
-import { PROMISE, SLED_JOBS } from '../data/briefs'
+import { CAR_JOBS, PROMISE, SLED_JOBS } from '../data/briefs'
 
 export interface Legacy {
   firm: string
@@ -42,9 +42,9 @@ export function legacyOf(state: CareerState): Legacy {
   for (const job of state.history) {
     const b = briefTemplate(job.id)
     if (!b) continue
-    const unit = b.event.jump ? 'm' : b.event.sled ? 's' : b.event.truck ? 'fuel' : 'pct'
-    // A sled's achieved gain is in points, a tenth of a second each.
-    const cut = unit === 's' ? job.achieved * SLED_JOBS.pointSeconds : job.achieved
+    const unit = b.event.jump ? 'm' : b.event.sled || b.event.car ? 's' : b.event.truck ? 'fuel' : 'pct'
+    // A sled's or a car's achieved gain is in points, a tenth of a second each.
+    const cut = unit === 's' ? job.achieved * (b.event.car ? CAR_JOBS.pointSeconds : SLED_JOBS.pointSeconds) : job.achieved
     const beats = !best || (unit === best.unit ? cut > best.cut : unit === 'pct')
     if (beats) best = { client: b.client, event: b.event.name, cut, unit }
   }
