@@ -67,6 +67,12 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Artyom Zhelin | Sharp analyst. |
 | Milena Sorokova | Junior analyst. |
 
+## Default firm names (PR 7i)
+
+| Name | What it is |
+| --- | --- |
+| Potok Aero, Strela Aero Works, Krilo Aerodynamics, Tikha Wind Lab, Svetla Aero | Ready-made names for the player's own firm; one is offered at career start. |
+
 ## Still to name (later PRs)
 
 The university and its tunnel, the outside model shop, other sport federations, more venues and export countries.

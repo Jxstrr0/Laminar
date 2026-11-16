@@ -41,11 +41,20 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 7f | Staff with traits, paid per day that passes | **Done** (v0.7.5.0) |
 | 7g | Going broke: the soft landing | **Done** (v0.7.6.0) |
 | 7h | Backup file and reminder | **Done** (v0.7.7.0) |
-| 7i | The 2040 ending and legacy card | Next |
+| 7i | The 2040 ending and legacy card | **Done** (v0.7.8.0) |
+| 7j | The legacy card as a picture to share | Next |
 | 8–14 | See the plan | Not started |
 
 ## Versions
 
+- **0.7.8.0** (PR 7i): the ending.
+  - A new career asks for the firm's name (a ready-made one is picked by the
+    seed; type your own or keep it). Rename it any time from the firm strip.
+  - Retire from the Jobs board (two taps, not while a job is in hand), or the
+    career closes on its own once a job or wait reaches 1 January 2040.
+  - Either way the board becomes a legacy card: years, jobs, promises kept,
+    reputation, correlation score, fees earned, cash, own tunnel, times broke
+    and the best job. Saves keep the name and the ending.
 - **0.7.7.0** (PR 7h): backups.
   - The Saves sheet can save the career as a text file
     (`laminar-backup-YYYY-MM-DD.txt`, holding its save code) and restore one:

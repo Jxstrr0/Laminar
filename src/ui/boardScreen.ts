@@ -19,7 +19,10 @@ import {
   briefTemplate,
   buildOwnTunnel,
   buyMachine,
+  firmName,
   firmReputation,
+  nameFirm,
+  retire,
   hireStaff,
   letStaffGo,
   orderUpgrade,
@@ -35,6 +38,7 @@ import {
 import { deskEstimate } from '../sim/desk'
 import { crewEffects, wagesPerDay } from '../sim/staff'
 import type { Sale } from '../sim/broke'
+import { legacyOf } from '../sim/legacy'
 import { STAFF, STAFF_IDS, STAFF_ROLES, type StaffId } from '../data/staff'
 import { DESK } from '../data/cyclist'
 import { correlationScore } from '../sim/reputation'
@@ -111,6 +115,8 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
 
   let active = false
   let dirty = true
+  /** The player tapped Rename on the firm strip. */
+  let renaming = false
   careerStore.subscribe(() => {
     dirty = true
     if (active) render()
@@ -257,6 +263,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     if (db.baseline.lostToGusts > 0) parts.push(el('p', 'shop-note', t('race.oldGusts', { time: shortTime(db.baseline.lostToGusts) })))
     parts.push(el('p', 'shop-note', t('race.readNote')))
     if (d.sale) parts.push(brokeBox(d.sale, d.state.money))
+    if (d.state.ended) parts.push(el('p', 'save-due', t('end.reached')))
     const again = button('save-btn quiet', t('race.replay'))
     again.addEventListener('click', () => {
       result?.close()
@@ -656,12 +663,95 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     return card
   }
 
+  /** Naming the firm: at the start of a career, and whenever Rename is tapped. */
+  function nameCard(): HTMLElement {
+    const career = careerStore.get()
+    const card = el('section', 'job-card own-card name-card')
+    card.setAttribute('aria-labelledby', 'name-title')
+    const head = el('h2', 'job-client', t(career.firm ? 'name.renameTitle' : 'name.title'))
+    head.id = 'name-title'
+    const input = el('input', 'name-input')
+    input.id = 'firm-name-input'
+    input.type = 'text'
+    input.maxLength = CAREER.firmNameMax
+    input.value = firmName(career)
+    input.autocomplete = 'off'
+    input.setAttribute('autocapitalize', 'words')
+    const label = el('label', 'shop-label', t('name.label'))
+    label.htmlFor = input.id
+    const keep = button('save-btn', t('name.keep'))
+    const save = () => {
+      renaming = false
+      careerStore.set(nameFirm(careerStore.get(), input.value))
+    }
+    keep.addEventListener('click', save)
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') save()
+    })
+    card.append(head, el('p', 'shop-note', t('name.note')), label, input, keep)
+    return card
+  }
+
+  /** The legacy card: the career's story, when it has ended. */
+  function legacyCard(): HTMLElement {
+    const career = careerStore.get()
+    const L = legacyOf(career)
+    const card = el('section', 'legacy-card')
+    card.setAttribute('aria-labelledby', 'legacy-title')
+    const head = el('h2', 'legacy-firm', L.firm)
+    head.id = 'legacy-title'
+    const span = t(L.ending?.why === 'year2040' ? 'end.span2040' : 'end.spanRetired', {
+      from: careerDate(L.fromDay, CAREER.start),
+      to: careerDate(L.toDay, CAREER.start),
+    })
+    const facts = el('div', 'job-facts')
+    facts.append(
+      fact(t('end.jobs'), t(L.kept === 1 ? 'end.keptOne' : 'end.kept', { jobs: L.jobs, kept: L.kept })),
+      fact(glossaryTerm('reputation', t('board.reputation')), t('board.outOf', { n: L.reputation })),
+      fact(glossaryTerm('correlationScore', t('board.correlation')), L.correlation === null ? t('board.noRecord') : t('board.outOf', { n: L.correlation })),
+      fact(t('end.earned'), rubles(L.earned)),
+      fact(t('end.money'), rubles(L.money)),
+      fact(t('end.tunnel'), t(L.ownTunnel ? 'end.yes' : 'end.no')),
+      ...(L.broke > 0 ? [fact(t('end.broke'), String(L.broke))] : []),
+    )
+    card.append(el('p', 'legacy-kicker', t('end.kicker')), head, el('p', 'firm-date', span), facts)
+    if (L.best) card.append(el('p', 'legacy-best', t('end.best', { client: L.best.client, event: L.best.event, cut: fixed(L.best.cut, 1) })))
+    card.append(el('p', 'shop-note', t('end.next')))
+    return card
+  }
+
+  /** Retiring: ends the career now (two taps), not while a job is in hand. */
+  function retireCard(): HTMLElement {
+    const career = careerStore.get()
+    const card = el('section', 'job-card own-card')
+    card.setAttribute('aria-labelledby', 'retire-title')
+    const head = el('h2', 'job-client', t('end.retireTitle'))
+    head.id = 'retire-title'
+    const go = button('save-btn quiet', t('end.retire'))
+    go.disabled = !!career.job
+    if (!career.job) twoTap(go, t('end.retire'), t('end.retireConfirm'), () => careerStore.set(retire(careerStore.get())))
+    card.append(head, el('p', 'shop-note', t(career.job ? 'end.retireJob' : 'end.retireNote', { end: careerDate(CAREER.endDay, CAREER.start) })), go)
+    return card
+  }
+
   function render() {
     if (!dirty) return
     dirty = false
     const career = careerStore.get()
     const firm = el('section', 'firm-strip')
-    firm.setAttribute('aria-label', t('board.firmName'))
+    firm.setAttribute('aria-label', firmName(career))
+    const title = el('div', 'firm-title')
+    title.append(el('p', 'firm-title-name', firmName(career)))
+    if (career.firm && !career.ended && !renaming) {
+      const rename = button('link-btn', t('name.rename'))
+      rename.addEventListener('click', () => {
+        renaming = true
+        dirty = true
+        render()
+        document.getElementById('firm-name-input')?.focus()
+      })
+      title.append(rename)
+    }
     const money = el('p', 'firm-money', rubles(career.money))
     money.classList.toggle('over', career.money < 0)
     // The firm's name: reputation and correlation score, both from the record of finished jobs.
@@ -672,6 +762,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       fact(glossaryTerm('correlationScore', t('board.correlation')), corr === null ? t('board.noRecord') : t('board.outOf', { n: corr })),
     )
     firm.append(
+      title,
       money,
       el('p', 'firm-date', t(career.jobsDone === 1 ? 'board.dateOne' : 'board.date', { date: careerDate(career.day, CAREER.start), jobs: career.jobsDone })),
       name,
@@ -700,7 +791,25 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     if (career.board.length === 0 && !career.job) list.append(emptyCard())
     const intro = el('p', 'shop-note', t(career.job ? 'board.oneAtATime' : 'board.intro'))
     const guide = guideCard()
-    page.replaceChildren(firm, ...(guide ? [guide] : []), ...(now ? [now] : []), boardHead, intro, list, staffCard(), workshopCard(), ownTunnelCard(), rivals)
+    if (career.ended) {
+      page.replaceChildren(firm, legacyCard())
+      return
+    }
+    const naming = !career.firm || renaming ? [nameCard()] : []
+    page.replaceChildren(
+      firm,
+      ...naming,
+      ...(guide ? [guide] : []),
+      ...(now ? [now] : []),
+      boardHead,
+      intro,
+      list,
+      staffCard(),
+      workshopCard(),
+      ownTunnelCard(),
+      rivals,
+      retireCard(),
+    )
   }
 
   return {

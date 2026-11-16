@@ -7,7 +7,7 @@
 import { DESIGN_CHOICES, PART_RANGE, POSTURE_RANGE, type CyclistDesign } from '../data/cyclist'
 import { MACHINE_IDS, MAKER_IDS, MODEL_FINISH, MODEL_GRADE, MODEL_SCALES, type MachineId } from '../data/model'
 import { CRANK_DIAL, DEMO_TUNNEL_SEED } from '../data/tunnel'
-import { briefTemplate, newCareer, type Brief, type CareerState, type Job, type JobRecord } from '../sim/career'
+import { briefTemplate, newCareer, tidyFirmName, type Brief, type CareerState, type Ending, type Job, type JobRecord } from '../sim/career'
 import { GUIDE_STEPS, type GuideStep } from '../sim/guide'
 import { NO_FACILITY, type Facility } from '../sim/facility'
 import { NO_CREW, soundCrew } from '../sim/staff'
@@ -237,6 +237,11 @@ export function soundCareer(x: unknown): CareerState | null {
   // Careers from before PR 7g never went broke. Each entry is a count of jobs on the record, in order.
   const broke = x.broke === undefined ? [] : x.broke
   if (!Array.isArray(broke) || !broke.every((n, i) => isCount(n) && n <= history.length && (i === 0 || n >= broke[i - 1]))) return null
+  // Careers from before PR 7i keep the ready-made name and are still running.
+  const firm = x.firm === undefined ? null : x.firm
+  if (firm !== null && (typeof firm !== 'string' || firm !== tidyFirmName(firm) || firm === '')) return null
+  const ended = x.ended === undefined ? null : x.ended
+  if (ended !== null && (!isObj(ended) || !isCount(ended.day) || (ended.why !== 'retired' && ended.why !== 'year2040'))) return null
   return {
     seed: x.seed,
     money: x.money,
@@ -251,6 +256,8 @@ export function soundCareer(x: unknown): CareerState | null {
     facility,
     crew,
     broke: broke as number[],
+    firm,
+    ended: ended as Ending | null,
   }
 }
 
