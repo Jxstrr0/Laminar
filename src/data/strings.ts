@@ -889,6 +889,8 @@ export const STRINGS = {
   'cr.predicted': 'You predicted {pred} s on the usual day. The car does {real} s.',
   'cr.debrief': 'See the race weekend',
   'rr.run': 'Run',
+  'rr.mach': 'Mach',
+  'rr.note.barrier': 'Through the sound barrier at {speed} km/h! The boom hits the timing stand a moment later.',
   'rr.runValue': '{n} of 2',
   'rr.timed': 'Timed km',
   'rr.noTime': 'no time',

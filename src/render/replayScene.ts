@@ -78,6 +78,8 @@ interface Figure {
   sitting: THREE.Group | null
   /** A record car's chute, behind its tail, shown once it's out. */
   chute: THREE.Group | null
+  /** A record car's shock lines on the salt from its nose, shown past Mach 1 (PR 9z+). */
+  shock: THREE.Group | null
 }
 
 /** The same rider sitting up (a skater standing taller): back up to the trouble table's angle, head up. */
@@ -95,6 +97,8 @@ export interface ReplayView {
   /** Lay out the course and the wind (blowing from `windFromDeg`). */
   setCourse(course: readonly CourseSegment[], opts: CourseOptions): void
   setRiders(mine: Design, old: Design): void
+  /** A record car's Mach number now, yours and the old car's (PR 9z+): past 1, its shock trails across the salt from its nose. */
+  setMach(mine: number, old: number): void
   /** Put both riders where the race clock says, and move the camera (dt in seconds). */
   place(mine: TrackPoint, old: TrackPoint, dt: number): void
   /** The readout panel covers this many pixels at the bottom: the picture centres above it. */
@@ -225,16 +229,49 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     return g
   }
 
+  // A shock line: a thin strip flat on the salt, from the origin back along −x for 1 m. Scaled per frame.
+  const shockGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(-0.5, 0, 0)
+  const shockMat = new THREE.MeshBasicMaterial({ color: COLOURS.pole, transparent: true, opacity: RECORD_SCENE.shock.opacity, depthWrite: false, side: THREE.DoubleSide })
+
+  /** A record car's shock: two lines on the salt from under its nose; hidden until it passes Mach 1. */
+  function buildShock(design: Design): THREE.Group | null {
+    if (design.sport !== 'record') return null
+    const g = new THREE.Group()
+    const c = RECORD_SCENE.shock
+    for (let k = 0; k < 2; k++) {
+      const line = new THREE.Mesh(shockGeo, shockMat)
+      line.scale.set(c.length, 1, c.width)
+      g.add(line)
+    }
+    g.position.set(recordLength(design) / 2, 0.03, 0)
+    g.visible = false
+    return g
+  }
+
   function figure(design: Design, ghost: boolean): Figure {
     const tucked = build(design, ghost)
     const chute = design.sport === 'record' ? buildChute(design, ghost) : null
     if (chute) tucked.add(chute)
-    return { design, ghost, tucked, sitting: null, chute }
+    const shock = buildShock(design)
+    if (shock) tucked.add(shock)
+    return { design, ghost, tucked, sitting: null, chute, shock }
+  }
+
+  /** Show a figure's shock for this Mach number: the V narrows the faster it goes. */
+  function showMach(f: Figure | null, mach: number) {
+    if (!f?.shock) return
+    f.shock.visible = mach > 1
+    if (mach <= 1) return
+    const angle = Math.min(RECORD_SCENE.shock.maxDeg * DEG, Math.asin(1 / mach))
+    f.shock.children[0]!.rotation.y = angle
+    f.shock.children[1]!.rotation.y = -angle
   }
 
   function dropFigure(f: Figure | null) {
     if (!f) return
     // The chute's dome shares one geometry and its materials: keep them for the next car.
+    // So do the shock lines.
+    if (f.shock) f.tucked.remove(f.shock)
     if (f.chute) {
       f.tucked.remove(f.chute)
       for (const o of f.chute.children) if (o instanceof THREE.LineSegments) o.geometry.dispose()
@@ -433,6 +470,10 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       old = figure(oldDesign, true)
       camReady = false
     },
+    setMach(mineMach, oldMach) {
+      showMach(mine, mineMach)
+      showMach(old, oldMach)
+    },
     place(me, them, dt) {
       if (!mine || !old) return
       clock += Math.min(dt, 0.1)
@@ -481,9 +522,9 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       clearCourse()
       dropFigure(mine)
       dropFigure(old)
-      for (const geo of [poleGeo, flagGeo, coneGeo, dashGeo, ringGeo, chuteGeo, ground.geometry]) geo.dispose()
+      for (const geo of [poleGeo, flagGeo, coneGeo, dashGeo, ringGeo, chuteGeo, shockGeo, ground.geometry]) geo.dispose()
       grid.dispose()
-      for (const m of [roadMat, dashMat, poleMat, flagMat, coneMat, ghostMat, boardsMat, lineMat, chuteMat, chuteLineMat, ringMine.material, ringOld.material, ground.material as THREE.Material])
+      for (const m of [roadMat, dashMat, poleMat, flagMat, coneMat, ghostMat, boardsMat, lineMat, chuteMat, chuteLineMat, shockMat, ringMine.material, ringOld.material, ground.material as THREE.Material])
         m.dispose()
       renderer.dispose()
       renderer.forceContextLoss()

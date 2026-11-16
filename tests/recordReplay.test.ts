@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { RECORD_RUN, STOCK_RECORD, type RecordDesign } from '../src/data/record'
 import { RECORD_REPLAY } from '../src/data/replay'
 import { SALT_FLATS } from '../src/data/saltFlats'
-import { stillDay, twoWay } from '../src/sim/record'
-import { chutesAt, recordNotes, recordRide, runClock, runTimeAt, saltCourse } from '../src/sim/recordReplay'
+import { soundSpeed, stillDay, twoWay } from '../src/sim/record'
+import { barrierAt, chutesAt, recordMach, recordNotes, recordRide, runClock, runTimeAt, saltCourse } from '../src/sim/recordReplay'
 import { rideTime, timeAt, trackAt } from '../src/sim/replay'
 
 const flat = SALT_FLATS.sukhoye
@@ -103,5 +103,46 @@ describe('the commentator', () => {
     const oldLight = recordNotes(1, good.runs[1], light.runs[1], -2, 'streamliner')
     expect(oldLight.map((n) => n.kind)).toContain('oldAbort')
     for (let i = 1; i < oldLight.length; i++) expect(oldLight[i]!.t).toBeGreaterThanOrEqual(oldLight[i - 1]!.t)
+  })
+})
+
+describe('the sound barrier (PR 9z+)', () => {
+  /** A jet car shaped for the barrier (as in jet.test.ts) against the stock jet. */
+  const JET = STOCK_RECORD.jet
+  const FAST: RecordDesign = { ...JET, nose: { length: 4.5, droop: 3.5 }, canopy: 0.25, fin: 2.9, fairings: 1, waist: 0.6 }
+  const sound = soundSpeed(day.temperature)
+  const fast = twoWay(FAST, flat, day)
+  const stock = twoWay(JET, flat, day)
+
+  it('counts Mach through the air, with the wind in the car’s face', () => {
+    expect(recordMach(sound, 0, sound)).toBe(1)
+    expect(recordMach(sound - 5, 5, sound)).toBe(1)
+    expect(recordMach(sound, 5, sound)).toBeGreaterThan(1)
+  })
+
+  it('finds where a fast jet car goes through, between steps, on its run-up', () => {
+    const b = barrierAt(fast.runs[0], day.along, sound)!
+    expect(b).not.toBeNull()
+    expect(b.at).toBeLessThan(RECORD_RUN.runUp.jet)
+    expect(recordMach(b.speed, day.along, sound)).toBeCloseTo(1, 6)
+    expect(barrierAt(stock.runs[0], day.along, sound)).toBeNull()
+  })
+
+  it('gives the commentator a line for it, and slows the replay from there', () => {
+    const notes = recordNotes(0, fast.runs[0], stock.runs[0], day.along, 'jet', sound)
+    const boom = notes.find((n) => n.kind === 'barrier')!
+    expect(boom).toBeDefined()
+    const timed = notes.find((n) => n.kind === 'timed')!
+    expect(boom.t).toBeLessThan(timed.t)
+    // Without the speed of sound there's no line, and the old jet car never gets one.
+    expect(recordNotes(0, fast.runs[0], stock.runs[0], day.along, 'jet').some((n) => n.kind === 'barrier')).toBe(false)
+    expect(recordNotes(0, stock.runs[0], stock.runs[0], day.along, 'jet', sound).some((n) => n.kind === 'barrier')).toBe(false)
+    const mine = recordRide(fast.runs[0], 0)
+    const old = recordRide(stock.runs[0], 0)
+    const plain = runClock(mine, fast.runs[0], old, 'jet')
+    const slowed = runClock(mine, fast.runs[0], old, 'jet', boom.t)
+    expect(slowed.slowFrom).toBeLessThan(plain.slowFrom)
+    expect(slowed.slowFrom).toBeCloseTo(boom.t - RECORD_REPLAY.lead, 6)
+    expect(slowed.length).toBeGreaterThan(plain.length)
   })
 })

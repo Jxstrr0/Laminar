@@ -887,6 +887,12 @@ html, body {
   border-radius: 16px 16px 0 0; box-shadow: var(--shadow);
 }
 .replay-reads { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 10px; }
+/* A jet car's run adds a narrow Mach box (PR 9z+): the run and the Mach number take only what they need. */
+.replay-reads.has-mach { grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto; }
+/* The boom: a quick white flash over the salt (never with reduced motion: the replay doesn't add the class then). */
+.replay-stage::after { content: ''; position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+.replay.is-boom .replay-stage::after { animation: replay-boom 0.6s ease-out; }
+@keyframes replay-boom { 0% { opacity: 0.85; } 100% { opacity: 0; } }
 .replay-read { display: flex; flex-direction: column; min-width: 0; }
 .replay-read-label { font-size: 0.75rem; color: var(--muted); }
 .replay-read-value { font-family: var(--font-num); font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

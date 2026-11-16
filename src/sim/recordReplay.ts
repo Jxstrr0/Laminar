@@ -82,7 +82,8 @@ export function chutesAt(ride: Ride, run: Pick<RecordRun, 'abort'>, cls: RecordC
 
 /**
  * The clock for one run: the run-up plays fast, then from just before
- * your car reaches the timed kilometre (or pulls its chutes, if sooner)
+ * your car reaches the timed kilometre (or pulls its chutes, or goes
+ * through the sound barrier at `boomAt` run seconds, if sooner)
  * until it stops, slower; anything after (the old car still going) fast
  * again. Times in run seconds; `length` is in replay seconds.
  */
@@ -93,8 +94,9 @@ export interface RunClock {
   length: number
 }
 
-export function runClock(mine: Ride, mineRun: Pick<RecordRun, 'abort'>, old: Ride, cls: RecordClass): RunClock {
-  const enter = Math.min(timeAt(mine, RUN.runUp[cls]), chutesAt(mine, mineRun, cls))
+export function runClock(mine: Ride, mineRun: Pick<RecordRun, 'abort'>, old: Ride, cls: RecordClass, boomAt = Infinity): RunClock {
+  // A car through the sound barrier (PR 9z+) slows the clock from there: the boom is worth watching.
+  const enter = Math.min(timeAt(mine, RUN.runUp[cls]), chutesAt(mine, mineRun, cls), boomAt)
   const end = Math.max(rideTime(mine), rideTime(old))
   const slowTo = rideTime(mine)
   const slowFrom = Math.max(0, Math.min(enter - R.lead, slowTo))
@@ -122,9 +124,38 @@ export type RecordNote =
   | { t: number; kind: 'oldAbort'; run: RunIndex; cause: RecordAbort['cause']; speed: number }
   /** Out of the timed kilometre: each car's speed through it, m/s (null if it didn't get through). */
   | { t: number; kind: 'through'; run: RunIndex; speed: number; oldSpeed: number | null }
+  /** Your car goes through the sound barrier (PR 9z+): its speed over the salt then, m/s. */
+  | { t: number; kind: 'barrier'; run: RunIndex; speed: number }
 
-/** The commentator's moments in one run, in time order (run seconds). */
-export function recordNotes(index: RunIndex, mine: RecordRun, old: RecordRun, head: number, cls: RecordClass): RecordNote[] {
+/** A car's Mach number at this speed over the salt with the wind in its face (negative: from behind), m/s, in air where sound goes `sound` m/s. */
+export function recordMach(speed: number, head: number, sound: number): number {
+  return Math.max(0, speed + head) / sound
+}
+
+/**
+ * Where a run first goes through the sound barrier, m from the start, and
+ * how fast over the salt, m/s; null if it never does. Found between the
+ * run's steps, so the moment doesn't jump a whole step.
+ */
+export function barrierAt(run: Pick<RecordRun, 'speeds'>, head: number, sound: number): { at: number; speed: number } | null {
+  const s = run.speeds
+  for (let i = 1; i < s.length; i++) {
+    const a = recordMach(s[i - 1]!, head, sound)
+    const b = recordMach(s[i]!, head, sound)
+    if (a < 1 && b >= 1) {
+      const k = (1 - a) / (b - a)
+      return { at: (i - 1 + k) * RUN.step, speed: s[i - 1]! + k * (s[i]! - s[i - 1]!) }
+    }
+  }
+  return null
+}
+
+/**
+ * The commentator's moments in one run, in time order (run seconds). Given
+ * the speed of sound on the day, m/s, a car that goes through the sound
+ * barrier gets a line for it.
+ */
+export function recordNotes(index: RunIndex, mine: RecordRun, old: RecordRun, head: number, cls: RecordClass, sound?: number): RecordNote[] {
   const me = recordRide(mine, index)
   const them = recordRide(old, index)
   const notes: RecordNote[] = [{ t: 0, kind: 'start', run: index, head }]
@@ -133,6 +164,8 @@ export function recordNotes(index: RunIndex, mine: RecordRun, old: RecordRun, he
   if (!mine.abort || mine.abort.at > runUp) notes.push({ t: timeAt(me, runUp), kind: 'timed', run: index, speed: mine.speeds[entry]!, oldSpeed: old.speeds[entry] ?? null })
   if (mine.abort) notes.push({ t: chutesAt(me, mine, cls), kind: 'abort', run: index, cause: mine.abort.cause, speed: mine.abort.speed })
   else notes.push({ t: chutesAt(me, mine, cls), kind: 'through', run: index, speed: mine.speed!, oldSpeed: old.speed })
+  const boom = sound === undefined ? null : barrierAt(mine, head, sound)
+  if (boom) notes.push({ t: timeAt(me, boom.at), kind: 'barrier', run: index, speed: boom.speed })
   // The old car's own abort gets a line if it doesn't land on top of one of yours.
   if (old.abort) {
     const at = chutesAt(them, old, cls)

@@ -5,7 +5,9 @@
  * run, your speed and your speed through the timed kilometre; the
  * commentator speaks at the moments that matter. The chutes come out at the
  * end of each run, or early where the nose went light (it lifts first) or
- * the car wandered (it swings first). At the end it shows record day's
+ * the car wandered (it swings first). A jet car shows its Mach number, a
+ * Mach cone off its nose past Mach 1, and a flash and a line at the
+ * moment it goes through the sound barrier (PR 9z+). At the end it shows record day's
  * two-way means and your declared speed against the still day's, then hands
  * over to speed week's debrief. Every number comes from record day's runs.
  */
@@ -13,8 +15,8 @@ import type { RecordDesign } from '../data/record'
 import { RECORD_RUN } from '../data/record'
 import { RECORD_REPLAY, REPLAY } from '../data/replay'
 import { t } from '../data/strings'
-import type { RecordAttempt, RecordDay } from '../sim/record'
-import { chutesAt, recordNotes, recordRide, runClock, runTimeAt, saltCourse, type RecordNote, type RunIndex } from '../sim/recordReplay'
+import { soundSpeed, type RecordAttempt, type RecordDay } from '../sim/record'
+import { chutesAt, recordMach, recordNotes, recordRide, runClock, runTimeAt, saltCourse, type RecordNote, type RunIndex } from '../sim/recordReplay'
 import { trackAt, type Ride } from '../sim/replay'
 import { fixed } from './format'
 
@@ -73,6 +75,8 @@ function noteText(n: RecordNote): string {
       return t(n.cause === 'lift' ? 'rr.note.light' : 'rr.note.wander', { speed: kmh(n.speed) })
     case 'oldAbort':
       return t(n.cause === 'lift' ? 'rr.note.oldLight' : 'rr.note.oldWander', { speed: kmh(n.speed) })
+    case 'barrier':
+      return t('rr.note.barrier', { speed: kmh(n.speed) })
   }
 }
 
@@ -89,13 +93,18 @@ export async function playRecordReplay(input: RecordReplayInput): Promise<void> 
   const { createReplayView } = await import('../render/replayScene')
   const cls = input.design.class
   const runUp = RECORD_RUN.runUp[cls]
+  // A jet car's run shows its Mach number, and the moment it goes through the sound barrier (PR 9z+).
+  const jet = cls === 'jet'
+  const sound = soundSpeed(input.day.temperature)
   const runs = ([0, 1] as const).map((i) => {
     const mineRun = input.attempt.runs[i]
     const oldRun = input.baselineAttempt.runs[i]
     const mine = recordRide(mineRun, i)
     const old = recordRide(oldRun, i)
     const head = i === 0 ? input.day.along : -(input.day.along + input.day.shift)
-    return { index: i, mineRun, mine, old, clock: runClock(mine, mineRun, old, cls), notes: recordNotes(i, mineRun, oldRun, head, cls), chutes: chutesAt(mine, mineRun, cls) }
+    const notes = recordNotes(i, mineRun, oldRun, head, cls, jet ? sound : undefined)
+    const boom = notes.find((n) => n.kind === 'barrier')
+    return { index: i, head, mineRun, mine, old, clock: runClock(mine, mineRun, old, cls, boom?.t), notes, chutes: chutesAt(mine, mineRun, cls) }
   })
   const [first, second] = runs as [(typeof runs)[0], (typeof runs)[0]]
   const secondFrom = first.clock.length + RECORD_REPLAY.turn
@@ -119,8 +128,13 @@ export async function playRecordReplay(input: RecordReplayInput): Promise<void> 
   const runR = readout(t('rr.run'))
   const speed = readout(t('replay.speed'))
   const timed = readout(t('rr.timed'))
+  const machR = readout(t('rr.mach'))
   const reads = el('div', 'replay-reads')
   reads.append(runR.box, speed.box, timed.box)
+  if (jet) {
+    reads.append(machR.box)
+    reads.classList.add('has-mach')
+  }
   const said = el('p', 'replay-line')
   said.setAttribute('aria-live', 'polite')
   // Metres down the course: both cars as dots, ticks at each end of the timed kilometre.
@@ -181,6 +195,12 @@ export async function playRecordReplay(input: RecordReplayInput): Promise<void> 
     const at = runTimeAt(r.clock, local)
     const me = trackAt(r.mine, at)
     const them = trackAt(r.old, at)
+    if (jet) {
+      // Past the end the car is stopped: no Mach to show.
+      const mach = me.done ? 0 : recordMach(me.speed, r.head, sound)
+      view.setMach(mach, them.done ? 0 : recordMach(them.speed, r.head, sound))
+      machR.value.textContent = fixed(mach, 2)
+    }
     view.place(me, them, reduce ? 1e3 : dt)
     view.render()
     runR.value.textContent = t('rr.runValue', { n: r.index + 1 })
@@ -192,7 +212,14 @@ export async function playRecordReplay(input: RecordReplayInput): Promise<void> 
     for (let i = 0; i < r.notes.length; i++) if (r.notes[i]!.t <= at) idx = i
     if (idx !== shown && idx >= 0) {
       shown = idx
-      said.textContent = noteText(r.notes[idx]!)
+      const note = r.notes[idx]!
+      said.textContent = noteText(note)
+      // The boom: a white flash over the salt, unless motion is turned down (the line says it anyway).
+      if (note.kind === 'barrier' && !reduce && dt < 1) {
+        root.classList.remove('is-boom')
+        void root.offsetWidth
+        root.classList.add('is-boom')
+      }
     }
   }
 

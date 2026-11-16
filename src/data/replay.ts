@@ -267,4 +267,12 @@ export const RECORD_SCENE = {
   /** A light nose lifts up to this many degrees; a wander swings this many degrees and this far sideways, this often a second. */
   liftDeg: 4,
   wander: { deg: 1.5, side: 0.6, perSecond: 1.2 },
+  /**
+   * A jet car past Mach 1 trails its shock across the salt (PR 9z+): a V of
+   * two lines from the nose, each this long and wide, m, this see-through,
+   * opening at the Mach angle (sin = 1 ÷ M), capped at `maxDeg` so the V
+   * reads as a V from the chase camera (the real one, nearly flat this
+   * close to Mach 1, only narrows past 50° beyond Mach 1.3).
+   */
+  shock: { length: 40, width: 0.6, opacity: 0.55, maxDeg: 50 },
 }
