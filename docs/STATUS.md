@@ -45,12 +45,26 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 7j | The legacy card as a picture to share | **Done** (v0.7.9.0) |
 | 8a | Sports in the sim: the speed skater | **Done** (v0.8.0.0) |
 | 8b | The skater on screen, skating briefs | **Done** (v0.8.1.0) |
-| 8c | Ski jump in the sim | Next |
-| 8d–8f | Ski jump on screen, bobsled | Not started |
+| 8c | Ski jump in the sim | **Done** (v0.8.2.0) |
+| 8d | Ski jump on screen, ski-jump briefs | Next |
+| 8e–8f | Bobsled | Not started |
 | 9–14 | See the plan | Not started |
 
 ## Versions
 
+- **0.8.2.0** (PR 8c): the ski jumper in the sim.
+  - A jumper's design: body lean, ski V-angle and suit bagginess
+    (`src/data/jumper.ts`). No suit rules: bagginess trades lift for stability.
+  - In the air, skis and body are low plates that lift from their edges'
+    vortices as well as like a wing; where that lift acts against the hips
+    gives the pitch moment and the static margin (`src/sim/jumper.ts`).
+  - Two hills, normal (K 90) and large (K 120), each drawn from a few numbers
+    (`src/data/hills.ts`). A sound jumper lands near the K point in still air.
+  - A margin below zero tips the jumper forward and the jump ends short; one
+    between zero and the floor wobbles the landing. The promise's yardstick is
+    the still-air flight, and it only counts above the floor.
+  - Nothing on screen yet: PR 8d adds the jumper's figure, controls, the
+    tunnel's pitch sweep, the flight replay and the briefs.
 - **0.8.1.0** (PR 8b): the skater on screen.
   - The skater has a figure in Shape, the tunnel and the race-day replay
     (`src/sim/geom/skaterPose.ts`, `src/render/riderFigure.ts`): crouch,
