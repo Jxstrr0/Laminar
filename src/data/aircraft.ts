@@ -179,3 +179,61 @@ export const AIRFIELDS: Record<Airfield['id'], Airfield> = {
   /** Belyanka airfield north of Stavren: a grass strip and a tarmac one, home to the flying club and the kit builders. */
   belyanka: { id: 'belyanka', altitude: 150, cruiseAltitude: 1500, temperature: 6 },
 }
+
+/**
+ * The kit plane's build, for its outline and its drawing (PR 10q): a cowled
+ * engine up front with its prop, a cabin under a high wing, struts from the
+ * cabin's sides up to the wing, three wheels, a tail cone and a
+ * conventional tail, and the client's pod under the right wing. The aero
+ * above uses its own areas; these only place the parts. Full size, m.
+ */
+export const AIRCRAFT_BODY = {
+  /** The cabin's half-width and half-height, m. */
+  half: 0.55,
+  halfHeight: 0.62,
+  /** The cowling's length, the cabin's behind it, and the tail cone's behind that, m. */
+  cowl: 1.1,
+  cabin: 1.9,
+  cone: 3.2,
+  /** The cowl's front as a share of the cabin: the kit's loose cowl (big inlets) and a fully tight one. */
+  cowlLoose: 0.62,
+  cowlTight: 0.32,
+  /** The tail cone's end as a share of the cabin. */
+  coneEnd: 0.12,
+  /** The fuselage's axis above the ground, m (the plane stands on its wheels). */
+  axis: 1.25,
+  /** The wing's chord, m (its area over its span), where its leading edge sits back from the spinner, m, and its thickness as a share of chord. */
+  chord: 1.25,
+  wingFrom: 1.5,
+  wingThick: 0.15,
+  /** A rounded tip's length, m (a square tip is cut flat). */
+  tipCap: 0.3,
+  /** Each strut: its root on the cabin (back from the spinner, below the axis, out from the middle), and where it meets the wing (back from the spinner, out from the middle), m. */
+  strut: { rootX: 2.0, rootDrop: 0.35, rootOut: 0.5, topX: 1.9, topOut: 2.7 },
+  /** A bare strut's radius, m, and a fairing's chord and thickness, m. */
+  tube: 0.025,
+  fairChord: 0.11,
+  fairThick: 0.035,
+  /** The wheels: radius and width, m; the nose wheel back from the spinner, the mains back and out, m. */
+  wheel: { radius: 0.19, width: 0.13, noseX: 0.55, mainX: 2.4, mainOut: 0.95 },
+  /** A full spat's length, half-width and half-height, m. */
+  spat: { length: 0.75, half: 0.11, halfHeight: 0.26 },
+  /** The client's pod: its length and radius, m, how far out under the right wing (past the strut), m, how far it moves per unit of `at`, m, and the pylon's drop below the wing, m. */
+  pod: { length: 1.3, radius: 0.17, out: 3.0, slide: 0.6, pylon: 0.12 },
+  /** The tail: the tailplane's span and chord, the fin's height and chord, m. */
+  tailSpan: 3.0,
+  tailChord: 0.75,
+  finHeight: 1.1,
+  finChord: 0.9,
+  /** The prop's radius, m, and the spinner's length and radius, m. */
+  prop: 0.85,
+  spinner: { length: 0.3, radius: 0.13 },
+}
+
+/** The desk's guess at a kit plane (PR 10q): how far off its drag can be, shared by a job and per design. */
+export const AIRCRAFT_DESK = {
+  dragBias: 0.04,
+  jitter: 0.012,
+  /** A stall speed within this of the certified figure, km/h, is an amber warning on the sheet. */
+  stallClose: 1.5,
+}

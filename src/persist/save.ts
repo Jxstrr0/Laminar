@@ -13,6 +13,7 @@ import { CAR_RANGE, type CarDesign } from '../data/car'
 import { RECORD_RANGE, type RecordDesign } from '../data/record'
 import { DRONE_RANGE, type DroneDesign } from '../data/drone'
 import { PLANE_RANGE, type PlaneDesign } from '../data/plane'
+import { AIRCRAFT_RANGE, type AircraftDesign } from '../data/aircraft'
 import type { Design } from '../sim/design'
 import { ALL_SCALES, MACHINE_IDS, MAKER_IDS, MODEL_FINISH, MODEL_GRADE, type MachineId } from '../data/model'
 import { CRANK_DIAL, DEMO_TUNNEL_SEED } from '../data/tunnel'
@@ -63,6 +64,7 @@ export function soundDesign(x: unknown): Design | null {
   if (x.sport === 'record') return soundRecordCar(x)
   if (x.sport === 'drone') return soundDrone(x)
   if (x.sport === 'plane') return soundPlane(x)
+  if (x.sport === 'aircraft') return soundAircraft(x)
   if (x.sport !== undefined && x.sport !== 'cycling') return null
   return soundCyclist(x)
 }
@@ -151,6 +153,24 @@ function soundPlane(x: Obj): PlaneDesign | null {
     camera: { drop: n(drop, R.drop), fairing: n(fairing, R.fairing), at: n(at, R.at) },
     winglets: n(x.winglets, R.winglets),
     tail: n(x.tail, R.tail),
+  }
+}
+
+function soundAircraft(x: Obj): AircraftDesign | null {
+  if (!oneOf(x.class, ['kit'] as const) || !isObj(x.struts) || !isObj(x.pod)) return null
+  const { fairing, toe } = x.struts
+  const pod = x.pod
+  if (![x.spats, x.cowling, x.wingtips, fairing, toe, pod.fairing, pod.at].every(isNum)) return null
+  const R = AIRCRAFT_RANGE[x.class]
+  const n = (v: unknown, r: { min: number; max: number }) => clampTo(v as number, r)
+  return {
+    sport: 'aircraft',
+    class: x.class,
+    spats: n(x.spats, R.spats),
+    cowling: n(x.cowling, R.cowling),
+    wingtips: n(x.wingtips, R.wingtips),
+    struts: { fairing: n(fairing, R.fairing), toe: n(toe, R.toe) },
+    pod: { fairing: n(pod.fairing, R.podFairing), at: n(pod.at, R.podAt) },
   }
 }
 

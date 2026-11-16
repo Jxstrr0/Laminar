@@ -20,6 +20,7 @@
  *   event and refreshes the board.
  */
 import { RECORD_TUNNEL, STOCK_RECORD, type RecordClass, type RecordDesign } from '../data/record'
+import { AIRFIELDS, STOCK_AIRCRAFT, type AircraftClass, type AircraftDesign, type Airfield } from '../data/aircraft'
 import { STOCK_DRONE, type DroneClass, type DroneCourse, type DroneDesign } from '../data/drone'
 import { STOCK_PLANE, type PlaneClass, type PlaneDesign, type SurveySite } from '../data/plane'
 import { cameraTooHigh } from './plane'
@@ -450,6 +451,16 @@ export function currentDroneRun(state: CareerState, cls: DroneClass): { course: 
 /** The survey a plane is built for: the job's, or the Ozimka fields on their usual day between jobs. */
 export function currentPlaneEvent(state: CareerState): PlaneEvent {
   return (state.job && planeEventOf(state.job.brief)) ?? PRACTICE_SITE
+}
+
+/**
+ * The airfield a kit plane is forecast over and the client's plane it's
+ * measured against (PR 10q): Belyanka and the kit as its builders fly it,
+ * until light-aircraft jobs bring their own (a later PR).
+ */
+export function currentAircraftRun(state: CareerState, cls: AircraftClass): { field: Airfield; old: AircraftDesign } {
+  const setup = state.job ? template(state.job.brief.id).setup : null
+  return { field: AIRFIELDS.belyanka, old: setup && setup.sport === 'aircraft' && setup.class === cls ? setup : STOCK_AIRCRAFT[cls] }
 }
 
 /**
