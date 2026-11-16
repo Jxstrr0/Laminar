@@ -29,7 +29,7 @@ export const FAILURE = {
     disc: 42,
     /** Smaller models have shorter, stiffer parts: their flutter speed times this. */
     // Smaller models are stiffer for their size; a truck's scales (PR 9c) carry on the trend.
-    scale: { 4: 1.3, 3: 1.15, 2: 1, 12: 1.6, 10: 1.5, 8: 1.4, 1: 1, 2.5: 1.2, 1.5: 1 },
+    scale: { 4: 1.3, 3: 1.15, 2: 1, 12: 1.6, 10: 1.5, 8: 1.4, 1: 1, 2.5: 1.2, 1.5: 1, 6: 1.25, 5: 1.2 },
     /** Printed parts are softer. */
     finish: { printed: 0.85, sanded: 1, polished: 1 },
   },
@@ -67,6 +67,12 @@ export const FAILURE = {
    * matched speed loads it to about 140 N; the bigger fan breaks it.
    */
   planeStingN: 160,
+  /**
+   * The sting a kit plane's model is pitched on (PR 10r), N: a 1:5 model
+   * past the stall at the university fan's top speed loads it to about 750 N;
+   * the bigger fan breaks it.
+   */
+  aircraftStingN: 800,
   /** Printed models have their helmet glued on: it lets go past this air speed. */
   detachSpeed: 36,
   repair: {

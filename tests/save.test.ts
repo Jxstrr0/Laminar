@@ -52,7 +52,7 @@ describe('the save file', () => {
     expect(roundTrip(file({ nextRunId: 2 }))).toBeNull()
     // A crank the dial can't be set to, an unknown model scale, a broken sample.
     expect(roundTrip(file({ crank: 20 }))).toBeNull()
-    expect(roundTrip(file({ order: { ...newLab().order, scale: 5 as never } }))).toBeNull()
+    expect(roundTrip(file({ order: { ...newLab().order, scale: 7 as never } }))).toBeNull()
     const bad = run(1)
     bad.samples[0]!.cdA = Number.NaN
     expect(roundTrip(file({ runs: [bad], notes: {} }))).toBeNull()

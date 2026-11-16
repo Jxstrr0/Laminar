@@ -3,7 +3,7 @@
  * days it takes, and the model it builds. Prices and days come from
  * MODEL_SHOP; the model's build errors from its own seed.
  */
-import { DRONE_SCALES, MAKERS, PLANE_SCALES, MODEL_GRADE, MODEL_SHOP, TRUCK_SCALES, type MakerId, type ModelFinish, type ModelGrade, type ModelScale } from '../data/model'
+import { AIRCRAFT_SCALES, DRONE_SCALES, MAKERS, PLANE_SCALES, MODEL_GRADE, MODEL_SHOP, TRUCK_SCALES, type MakerId, type ModelFinish, type ModelGrade, type ModelScale } from '../data/model'
 import type { EventSpec, ModelSpec, PreparedModel } from './views'
 import { eventFlow } from './views'
 import { AIR } from '../data/air'
@@ -37,11 +37,11 @@ export function canMake(order: ModelOrder): boolean {
 export const isTruckScale = (scale: ModelScale): boolean => (TRUCK_SCALES as readonly number[]).includes(scale)
 
 /** Which list a scale is on: a rider's (and a car's), a truck's (and a land-speed car's), or a quad's full size (PR 10d). */
-export type ScaleFamily = 'rider' | 'truck' | 'drone' | 'plane'
+export type ScaleFamily = 'rider' | 'truck' | 'drone' | 'plane' | 'aircraft'
 export const scaleFamily = (scale: ModelScale): ScaleFamily =>
-  isTruckScale(scale) ? 'truck' : (DRONE_SCALES as readonly number[]).includes(scale) ? 'drone' : (PLANE_SCALES as readonly number[]).includes(scale) ? 'plane' : 'rider'
+  isTruckScale(scale) ? 'truck' : (DRONE_SCALES as readonly number[]).includes(scale) ? 'drone' : (PLANE_SCALES as readonly number[]).includes(scale) ? 'plane' : (AIRCRAFT_SCALES as readonly number[]).includes(scale) ? 'aircraft' : 'rider'
 /** The scale a family's model starts at. */
-export const FAMILY_START: Record<ScaleFamily, ModelScale> = { rider: 2, truck: 8, drone: 1, plane: 2.5 }
+export const FAMILY_START: Record<ScaleFamily, ModelScale> = { rider: 2, truck: 8, drone: 1, plane: 2.5, aircraft: 6 }
 
 /** The scales a maker builds for one family. */
 export function makerScales(maker: MakerId, family: ScaleFamily): ModelScale[] {

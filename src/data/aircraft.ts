@@ -91,8 +91,9 @@ export interface AircraftClassSpec {
   power: number
   cruiseShare: number
   propEfficiency: number
-  /** The wing's most lift with the kit's tips and nothing under it. */
+  /** The wing's most lift with the kit's tips and nothing under it, and how fast its lift grows with its angle of attack, per radian (PR 10r). */
   clMax: number
+  liftSlope: number
   /** The certified stall speed at the most take-off mass in standard sea-level air, km/h: the inspector's floor. */
   certifiedStall: number
 }
@@ -108,6 +109,7 @@ export const AIRCRAFT_CLASS: Record<AircraftClass, AircraftClassSpec> = {
     cruiseShare: 0.75,
     propEfficiency: 0.8,
     clMax: 1.55,
+    liftSlope: 5,
     certifiedStall: 85,
   },
 }
@@ -236,4 +238,30 @@ export const AIRCRAFT_DESK = {
   jitter: 0.012,
   /** A stall speed within this of the certified figure, km/h, is an amber warning on the sheet. */
   stallClose: 1.5,
+}
+
+/**
+ * The kit plane in the tunnel (PR 10r). A 9.6 m wing won't go in whole, so
+ * the shop builds it at 1:6 or 1:5 (AIRCRAFT_SCALES in model.ts), on a
+ * sting that pitches the wing to an angle of attack. Kelbo's trap (16
+ * November 2026): a plain model's prop is stopped, so the parts the
+ * slipstream blows in flight sit in calm air and the tunnel reads the plane
+ * slicker than it flies. A powered model, its prop driven by a motor down
+ * the sting, blows them as flight does (MODEL_SHOP.motors); its runs cost
+ * what a powered quad's do (DRONE_TUNNEL.poweredRun).
+ */
+export const AIRCRAFT_TUNNEL = {
+  /** Past the stall, the lift falls to this share of the most, and the wing's profile drag grows this many times. */
+  stalledLift: 0.7,
+  stalledDrag: 6,
+  /** Past the stall, the lift falls this many times as fast as it grew, down to `stalledLift`. */
+  stallFall: 2,
+  /** The wing section's thickness, a share of its chord (its edge-on front, for the blockage). */
+  wingThickness: 0.15,
+  /** The forecast reads the stall only from a reading whose lift falls short of the straight line by this share. */
+  stallSeen: 0.08,
+  /** The drag fit uses only readings with no more lift than this (cruise flies near 0.3; well clear of the stall). */
+  dragUpTo: 0.6,
+  /** The sting's pitch dial on the Tunnel screen, degrees of the wing's angle of attack, and how fast it turns, degrees per second. */
+  pitch: { min: -4, max: 20, step: 1, rate: 4 },
 }
