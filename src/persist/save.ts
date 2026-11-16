@@ -18,6 +18,7 @@ import type { Design } from '../sim/design'
 import { ALL_SCALES, MACHINE_IDS, MAKER_IDS, MODEL_FINISH, MODEL_GRADE, type MachineId } from '../data/model'
 import { CRANK_DIAL, DEMO_TUNNEL_SEED } from '../data/tunnel'
 import { briefTemplate, newCareer, tidyFirmName, type Brief, type CareerState, type Ending, type Job, type JobRecord } from '../sim/career'
+import { NO_CLEARANCE, type Clearance } from '../sim/clearance'
 import { GUIDE_STEPS, type GuideStep } from '../sim/guide'
 import { NO_FACILITY, type Facility } from '../sim/facility'
 import { NO_CREW, soundCrew } from '../sim/staff'
@@ -359,7 +360,21 @@ function soundJob(x: unknown): Job | null {
 function soundRecord(x: unknown): JobRecord | null {
   if (!isObj(x) || typeof x.id !== 'string' || !isCount(x.day) || !isCount(x.fee) || !isNum(x.paid)) return null
   if (!isNum(x.promised) || !isNum(x.achieved) || !isNum(x.predicted) || !isNum(x.actual)) return null
-  return { id: x.id, day: x.day, fee: x.fee, paid: x.paid, promised: x.promised, achieved: x.achieved, predicted: x.predicted, actual: x.actual }
+  if (x.secret !== undefined && x.secret !== true) return null
+  const record: JobRecord = { id: x.id, day: x.day, fee: x.fee, paid: x.paid, promised: x.promised, achieved: x.achieved, predicted: x.predicted, actual: x.actual }
+  // A defence job (PR 10x).
+  if (x.secret === true) record.secret = true
+  return record
+}
+
+/** Defence clearance (PR 10x), or null if it isn't one the game could have written. */
+function soundClearance(x: unknown): Clearance | null {
+  if (!isObj(x)) return null
+  if (x.status === 'none') return NO_CLEARANCE
+  if (x.status === 'vetting' && isCount(x.applied) && isCount(x.ready) && x.ready >= x.applied) return { status: 'vetting', applied: x.applied, ready: x.ready }
+  if (x.status === 'cleared' && isCount(x.since)) return { status: 'cleared', since: x.since }
+  if (x.status === 'lost' && isCount(x.on) && (x.why === 'broke' || x.why === 'reads')) return { status: 'lost', on: x.on, why: x.why }
+  return null
 }
 
 function soundFacility(x: unknown): Facility | null {
@@ -420,6 +435,9 @@ export function soundCareer(x: unknown): CareerState | null {
   if (firm !== null && (typeof firm !== 'string' || firm !== tidyFirmName(firm) || firm === '')) return null
   const ended = x.ended === undefined ? null : x.ended
   if (ended !== null && (!isObj(ended) || !isCount(ended.day) || (ended.why !== 'retired' && ended.why !== 'year2040'))) return null
+  // Careers from before PR 10x never applied for defence clearance.
+  const clearance = soundClearance(x.clearance === undefined ? NO_CLEARANCE : x.clearance)
+  if (!clearance) return null
   return {
     seed: x.seed,
     money: x.money,
@@ -436,6 +454,7 @@ export function soundCareer(x: unknown): CareerState | null {
     broke: broke as number[],
     firm,
     ended: ended as Ending | null,
+    clearance,
   }
 }
 

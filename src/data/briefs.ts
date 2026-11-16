@@ -176,6 +176,8 @@ export interface BriefTemplate {
   small?: true
   /** The reputation a firm needs before this client calls (0 if left out; src/data/reputation.ts). */
   minRep?: number
+  /** A defence brief (PR 10x): only a cleared firm sees it, and it never shows in public (src/data/defence.ts). */
+  defence?: true
 }
 
 /**

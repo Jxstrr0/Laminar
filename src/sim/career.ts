@@ -22,6 +22,8 @@
 import { RECORD_TUNNEL, STOCK_RECORD, type RecordClass, type RecordDesign } from '../data/record'
 import { STOCK_AIRCRAFT, type AircraftClass, type AircraftDesign, type Airfield } from '../data/aircraft'
 import { stallFix } from './aircraft'
+import { applied, applyBlock, clearanceOn, isCleared, NO_CLEARANCE, reviewClearance, type ApplyBlock, type Clearance } from './clearance'
+import { CLEARANCE } from '../data/defence'
 import { aircraftEventFrom, cruiseDragArea, dragScaleForCruise, PRACTICE_FIELD, testDay, testFlight, usualTestDay, type AircraftEvent, type TestDay, type TestFlight } from './aircraftJob'
 import { STOCK_DRONE, type DroneClass, type DroneCourse, type DroneDesign } from '../data/drone'
 import { STOCK_PLANE, type PlaneClass, type PlaneDesign, type SurveySite } from '../data/plane'
@@ -52,7 +54,7 @@ import { designComfort, designEvent, designShape, sportOf, sportRider, type Desi
 import type { FixTarget } from './failure'
 import { hashString, Rng } from './rng'
 import type { Guide } from './guide'
-import { readOf, reputationOf, type Read } from './reputation'
+import { correlationScore, readOf, reputationOf, type Read } from './reputation'
 import { REPUTATION } from '../data/reputation'
 import { RIVALS, RIVAL_IDS, type RivalId } from '../data/rivals'
 import { rivalRecord } from './rivals'
@@ -99,6 +101,8 @@ export interface JobRecord {
   /** Declared and real CdA on the day, m². */
   predicted: number
   actual: number
+  /** A defence job (PR 10x): counts toward the correlation score, never the public reputation or the legacy card. */
+  secret?: true
 }
 
 export interface CareerState {
@@ -129,6 +133,8 @@ export interface CareerState {
   firm: string | null
   /** How and when the career ended, or null while it runs. */
   ended: Ending | null
+  /** Where the firm stands with the defence ministry (PR 10x). */
+  clearance: Clearance
 }
 
 /** The end of a career: the player retired, or 2040 came. */
@@ -157,7 +163,9 @@ function onBoard(b: BriefTemplate, rng: Rng): Brief {
 }
 
 /** Clients who'll call a firm with this reputation (Kelbo: a good name brings bigger clients). */
-export function openTo(b: BriefTemplate, reputation: number): boolean {
+export function openTo(b: BriefTemplate, reputation: number, cleared = false): boolean {
+  // Defence briefs reach only a cleared firm's board (PR 10x).
+  if (b.defence && !cleared) return false
   if (b.event.jump && !JUMP_JOBS.open) return false
   if (b.event.sled && !SLED_JOBS.open) return false
   if (b.event.truck && !TRUCK_JOBS.open) return false
@@ -264,11 +272,11 @@ export function recordEventOf(brief: Pick<Brief, 'id'>): RecordEvent | null {
  * reputation. (Round n of a career that has never waited or lost is the
  * board after n jobs, as before bids.)
  */
-export function boardFor(seed: number, round: number, firstJob = round === 0, reputation: number = REPUTATION.start): Brief[] {
+export function boardFor(seed: number, round: number, firstJob = round === 0, reputation: number = REPUTATION.start, cleared = false): Brief[] {
   const rng = new Rng(seed).fork(`board-${round}`)
   const first = firstJob ? BRIEFS.filter((b) => b.tutorial) : []
   const small = rng.shuffle(BRIEFS.filter((b) => b.small))
-  const rest = rng.shuffle(BRIEFS.filter((b) => !b.tutorial && !b.small && openTo(b, reputation)))
+  const rest = rng.shuffle(BRIEFS.filter((b) => !b.tutorial && !b.small && openTo(b, reputation, cleared)))
   const picked = [...first, ...small.slice(0, 1)]
   for (const b of [...rest, ...small.slice(1)]) {
     if (picked.length >= CAREER.boardSize) break
@@ -294,6 +302,7 @@ export function newCareer(seed: number): CareerState {
     broke: [],
     firm: null,
     ended: null,
+    clearance: NO_CLEARANCE,
   }
 }
 
@@ -322,6 +331,29 @@ export function nameFirm(state: CareerState, raw: string): CareerState {
 export function retire(state: CareerState): CareerState {
   if (state.ended || state.job) return state
   return { ...state, ended: { day: state.day, why: 'retired' } }
+}
+
+/** Where the firm stands with the defence ministry today (PR 10x). */
+export function firmClearance(state: Pick<CareerState, 'clearance' | 'day'>): Clearance {
+  return clearanceOn(state.clearance, state.day)
+}
+
+/** Why the firm can't apply for defence clearance today, or null if it can. */
+export function clearanceBlock(state: CareerState): ApplyBlock {
+  return applyBlock({
+    day: state.day,
+    money: state.money,
+    reputation: firmReputation(state),
+    correlation: correlationScore(state.history),
+    clearance: state.clearance,
+    ended: state.ended !== null,
+  })
+}
+
+/** Apply for defence clearance: the fee is paid now, and vetting runs for CLEARANCE.vettingDays. */
+export function applyForClearance(state: CareerState): CareerState {
+  if (clearanceBlock(state) !== null) return state
+  return { ...state, money: state.money - CLEARANCE.fee, clearance: applied(state.day) }
 }
 
 /** Close the career once the calendar has reached 2040. */
@@ -638,7 +670,7 @@ export function placeBid(state: CareerState, id: string, bid: Bid): BidResult | 
   if (won) return { state: take(state, brief, mine), won, mine, rivals, winner: null, worth, myRep }
   const lost = [...state.lost, id]
   const board = state.board.filter((b) => b.id !== id)
-  const spare = BRIEFS.filter((b) => !b.tutorial && openTo(b, myRep) && !lost.includes(b.id) && !board.some((o) => o.id === b.id))
+  const spare = BRIEFS.filter((b) => !b.tutorial && openTo(b, myRep, isCleared(state.clearance, state.day)) && !lost.includes(b.id) && !board.some((o) => o.id === b.id))
   if (spare.length > 0) {
     const rng = new Rng(state.seed).fork(`refill-${state.round}-${lost.length}`)
     board.push(onBoard(rng.pick(spare), rng))
@@ -650,7 +682,9 @@ export function placeBid(state: CareerState, id: string, bid: Bid): BidResult | 
 export function waitForBriefs(state: CareerState): CareerState {
   if (state.job || state.ended) return state
   const round = state.round + 1
-  return closeIfOver({ ...passDays(state, BID.waitDays), round, board: boardFor(state.seed, round, state.jobsDone === 0, firmReputation(state)), lost: [] })
+  const passed = passDays(state, BID.waitDays)
+  const clearance = clearanceOn(state.clearance, passed.day)
+  return closeIfOver({ ...passed, round, board: boardFor(state.seed, round, state.jobsDone === 0, firmReputation(state), isCleared(clearance, passed.day)), lost: [], clearance })
 }
 
 /** Spend money (a run, a model). Goes on the job's tally when there is one. */
@@ -821,6 +855,7 @@ function closeJob(state: CareerState, job: Job, penalty: number, result: Pick<Jo
   const jobsDone = state.jobsDone + 1
   const raceDay = state.day + job.daysLeft
   const record: JobRecord = { id: job.brief.id, day: raceDay, fee: job.brief.fee, paid, promised: job.promise, ...result }
+  if (template(job.brief.id).defence) record.secret = true
   const upkeep = upkeepFor(state, job.daysLeft)
   const wages = wagesFor(state, job.daysLeft)
   const history = [...state.history, record]
@@ -836,18 +871,21 @@ function closeJob(state: CareerState, job: Job, penalty: number, result: Pick<Jo
     sale = covered.sale
     broke = [...broke, history.length]
   }
+  // Going broke, or a run of poor reads, loses defence clearance (PR 10x).
+  const clearance = reviewClearance(state.clearance, raceDay, history, broke.length > state.broke.length)
   const next: CareerState = closeIfOver({
     ...state,
     money,
     day: raceDay,
     jobsDone,
     round: state.round + 1,
-    board: boardFor(state.seed, state.round + 1, false, reputationOf(history, broke)),
+    board: boardFor(state.seed, state.round + 1, false, reputationOf(history, broke), isCleared(clearance, raceDay)),
     lost: [],
     job: null,
     history,
     facility,
     broke,
+    clearance,
   })
   // The reputation after (firmReputation of the new state) includes any dip for going broke.
   return { state: next, paid, upkeep, wages, sale }
