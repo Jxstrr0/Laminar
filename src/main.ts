@@ -19,6 +19,7 @@ import { DEFAULT_JUMPER } from './data/jumper'
 import { DEFAULT_BOBSLED } from './data/bobsled'
 import { DEFAULT_TRUCK } from './data/truck'
 import { STOCK_CAR } from './data/car'
+import { STOCK_RECORD } from './data/record'
 import type { Design } from './data/sport'
 import { careerStore, freshSeed } from './ui/careerStore'
 import { charge, currentCarRun, currentEvent, currentJumpEvent, currentSledEvent, currentTruckRun, newCareer, orderBlock, orderModel, repairModel } from './sim/career'
@@ -46,6 +47,8 @@ const PREVIEWS: Record<string, Design> = {
   // Racing cars (PR 9j): a touring car, and `?try=car-open` a single-seater.
   car: STOCK_CAR.touring,
   'car-open': STOCK_CAR.open,
+  // The land-speed streamliner (PR 9q).
+  record: STOCK_RECORD.streamliner,
 }
 const PREVIEW_DESIGN = PREVIEWS[new URLSearchParams(location.search).get('try') ?? ''] ?? null
 const PREVIEW = PREVIEW_DESIGN !== null

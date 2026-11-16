@@ -76,10 +76,19 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 9n | Car jobs on the board: brief cards with the circuit, the car and the air; bids in tenths of a second; the Deliver sheet (the declared lap, filled in from the tunnel's lap forecast or the desk, with warnings for the floor it was read over, a map not read low enough, porpoising and the rulebook); the race weekend debrief with each trim and trouble and a "change this" | **Done** (v0.9.13.0) |
 | 9o | The lap replay: race day round the circuit from behind your car, the team's old car as a see-through twin alongside, the lap clock, speed and gap, the commentator on the slowest corner, the top speed and porpoising (the car bounces where it porpoises), then the declared lap against the real one | **Done** (v0.9.14.0) |
 | 9p | The land-speed streamliner in the sim: nose cone (length and droop), canopy, tail fin and wheel fairings; drag, nose lift and pointing straight (the side force behind the mass); the air squeezing near the speed of sound, which a longer nose puts off; a run from a standstill through the timed kilometre on the salt at Lake Sukhoye; chutes out if the nose goes light or the car wanders; the record as the mean of a run each way. Not on screen yet | **Done** (v0.9.15.0) |
-| 9q–14 | See the plan | Next: the streamliner on Shape. |
+| 9q | The streamliner on Shape: the car drawn from the drag model's own shell with its nose drooped, a glass canopy, the fin and the wheel fairings; Body and Fin & wheels tabs; the desk's record speed against the team's car at Lake Sukhoye, the nose's weight at top speed and the crosswind it holds straight in; a light nose, a wander, a low canopy and the air squeezing as amber warnings with a "Change this". Saves and the model shop know the car. Preview with `?try=record`. The tunnel reads it in 9r | **Done** (v0.9.16.0) |
+| 9r–14 | See the plan | Next: the streamliner in the tunnel. |
 
 ## Versions
 
+- **0.9.16.0** (PR 9q): the streamliner on the Shape screen. Open
+  `?try=record` and tap Shape: the nose cone (length and droop) and the
+  canopy are on the Body tab, the tail fin and wheel fairings on Fin &
+  wheels. The sheet reads the desk's record speed at Lake Sukhoye against
+  the team's car, how much of the nose's weight stays on at top speed, and
+  the crosswind the car holds straight in. Amber warnings say when the nose
+  goes light, the car wanders, the canopy is too low to see over, or the
+  air starts to squeeze.
 - **0.9.15.0** (PR 9p): the land-speed streamliner, in the sim only. The
   firm shapes its nose cone (length and droop), canopy, tail fin and wheel
   fairings. A run starts from a standstill on the salt at Lake Sukhoye and

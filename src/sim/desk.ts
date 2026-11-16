@@ -15,6 +15,9 @@ import { cdAAt } from './aero/windAverage'
 import { CAR_DESK, type CarDesign } from '../data/car'
 import type { Circuit } from '../data/circuits'
 import { carAero, circuitDensity, downforceKg, lapTime } from './car'
+import { RECORD_DESK, type RecordDesign } from '../data/record'
+import type { SaltFlat } from '../data/saltFlats'
+import { criticalMach, flatDensity, frontKept, recordRun, soundSpeed, stillDay, twoWay, type RecordAbort } from './record'
 import type { ShapeSpec } from './geom/body'
 import { gaussian } from './noise'
 import { hashString, Rng } from './rng'
@@ -130,5 +133,51 @@ export function carDeskEstimate(design: CarDesign, old: CarDesign, circuit: Circ
     downKg: downforceKg(aero, density) * down,
     cdA: aero.cdA * drag,
     balance: aero.balance,
+  }
+}
+
+/**
+ * The desk's guess at a record car (PR 9q): its drag and lift through the
+ * job's bias and a design's jitter, run both ways on the salt's usual
+ * (still) day against the team's car (their own data, so known). The value
+ * is the record speed, m/s, or null if the desk's run is aborted; `low` is
+ * the slow end (more drag), `high` the fast one. Also the desk's top speed,
+ * the share of the nose's weight it keeps there with a moderate headwind,
+ * where the air starts to squeeze round the car (m/s through the air),
+ * why the desk's run stopped, if it did, and whether the nose would go
+ * light (checked as if the driver held the car straight, so a car that
+ * wanders early still gets its nose checked).
+ */
+export function recordDeskEstimate(
+  design: RecordDesign,
+  old: RecordDesign,
+  flat: SaltFlat,
+  jobSeed: number,
+  designKey: string,
+  analystLevel = 0,
+): { value: number | null; low: number | null; high: number | null; old: number | null; top: number; noseKept: number; squeeze: number; abort: RecordAbort | null; noseLight: RecordAbort | null } {
+  const narrow = Math.max(DESK.floor, 1 - DESK.perLevel * analystLevel)
+  const job = new Rng(jobSeed)
+  const mine = new Rng(jobSeed ^ hashString(designKey))
+  const drag = 1 + narrow * (RECORD_DESK.dragBias * gaussian(job.fork('desk-drag')) + RECORD_DESK.jitter * gaussian(mine.fork('desk-jitter')))
+  const lift = 1 + narrow * RECORD_DESK.liftBias * gaussian(job.fork('desk-lift'))
+  const sd = Math.sqrt(RECORD_DESK.dragBias * RECORD_DESK.dragBias + RECORD_DESK.jitter * RECORD_DESK.jitter) * narrow * DESK.bars
+  const day = stillDay(flat)
+  const at = (dg: number) => twoWay(design, flat, day, { drag: dg, lift })
+  const mid = at(drag)
+  const first = mid.runs[0]
+  const density = flatDensity(flat)
+  // The nose, checked on a run held straight (the same run, unless the car wandered).
+  const straight = first.abort?.cause === 'wander' ? recordRun(design, { temperature: day.temperature, density, head: 0, cross: 0 }, { drag, lift }, true) : first
+  return {
+    value: mid.mean,
+    low: at(drag * (1 + sd)).mean,
+    high: at(drag * (1 - sd)).mean,
+    old: twoWay(old, flat, day).mean,
+    top: straight.top,
+    noseKept: frontKept(design, straight.top + RECORD_DESK.headwind, density, { drag, lift }),
+    squeeze: criticalMach(design) * soundSpeed(flat.temperature),
+    abort: first.abort,
+    noseLight: straight.abort?.cause === 'lift' ? straight.abort : null,
   }
 }

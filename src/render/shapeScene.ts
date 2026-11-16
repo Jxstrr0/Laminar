@@ -84,12 +84,16 @@ const VIEWS = {
   truck: { target: { x: -0.1, y: 0.3 }, camera: { x: 2.3, y: 1.3, z: 2.9 } },
   // A racing car low and from ahead, so the front wing, the floor's rake and the rear wing all show.
   car: { target: { x: 0, y: 0.22 }, camera: { x: 2.1, y: 0.95, z: 2.4 } },
+  // A streamliner from ahead and to the side, so the nose's droop, the canopy and the fin all show.
+  record: { target: { x: 0.15, y: 0.14 }, camera: { x: 2.1, y: 0.85, z: 2.6 } },
 }
 
 /** A truck is drawn at this fraction of full size on the Shape stage (about a 2.5 m long model). */
 const TRUCK_SCALE = 0.14
 /** A racing car is drawn at this fraction of full size (about a 2 to 2.5 m long model). */
 const CAR_SCALE = 0.45
+/** A streamliner is drawn at this fraction of full size (about a 2.6 to 3.1 m long model). */
+const RECORD_SCALE = 0.26
 
 export function createShapeView(host: HTMLElement): ShapeView {
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
@@ -147,6 +151,7 @@ export function createShapeView(host: HTMLElement): ShapeView {
     const g = buildRider(state)
     if (state.design.sport === 'truck') g.scale.setScalar(TRUCK_SCALE)
     if (state.design.sport === 'car') g.scale.setScalar(CAR_SCALE)
+    if (state.design.sport === 'record') g.scale.setScalar(RECORD_SCALE)
     const isBroken = (h: Highlight) => state.broken.includes(h)
 
     // The rule box: where the hands and the helmet must stay.
@@ -273,7 +278,7 @@ export function createShapeView(host: HTMLElement): ShapeView {
       scene.add(figure)
       handles = state.handles
       const d = state.design
-      const want: keyof typeof VIEWS = d.sport === 'skijump' ? 'jumper' : d.sport === 'bobsled' ? (d.crew === 4 ? 'sled4' : 'sled') : d.sport === 'truck' ? 'truck' : d.sport === 'car' ? 'car' : 'usual'
+      const want: keyof typeof VIEWS = d.sport === 'skijump' ? 'jumper' : d.sport === 'bobsled' ? (d.crew === 4 ? 'sled4' : 'sled') : d.sport === 'truck' ? 'truck' : d.sport === 'car' ? 'car' : d.sport === 'record' ? 'record' : 'usual'
       if (want !== framed) {
         framed = want
         const v = VIEWS[want]

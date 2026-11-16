@@ -10,6 +10,7 @@ import type { JumperDesign } from '../data/jumper'
 import type { BobsledDesign } from '../data/bobsled'
 import type { TruckDesign } from '../data/truck'
 import { CAR_CLASS, type CarDesign } from '../data/car'
+import { RECORD_CLASS, type RecordDesign } from '../data/record'
 import type { Design, Sport } from '../data/sport'
 import { ICE } from '../data/skater'
 import { comfort, readouts, riderEvent, type Comfort, type Readouts } from './cyclist'
@@ -30,6 +31,7 @@ import { truckShape } from './geom/truck'
 import { truckPose } from './geom/truckPose'
 import { truckReadouts } from './truck'
 import { carPose, carShape } from './geom/car'
+import { recordPose, recordShape } from './geom/record'
 import { describeShape } from './geom/body'
 import type { EventSpec } from './views'
 import type { RiderSpec } from './field/timeTrial'
@@ -61,6 +63,10 @@ export function isCar(design: Design): design is CarDesign {
   return design.sport === 'car'
 }
 
+export function isRecord(design: Design): design is RecordDesign {
+  return design.sport === 'record'
+}
+
 export function isCyclist(design: Design): design is CyclistDesign {
   return design.sport === undefined || design.sport === 'cycling'
 }
@@ -74,6 +80,7 @@ export function designShape(design: Design, options: CyclistShapeOptions = {}): 
   if (isBobsled(design)) return sledShape(design)
   if (isTruck(design)) return truckShape(design)
   if (isCar(design)) return carShape(design)
+  if (isRecord(design)) return recordShape(design)
   return isSkater(design) ? skaterShape(design) : cyclistShape(design, options)
 }
 
@@ -83,11 +90,12 @@ export function designPose(design: Design, crankDeg?: number): Pose {
   if (isBobsled(design)) return bobsledPose(design)
   if (isTruck(design)) return truckPose(design)
   if (isCar(design)) return carPose(design)
+  if (isRecord(design)) return recordPose(design)
   return isSkater(design) ? skaterPose(design) : riderPose(design, crankDeg)
 }
 
 export function designComfort(design: Design, limit?: number): Comfort<string> {
-  if (isJumper(design) || isBobsled(design) || isTruck(design) || isCar(design)) return jumperComfort()
+  if (isJumper(design) || isBobsled(design) || isTruck(design) || isCar(design) || isRecord(design)) return jumperComfort()
   return isSkater(design) ? skaterComfort(design, limit) : comfort(design, limit)
 }
 
@@ -110,12 +118,16 @@ export function designReadouts(design: Design, rules: CyclingRules, limit?: numb
     // The car's limits are the motor racing federation's: its sheet shows those breaks itself.
     return { frontalArea: describeShape(carShape(design)).frontalArea, mass: CAR_CLASS[design.class].mass, price: 0, comfort: jumperComfort(), breaks: [] }
   }
+  if (isRecord(design)) {
+    // A record car has no rulebook to break: its sheet warns about the nose, the canopy and pointing straight itself.
+    return { frontalArea: describeShape(recordShape(design)).frontalArea, mass: RECORD_CLASS[design.class].mass, price: 0, comfort: jumperComfort(), breaks: [] }
+  }
   return isSkater(design) ? skaterReadouts(design, limit) : readouts(design, rules, limit)
 }
 
-/** The event as this design meets it: the athlete's power through their comfort meter (a jumper, a sled crew, a truck or a car has no pedals to push). */
+/** The event as this design meets it: the athlete's power through their comfort meter (a jumper, a sled crew, a truck, a car or a record car has no pedals to push). */
 export function designEvent(design: Design, event: EventSpec, limit?: number): EventSpec {
-  if (isJumper(design) || isBobsled(design) || isTruck(design) || isCar(design)) return event
+  if (isJumper(design) || isBobsled(design) || isTruck(design) || isCar(design) || isRecord(design)) return event
   return isSkater(design) ? skaterEvent(design, event, limit) : riderEvent(design, event, limit)
 }
 
