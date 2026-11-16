@@ -75,10 +75,18 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 9m | Car jobs in the sim: three teams (Belan Sport and Granit Motorsport in touring cars, Iskra Racing in the open-wheel series), the promise in tenths of a second off the lap on the circuit's usual day, scrutineers who raise or trim an illegal car, a seeded race day, the read judged on downforce, and a debrief that blames the rules, porpoising, balance or heat when one of them cost the promise. The Shape and Tunnel screens forecast at the job's circuit against the team's own car. Closed to the board until 9n | **Done** (v0.9.12.0) |
 | 9n | Car jobs on the board: brief cards with the circuit, the car and the air; bids in tenths of a second; the Deliver sheet (the declared lap, filled in from the tunnel's lap forecast or the desk, with warnings for the floor it was read over, a map not read low enough, porpoising and the rulebook); the race weekend debrief with each trim and trouble and a "change this" | **Done** (v0.9.13.0) |
 | 9o | The lap replay: race day round the circuit from behind your car, the team's old car as a see-through twin alongside, the lap clock, speed and gap, the commentator on the slowest corner, the top speed and porpoising (the car bounces where it porpoises), then the declared lap against the real one | **Done** (v0.9.14.0) |
-| 9p–14 | See the plan | Next: the land-speed record. |
+| 9p | The land-speed streamliner in the sim: nose cone (length and droop), canopy, tail fin and wheel fairings; drag, nose lift and pointing straight (the side force behind the mass); the air squeezing near the speed of sound, which a longer nose puts off; a run from a standstill through the timed kilometre on the salt at Lake Sukhoye; chutes out if the nose goes light or the car wanders; the record as the mean of a run each way. Not on screen yet | **Done** (v0.9.15.0) |
+| 9q–14 | See the plan | Next: the streamliner on Shape. |
 
 ## Versions
 
+- **0.9.15.0** (PR 9p): the land-speed streamliner, in the sim only. The
+  firm shapes its nose cone (length and droop), canopy, tail fin and wheel
+  fairings. A run starts from a standstill on the salt at Lake Sukhoye and
+  is timed over a kilometre; a nose that goes light or a car that wanders
+  in a crosswind means chutes out and a run that doesn't count. The record
+  is the mean of a run each way, so the wind mostly cancels. Above about
+  650 km/h the air squeezes and drag grows. Nothing new on screen yet.
 - **0.9.14.0** (PR 9o): the lap replay. Delivering a car job now plays
   race day's lap before the race weekend sheet: your car from behind,
   their car as a see-through twin alongside, with the lap clock, your
