@@ -191,10 +191,11 @@ export const SLED_JOBS = {
  * (one point is one per cent of fuel), and the declared number is the new
  * truck's wind-averaged fuel figure, litres per 100 km.
  *
- * Closed until the board, bid and debrief can show them (PR 9f).
+ * Open since PR 9f put them on the board. The switch stays so a test (or a
+ * later change) can close them.
  */
 export const TRUCK_JOBS = {
-  open: false,
+  open: true,
 }
 
 /** The indoor 400 m ice oval (PR 8b): longer straights than the velodrome, skated anticlockwise too. */
@@ -626,7 +627,7 @@ export const BRIEFS: readonly BriefTemplate[] = [
     goal: 'Diesel eats everything we earn. My trucks are bricks on wheels. Tell me what to bolt on and how much it will save.',
     event: {
       name: 'Kovyl Haulage fuel trial',
-      place: 'Stavren–Mostograd highway',
+      place: 'Kovyl’s yard in Stavren',
       temperature: 12,
       altitude: 250,
       windSpeed: 5,
@@ -649,7 +650,7 @@ export const BRIEFS: readonly BriefTemplate[] = [
     goal: 'We bought roof fairings years ago and saw nothing. Either they were wrong or we were. Find out, and find us more.',
     event: {
       name: 'Volok Freight fuel trial',
-      place: 'Stavren–Mostograd highway',
+      place: 'Volok’s depot on the Stavren ring road',
       temperature: 12,
       altitude: 250,
       windSpeed: 5,
@@ -672,7 +673,7 @@ export const BRIEFS: readonly BriefTemplate[] = [
     goal: 'The coast road is wind from the sea all day, side-on. Our tall boxes catch it like sails. I want the fuel bill down where the wind is.',
     event: {
       name: 'Prichal Logistics fuel trial',
-      place: 'The coast road from Stavren to the Kosa port',
+      place: 'Prichal’s yard at the Kosa port',
       temperature: 14,
       altitude: 5,
       windSpeed: 8,

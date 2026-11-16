@@ -63,12 +63,14 @@ import { sphere } from '../sim/geom/shapes'
 import { Rng } from '../sim/rng'
 import { designPose, designShape, isBobsled, isJumper, isTruck, type Design } from '../sim/design'
 import { forecastSaving, frictionScaleUp, prepareTruck, readCurve, truckEvent } from '../sim/truckTunnel'
-import { FLEET_TRUCK, type TruckDesign } from '../data/truck'
-import { ROUTES } from '../data/routes'
+import { truckMass, windAveragedFuelWith } from '../sim/truck'
+import type { TruckDesign } from '../data/truck'
+import type { Route } from '../data/routes'
 import { forecastRun, prepareSled, sledEvent } from '../sim/sledTunnel'
 import type { SledEvent } from '../sim/sledJob'
 import type { BobsledDesign } from '../data/bobsled'
 import { sledForecast } from './sledForecast'
+import { truckForecast } from './truckForecast'
 import { FLIGHT_ATTITUDE, JUMP_TUNNEL, PITCH } from '../data/jumper'
 import { correctJumper, forecastJump, isJumperRun, jumperReadings, prepareJumper, readJumper, type JumperFix, type JumpForecast, type PreparedJumper } from '../sim/jumpTunnel'
 import type { JumpEvent } from '../sim/jumper'
@@ -200,6 +202,8 @@ export interface TunnelHooks {
   jumpEvent(): JumpEvent
   /** The race a bobsled is forecast on (the job's track, or Belogor between jobs). */
   sledRace(): SledEvent
+  /** The route a truck is forecast on and the fleet's truck it's measured against (the job's, or the plain rig between jobs). */
+  truckRun(trailerTop: number): { route: Route; old: TruckDesign }
   /** The model shop's view of the job. */
   shop(): ShopContext
   /** A model was ordered: charge it and spend its days. */
@@ -253,10 +257,10 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   const sledTrack = () => hooks.sledRace().track
   /**
    * The route a truck is forecast on, and the client's truck as it runs now
-   * (known from their fuel records). Truck jobs (PR 9e) bring their own;
-   * until then it's the fleet's plain rig on the Stavren–Mostograd highway.
+   * (known from their fuel records): the job's (PR 9f), or the fleet's plain
+   * rig on the Stavren–Mostograd highway between jobs.
    */
-  const truckRun = (truck: TruckDesign) => ({ route: ROUTES['stavren-mostograd'], old: { ...FLEET_TRUCK, trailerTop: truck.trailerTop } })
+  const truckRun = (truck: TruckDesign) => hooks.truckRun(truck.trailerTop)
   /** The event the model's Reynolds number is matched to: a sled's track or a truck's route at its usual speed, else the job's. */
   const reEvent = (): EventSpec =>
     isBobsled(modelDesign) ? sledEvent(sledTrack()) : isTruck(modelDesign) ? truckEvent(truckRun(modelDesign).route) : hooks.event()
@@ -1146,16 +1150,39 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
    */
   function updateSledForecast(dt: number, now = false) {
     sledAge += dt
-    if (!isBobsled(modelDesign) || (!now && sledAge < 0.5)) return
+    if (!(isBobsled(modelDesign) || isTruck(modelDesign)) || (!now && sledAge < 0.5)) return
     sledAge = 0
-    const sled = modelDesign
-    const byCrank = poolable(sled)
+    const design = modelDesign
+    const byCrank = poolable(design)
     const ids = [...byCrank.values()].flat().map((r) => r.id)
-    const key = JSON.stringify([ids, build, fix, sledTrack().id, order.board === true, rec.run?.id ?? null])
+    const place = isTruck(design) ? truckRun(design).route.id : sledTrack().id
+    const key = JSON.stringify([ids, build, fix, place, order.board === true, rec.run?.id ?? null])
     if (key === sledKey) return
     sledKey = key
-    const time = sledPoolTime(sled, byCrank)
-    sledForecast.set(sled, sledTrack().id, time === null ? null : { time, board: order.board === true })
+    // A truck's fuel figure (PR 9f) is kept the same way, for its own Deliver sheet.
+    if (isTruck(design)) {
+      truckForecastFrom(design, truckGroups(byCrank, design))
+      return
+    }
+    const time = sledPoolTime(design, byCrank)
+    sledForecast.set(design, sledTrack().id, time === null ? null : { time, board: order.board === true })
+  }
+  /** Keep the truck's forecast for the Deliver sheet from its pooled readings; the saving it means, or null with none. */
+  function truckForecastFrom(truck: TruckDesign, groups: ReturnType<typeof truckGroups>): number | null {
+    const { route, old } = truckRun(truck)
+    if (groups.length === 0) {
+      truckForecast.set(truck, route.id, null)
+      return null
+    }
+    const curve = readCurve(groups.map((g) => ({ yawDeg: g.yawDeg, cdA: g.cdA })))
+    const saving = forecastSaving(curve, truck, old, route)
+    truckForecast.set(truck, route.id, {
+      fuel: windAveragedFuelWith(curve, truckMass(truck), route),
+      saving,
+      board: order.board === true,
+      swept: groups.some((g) => Math.abs(g.yawDeg) >= TRUCK_SWEEP_MIN),
+    })
+    return saving
   }
   /**
    * A truck's runs, pooled angle by angle (PR 9d): each yaw's settled
@@ -1234,11 +1261,12 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
           return row
         }),
       )
-      const { route, old } = truckRun(now)
+      const { route } = truckRun(now)
       const lines: string[] = []
-      if (groups.length === 0) lines.push(t('runs.rowNone'))
+      // Also kept for the Deliver sheet: the figure the fleet would see on these readings.
+      const saving = truckForecastFrom(now, groups)
+      if (saving === null) lines.push(t('runs.rowNone'))
       else {
-        const saving = forecastSaving(readCurve(groups.map((g) => ({ yawDeg: g.yawDeg, cdA: g.cdA }))), now, old, route)
         lines.push(t('pool.truckSaving', { pct: `${saving < 0 ? '−' : ''}${fixed(Math.abs(saving), 1)}`, route: t(`route.${route.id}`) }))
         // Friction scaled to full size: the most that came off any reading (the slowest run's).
         lines.push(t('pool.truckFriction', { cda: fixed(Math.max(...groups.map((g) => g.friction)), 2) }))

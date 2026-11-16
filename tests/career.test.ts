@@ -7,6 +7,7 @@ import {
   acceptBrief,
   bidScore,
   boardFor,
+  firmReputation,
   charge,
   clampBid,
   deliver,
@@ -201,6 +202,7 @@ describe('the career', () => {
     expect(boardFor(11, 2).some((b) => b.id === 'selivan-regional')).toBe(false)
     const d = deliver(acceptBrief(newCareer(5), 'selivan-regional'), DEFAULT_CYCLIST, 0.25)!
     expect(d.state.round).toBe(1)
-    expect(d.state.board).toEqual(boardFor(5, 1))
+    // The next board is drawn for the firm's name after the job (a good first job can open the small truck fleet).
+    expect(d.state.board).toEqual(boardFor(5, 1, false, firmReputation(d.state)))
   })
 })
