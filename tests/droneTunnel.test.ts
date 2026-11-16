@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { DRONE_CLASS, DRONE_COURSES, DRONE_TUNNEL, STOCK_DRONE, type DroneDesign } from '../src/data/drone'
 import { downwashLoss, droneDrag, droneRace, pitchMoment } from '../src/sim/drone'
-import { correctDrone, droneEvent, forecastDrone, prepareDrone, readDrone, twistArea, type DroneProps } from '../src/sim/droneTunnel'
+import { correctDrone, droneEvent, droneReadings, forecastDrone, isDroneRun, prepareDrone, readDrone, twistArea, type DroneProps } from '../src/sim/droneTunnel'
+import { MODEL_SHOP, STANDARD_ORDER } from '../src/data/model'
+import { TUNNEL_UPGRADES, UNIVERSITY_TUNNEL } from '../src/data/tunnel'
+import { strains } from '../src/sim/failure'
+import { newLab } from '../src/sim/lab'
+import { forMaker, makerScales, matchedSpeed, quote, scaleFamily } from '../src/sim/modelShop'
+import type { RunSample } from '../src/sim/run'
+import { soundLab } from '../src/persist/save'
 import { DEG } from '../src/sim/num'
 import { Rng } from '../src/sim/rng'
 import type { ModelSpec, TunnelSpec } from '../src/sim/views'
@@ -114,5 +121,61 @@ describe('the forecast', () => {
     const e = droneEvent(course)
     expect(e.altitude).toBe(course.altitude)
     expect(e.riderSpeed).toBe(DRONE_TUNNEL.matchSpeed)
+  })
+})
+
+describe('a quad model on the Tunnel screen (PR 10d)', () => {
+  it('keeps the twist in run samples and reads it back for the forecast', () => {
+    const p = prepareDrone(GOOD, MODEL, 'stopped')
+    const rng = new Rng(4)
+    const samples: RunSample[] = [0, 60].map((tiltDeg, i) => {
+      const r = readDrone(p, IDEAL, { speed: 30, tiltDeg }, rng)
+      return { t: i, speed: 30, yawDeg: tiltDeg, cdA: r.cdA, cyA: 0, dragN: r.dragN, twist: r.twist, steady: true }
+    })
+    // A sample taken while the sting was still turning is left out.
+    samples.push({ ...samples[0]!, steady: false })
+    const run = { samples }
+    expect(isDroneRun(run)).toBe(true)
+    expect(isDroneRun({ samples: [{ ...samples[0]!, twist: undefined }] })).toBe(false)
+    const back = droneReadings([run])
+    expect(back).toHaveLength(2)
+    expect(back[1]!.twist).toBeCloseTo(twistArea(GOOD, 60 * DEG), 9)
+    expect(back[1]!.downwash).toBeNull()
+    // The same readings forecast the same race as the readings themselves.
+    const direct = forecastDrone([0, 60].map((tiltDeg) => readDrone(p, IDEAL, { speed: 30, tiltDeg }, new Rng(4))), GOOD, STOCK, course)!
+    expect(forecastDrone(back, GOOD, STOCK, course)!.time).toBeCloseTo(direct.time!, 6)
+  })
+
+  it('a save keeps a quad run’s twist and downwash, and refuses a broken one', () => {
+    const lab = newLab(GOOD)
+    const sample: RunSample = { t: 0, speed: 30, yawDeg: 60, cdA: 0.03, cyA: 0, dragN: 16, twist: 4e-4, downwash: 0.05, steady: true }
+    const run = { id: 1, model: 'rider', samples: [sample], duration: 10, energyKWh: 0.01, topSpeed: 30 }
+    const kept = soundLab(JSON.parse(JSON.stringify({ ...lab, runs: [run], nextRunId: 2 })), GOOD)!
+    expect(kept.runs[0]!.samples[0]!.twist).toBe(4e-4)
+    expect(kept.runs[0]!.samples[0]!.downwash).toBe(0.05)
+    expect(soundLab(JSON.parse(JSON.stringify({ ...lab, runs: [{ ...run, samples: [{ ...sample, twist: 'x' }] }], nextRunId: 2 })), GOOD)).toBeNull()
+  })
+
+  it('builds a quad full size: its own scale list, every maker, and the Reynolds number matched in the fan', () => {
+    expect(newLab(GOOD).order.scale).toBe(1)
+    expect(scaleFamily(1)).toBe('drone')
+    expect(makerScales('shop', 'drone')).toEqual([1])
+    expect(makerScales('resin', 'drone')).toEqual([1])
+    // Moving the order to another maker keeps it full size.
+    expect(forMaker({ ...STANDARD_ORDER, scale: 1 }, 'fdm').scale).toBe(1)
+    expect(quote({ ...STANDARD_ORDER, scale: 1 }).price).toBe(MODEL_SHOP.scale[1].price)
+    // About a racer's speed in the course's air: within the university fan's reach.
+    expect(Math.abs(matchedSpeed(1, droneEvent(course)) - DRONE_TUNNEL.matchSpeed)).toBeLessThan(2)
+    expect(matchedSpeed(1, droneEvent(course))).toBeLessThan(UNIVERSITY_TUNNEL.topSpeed)
+  })
+
+  it('tips on a slim sting that holds the flat-out lean in the university’s fan, but not in a big fan', () => {
+    const model = { order: { ...STANDARD_ORDER, scale: 1 as const }, design: GOOD }
+    const sting = (loadN: number) => strains(model, 40, loadN).find((s) => s.part === 'sting')!.level
+    const load = (speed: number, tiltDeg: number) => 0.5 * 1.225 * speed * speed * droneDrag(GOOD, tiltDeg * DEG).cdA
+    expect(sting(load(UNIVERSITY_TUNNEL.topSpeed, DRONE_TUNNEL.tilt.max))).toBeLessThan(0.9)
+    expect(sting(load(TUNNEL_UPGRADES.fan.topSpeed, DRONE_TUNNEL.tilt.max))).toBeGreaterThan(1)
+    // The dial reaches past the racer's flat-out lean.
+    expect(DRONE_TUNNEL.tilt.max).toBeGreaterThan(70)
   })
 })

@@ -161,6 +161,12 @@ export const DRONE_TUNNEL = {
   twistNoise: 3,
   /** The speed a quad model's Reynolds number is matched to in the model shop, m/s (about a racer's top speed). */
   matchSpeed: 34,
+  /**
+   * The sting's tilt dial on the Tunnel screen (PR 10d), degrees nose-down
+   * (negative: tipped back, as when braking), and how fast it turns,
+   * degrees per second. Flat out, a racer leans about 70°.
+   */
+  tilt: { min: -30, max: 85, step: 5, rate: 10 },
 }
 
 /** The race (PR 10a): from a standing start, laps of the club's gate course, flown as fast as the quad can. */

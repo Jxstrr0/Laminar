@@ -595,8 +595,8 @@ export const GLOSSARY = defineGlossary({
   downwash: {
     term: 'Downwash',
     short: 'The air a prop or wing pushes down behind it, and whatever it beats on in the way.',
-    long: 'A prop holds a quad up by throwing air down. Under the props sit the arms, and the downwash beating on them pushes back up, so some of the thrust is wasted. A thin wing-shaped fairing over each arm lets that air slip past, and cuts the arms’ drag in forward flight too, at a little weight.',
-    aliases: ['prop wash', 'arm fairings', 'fairing', 'arms'],
+    long: 'A prop holds a quad up by throwing air down. Under the props sit the arms, and the downwash beating on them pushes back up, so some of the thrust is wasted. A thin wing-shaped fairing over each arm lets that air slip past, and cuts the arms’ drag in forward flight too, at a little weight. A quad model in the tunnel with its props stopped has no downwash at all, so it shows a fairing’s drag but not what it saves under the props: the forecast takes the motor maker’s figure, measured on bare arms, and reads a faired quad slow.',
+    aliases: ['prop wash', 'arm fairings', 'fairing', 'arms', 'props stopped'],
     seeAlso: ['quadTilt', 'drag'],
   },
   tmrf: {

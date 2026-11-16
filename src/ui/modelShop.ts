@@ -9,7 +9,7 @@
  */
 import { ALL_SCALES, MAKERS, MAKER_IDS, MODEL_FINISH, MODEL_GRADE, type MakerId, type ModelFinish, type ModelGrade, type ModelScale } from '../data/model'
 import { t, type StringKey } from '../data/strings'
-import { forMaker, isTruckScale, makerOf, matchedSpeed, quote, type MakerHand, type ModelOrder } from '../sim/modelShop'
+import { FAMILY_START, forMaker, makerOf, scaleFamily, matchedSpeed, quote, type MakerHand, type ModelOrder } from '../sim/modelShop'
 import type { OrderBlock } from '../sim/career'
 import type { EventSpec } from '../sim/views'
 import { fixed } from './format'
@@ -99,7 +99,12 @@ export interface ShopContext {
   car?: boolean
   /** The model is a land-speed car: a truck's small scales and the ground board (PR 9s). */
   record?: boolean
+  /** The model is a racing quad: full size only (PR 10d). */
+  drone?: boolean
 }
+
+/** Which scale list the model takes: a truck's for a truck or a land-speed car, full size for a quad, else a rider's. */
+const familyOf = (ctx: ShopContext) => (ctx.truck === true || ctx.record === true ? 'truck' : ctx.drone === true ? 'drone' : 'rider')
 
 interface Shop {
   sheet: Sheet
@@ -124,10 +129,11 @@ function buildShop(): Shop {
     maker.allow(context.makers)
     maker.set(makerOf(order))
     maker.note.textContent = t(`shop.makerNote.${makerOf(order)}`)
-    // A truck's scales and a rider's are different lists (a land-speed car takes a truck's); the maker may not build them all.
+    // A truck's scales, a rider's and a quad's are different lists (a land-speed car takes a truck's); the maker may not build them all.
     const truck = context.truck === true
-    const big = truck || context.record === true
-    scale.only(ALL_SCALES.filter((s) => isTruckScale(s) === big))
+    const family = familyOf(context)
+    const big = family === 'truck'
+    scale.only(ALL_SCALES.filter((s) => scaleFamily(s) === family))
     scale.allow(m.scales)
     finish.allow(m.finishes)
     grade.allow(m.grades)
@@ -136,6 +142,8 @@ function buildShop(): Shop {
     grade.set(order.grade)
     trips.set(order.trips ? 'on' : 'off')
     taps.set(order.taps ? 'on' : 'off')
+    // A quad's pod is too small for trip strips or taps to tell you anything (the air's own instruments come later).
+    trips.box.hidden = taps.box.hidden = family === 'drone'
     board.box.hidden = context.sled !== true && !big && context.car !== true
     boardText.data = t(truck ? 'shop.boardNoteTruck' : context.car ? 'shop.boardNoteCar' : context.record ? 'shop.boardNoteRecord' : 'shop.boardNote')
     board.set(order.board ? 'on' : 'off')
@@ -238,10 +246,11 @@ function buildShop(): Shop {
       // Start from the model on the mount, at a maker you still have.
       order = ctx.makers.includes(makerOf(current)) ? { ...current } : forMaker(current, 'shop')
       // Only a sled, a truck or a car sits on a ground board.
-      const big = ctx.truck === true || ctx.record === true
-      if (!ctx.sled && !big && !ctx.car) delete order.board
-      // A truck's model (or a land-speed car's) comes at a truck's scale, and a rider's at a rider's.
-      if (isTruckScale(order.scale) !== big) order = forMaker({ ...order, scale: big ? 8 : 2 }, makerOf(order))
+      const family = familyOf(ctx)
+      if (!ctx.sled && family !== 'truck' && !ctx.car) delete order.board
+      // A truck's model (or a land-speed car's) comes at a truck's scale, a quad's full size, and a rider's at a rider's.
+      if (family === 'drone') order = { ...order, trips: false, taps: false }
+      if (scaleFamily(order.scale) !== family) order = forMaker({ ...order, scale: FAMILY_START[family] }, makerOf(order))
       context = ctx
       place = onOrder
       update()

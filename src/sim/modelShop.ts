@@ -3,7 +3,7 @@
  * days it takes, and the model it builds. Prices and days come from
  * MODEL_SHOP; the model's build errors from its own seed.
  */
-import { MAKERS, MODEL_GRADE, MODEL_SHOP, TRUCK_SCALES, type MakerId, type ModelFinish, type ModelGrade, type ModelScale } from '../data/model'
+import { DRONE_SCALES, MAKERS, MODEL_GRADE, MODEL_SHOP, TRUCK_SCALES, type MakerId, type ModelFinish, type ModelGrade, type ModelScale } from '../data/model'
 import type { EventSpec, ModelSpec, PreparedModel } from './views'
 import { eventFlow } from './views'
 import { AIR } from '../data/air'
@@ -34,15 +34,22 @@ export function canMake(order: ModelOrder): boolean {
 /** Is this a truck model's scale (PR 9c)? */
 export const isTruckScale = (scale: ModelScale): boolean => (TRUCK_SCALES as readonly number[]).includes(scale)
 
-/** The scales a maker builds for a rider-sized model, or for a truck. */
-export function makerScales(maker: MakerId, truck: boolean): ModelScale[] {
-  return MAKERS[maker].scales.filter((s) => isTruckScale(s) === truck)
+/** Which list a scale is on: a rider's (and a car's), a truck's (and a land-speed car's), or a quad's full size (PR 10d). */
+export type ScaleFamily = 'rider' | 'truck' | 'drone'
+export const scaleFamily = (scale: ModelScale): ScaleFamily =>
+  isTruckScale(scale) ? 'truck' : (DRONE_SCALES as readonly number[]).includes(scale) ? 'drone' : 'rider'
+/** The scale a family's model starts at. */
+export const FAMILY_START: Record<ScaleFamily, ModelScale> = { rider: 2, truck: 8, drone: 1 }
+
+/** The scales a maker builds for one family. */
+export function makerScales(maker: MakerId, family: ScaleFamily): ModelScale[] {
+  return MAKERS[maker].scales.filter((s) => scaleFamily(s) === family)
 }
 
 /** The order moved to a maker, with anything it can't do changed to the nearest thing it can (a truck's scale stays a truck's). */
 export function forMaker(order: ModelOrder, maker: MakerId): ModelOrder {
   const m = MAKERS[maker]
-  const family = makerScales(maker, isTruckScale(order.scale))
+  const family = makerScales(maker, scaleFamily(order.scale))
   const scale = family.includes(order.scale) ? order.scale : family[family.length - 1]!
   const finish = m.finishes.includes(order.finish) ? order.finish : order.finish === 'printed' ? m.finishes[0]! : m.finishes[m.finishes.length - 1]!
   const grade = m.grades.includes(order.grade) ? order.grade : m.grades[0]!

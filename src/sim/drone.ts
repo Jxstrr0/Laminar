@@ -81,7 +81,7 @@ export function thrustAt(design: DroneDesign, speed: number, hot = false, downwa
   return fresh * (1 - downwash) * (1 - (hot ? heatLoss(design) : 0))
 }
 
-/** The pitching moment the air puts on the pod at this speed and tilt, N·m (positive: nose up). */
+/** The pitching moment the air puts on the pod at this speed and tilt, N·m (positive: nose down, turning the pod further off the wind). */
 export function pitchMoment(design: DroneDesign, speed: number, tilt: number, density: number): number {
   const alpha = tilt - design.pod.rake * DEG
   return A.munk * 0.5 * density * speed * speed * design.pod.length * A.podFront * detSin(2 * alpha)

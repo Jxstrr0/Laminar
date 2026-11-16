@@ -107,8 +107,8 @@ describe('truck models in the shop', () => {
   })
 
   it('keeps a truck’s scale a truck’s when the maker changes', () => {
-    expect(makerScales('resin', true)).toEqual([12, 10])
-    expect(makerScales('resin', false)).toEqual([4, 3])
+    expect(makerScales('resin', 'truck')).toEqual([12, 10])
+    expect(makerScales('resin', 'rider')).toEqual([4, 3])
     expect(forMaker({ ...STANDARD_ORDER, scale: 8 }, 'resin').scale).toBe(10)
     expect(forMaker({ ...STANDARD_ORDER, scale: 2 }, 'resin').scale).toBe(3)
   })
