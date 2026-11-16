@@ -65,6 +65,7 @@ import { designPose, designShape, isJumper, type Design } from '../sim/design'
 import { FLIGHT_ATTITUDE, JUMP_TUNNEL, PITCH } from '../data/jumper'
 import { correctJumper, forecastJump, isJumperRun, jumperReadings, prepareJumper, readJumper, type JumperFix, type JumpForecast, type PreparedJumper } from '../sim/jumpTunnel'
 import type { JumpEvent } from '../sim/jumper'
+import { jumpForecast } from './jumpForecast'
 import type { LabState } from '../sim/lab'
 import { changedControls } from '../sim/designDiff'
 import { compareRuns, headlineCompare, headlineGroup, legCycle, poolRuns, yawGroups, type YawGroup } from '../sim/runStats'
@@ -1188,6 +1189,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   let forecast: JumpForecast | null = null
   let forecastDirty = true
   let forecastAge = Infinity
+  let forecastEvent = ''
   /** What the calibration runs let you take off a jumper's readings: the sting's tare and the blockage. */
   const jumperFix = (): JumperFix => ({ tare: cal.tare?.trusted ? cal.tare.mean : null, blockageK: cal.blockage?.k ?? null })
   const jumperFixWords = (f: JumperFix) => {
@@ -1203,13 +1205,22 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   /** Fly the forecast again when something new came in, no more than twice a second. */
   function updateForecast(dt: number) {
     forecastAge += dt
+    // A new job means a new hill and day: fly the forecast again for it.
+    const event = hooks.jumpEvent()
+    const eventKey = JSON.stringify(event)
+    if (eventKey !== forecastEvent) {
+      forecastEvent = eventKey
+      forecastDirty = true
+    }
     if (!forecastDirty || forecastAge < 0.5 || !jumperModel) return
     forecastDirty = false
     forecastAge = 0
     const fix = jumperFix()
     const model = jumperModel
     const readings = jumperReadings(modelRuns()).map((r) => correctJumper(r, fix, model, sectionArea))
-    forecast = forecastJump(readings, hooks.jumpEvent())
+    forecast = forecastJump(readings, event)
+    // The Deliver sheet starts the declared distance from it, for this model's design.
+    if (isJumper(modelDesign)) jumpForecast.set(modelDesign, event, forecast)
     runsDirty = true
   }
   function showForecastReadout() {

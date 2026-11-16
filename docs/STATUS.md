@@ -51,13 +51,31 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 8f | Ski jump in the tunnel, part 2: the pitch dial, readings and forecast on screen | **Done** (v0.8.5.0) |
 | 8g | Ski-jump jobs in the career (sim): briefs, the promise in metres, delivering a jumper | **Done** (v0.8.6.0) |
 | 8h | Ski-jump balance: the cap at the hill size, a retune, the large-hill job (sim) | **Done** (v0.8.7.0) |
-| 8i | Ski-jump jobs on screen: the board, declaring a distance, the debrief and the flight replay | Next |
-| 8j | A sting that can break, and a fairer read on the helmet and boots | Not started |
-| 8k–8l | Bobsled | Not started |
+| 8i | Ski-jump jobs on screen: the board, the bid in metres, declaring a distance, the jump-day debrief | **Done** (v0.8.8.0) |
+| 8j | The flight replay on the hill | Next |
+| 8k | A sting that can break, and a fairer read on the helmet and boots | Not started |
+| 8l–8m | Bobsled | Not started |
 | 9–14 | See the plan | Not started |
 
 ## Versions
 
+- **0.8.8.0** (PR 8i): ski-jump jobs on the Jobs board.
+  - Kirill Zorin (from reputation 15), Polina Vetrova (30) and Yaroslav
+    Kuzmenko (45, the large hill) now turn up on the board. Their cards show
+    the hill and its size and the jumper's weight; the bid's promise is in
+    metres.
+  - Deliver asks for the reference jump's distance, filled in from the
+    tunnel's forecast for the design on the bench (or the desk estimate
+    if the tunnel hasn't flown one). It says when the forecast would fly
+    past the hill size, or when the sweep missed some of the flight's angles.
+  - Jump day: the promise judged on the reference jump, your read, the jump
+    on the day next to the old setup's in the same air, why a miss happened,
+    and a "Tighten the suit" jump after a wobble or a pitch-forward. A safe
+    landing at HS is noted, not blamed.
+  - The tunnel and Shape forecast on the job's own hill and day (the practice
+    jump between jobs).
+  - The legacy's best job keeps metres apart from a cut in %.
+  - No replay yet: the flight on the hill is PR 8j.
 - **0.8.7.0** (PR 8h): ski-jump balance, sim side.
   - Kelbo chose (16 November 2026) to cap jumps at the hill size: metres past
     HS don't count, and a jumper heading past it bails out to a safe landing

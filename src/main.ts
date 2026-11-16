@@ -16,9 +16,8 @@ import { lastSlot, readSlot, setLastSlot, writeSlot } from './persist/db'
 import { packSave, parseSave, SAVE_VERSION, type SaveFile } from './persist/save'
 import { DEFAULT_CYCLIST } from './data/cyclist'
 import { DEFAULT_JUMPER } from './data/jumper'
-import { PRACTICE_JUMP } from './data/hills'
 import { careerStore, freshSeed } from './ui/careerStore'
-import { charge, currentEvent, newCareer, orderBlock, orderModel, repairModel } from './sim/career'
+import { charge, currentEvent, currentJumpEvent, newCareer, orderBlock, orderModel, repairModel } from './sim/career'
 import { makersOwned, tunnelSetup } from './sim/facility'
 import { crewEffects } from './sim/staff'
 import { afterDesign, afterOrder, afterRun, afterSwap, currentStep } from './sim/guide'
@@ -130,8 +129,8 @@ async function boot(): Promise<void> {
       return tunnelSetup(career.seed, career.facility, career.day, career.crew)
     },
     event: () => currentEvent(careerStore.get()),
-    // Ski-jump briefs come later: until then a jumper is forecast on the practice jump.
-    jumpEvent: () => PRACTICE_JUMP,
+    // A jumper is forecast on the job's hill and day, or the practice jump between jobs.
+    jumpEvent: () => currentJumpEvent(careerStore.get()),
     shop: () => {
       const career = careerStore.get()
       return {

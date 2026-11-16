@@ -186,7 +186,7 @@ describe('the career', () => {
       const bt = BRIEFS.find((x) => x.id === b.id)!
       s = placeBid(s, b.id, { price: bt.fee.max, promise: BID.promiseMin })!.state
     }
-    expect(s.lost.length).toBe(BRIEFS.filter((b) => !b.event.jump).length - 1)
+    expect(s.lost.length).toBe(BRIEFS.length - 1)
     const w = waitForBriefs(s)
     expect(w.day).toBe(s.day + BID.waitDays)
     expect(w.round).toBe(s.round + 1)

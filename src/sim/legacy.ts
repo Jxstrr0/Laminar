@@ -20,8 +20,12 @@ export interface Legacy {
   reputation: number
   /** Null before the first job. */
   correlation: number | null
-  /** The biggest cut delivered: who for, at what event, and how much (%). */
-  best: { client: string; event: string; cut: number } | null
+  /**
+   * The biggest cut delivered: who for, at what event, and how much (% of
+   * drag, or metres for a ski jump). A cut in % always beats metres, since the
+   * two can't be weighed; a career of only jumps shows its longest gain.
+   */
+  best: { client: string; event: string; cut: number; unit: 'pct' | 'm' } | null
   /** Fees the clients paid in all, ₽. */
   earned: number
   /** Cash at the end, ₽. */
@@ -35,7 +39,10 @@ export function legacyOf(state: CareerState): Legacy {
   let best: Legacy['best'] = null
   for (const job of state.history) {
     const b = briefTemplate(job.id)
-    if (b && (!best || job.achieved > best.cut)) best = { client: b.client, event: b.event.name, cut: job.achieved }
+    if (!b) continue
+    const unit = b.event.jump ? 'm' : 'pct'
+    const beats = !best || (unit === best.unit ? job.achieved > best.cut : unit === 'pct')
+    if (beats) best = { client: b.client, event: b.event.name, cut: job.achieved, unit }
   }
   return {
     firm: firmName(state),
