@@ -196,16 +196,38 @@ export interface Flight {
 }
 
 /**
+ * What a flight needs from the air at each angle of attack (degrees): lift
+ * and drag areas, m², and the static margin. The truth comes from the
+ * design (designAero); a forecast from the tunnel's readings (PR 8e).
+ */
+export interface JumperAero {
+  forces(alphaDeg: number): { clA: number; cdA: number }
+  margin(alphaDeg: number): number
+}
+
+/** The design's own air: its plates, plus the helmet and boots' drag (`partsCdA`, m²). */
+export function designAero(design: JumperDesign, partsCdA: number): JumperAero {
+  return {
+    forces: (alphaDeg) => jumperForces(design, alphaDeg, partsCdA),
+    margin: (alphaDeg) => staticMargin(design, alphaDeg),
+  }
+}
+
+/**
  * One flight from the edge to the landing. With `pitch` on, a margin below
  * zero tips the jumper forward: the skis' angle falls away and the jump ends
  * short. Off, the jumper holds the attitude whatever the margin (the clean
  * flight, for the promise and for saying what the pitch cost).
  */
 export function fly(design: JumperDesign, hill: Hill, air: JumpConditions, pitch = true): Flight {
+  const flow: Flow = { density: densityAt(air.temperature, air.altitude), viscosity: viscosityAt(air.temperature), speed: air.takeoffSpeed, turbulence: FIELD_TURBULENCE }
+  return flyAero(designAero(design, partsDrag(design, flow)), hill, air, pitch)
+}
+
+/** The same flight through any air: the design's, or a forecast's. */
+export function flyAero(aero: JumperAero, hill: Hill, air: JumpConditions, pitch = true): Flight {
   const surface = hillSurface(hill)
   const density = densityAt(air.temperature, air.altitude)
-  const flow: Flow = { density, viscosity: viscosityAt(air.temperature), speed: air.takeoffSpeed, turbulence: FIELD_TURBULENCE }
-  const parts = partsDrag(design, flow)
   const table = hill.tableDeg * DEG
   let vx = air.takeoffSpeed * detCos(table) + hill.jumpSpeed * detSin(table)
   let vy = -air.takeoffSpeed * detSin(table) + hill.jumpSpeed * detCos(table)
@@ -226,13 +248,13 @@ export function fly(design: JumperDesign, hill: Hill, air: JumpConditions, pitch
     const speed = Math.sqrt(rx * rx + ry * ry)
     const held = attitudeAt(t)
     const alpha = pitchedAt === null ? held : Math.max(PITCH.collapseAlpha, pitchedFrom - PITCH.collapseRate * (t - pitchedAt))
-    const f = jumperForces(design, alpha, parts)
+    const f = aero.forces(alpha)
     const q = 0.5 * density * speed * speed
     // Lift is square to the air, drag along it.
     const ax = (q * (-f.clA * ry - f.cdA * rx)) / speed / air.mass
     const ay = (q * (f.clA * rx - f.cdA * ry)) / speed / air.mass - g
     // The margin of the attitude the jumper is trying to hold.
-    const margin = t >= FLIGHT_ATTITUDE.ramp ? staticMargin(design, held) : Infinity
+    const margin = t >= FLIGHT_ATTITUDE.ramp ? aero.margin(held) : Infinity
     if (margin < minMargin) {
       minMargin = margin
       minMarginAt = t
@@ -241,7 +263,7 @@ export function fly(design: JumperDesign, hill: Hill, air: JumpConditions, pitch
       pitchedAt = t
       pitchedFrom = alpha
     }
-    if (k % every === 0) track.push({ t, x, y, alpha, speed: Math.sqrt(vx * vx + vy * vy), margin: Number.isFinite(margin) ? margin : staticMargin(design, alpha) })
+    if (k % every === 0) track.push({ t, x, y, alpha, speed: Math.sqrt(vx * vx + vy * vy), margin: Number.isFinite(margin) ? margin : aero.margin(alpha) })
     k++
     vx += ax * FLIGHT.dt
     vy += ay * FLIGHT.dt
@@ -256,12 +278,12 @@ export function fly(design: JumperDesign, hill: Hill, air: JumpConditions, pitch
       const share = before - after > 1e-9 ? before / (before - after) : 1
       const lx = x + (nx - x) * share
       const ly = y + (ny - y) * share
-      track.push({ t, x: lx, y: ly, alpha, speed: Math.sqrt(vx * vx + vy * vy), margin: Number.isFinite(margin) ? margin : staticMargin(design, alpha) })
+      track.push({ t, x: lx, y: ly, alpha, speed: Math.sqrt(vx * vx + vy * vy), margin: Number.isFinite(margin) ? margin : aero.margin(alpha) })
       return {
         distance: sample(surface.s, surface.step, lx),
         time: t,
         landing: { x: lx, y: ly, speed: Math.sqrt(vx * vx + vy * vy) },
-        minMargin: Number.isFinite(minMargin) ? minMargin : staticMargin(design, FLIGHT_ATTITUDE.hold),
+        minMargin: Number.isFinite(minMargin) ? minMargin : aero.margin(FLIGHT_ATTITUDE.hold),
         minMarginAt,
         pitchedAt,
         track,
