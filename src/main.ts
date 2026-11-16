@@ -17,6 +17,7 @@ import { packSave, parseSave, SAVE_VERSION, type SaveFile } from './persist/save
 import { DEFAULT_CYCLIST } from './data/cyclist'
 import { careerStore, freshSeed } from './ui/careerStore'
 import { charge, currentEvent, newCareer, orderBlock, orderModel } from './sim/career'
+import { afterDesign, afterOrder, afterRun, afterSwap, currentStep } from './sim/guide'
 import { runCost } from './sim/run'
 import { rublesShort } from './ui/format'
 
@@ -62,6 +63,7 @@ function buildNav(go: (s: Screen) => void): { root: HTMLElement; mark(s: Screen)
     const b = document.createElement('button')
     b.type = 'button'
     b.className = 'nav-button'
+    b.dataset.screen = s
     b.textContent = t(`nav.${s}`)
     b.addEventListener('click', () => go(s))
     root.append(b)
@@ -106,23 +108,37 @@ async function boot(): Promise<void> {
   let touch = () => {}
   const tunnel = startTunnelScreen(tunnelHost, createTunnelView(tunnelHost), saved?.lab ?? newLab(), {
     onChange: () => touch(),
-    onRun: (run) => careerStore.set(charge(careerStore.get(), runCost(run))),
+    onRun: (run) => careerStore.set(afterRun(charge(careerStore.get(), runCost(run)))),
     tunnelSeed: careerStore.get().seed,
     event: () => currentEvent(careerStore.get()),
     shop: () => {
       const career = careerStore.get()
       return { event: currentEvent(career), block: (days) => orderBlock(career, days), daysLeft: career.job?.daysLeft ?? 0 }
     },
-    onOrder: (price, days) => careerStore.set(orderModel(careerStore.get(), price, days)),
-    onSwap: (price) => careerStore.set(charge(careerStore.get(), price)),
+    onOrder: (price, days) => careerStore.set(afterOrder(orderModel(careerStore.get(), price, days))),
+    onSwap: (price) => careerStore.set(afterSwap(charge(careerStore.get(), price))),
   })
   const autosave = startAutosave(
     () => current(),
     (text) => writeSlot(SLOT, text),
   )
   touch = () => autosave.touch()
-  designStore.subscribe(() => touch())
+  designStore.subscribe(() => {
+    touch()
+    // Shaping a new position ticks the first-job guide.
+    const career = careerStore.get()
+    const next = afterDesign(career, designStore.get())
+    if (next !== career) careerStore.set(next)
+  })
   careerStore.subscribe(() => touch())
+  // The guide's next step lights up the buttons that do it (style.css, [data-guide]).
+  const markGuide = () => {
+    const step = currentStep(careerStore.get())
+    if (step) document.body.dataset.guide = step
+    else delete document.body.dataset.guide
+  }
+  markGuide()
+  careerStore.subscribe(markGuide)
   const current = (): SaveFile => ({
     v: SAVE_VERSION,
     savedAt: Date.now(),

@@ -40,6 +40,7 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 
 | Name | What it is |
 | --- | --- |
+| Irina Talova | Your partner in the consultancy; she guides the first job. PR 5i. |
 | Marta Selivan | Club time-triallist; the first job (Stavren Regional Time Trial). |
 | Stavren Road Club | A volunteer cycling club; the small job (Club 16 km Time Trial). |
 | Oleg Brusnik | Veteran climber (Lake Dolgo Hill Time Trial). |

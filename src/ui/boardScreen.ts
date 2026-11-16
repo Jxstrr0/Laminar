@@ -25,8 +25,10 @@ import { careerStore } from './careerStore'
 import { designStore } from './designStore'
 import { careerDate, fixed, pct, raceTime, rubles, rublesShort } from './format'
 import { glossaryTerm } from './glossary'
+import { GUIDE_STEPS, currentStep, guideOn, hideGuide, stepDone } from '../sim/guide'
 import { playReplay } from './replayOverlay'
 import { createSheet, type Sheet } from './sheet'
+import { twoTap } from './twoTap'
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag)
@@ -317,6 +319,32 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     bidsSheet.open()
   }
 
+  /** The partner's card for the first job: what to do next, and the checklist. */
+  function guideCard(): HTMLElement | null {
+    const career = careerStore.get()
+    const step = currentStep(career)
+    if (!guideOn(career) || !step) return null
+    const card = el('section', 'job-card guide-card')
+    card.setAttribute('aria-labelledby', 'guide-title')
+    const head = el('h2', 'board-heading', t('guide.title'))
+    head.id = 'guide-title'
+    const list = el('ol', 'guide-steps')
+    list.setAttribute('aria-label', t('guide.name'))
+    for (const s of GUIDE_STEPS) {
+      const done = stepDone(career, s)
+      const item = el('li', `guide-step${done ? ' is-done' : ''}${s === step ? ' is-next' : ''}`, t(`guide.step.${s}`))
+      // Ticks are words for screen readers, not colour alone.
+      if (done || s === step) item.append(el('span', 'sr-only', ` (${t(done ? 'guide.done' : 'guide.next')})`))
+      list.append(item)
+    }
+    const hide = button('save-btn quiet', t('guide.hide'))
+    twoTap(hide, t('guide.hide'), t('guide.hideConfirm'), () => careerStore.set(hideGuide(careerStore.get())))
+    const actions = el('div', 'job-actions')
+    actions.append(hide)
+    card.append(head, el('p', 'guide-say', t(`guide.say.${step}`)), list, actions)
+    return card
+  }
+
   function emptyCard(): HTMLElement {
     const card = el('li', 'job-card')
     const wait = button('save-btn', t('board.wait'))
@@ -356,9 +384,9 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       fact(t('board.raceDay'), careerDate(career.day + job.daysLeft, CAREER.start)),
     )
     const actions = el('div', 'job-actions')
-    const shape = button('save-btn quiet', t('board.toShape'))
+    const shape = button('save-btn quiet guide-shape', t('board.toShape'))
     shape.addEventListener('click', () => go('shape'))
-    const send = button('save-btn', t('board.deliver'))
+    const send = button('save-btn guide-deliver', t('board.deliver'))
     send.addEventListener('click', openDeliver)
     actions.append(shape, send)
     card.append(
@@ -390,7 +418,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       fact(t('board.where'), b.event.place),
     )
     card.append(top, el('p', 'job-who', b.who), el('blockquote', 'job-goal', b.goal), el('p', 'job-event', b.event.name), facts)
-    const take = button('save-btn', t('board.take'))
+    const take = button('save-btn guide-bid', t('board.take'))
     if (busy) {
       take.disabled = true
       take.textContent = t('board.busy')
@@ -420,7 +448,8 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     for (const brief of career.board) if (brief.id !== career.job?.brief.id) list.append(briefCard(brief, !!career.job))
     if (career.board.length === 0 && !career.job) list.append(emptyCard())
     const intro = el('p', 'shop-note', t(career.job ? 'board.oneAtATime' : 'board.intro'))
-    page.replaceChildren(firm, ...(now ? [now] : []), boardHead, intro, list)
+    const guide = guideCard()
+    page.replaceChildren(firm, ...(guide ? [guide] : []), ...(now ? [now] : []), boardHead, intro, list)
   }
 
   return {

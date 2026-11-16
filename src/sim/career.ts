@@ -16,6 +16,7 @@ import { REFERENCE_RIDER } from '../data/field'
 import { riderEvent } from './cyclist'
 import { cyclistShape } from './geom/cyclist'
 import { hashString, Rng } from './rng'
+import type { Guide } from './guide'
 import { fieldResult, REFERENCE_TT, truth, type EventSpec, type FieldResult } from './views'
 
 /** A brief as it sits on the board: which client, and the terms on offer. */
@@ -71,6 +72,8 @@ export interface CareerState {
   job: Job | null
   /** Finished jobs, oldest first. */
   history: JobRecord[]
+  /** The partner's guide through the first job (src/sim/guide.ts). */
+  guide: Guide
 }
 
 /** Why a model can't be ordered now, or null if it can. */
@@ -111,7 +114,18 @@ export function boardFor(seed: number, round: number, firstJob = round === 0): B
 }
 
 export function newCareer(seed: number): CareerState {
-  return { seed, money: CAREER.startMoney, day: 0, jobsDone: 0, round: 0, board: boardFor(seed, 0), lost: [], job: null, history: [] }
+  return {
+    seed,
+    money: CAREER.startMoney,
+    day: 0,
+    jobsDone: 0,
+    round: 0,
+    board: boardFor(seed, 0),
+    lost: [],
+    job: null,
+    history: [],
+    guide: { off: false, done: [] },
+  }
 }
 
 /** The event a brief is for, ready for the field model. */
