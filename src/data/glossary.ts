@@ -648,6 +648,13 @@ export const GLOSSARY = defineGlossary({
     aliases: ['stall speed', 'certified', 'inspector', 'sign off', 'sign-off', 'square tips', 'wingtips', 'clmax', 'most lift'],
     seeAlso: ['stall', 'lift', 'angleOfAttack'],
   },
+  clearance: {
+    term: 'Defence clearance',
+    short: 'The ministry’s say-so that your firm may take its secret jobs.',
+    long: 'Once your firm has a good name and its tunnel reads close to the real thing, it may apply to the Ministry of Defence. Vetting costs a fee and takes weeks. A cleared firm sees the ministry’s briefs: big fees, but secret, so they never move your public name, though their reads count toward the correlation score. Going broke, or a run of poor reads, loses it, and the ministry makes you wait before you apply again.',
+    aliases: ['defence', 'ministry', 'ministry of defence', 'vetting', 'secret', 'secret job', 'cleared'],
+    seeAlso: ['reputation', 'correlationScore', 'hoursOnStation'],
+  },
   hoursOnStation: {
     term: 'Hours on station',
     short: 'How long a patrol plane can stay on patrol on the fuel left after getting there and back.',

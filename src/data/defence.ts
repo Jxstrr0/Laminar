@@ -11,8 +11,8 @@
  * the legacy card.
  */
 export const CLEARANCE = {
-  /** Closed until the first defence jobs (the sensor pods) are built. */
-  open: false,
+  /** Open since PR 10ae: the sensor-pod jobs are on the board for a cleared firm. */
+  open: true,
   /** What the firm needs before it may apply. */
   minReputation: 60,
   minCorrelation: 70,
