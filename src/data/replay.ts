@@ -55,4 +55,20 @@ export const REPLAY_SCENE = {
     /** Radius of the ring under each rider, m. */
     marker: 1.8,
   },
+  /**
+   * Trouble on the road, drawn (PR 6d): a rider easing off in the gusts
+   * rocks side to side now and then, and one who can't hold the position
+   * sits up for the last third.
+   */
+  trouble: {
+    /** Roll at the most a rider ever eases off, degrees (a rider just past their limit rocks `rollFloor` of that), and the sideways sway with it, m. */
+    rollDeg: 10,
+    rollFloor: 0.4,
+    swayM: 0.3,
+    /** A gust comes every `every` seconds of the replay and rocks the rider for `lasts` of them. */
+    every: 1.8,
+    lasts: 0.9,
+    /** Sitting up: the back comes up to at least this angle, degrees, and the head comes up. */
+    sitUpTorso: 34,
+  },
 }

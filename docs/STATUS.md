@@ -32,10 +32,18 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 6a | Failures: the tunnel's failure model (sim, saves) | **Done** (v0.6.0.0) |
 | 6b | Failures on the tunnel screen | **Done** (v0.6.1.0) |
 | 6c | Failures in the field: crosswind steer, fading position | **Done** (v0.6.2.0) |
-| 6d | Field failures in the 3D replay: the wobble in a gust, the rider sitting up | Next |
+| 6d | Field failures in the 3D replay: the wobble in a gust, the rider sitting up | **Done** (v0.6.3.0) |
 | 7–14 | See the plan | Not started |
 
 ## Versions
+
+- **0.6.3.0** (PR 6d): race-day trouble in the 3D replay.
+  - On a stretch where the rider eased off in the gusts, they rock side to
+    side every couple of seconds (more the harder they fought it). The old
+    setup rocks too if it struggled, out of step with yours. With reduced
+    motion, nobody rocks.
+  - Once a rider can't hold the position, they're drawn sitting up for the
+    rest of the race: back up, head up.
 
 - **0.6.2.0** (PR 6c): trouble on race day.
   - **Crosswind steer** (Kelbo's call: loses time in gusts). In a gust, side

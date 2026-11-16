@@ -141,7 +141,8 @@ export async function playReplay(input: ReplayInput): Promise<void> {
   root.append(stage, top, panel)
   document.body.append(root)
 
-  const view = createReplayView(stage)
+  const reduce = reducedMotion()
+  const view = createReplayView(stage, { still: reduce })
   const panelWatch = new ResizeObserver(() => view.setInset(panel.offsetHeight))
   panelWatch.observe(panel)
   view.setCourse(input.course, { windFromDeg: input.result.windFromDeg, calm, lap: input.lap })
@@ -152,7 +153,6 @@ export async function playReplay(input: ReplayInput): Promise<void> {
   let last = 0
   let shown = -1
   let closed = false
-  const reduce = reducedMotion()
 
   function draw(raceT: number, dt: number) {
     const me = trackAt(mine, raceT)

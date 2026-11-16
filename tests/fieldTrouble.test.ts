@@ -6,7 +6,7 @@ import { deliver, eventOf, newCareer, type CareerState } from '../src/sim/career
 import { comfort, riderEvent } from '../src/sim/cyclist'
 import { courseTime, easeFor, splitCourse } from '../src/sim/field/timeTrial'
 import { cyclistShape } from '../src/sim/geom/cyclist'
-import { replayNotes, rideTime } from '../src/sim/replay'
+import { replayNotes, rideTime, trackAt } from '../src/sim/replay'
 import { hashString } from '../src/sim/rng'
 import { fieldResult } from '../src/sim/views'
 
@@ -132,6 +132,14 @@ describe('trouble on race day', () => {
     if (d.debrief.gusts) expect(kinds).toContain('gust')
     const fade = notes.find((n) => n.kind === 'fade')!
     expect(fade.t / rideTime(mine)).toBeGreaterThan(0.6)
+    // The 3D replay reads the trouble off the track: tucked before the fade, sitting up after it.
+    expect(trackAt(mine, fade.t - 1).faded).toBe(0)
+    expect(trackAt(mine, fade.t + 1).faded).toBeGreaterThan(0)
+    expect(trackAt(mine, rideTime(mine) + 5).faded).toBeGreaterThan(0)
+    if (d.debrief.gusts) {
+      const gust = notes.find((n) => n.kind === 'gust')!
+      expect(trackAt(mine, gust.t).eased).toBeGreaterThan(0)
+    }
     // The split where the rider sat up isn't a turn, so the out-and-back still has its meeting.
     expect(kinds).toContain('meet')
     expect(kinds.filter((k) => k === 'turn')).toHaveLength(1)
