@@ -120,7 +120,8 @@ export function repairQuote(order: ModelOrder, failure: Failure, hand?: MakerHan
  * A part on the Shape screen a "change this" jump can go to: the helmet's
  * tail, the rear or front wheel, or one of the position's sliders.
  */
-export type FixTarget = 'helmet' | 'wheels' | 'front' | 'bagginess' | keyof CyclistDesign['posture'] | keyof SkaterDesign['posture'] | keyof JumperDesign['posture']
+/** A slider or part the "change this" jump goes to. A sled's: its cowling or the crew's tuck. */
+export type FixTarget = 'helmet' | 'wheels' | 'front' | 'bagginess' | 'cowl' | 'tuck' | keyof CyclistDesign['posture'] | keyof SkaterDesign['posture'] | keyof JumperDesign['posture']
 
 /** Where the "change this" jump goes: the part on Shape, or the model shop for a stiffer, smaller or sanded model. */
 export function fixFor(failure: Failure): 'helmet' | 'wheels' | 'shop' {

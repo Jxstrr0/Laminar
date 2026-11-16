@@ -4,12 +4,14 @@
  * the event. The brief board draws from this pool with the career's seed.
  * Every name here is fictional and listed in docs/NAMES.md.
  */
+import type { BobsledDesign, Crew } from './bobsled'
 import type { CyclistDesign } from './cyclist'
 import type { HillId } from './hills'
 import type { JumperDesign } from './jumper'
 import type { SkaterDesign } from './skater'
 import type { Design } from './sport'
 import type { CourseSegment } from './field'
+import type { Track } from './tracks'
 
 /** How a career starts, and how the brief board works. */
 export const CAREER = {
@@ -92,6 +94,14 @@ export interface EventTemplate {
    * wind along the hill (positive: a headwind), `riderSpeed` the take-off speed.
    */
   jump?: { hill: HillId; mass: number; speedSpread: number }
+  /**
+   * A bobsled race (PR 8o): the track, the ice's typical temperature, °C,
+   * how much faster (or slower) than the usual push this crew pushes, m/s,
+   * and the day-to-day spread of both. `temperature` is the air,
+   * `windSpeed` the typical wind up the track (a headwind) and `riderSpeed`
+   * the sled's usual speed.
+   */
+  sled?: { track: Track['id']; iceTemp: number; push: number; spread: { ice: number; push: number } }
 }
 
 export interface BriefTemplate {
@@ -148,6 +158,24 @@ export const JUMP_JOBS = {
   open: true,
 }
 
+/**
+ * Bobsled jobs (PR 8o; Kelbo, 16 November 2026): the promise is time gained
+ * on the reference run down the track (the usual push, good ice, still air)
+ * over the client's old sled, and the declared number is that run's time.
+ * One promised point is a tenth of a second, so a missed tenth costs what a
+ * missed point of cut does; bids move in hundredths.
+ *
+ * Closed until the board and the debrief can show them (PR 8p). The switch
+ * stays so a test can open them.
+ */
+export const SLED_JOBS = {
+  open: false,
+  /** Seconds in one promised point. */
+  pointSeconds: 0.1,
+  /** A sled bid's promise moves in these points: a hundredth of a second. */
+  promiseStep: 0.1,
+}
+
 /** The indoor 400 m ice oval (PR 8b): longer straights than the velodrome, skated anticlockwise too. */
 export const OVAL = {
   lap: 400,
@@ -197,6 +225,13 @@ const skater = (posture: SkaterDesign['posture'], parts: Partial<Omit<SkaterDesi
   hood: 'cap',
   suit: { fabric: 'smooth', legTrips: false },
   ...parts,
+})
+
+const sled = (crew: Crew, nose: number, tail: number, cowl: number, tuck: number): BobsledDesign => ({
+  sport: 'bobsled',
+  crew,
+  sled: { nose, tail, cowl },
+  tuck,
 })
 
 const jumper = (leanDeg: number, vAngleDeg: number, bagginess: number): JumperDesign => ({
@@ -481,5 +516,77 @@ export const BRIEFS: readonly BriefTemplate[] = [
     days: 22,
     minRep: 45,
     target: 8,
+  },
+  {
+    id: 'kostrov-club',
+    client: 'Danil Kostrov',
+    who: 'Club bobsled driver on a borrowed old sled',
+    goal: 'The sled is older than my brakeman. We push well and then lose it all down the track. Find us some tenths.',
+    event: {
+      name: 'Belogor Club Cup: two-man',
+      place: 'Belogor sliding track',
+      temperature: -4,
+      altitude: 1050,
+      windSpeed: 0.5,
+      riderSpeed: 30,
+      spread: { temperature: 3, wind: 1, power: 0 },
+      course: [],
+      ice: true,
+      sled: { track: 'belogor', iceTemp: -6, push: -0.2, spread: { ice: 2, push: 0.15 } },
+    },
+    rider: { power: 0, mass: 220 },
+    setup: sled(2, 0.4, 0.15, 0.46, 0.2),
+    fee: { min: 50000, max: 70000 },
+    days: 14,
+    minRep: 15,
+    target: 12,
+  },
+  {
+    id: 'kedrova-two',
+    client: 'Vera Kedrova',
+    who: 'National two-man pilot with a quick start',
+    goal: 'We win the push and lose the bottom half. Our sled is decent, not fast. I want it fast without losing my view of the curves.',
+    event: {
+      name: 'Tarnovian Two-man Championship',
+      place: 'Belogor sliding track',
+      temperature: -7,
+      altitude: 1050,
+      windSpeed: 0.3,
+      riderSpeed: 30,
+      spread: { temperature: 4, wind: 1, power: 0 },
+      course: [],
+      ice: true,
+      sled: { track: 'belogor', iceTemp: -8, push: 0.2, spread: { ice: 2, push: 0.12 } },
+    },
+    rider: { power: 0, mass: 220 },
+    setup: sled(2, 0.5, 0.25, 0.5, 0.4),
+    fee: { min: 90000, max: 120000 },
+    days: 18,
+    minRep: 30,
+    target: 6,
+  },
+  {
+    id: 'gromov-four',
+    client: 'Matvei Gromov',
+    who: 'Four-man pilot with a heavy crew and big ambitions',
+    goal: 'Four big pushers and a sled built for comfort. I want a sled that goes as hard as they push.',
+    event: {
+      name: 'Tarnovian Four-man Championship',
+      place: 'Belogor sliding track',
+      temperature: -8,
+      altitude: 1050,
+      windSpeed: 0.4,
+      riderSpeed: 31,
+      spread: { temperature: 4, wind: 1.2, power: 0 },
+      course: [],
+      ice: true,
+      sled: { track: 'belogor', iceTemp: -8, push: 0.1, spread: { ice: 2, push: 0.12 } },
+    },
+    rider: { power: 0, mass: 420 },
+    setup: sled(4, 0.5, 0.25, 0.5, 0.4),
+    fee: { min: 150000, max: 190000 },
+    days: 22,
+    minRep: 45,
+    target: 6,
   },
 ]

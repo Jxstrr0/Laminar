@@ -15,6 +15,7 @@ import {
   orderBlock,
   orderModel,
   penaltyFor,
+  openTo,
   placeBid,
   pointWorth,
   readOf,
@@ -88,8 +89,8 @@ describe('the career', () => {
   })
 
   it('builds each event from its brief', () => {
-    // Ski jumps fly their own event (tests/jumpJobs.test.ts).
-    for (const b of BRIEFS.filter((x) => !x.event.jump)) {
+    // Ski jumps fly their own event (tests/jumpJobs.test.ts), sleds slide theirs (tests/sledJobs.test.ts).
+    for (const b of BRIEFS.filter((x) => !x.event.jump && !x.event.sled)) {
       const e = eventOf(b)
       expect(e.rider.power).toBe(b.rider.power)
       expect(e.spread).toEqual(b.event.spread)
@@ -186,7 +187,8 @@ describe('the career', () => {
       const bt = BRIEFS.find((x) => x.id === b.id)!
       s = placeBid(s, b.id, { price: bt.fee.max, promise: BID.promiseMin })!.state
     }
-    expect(s.lost.length).toBe(BRIEFS.length - 1)
+    // Every brief the board can offer, less the tutorial (sled briefs wait for their screens).
+    expect(s.lost.length).toBe(BRIEFS.filter((b) => openTo(b, 100)).length - 1)
     const w = waitForBriefs(s)
     expect(w.day).toBe(s.day + BID.waitDays)
     expect(w.round).toBe(s.round + 1)

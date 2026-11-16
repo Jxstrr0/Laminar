@@ -19,7 +19,10 @@
  * - Delivering runs the event, pays the fee, jumps the calendar to the
  *   event and refreshes the board.
  */
-import { BID, BRIEFS, CAREER, JUMP_JOBS, PROMISE, type BriefTemplate } from '../data/briefs'
+import { BID, BRIEFS, CAREER, JUMP_JOBS, PROMISE, SLED_JOBS, type BriefTemplate } from '../data/briefs'
+import type { BobsledDesign } from '../data/bobsled'
+import { dayDrag, referenceConditions, referenceRun, runWith, type BobRun, type RunConditions } from './bobsled'
+import { cdAForTime, PRACTICE_RUN, raceConditions, sledEventFrom, type SledEvent } from './sledJob'
 import { HILLS, PRACTICE_JUMP } from '../data/hills'
 import type { JumperDesign } from '../data/jumper'
 import { jumpDay, referenceJump, type JumpEvent, type JumpResult, type ReferenceJump } from './jumper'
@@ -135,6 +138,7 @@ function onBoard(b: BriefTemplate, rng: Rng): Brief {
 /** Clients who'll call a firm with this reputation (Kelbo: a good name brings bigger clients). */
 export function openTo(b: BriefTemplate, reputation: number): boolean {
   if (b.event.jump && !JUMP_JOBS.open) return false
+  if (b.event.sled && !SLED_JOBS.open) return false
   return (b.minRep ?? 0) <= reputation
 }
 
@@ -155,6 +159,16 @@ export function jumpEventOf(brief: Pick<Brief, 'id'>): JumpEvent | null {
     headwind: e.windSpeed,
     spread: { temperature: e.spread.temperature, wind: e.spread.wind, speed: e.jump.speedSpread },
   }
+}
+
+/** True for a bobsled brief: its promise is tenths of a second (bid in hundredths), its declaration a run time. */
+export function isSledBrief(id: string): boolean {
+  return briefTemplate(id)?.event.sled !== undefined
+}
+
+/** A bobsled brief's race, ready for the run model. Null for any other brief. */
+export function sledEventOf(brief: Pick<Brief, 'id'>): SledEvent | null {
+  return sledEventFrom(template(brief.id))
 }
 
 /**
@@ -310,6 +324,11 @@ export function currentJumpEvent(state: CareerState): JumpEvent {
   return (state.job && jumpEventOf(state.job.brief)) ?? PRACTICE_JUMP
 }
 
+/** The race a sled is built for: the job's, or Belogor in the reference conditions between jobs. */
+export function currentSledEvent(state: CareerState): SledEvent {
+  return (state.job && sledEventOf(state.job.brief)) ?? PRACTICE_RUN
+}
+
 /** Take a brief off the board at its suggested fee and the client's ask. Only one job at a time. */
 export function acceptBrief(state: CareerState, id: string): CareerState {
   const brief = state.board.find((b) => b.id === id)
@@ -365,13 +384,16 @@ export function bidScore(id: string, bid: Bid, reputation = 0): number {
   return (bid.promise + reputation * REPUTATION.bidPerPoint) * pointWorth(id) + template(id).fee.max - bid.price
 }
 
-const roundTo = (x: number, step: number) => Math.round(x / step) * step
+/** x to the nearest step (a step under 1 divides, so 0.1 steps come out clean). */
+const roundTo = (x: number, step: number) => (step < 1 ? Math.round(x / step) / Math.round(1 / step) : Math.round(x / step) * step)
 
 /** A bid brought inside the brief's fee range and the promise limits, on the steps. */
 export function clampBid(id: string, bid: Bid): Bid {
   const b = template(id)
   const price = Math.min(b.fee.max, Math.max(b.fee.min, roundTo(bid.price, BID.priceStep)))
-  const promise = Math.min(BID.promiseMax, Math.max(BID.promiseMin, roundTo(bid.promise, BID.promiseStep)))
+  // A sled's promise moves in hundredths of a second.
+  const step = isSledBrief(id) ? SLED_JOBS.promiseStep : BID.promiseStep
+  const promise = Math.min(BID.promiseMax, Math.max(BID.promiseMin, roundTo(bid.promise, step)))
   return { price, promise }
 }
 
@@ -721,5 +743,96 @@ export function deliverJump(state: CareerState, design: JumperDesign, predicted:
     reputation: { before: firmReputation(state), after: 0 },
   }
   const closed = closeJob(state, job, penalty, { achieved, predicted, actual: reference.counted })
+  return { ...closed, job, event, debrief: { ...debrief, reputation: { ...debrief.reputation, after: firmReputation(closed.state) } } }
+}
+
+/** What race day showed for a sled (plan section 9: time gained on the reference run). */
+export interface SledDebrief {
+  /** Promised and achieved gain on the reference run, points (tenths of a second). */
+  promised: number
+  achieved: number
+  met: boolean
+  /** Points short after the allowance (0 if met). */
+  shortfall: number
+  /** ₽ taken off the fee. */
+  penalty: number
+  /** Declared and real reference run, s. */
+  predicted: number
+  actual: number
+  /** The drag areas the declared and real runs come from, m²: the read is judged on these. */
+  predictedCdA: number
+  actualCdA: number
+  /** (declared − real) ÷ real, on drag. */
+  readError: number
+  read: Read
+  /** The reference run, yours and the old sled's. */
+  reference: BobRun
+  baselineReference: BobRun
+  /** Race day: its conditions, and both sleds down the track in them. */
+  conditions: RunConditions
+  day: BobRun
+  baselineDay: BobRun
+  /** Why a miss happened: not enough gain ('design'), or enough lost to steering late ('sight'). */
+  cause: 'design' | 'sight' | null
+  /** Time the driver lost steering late because they couldn't see over the cowling, s, and the slider to change. */
+  blind: { lost: number; fix: FixTarget } | null
+  reputation: { before: number; after: number }
+}
+
+export interface SledDelivery extends Closed {
+  job: Job
+  event: SledEvent
+  debrief: SledDebrief
+}
+
+/**
+ * Deliver a sled with a declared reference run time. The promise is judged
+ * on the reference run (the usual push, good ice, still air), the same for
+ * any day. Race day, your sled and the old one in the same conditions, is
+ * the show. The firm's record keeps the read on drag, like every other job.
+ * Null if there's no job or it isn't a bobsled race.
+ */
+export function deliverSled(state: CareerState, design: BobsledDesign, predicted: number): SledDelivery | null {
+  const job = state.job
+  if (!job) return null
+  const event = sledEventOf(job.brief)
+  const setup = template(job.brief.id).setup
+  if (!event || setup.sport !== 'bobsled' || design.crew !== setup.crew) return null
+  const track = event.track
+  const reference = referenceRun(design, track)
+  const baselineReference = referenceRun(setup, track)
+  const achieved = (baselineReference.time - reference.time) / SLED_JOBS.pointSeconds
+  const { shortfall, penalty } = penaltyFor(job.brief.fee, job.promise, achieved)
+  const met = shortfall === 0
+  const conditions = raceConditions(event, daySeed(job.brief))
+  const day = runWith(dayDrag(design, track, conditions).cdA, design, track, conditions)
+  const baselineDay = runWith(dayDrag(setup, track, conditions).cdA, setup, track, conditions)
+  const actualCdA = dayDrag(design, track, referenceConditions(design)).cdA
+  const predictedCdA = cdAForTime(predicted, design, track)
+  const readError = (predictedCdA - actualCdA) / actualCdA
+  // Without the late steering, would the promise have held? Then the cowling (or the tuck) cost it.
+  const sighted = (baselineReference.time - (reference.time - reference.blindLoss)) / SLED_JOBS.pointSeconds
+  const debrief: SledDebrief = {
+    promised: job.promise,
+    achieved,
+    met,
+    shortfall,
+    penalty,
+    predicted,
+    actual: reference.time,
+    predictedCdA,
+    actualCdA,
+    readError,
+    read: readOf(readError),
+    reference,
+    baselineReference,
+    conditions,
+    day,
+    baselineDay,
+    cause: met ? null : reference.blindLoss > 0 && penaltyFor(job.brief.fee, job.promise, sighted).shortfall === 0 ? 'sight' : 'design',
+    blind: reference.blindLoss > 0 ? { lost: reference.blindLoss, fix: 'cowl' } : null,
+    reputation: { before: firmReputation(state), after: 0 },
+  }
+  const closed = closeJob(state, job, penalty, { achieved, predicted: predictedCdA, actual: actualCdA })
   return { ...closed, job, event, debrief: { ...debrief, reputation: { ...debrief.reputation, after: firmReputation(closed.state) } } }
 }

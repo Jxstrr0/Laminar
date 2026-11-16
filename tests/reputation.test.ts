@@ -63,7 +63,8 @@ describe('a good name brings bigger clients', () => {
     // With a top name, every client can turn up.
     const seen = new Set<string>()
     for (let round = 1; round < 40; round++) for (const b of boardFor(3, round, false, REPUTATION.max)) seen.add(b.id)
-    const offered = BRIEFS
+    // Sled briefs wait for their screens (SLED_JOBS.open, PR 8p).
+    const offered = BRIEFS.filter((b) => !b.event.sled)
     for (const b of offered.filter((x) => !x.tutorial)) expect(seen.has(b.id), b.id).toBe(true)
     expect(offered.every((b) => openTo(b, REPUTATION.max))).toBe(true)
   })
