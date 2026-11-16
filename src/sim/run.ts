@@ -21,6 +21,8 @@ export interface RunSample {
   /** A ski jumper only: full-size lift area, m², and pitch moment about the hips per unit dynamic pressure, m³. */
   clA?: number
   pitchA?: number
+  /** A racing car only (PR 9l): the downforce area on the front axle, m² (clA is the whole car's; yawDeg holds the drop in mm). */
+  clAFront?: number
   /** The model's drag as the balance felt it, N. */
   dragN: number
   /** Fan and turntable were at rest on their settings: a clean data point. */

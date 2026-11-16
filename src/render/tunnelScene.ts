@@ -29,6 +29,8 @@ import { sledLength } from '../sim/geom/bobsled'
 import { TRUCK_TUNNEL } from '../data/truck'
 import { doorsAt, truckLength } from '../sim/geom/truck'
 import { truckX } from '../sim/geom/truckPose'
+import { CAR_BODY } from '../data/car'
+import { carLength } from '../sim/geom/car'
 import type { FlowField, Tuft } from '../sim/flow/field'
 import type { Tap } from '../sim/flow/taps'
 import { createFlowViz, type Instruments } from './flowViz'
@@ -89,7 +91,10 @@ const WAKE_LENGTH = 4
 const WAKE_PUFFS = 90
 
 /** What stands in the test section. */
-export type TunnelModel = ({ kind: 'sphere' } | { kind: 'rider'; state: RiderState; scale: number; board?: boolean } | { kind: 'wheel'; scale: number }) & {
+/** What a racing car model sits over (PR 9l): the bare floor, the shop's ground board, or your tunnel's rolling road. */
+export type CarFloorLook = 'still' | 'board' | 'rolling'
+
+export type TunnelModel = ({ kind: 'sphere' } | { kind: 'rider'; state: RiderState; scale: number; board?: boolean; floor?: CarFloorLook } | { kind: 'wheel'; scale: number }) & {
   /** A tare run: the mount alone, with the model taken off. */
   tare?: boolean
 }
@@ -119,6 +124,17 @@ const TRUCK_CENTRE_Y = 1.9
 /** The camera stands this much further back from a truck than from a rider at the same scale. */
 const TRUCK_CAMERA = 6
 /**
+ * A racing car (PR 9l) hangs from a strut through its roof, as in a car
+ * tunnel, over the floor, a ground board or a rolling road. Full scale, m:
+ * the board's height, reach past each end, width and thickness; the belt's
+ * reach and width; the car's middle (where the camera looks) and how much
+ * further back the camera stands than for a rider.
+ */
+const CAR_BOARD = { height: 0.12, past: 0.8, width: 2.6, thick: 0.04 }
+const CAR_BELT = { past: 0.6, width: 1.5, stripes: 6 }
+const CAR_CENTRE_Y = 0.55
+const CAR_CAMERA = 2.6
+/**
  * A ski jumper flies on a sting from behind: the model pivots about its hips,
  * held this high above the floor (full scale, m), with the sting this long
  * back to its strut.
@@ -137,6 +153,8 @@ export interface TunnelView {
   setYaw(deg: number): void
   /** Pitch a ski jumper on its sting: the skis' angle to the air, degrees. */
   setPitch(deg: number): void
+  /** Lower a racing car on its strut: how far below its static ride height, full scale, m. */
+  setDrop(metres: number): void
   /** The air round the rider for the smoke and tufts (null: none yet). */
   setFlow(field: FlowField | null, tufts: readonly Tuft[]): void
   /** Which instruments are out, and whether the dark backdrop is up. */
@@ -601,6 +619,8 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   let modelKind: TunnelModel['kind'] = 'sphere'
   /** Whether the camera is framed for a truck. */
   let truckFramed = false
+  /** Whether the camera is framed for a racing car. */
+  let carFramed = false
   function clearRider() {
     if (!riderGroup) return
     // The instruments outlive the model: take them off before it is thrown away.
@@ -612,13 +632,19 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     pitchGroup = null
   }
   /** The posts with a rider on them, the reference wheel (null), or nothing for a tare run. */
-  function showRider(state: RiderState | null, scale: number, tare: boolean, board = false) {
+  function showRider(state: RiderState | null, scale: number, tare: boolean, board = false, floor: CarFloorLook = 'still') {
     clearRider()
+    dropGroup = null
+    belt = null
     clearDebris()
     strain = 0
     const skater = state?.design.sport === 'skating'
     const sled = state?.design.sport === 'bobsled' ? state.design : null
     const truck = state?.design.sport === 'truck' ? state.design : null
+    if (state?.design.sport === 'car') {
+      showCar(state, scale, tare, floor)
+      return
+    }
     if (state?.design.sport === 'skijump') {
       showJumper(state, scale, tare)
       return
@@ -682,6 +708,69 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     g.rotation.y = Math.PI
     mount.add(g)
     riderGroup = g
+  }
+  /** The racing car's body, lowered by the drop (null for anything else), and its rolling road's stripes. */
+  let dropGroup: THREE.Group | null = null
+  let dropLift = 0
+  let dropBy = 0
+  let belt: { stripes: THREE.Mesh[]; length: number; scale: number } | null = null
+  const beltMat = new THREE.MeshStandardMaterial({ color: 0x2b3640, roughness: 0.9 })
+  const stripeMat = new THREE.MeshBasicMaterial({ color: 0xb8c2cb })
+  /** A racing car hanging from its strut, over the floor, a ground board or a rolling road. */
+  function showCar(state: RiderState, scale: number, tare: boolean, floor: CarFloorLook) {
+    rearIsDisc = false
+    const car = state.design.sport === 'car' ? state.design : null
+    if (!car) return
+    const g = new THREE.Group()
+    const len = carLength(car)
+    const lift = floor === 'board' ? CAR_BOARD.height : 0
+    if (floor === 'board') {
+      const plate = new THREE.Mesh(new THREE.BoxGeometry(len + 2 * CAR_BOARD.past, CAR_BOARD.thick, CAR_BOARD.width), boardMat)
+      plate.position.set(0, lift - CAR_BOARD.thick / 2, 0)
+      g.add(plate)
+      for (const end of [-1, 1]) {
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, lift, CAR_BOARD.width * 0.9), postMat)
+        leg.position.set(end * (len / 2 + CAR_BOARD.past - 0.2), (lift - CAR_BOARD.thick) / 2, 0)
+        g.add(leg)
+      }
+    }
+    if (floor === 'rolling') {
+      // The belt, with pale stripes that run back with the air (frame()).
+      const length = len + 2 * CAR_BELT.past
+      const plate = new THREE.Mesh(new THREE.BoxGeometry(length, 0.01, CAR_BELT.width), beltMat)
+      plate.position.set(0, 0.005, 0)
+      g.add(plate)
+      const stripes: THREE.Mesh[] = []
+      for (let i = 0; i < CAR_BELT.stripes; i++) {
+        const stripe = new THREE.Mesh(new THREE.PlaneGeometry(0.25, CAR_BELT.width * 0.9), stripeMat)
+        stripe.rotation.x = -Math.PI / 2
+        stripe.position.set(-length / 2 + (i * length) / CAR_BELT.stripes, 0.011, 0)
+        g.add(stripe)
+        stripes.push(stripe)
+      }
+      belt = { stripes, length, scale }
+    }
+    // The strut: down from the roof of the section into the car's roof (the balance sits above).
+    const roof = CAR_BODY[car.class].roof
+    const strutLength = UNIVERSITY_TUNNEL.section.height / scale
+    const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, strutLength, 12), postMat)
+    strut.position.set(0, lift + roof * 0.85 + strutLength / 2, 0)
+    g.add(strut)
+    const body = new THREE.Group()
+    if (!tare) body.add(buildRider(state))
+    g.add(body)
+    dropGroup = body
+    dropLift = lift
+    applyDrop()
+    flowViz.group.position.set(0, lift, 0)
+    g.add(flowViz.group)
+    g.scale.setScalar(scale)
+    g.rotation.y = Math.PI
+    mount.add(g)
+    riderGroup = g
+  }
+  function applyDrop() {
+    if (dropGroup) dropGroup.position.y = dropLift - dropBy
   }
   /** The jumper's pivot: its hips, turned to the sting's pitch (null for anything else). */
   let pitchGroup: THREE.Group | null = null
@@ -802,14 +891,14 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   }
 
   /** Point the camera at the model, keeping it on the observation-window side. A truck is framed from further back. */
-  function aim(kind: TunnelModel['kind'], scale = 1, truck = false) {
+  function aim(kind: TunnelModel['kind'], scale = 1, truck = false, car = false) {
     const target =
       kind === 'rider'
-        ? new THREE.Vector3(0, floorY + (truck ? TRUCK_CENTRE_Y : RIDER_CENTRE_Y) * scale, 0)
+        ? new THREE.Vector3(0, floorY + (truck ? TRUCK_CENTRE_Y : car ? CAR_CENTRE_Y : RIDER_CENTRE_Y) * scale, 0)
         : kind === 'wheel'
           ? new THREE.Vector3(0, floorY + FRAME.wheelRadius * scale, 0)
           : new THREE.Vector3(0, 0, 0)
-    const offset = CAMERA_OFFSET[kind].clone().multiplyScalar(kind === 'sphere' ? 1 : scale * 2 * (truck ? TRUCK_CAMERA : 1))
+    const offset = CAMERA_OFFSET[kind].clone().multiplyScalar(kind === 'sphere' ? 1 : scale * 2 * (truck ? TRUCK_CAMERA : car ? CAR_CAMERA : 1))
     controls.target.copy(target)
     camera.position.copy(target).add(offset)
     controls.update()
@@ -879,6 +968,14 @@ export function createTunnelView(host: HTMLElement): TunnelView {
 
       fanAngle += (speed / top) * FAN_REVS_AT_TOP * Math.PI * 2 * step
       rotor.rotation.x = fanAngle
+      // The rolling road runs back under the car at the air's speed (drawn at the model's scale).
+      if (belt) {
+        const b = belt
+        for (const stripe of b.stripes) {
+          stripe.position.x -= (speed * step) / b.scale
+          if (stripe.position.x < -b.length / 2) stripe.position.x += b.length
+        }
+      }
 
       // Smoke fades in as the air starts to move, and drifts with it.
       const visible = Math.min(1, speed / 3)
@@ -932,15 +1029,17 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     setModel(model) {
       // Re-aim when the kind of model changes, or a truck comes on or off the posts (it's ten times a rider's length).
       const truckOn = model.kind === 'rider' && model.state.design.sport === 'truck'
-      const changed = model.kind !== modelKind || truckOn !== truckFramed
+      const carOn = model.kind === 'rider' && model.state.design.sport === 'car'
+      const changed = model.kind !== modelKind || truckOn !== truckFramed || carOn !== carFramed
       modelKind = model.kind
       truckFramed = truckOn
+      carFramed = carOn
       const tare = model.tare === true
       sphereRig.visible = model.kind === 'sphere'
       // With the sphere off there is nothing to bend the smoke round.
       for (const part of [sphere, smoke, smokeShadow, wakeSmoke, wakeShadow]) part.visible = !tare
       if (sepRing) sepRing.visible = !tare
-      if (model.kind === 'rider') showRider(model.state, model.scale, tare, model.board === true)
+      if (model.kind === 'rider') showRider(model.state, model.scale, tare, model.board === true, model.floor ?? 'still')
       else if (model.kind === 'wheel') showRider(null, model.scale, tare)
       else clearRider()
       wand.visible = instruments.wand && model.kind === 'rider' && !tare
@@ -956,14 +1055,16 @@ export function createTunnelView(host: HTMLElement): TunnelView {
               ? 'The wind tunnel test section with your ski jumper model on a pitching sting'
               : model.state.design.sport === 'bobsled'
                 ? `The wind tunnel test section with your bobsled model ${model.board ? 'on a ground board' : 'on the bare floor'}`
-                : truckOn
+                : carOn
+                  ? `The wind tunnel test section with your racing car model hanging from its strut, ${model.floor === 'rolling' ? 'over the rolling road' : model.floor === 'board' ? 'over a ground board' : 'over the bare floor'}`
+                  : truckOn
                   ? `The wind tunnel test section with your truck model on the yaw turntable, ${model.board ? 'on a ground board' : 'on the bare floor'}`
                 : 'The wind tunnel test section with your rider model on the yaw turntable'
             : model.kind === 'wheel'
               ? 'The wind tunnel test section with the reference wheel held still on the posts'
               : 'The wind tunnel test section with a sphere on a sting',
       )
-      if (changed) aim(model.kind, model.kind === 'sphere' ? 1 : model.scale, truckOn)
+      if (changed) aim(model.kind, model.kind === 'sphere' ? 1 : model.scale, truckOn, carOn)
     },
     setYaw(deg) {
       yawTable.rotation.y = (-deg * Math.PI) / 180
@@ -971,6 +1072,10 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     setPitch(deg) {
       pitchDeg = deg
       applyPitch()
+    },
+    setDrop(metres) {
+      dropBy = metres
+      applyDrop()
     },
     setSeparation(deg) {
       if (Number.isFinite(deg)) sepDeg = Math.min(170, Math.max(60, deg))

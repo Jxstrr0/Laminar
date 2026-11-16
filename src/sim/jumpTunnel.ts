@@ -232,4 +232,4 @@ export function jumperReadings(runs: readonly Pick<Run, 'samples'>[]): Pick<Jump
 }
 
 /** True if a run read a ski jumper. */
-export const isJumperRun = (run: Pick<Run, 'samples'>): boolean => run.samples.some((s) => s.clA !== undefined)
+export const isJumperRun = (run: Pick<Run, 'samples'>): boolean => run.samples.some((s) => s.pitchA !== undefined)

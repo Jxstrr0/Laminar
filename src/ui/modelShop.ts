@@ -95,6 +95,8 @@ export interface ShopContext {
   sled?: boolean
   /** The model is a truck: the small scales and the ground board (PR 9d). */
   truck?: boolean
+  /** The model is a racing car: the ground board is on offer, at a rider's scales (PR 9l). */
+  car?: boolean
 }
 
 interface Shop {
@@ -131,8 +133,8 @@ function buildShop(): Shop {
     grade.set(order.grade)
     trips.set(order.trips ? 'on' : 'off')
     taps.set(order.taps ? 'on' : 'off')
-    board.box.hidden = context.sled !== true && !truck
-    boardText.data = t(truck ? 'shop.boardNoteTruck' : 'shop.boardNote')
+    board.box.hidden = context.sled !== true && !truck && context.car !== true
+    boardText.data = t(truck ? 'shop.boardNoteTruck' : context.car ? 'shop.boardNoteCar' : 'shop.boardNote')
     board.set(order.board ? 'on' : 'off')
     const speed = matchedSpeed(1 / order.scale, context.event)
     const top = context.topSpeed
@@ -233,7 +235,7 @@ function buildShop(): Shop {
       // Start from the model on the mount, at a maker you still have.
       order = ctx.makers.includes(makerOf(current)) ? { ...current } : forMaker(current, 'shop')
       // Only a sled or a truck sits on a ground board.
-      if (!ctx.sled && !ctx.truck) delete order.board
+      if (!ctx.sled && !ctx.truck && !ctx.car) delete order.board
       // A truck's model comes at a truck's scale, and a rider's at a rider's.
       if (isTruckScale(order.scale) !== (ctx.truck === true)) order = forMaker({ ...order, scale: ctx.truck ? 8 : 2 }, makerOf(order))
       context = ctx
