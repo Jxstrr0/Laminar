@@ -14,6 +14,8 @@ export interface Delivered {
   /** Declared and real CdA on the day, m². */
   predicted: number
   actual: number
+  /** A defence job (PR 10x): it counts for the correlation score but never moves the public reputation. */
+  secret?: true
 }
 
 export type Read = 'good' | 'fair' | 'poor'
@@ -48,7 +50,7 @@ export function reputationOf(history: readonly Delivered[], broke: readonly numb
   }
   dipAfter(0)
   history.forEach((job, i) => {
-    rep = clampRep(rep + reputationChange(job))
+    if (!job.secret) rep = clampRep(rep + reputationChange(job))
     dipAfter(i + 1)
   })
   return Math.round(rep)

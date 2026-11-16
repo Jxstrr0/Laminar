@@ -110,10 +110,13 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 10u | Light aircraft jobs on the board for a well-known firm (rep 55+), bid a km/h at a time. The brief card names the airfield, its stall limit and the client's cruise. Deliver fills in the tunnel forecast (or the desk estimate) and warns about a stopped prop, a stall past the limit, no stall read or raw readings. The test-day debrief shows both planes' cruise on the day, the inspector's stall check, and for a stall a "Round the tips" or "Slide the pod back" jump to Shape | **Done** (v0.10.20.0) |
 | 10v | The light aircraft's test day in 3D (Kelbo's pick: speed runs and the stall check). First the inspector slows your plane high over Belyanka, seen side-on: the nose comes up as it slows, until the wing lets go at its stall speed and the nose drops and a wing dips, with its airspeed, nose angle and the certified 85 km/h on screen. Past the limit, a cut to it parked by the runway. Signed off, both planes fly a timed low pass over the measured kilometre from a camera plane ahead, a stopwatch on each between the two masts. Then your declared cruise next to the real one, and the debrief | **Done** (v0.10.21.0) |
 | 10w | A wing-span slider for the survey drone (Kelbo, 16 Nov), on the Camera · tips tab: 1.68–2.63 m, the maker's 2.1 m. Span is added or cut at the tapered tips (drawn in cobalt), so the root chord and the model's Reynolds number stay put. A longer wing makes less drag from lift but weighs more, and the spar stiffens as it grows: the best range is about 1.1–1.15× the maker's span (around +1.7 km on a sorted plane), the longest wing gives most of that back, and a short one costs about 9 km. Older saves load with the maker's wing | **Done** (v0.10.22.0) |
-| 10x–14 | See the plan | Next: defence clearance and secrecy (plan section 10), then PIV. |
+| 10x | Defence clearance and secrecy in the sim (Kelbo's calls): a firm with reputation 60 and a correlation score of 70 may apply; the ₽ 250,000 fee is paid and vetting takes 42 days, then defence briefs can reach its board. Going broke, or three poor reads in a row, loses it; it may apply again 180 days later. Defence jobs count toward the correlation score but never move the public reputation or reach the legacy card. Saves keep it; older careers have never applied. Closed until the sensor-pod jobs exist | **Done** (v0.10.23.0) |
+| 10y–14 | See the plan | Next: the patrol plane and its sensor pod in the sim (Kelbo: hours on station; the pod tested alone misses the pylon's interference; a buffeting pod blurs the sensor). |
 
 ## Versions
 
+- **0.10.23.0** (PR 10x): defence clearance and secrecy in the sim only.
+  Nothing new to see on the phone yet.
 - **0.10.22.0** (PR 10w): a wing-span slider for the survey drone.
 - **0.10.21.0** (PR 10v): the light aircraft's test day plays in 3D: the
   inspector's stall check, then the timed passes over the measured kilometre.

@@ -39,7 +39,9 @@ export interface Legacy {
 
 export function legacyOf(state: CareerState): Legacy {
   let best: Legacy['best'] = null
-  for (const job of state.history) {
+  // Defence jobs (PR 10x) stay secret: never on the card (their fees are in the firm's earnings, unnamed).
+  const shown = state.history.filter((j) => !j.secret)
+  for (const job of shown) {
     const b = briefTemplate(job.id)
     if (!b) continue
     const unit = b.event.jump ? 'm' : b.event.sled || b.event.car ? 's' : b.event.truck ? 'fuel' : b.event.record ? 'kmh' : 'pct'
@@ -53,8 +55,8 @@ export function legacyOf(state: CareerState): Legacy {
     fromDay: 0,
     toDay: state.ended?.day ?? state.day,
     ending: state.ended,
-    jobs: state.history.length,
-    kept: state.history.filter((j) => j.achieved >= j.promised - PROMISE.allowance).length,
+    jobs: shown.length,
+    kept: shown.filter((j) => j.achieved >= j.promised - PROMISE.allowance).length,
     reputation: firmReputation(state),
     correlation: correlationScore(state.history),
     best,
