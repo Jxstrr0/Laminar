@@ -816,7 +816,7 @@ export const STRINGS = {
   'deliver.forecastRecordSweep': 'The car wasn’t yawed in the tunnel, so the forecast can’t say whether it holds straight.',
   'deliver.noForecastRecord': 'No tunnel forecast for this design yet: run this car’s model in the tunnel, straight and then yawed. Filled in from the desk estimate for now: {speed} km/h, {delta} than their car, give or take {spread} km/h.',
   'deliver.noForecastRecordChutes': 'No tunnel forecast for this design yet, and the desk’s run pulled its chutes: run the model in the tunnel. Filled in with their car’s speed for now.',
-  'deliver.badRecord': 'Enter a speed between 200 and 1,300 km/h.',
+  'deliver.badRecord': 'Enter a speed between {min} and {max} km/h.',
   'rd.title': 'Speed week',
   'rd.close': 'Close speed week',
   'rd.intro': '{client}’s team ran your car at {event}.',

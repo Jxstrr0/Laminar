@@ -30,7 +30,7 @@ export const readError = (job: Delivered): number => (job.predicted - job.actual
 /** How much one delivery moves the firm's reputation. */
 export function reputationChange(job: Delivered): number {
   const shortfall = Math.max(0, job.promised - PROMISE.allowance - job.achieved)
-  const promise = shortfall === 0 ? REPUTATION.kept : REPUTATION.missed + REPUTATION.perPointShort * shortfall
+  const promise = shortfall === 0 ? REPUTATION.kept : REPUTATION.missed + Math.max(REPUTATION.shortCap, REPUTATION.perPointShort * shortfall)
   return promise + REPUTATION.read[readOf(readError(job))]
 }
 

@@ -216,6 +216,16 @@ describe('jet car jobs (PR 9z)', () => {
     expect(d.debrief.meanMach!).toBeGreaterThan(1)
   })
 
+  it('let a bid promise Proryv’s ask, and the Deliver sheet take a speed past the barrier', () => {
+    const b = briefTemplate('proryv-jet')!
+    expect(clampBid('proryv-jet', { price: b.fee.min, promise: b.target }).promise).toBe(b.target)
+    expect(clampBid('proryv-jet', { price: b.fee.min, promise: 999 }).promise).toBe(RECORD_JOBS.promiseMax)
+    // Other jobs keep their cap.
+    expect(clampBid('belan-sport', { price: 1, promise: 999 }).promise).toBe(30)
+    const best = stillAttempt(GOOD_JET, flat).mean! * 3.6
+    expect(RECORD_JOBS.declared.max).toBeGreaterThan(best + 100)
+  })
+
   it('never says a streamliner squeezed', () => {
     const d = deliverRecord(onJob('kalina-streamliner', 10), GOOD, stillAttempt(GOOD, flat).mean!)!
     expect(d.debrief.squeeze).toBeNull()

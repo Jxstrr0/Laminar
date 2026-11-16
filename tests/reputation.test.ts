@@ -25,6 +25,8 @@ describe('reputation', () => {
   })
 
   it('falls more the further a promise is missed', () => {
+    // However far short, the miss costs no more than the cap (a jet car's chutes can leave it 54 points short).
+    expect(reputationChange(job(60, 0, 0))).toBe(REPUTATION.missed + REPUTATION.shortCap + REPUTATION.read.good)
     const small = reputationChange(job(5, 4, 0))
     const big = reputationChange(job(5, 1, 0))
     expect(small).toBeLessThan(0 + REPUTATION.read.good)

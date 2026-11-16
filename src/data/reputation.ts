@@ -14,6 +14,8 @@ export const REPUTATION = {
   kept: 6,
   missed: -4,
   perPointShort: -2,
+  /** The points short cost no more than this between them (PR 9z: a jet car that pulls its chutes falls 54 points short; the fee penalty stops at half too). */
+  shortCap: -20,
   /** How close the declared CdA was (PROMISE.goodRead sets the bands). */
   read: { good: 4, fair: 1, poor: -4 },
   /** In a sealed bid, each reputation point counts as this many promised points. */

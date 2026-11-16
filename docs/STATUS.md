@@ -85,7 +85,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 9w | The jet car in the sim: a second record class pushed by thrust on a 14 km run-up, with a waist (area rule) that lets the air squeeze later and less until it crowds the engine, a peak drag that also shrinks with a finer nose, drag easing off past Mach 1, and a shock under the nose at Mach 1 that can lift it (Kelbo: "through the sound barrier", "a waist"). The team's stock jet tops out near Mach 0.9; a well-shaped one breaks the barrier. Saves from before keep a straight body | **Done** (v0.9.22.0) |
 | 9x | The jet car on Shape (`?try=jet` to preview): its own set of sliders with the waist added on the Body tab, a wider fin range, drawn at its own scale with the waist pinched in cobalt, intakes either side and the engine's nozzle. The desk's record speed shows its Mach number; amber warnings for a car short of the barrier (change the waist), a waist past the engine's room, and a nose that goes light at the barrier | **Done** (v0.9.23.0) |
 | 9y | The jet car in the tunnel: the forecast keeps Kelbo's "read low, learn the trap" (it never sees the squeeze), but now says when it ran past it: the Record forecast readout turns amber with its Mach number, the Runs tab says where the squeeze starts and that the car will run slower, and near Mach 1 warns of the shock under the nose. The Deliver sheet repeats the warning. Only when the hidden drag would be 3 % or more, so the streamliner's forecasts are unchanged | **Done** (v0.9.24.0) |
-| 9z | Jet car jobs: Tikhon Shatrov's Ognivo (a fighter engine in a fuel-tank body, reputation 75) and Raisa Belova's Proryv Project (reputation 85), whose target is a two-way mean just over the speed of sound. Speed week's debrief names the squeeze (the drag the tunnel can't see) with a jump to the waist, says when the shock under the nose lifted it, and says when a car went through the sound barrier both ways | **Done** (v0.9.25.0) |
+| 9z | Jet car jobs: Tikhon Shatrov's Ognivo (a fighter engine in a fuel-tank body, reputation 75) and Raisa Belova's Proryv Project (reputation 85), whose target is a two-way mean just over the speed of sound. Speed week's debrief names the squeeze (the drag the tunnel can't see) with a jump to the waist, says when the shock under the nose lifted it, and says when a car went through the sound barrier both ways. Fixes found on the way: the Deliver sheet took no speed over 1,300 km/h and wrote its starting speed with a thousands comma it couldn't read back; a record bid can now promise up to 180 km/h (other jobs keep 30 points); and a missed promise costs at most 20 reputation for the points short, so one jet car that pulls its chutes can't wipe out a career | **Done** (v0.9.25.0) |
 | 9z+–14 | See the plan | Next: the sonic boom in the jet car's replay. |
 
 ## Versions
@@ -93,7 +93,9 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 - **0.9.25.0** (PR 9z): jet car jobs. With a reputation of 75 or more,
   Ognivo turns up on the Jobs board; at 85, Proryv, which wants its car
   through the sound barrier. Miss short of it and speed week says the air
-  squeezed round the car, with a "Pinch the waist" button.
+  squeezed round the car, with a "Pinch the waist" button. Also fixed:
+  the Deliver sheet now takes speeds past 1,300 km/h, and a badly missed
+  promise costs at most 24 reputation instead of wiping a career out.
 - **0.9.24.0** (PR 9y): the jet car in the tunnel. Open
   `laminar.longlight.games/?try=jet`, go to Tunnel, run the fan: the
   record forecast turns amber with "Mach 1.05 · too fast". The tunnel

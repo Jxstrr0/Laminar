@@ -478,12 +478,18 @@ export function bidScore(id: string, bid: Bid, reputation = 0): number {
 const roundTo = (x: number, step: number) => (step < 1 ? Math.round(x / step) / Math.round(1 / step) : Math.round(x / step) * step)
 
 /** A bid brought inside the brief's fee range and the promise limits, on the steps. */
+/** The smallest and largest promise a bid for this brief can make, points (a record car's runs higher: PR 9z). */
+export function promiseLimits(id: string): { min: number; max: number } {
+  return { min: BID.promiseMin, max: isRecordBrief(id) ? RECORD_JOBS.promiseMax : BID.promiseMax }
+}
+
 export function clampBid(id: string, bid: Bid): Bid {
   const b = template(id)
   const price = Math.min(b.fee.max, Math.max(b.fee.min, roundTo(bid.price, BID.priceStep)))
   // A sled's promise moves in hundredths of a second, a car's in tenths, a record car's 2 km/h at a time.
   const step = isSledBrief(id) ? SLED_JOBS.promiseStep : isCarBrief(id) ? CAR_JOBS.promiseStep : isRecordBrief(id) ? RECORD_JOBS.promiseStep : BID.promiseStep
-  const promise = Math.min(BID.promiseMax, Math.max(BID.promiseMin, roundTo(bid.promise, step)))
+  const limits = promiseLimits(id)
+  const promise = Math.min(limits.max, Math.max(limits.min, roundTo(bid.promise, step)))
   return { price, promise }
 }
 

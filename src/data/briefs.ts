@@ -248,6 +248,10 @@ export const RECORD_JOBS = {
   pointKmh: 2,
   /** A record bid's promise moves in these points: 2 km/h. */
   promiseStep: 1,
+  /** The most a record bid can promise, points (180 km/h: a jet car's ask runs past other jobs' 30, PR 9z). */
+  promiseMax: 90,
+  /** The speeds the Deliver sheet takes for a record car, km/h (a jet car can run past 1,300: PR 9z). */
+  declared: { min: 200, max: 2000 },
 }
 
 /** The indoor 400 m ice oval (PR 8b): longer straights than the velodrome, skated anticlockwise too. */
