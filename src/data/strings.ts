@@ -1154,6 +1154,7 @@ export const STRINGS = {
   'ctl.cameraFairing': 'Camera fairing',
   'ctl.cameraAt': 'Camera slide',
   'ctl.winglets': 'Winglets',
+  'ctl.wingSpan': 'Wing span',
   'tab.camera': 'Camera · tips',
   'opt.flush': 'Flush',
   'opt.centred': 'Centred',

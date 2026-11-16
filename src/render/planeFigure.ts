@@ -15,6 +15,7 @@
 import * as THREE from 'three'
 import { PLANE_BODY as B, PLANE_CLASS, type PlaneDesign } from '../data/plane'
 import { fuselageStation, planeLength, planeX, podFullness, podPlace, wingFrom } from '../sim/geom/plane'
+import { wingSpan } from '../sim/plane'
 import type { Highlight } from './riderFigure'
 
 const COLOURS = {
@@ -52,6 +53,10 @@ const DRAW = {
   foilPoints: 14,
   wingThick: 0.12,
   tailThick: 0.09,
+  /** Span added past the maker's tips shorter than this, m, isn't drawn as its own piece. */
+  minExtension: 0.01,
+  /** The added tips' chord at their ends, a share of the wing's. */
+  tipTaper: 0.55,
   /** A winglet's chord at its root and tip, as a share of the wing's chord. */
   wingletRoot: 0.7,
   wingletTip: 0.4,
@@ -167,16 +172,25 @@ export function buildPlane(design: PlaneDesign, look: PlaneLook): THREE.Group {
   g.add(loft(sections(conesFrom, len), DRAW.squarePow, tint('boat-tail', M.part)))
 
   // The wing on top, each half from the fuselage's middle out to its tip, with a little dihedral.
+  // Span added past the maker's tips (PR 10w) is a shaped part, in cobalt.
   const wingLead = planeX(design, wingFrom(design))
-  const halfSpan = c.span / 2
+  const makerHalf = c.span / 2
+  const halfSpan = wingSpan(design) / 2
   const dihedral = (B.dihedral * Math.PI) / 180
   for (const side of [1, -1]) {
     const half = new THREE.Group()
     half.position.set(wingLead, B.halfHeight, 0)
     half.rotation.x = -side * dihedral
-    const w = surface(B.chord, halfSpan, DRAW.wingThick, M.foam)
+    const w = surface(B.chord, Math.min(halfSpan, makerHalf), DRAW.wingThick, M.foam)
     if (side < 0) w.scale.z = -1
     half.add(w)
+    if (halfSpan > makerHalf + DRAW.minExtension) {
+      // The added tips taper (the sim counts half the chord's area for each metre).
+      const ext = surface(B.chord, halfSpan - makerHalf, DRAW.wingThick, M.part, B.chord * DRAW.tipTaper)
+      ext.position.z = side * makerHalf
+      ext.scale.z = side
+      half.add(ext)
+    }
     // The winglet turned up at the tip, swept back a little and tapering.
     if (design.winglets >= 0.005) {
       const wl = surface(B.chord * DRAW.wingletRoot, design.winglets, DRAW.tailThick, tint('winglets', M.part), B.chord * DRAW.wingletTip)

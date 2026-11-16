@@ -16,8 +16,9 @@ import { SK_HEAD, type SkaterDesign } from '../../data/skater'
 import { JUMP_PARTS, JUMP_SKIS, type JumperDesign } from '../../data/jumper'
 import { SLED, type BobsledDesign } from '../../data/bobsled'
 import { isAircraft, isBobsled, isCar, isDrone, isJumper, isPlane, isRecord, isSkater, isTruck, type Design } from '../design'
-import { PLANE_BODY, PLANE_CLASS, type PlaneDesign } from '../../data/plane'
+import { PLANE_BODY, type PlaneDesign } from '../../data/plane'
 import { planeLength, planeX, podPlace } from '../geom/plane'
+import { wingSpan } from '../plane'
 import { AIRCRAFT_BODY, AIRCRAFT_CLASS, type AircraftDesign } from '../../data/aircraft'
 import { aircraftLength, aircraftX, podPlace as kitPodPlace } from '../geom/aircraft'
 import { DRONE_AERO, DRONE_BODY, type DroneDesign } from '../../data/drone'
@@ -380,7 +381,7 @@ export function planeEllipsoids(design: PlaneDesign): Ellipsoid[] {
   const pod = podPlace(design)
   return [
     { id: 'fuselage', bodyId: 'fuselage', centre: { x: planeX(design, len / 2), y, z: 0 }, axes: { a: len / 2, b: B.halfHeight, c: B.half }, pitchRad: 0, wrap: 'oval', part: 'rider' },
-    { id: 'wing', bodyId: 'fuselage', centre: { x: 0, y: y + B.halfHeight, z: 0 }, axes: { a: B.chord / 2, b: B.wingThick, c: PLANE_CLASS[design.class].span / 2 }, pitchRad: 0, wrap: 'oval', part: 'rider' },
+    { id: 'wing', bodyId: 'fuselage', centre: { x: 0, y: y + B.halfHeight, z: 0 }, axes: { a: B.chord / 2, b: B.wingThick, c: wingSpan(design) / 2 }, pitchRad: 0, wrap: 'oval', part: 'rider' },
     {
       id: 'pod',
       bodyId: 'pod',

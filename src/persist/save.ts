@@ -153,6 +153,8 @@ function soundPlane(x: Obj): PlaneDesign | null {
     camera: { drop: n(drop, R.drop), fairing: n(fairing, R.fairing), at: n(at, R.at) },
     winglets: n(x.winglets, R.winglets),
     tail: n(x.tail, R.tail),
+    // The span slider came in PR 10w: a plane saved before it has the maker's wing.
+    span: isNum(x.span) ? n(x.span, R.span) : 1,
   }
 }
 

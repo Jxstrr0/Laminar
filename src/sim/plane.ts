@@ -21,10 +21,33 @@ import { densityAt } from './field/atmosphere'
 
 const DEG = PI / 180
 
-/** The plane's all-up mass, kg: the maker's, plus the fairing, the longer nose and the winglets. */
+/** The wing's span, m: the maker's, stretched or cut by the span slider (PR 10w). */
+export function wingSpan(design: PlaneDesign): number {
+  return PLANE_CLASS[design.class].span * design.span
+}
+
+/** The wing's area, m²: the maker's, plus the tapered tips' share of the chord for each metre of span added (less for each cut). */
+export function wingArea(design: PlaneDesign): number {
+  const c = PLANE_CLASS[design.class]
+  return c.wingArea + (c.wingArea / c.span) * A.tipArea * (wingSpan(design) - c.span)
+}
+
+/** What the span slider adds to the plane's mass, kg (negative for a cut): the tips, and a stiffer spar for a longer wing. */
+function spanMassAdded(design: PlaneDesign): number {
+  const added = wingSpan(design) - PLANE_CLASS[design.class].span
+  return A.spanMass * added + A.spanBend * Math.max(0, added) * Math.max(0, added)
+}
+
+/** The plane's all-up mass, kg: the maker's, plus the fairing, the longer nose, the winglets and any span added (less any cut). */
 export function planeMass(design: PlaneDesign): number {
   const c = PLANE_CLASS[design.class]
-  return c.mass + A.fairingMass * design.camera.fairing + A.noseMass * (design.fuselage.nose - A.noseStock) + A.wingletMass * design.winglets
+  return (
+    c.mass +
+    A.fairingMass * design.camera.fairing +
+    A.noseMass * (design.fuselage.nose - A.noseStock) +
+    A.wingletMass * design.winglets +
+    spanMassAdded(design)
+  )
 }
 
 /** The camera pod as it hangs: the client's rule pulls it down to where the camera sees past the belly. */
@@ -45,7 +68,7 @@ export function staticMargin(design: PlaneDesign): number {
 /** The wing's span efficiency with these winglets. */
 export function spanEfficiency(design: PlaneDesign): number {
   const c = PLANE_CLASS[design.class]
-  return c.oswald * (1 + (A.wingletGain * design.winglets) / c.span)
+  return c.oswald * (1 + (A.wingletGain * design.winglets) / wingSpan(design))
 }
 
 /** Where the drag comes from at one speed, each a drag area, m², and the lift coefficient flown. */
@@ -64,9 +87,8 @@ export interface PlaneDrag {
 
 /** The drag at this speed and air, in level flight carrying its weight (or `load` times it, as in a banked turn). */
 export function planeDrag(design: PlaneDesign, speed: number, density: number, load = 1): PlaneDrag {
-  const c = PLANE_CLASS[design.class]
   const q = 0.5 * density * speed * speed
-  return dragAtLift(design, (planeMass(design) * ATMOSPHERE.gravity * load) / (q * c.wingArea))
+  return dragAtLift(design, (planeMass(design) * ATMOSPHERE.gravity * load) / (q * wingArea(design)))
 }
 
 /**
@@ -75,16 +97,17 @@ export function planeDrag(design: PlaneDesign, speed: number, density: number, l
  * profile drag (a small model's wing, at a low Reynolds number, drags more).
  */
 export function dragAtLift(design: PlaneDesign, cl: number, wingCd = 1): PlaneDrag {
-  const c = PLANE_CLASS[design.class]
-  const aspect = (c.span * c.span) / c.wingArea
-  const induced = ((cl * cl) / (PI * spanEfficiency(design) * aspect)) * c.wingArea
+  const area = wingArea(design)
+  const span = wingSpan(design)
+  const aspect = (span * span) / area
+  const induced = ((cl * cl) / (PI * spanEfficiency(design) * aspect)) * area
   const f = design.fuselage
   const body = A.bodyFront * (A.bodySkin + A.noseBluff / f.nose + A.bodyBase * (1 - f.taper)) + A.noseSkin * f.nose
   const pod = A.podFront * A.podCd * (1 - A.podFaired * design.camera.fairing) * (A.podFlush + (1 - A.podFlush) * cameraDrop(design))
   const tail = A.tailCdA * design.tail
   const winglets = A.wingletCdA * design.winglets
   const trim = A.trimCdA * Math.max(0, staticMargin(design))
-  const wing = A.wingCd0 * c.wingArea * wingCd
+  const wing = A.wingCd0 * area * wingCd
   return { wing, induced, body, pod, tail, winglets, trim, misc: A.miscCdA, cdA: wing + induced + body + pod + tail + winglets + trim + A.miscCdA, cl }
 }
 
