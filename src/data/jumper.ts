@@ -32,7 +32,7 @@ export const JUMPER_RANGE = {
 export const DEFAULT_JUMPER: JumperDesign = {
   sport: 'skijump',
   posture: { leanDeg: 12, vAngleDeg: 34 },
-  suit: { bagginess: 0.3 },
+  suit: { bagginess: 0.2 },
 }
 
 /** An old-school flight: upright over narrow skis in a tight suit. */
@@ -58,9 +58,16 @@ export const JUMP_BODY = {
   /** Where its lift acts, as a fraction of its length back from the head; a baggy suit fills at the chest and moves it forward. */
   cpFromHead: 0.47,
   cpPerBag: -0.09,
+  /**
+   * Lying flatter than `flatFrom` degrees of lean, the chest catches the air
+   * ahead of the hips: the lift moves forward this much (fraction of the
+   * length) per degree flatter, and the jumper is less steady.
+   */
+  flatFrom: 20,
+  cpPerFlat: 0.0065,
   /** Potential-lift factor per unit of aspect ratio, and the vortex-lift factor. */
   kpPerAspect: 1.57,
-  kv: 1.9,
+  kv: 1.6,
   /** Extra vortex lift from a baggy suit (× (1 + this × bagginess)). */
   kvPerBag: 0.35,
   /** Friction and leakage drag of the body plate, per m² of it. */
@@ -78,6 +85,8 @@ export const JUMP_SKIS = {
   /** Where their lift acts, as a fraction of their length back from the tips, and how far it moves aft per degree of angle of attack. */
   cpFromTip: 0.36,
   cpPerDeg: 0.004,
+  /** Spread wide, the tips do more of the lifting: the lift moves forward this much (fraction of the length) × sin of half the V. */
+  cpPerSpread: 0.6,
   /** Lift factors: a wider V gives more potential lift (× sin of half the V). */
   kpBase: 0.25,
   kpPerSpread: 1.2,

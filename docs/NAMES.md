@@ -30,7 +30,7 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Kosa spit | A coastal spit with a sea-wall road, site of a windy time trial. | PR 5c |
 | Stavren Velodrome | An indoor 250 m track in Stavren. | PR 5h |
 | Stavren Ice Oval | An indoor 400 m speed-skating oval in Stavren. | PR 8b |
-| Belogor | A ski-jump venue with a normal hill (HS 98). | PR 8g |
+| Belogor | A ski-jump venue with a normal hill (HS 98) and a large hill (HS 134). | PR 8g, 8h |
 
 ## Bodies
 
@@ -53,7 +53,8 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Ilya Kosov | Outdoor marathon skater (Lake Dolgo Ice Marathon). PR 8b. |
 | Kirill Zorin | Junior ski jumper (Belogor Junior Cup). PR 8g. |
 | Polina Vetrova | National-level ski jumper (Belogor Winter Cup). PR 8g. |
-| Stavren Regional Time Trial, Club 16 km Time Trial, Lake Dolgo Hill Time Trial, Kosa Coast Time Trial, National Time Trial Championship, Track Championships: Individual Pursuit, Stavren Open: 10 000 m, Lake Dolgo Ice Marathon, Belogor Junior Cup, Belogor Winter Cup | The events above. |
+| Yaroslav Kuzmenko | Experienced ski jumper on the large hill (Tarnovian Large Hill Championship). PR 8h. |
+| Stavren Regional Time Trial, Club 16 km Time Trial, Lake Dolgo Hill Time Trial, Kosa Coast Time Trial, National Time Trial Championship, Track Championships: Individual Pursuit, Stavren Open: 10 000 m, Lake Dolgo Ice Marathon, Belogor Junior Cup, Belogor Winter Cup, Tarnovian Large Hill Championship | The events above. |
 
 ## Rival firms (PR 7)
 

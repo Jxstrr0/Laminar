@@ -157,8 +157,10 @@ export function polarAero(points: readonly PolarPoint[]): JumperAero {
 }
 
 export interface JumpForecast {
-  /** The reference jump flown on the readings, m. */
+  /** The reference jump flown on the readings, m, and what would count (no more than the hill size). */
   distance: number
+  counted: number
+  pastHs: boolean
   /** The lowest margin the readings give over that flight, and whether it clears the floor. */
   minMargin: number
   stable: boolean
@@ -185,6 +187,8 @@ export function forecastJump(readings: readonly Pick<JumpReading, 'alphaDeg' | '
   const slack = JUMP_TUNNEL.coverSlack
   return {
     distance: flight.distance,
+    counted: Math.min(flight.distance, event.hill.hs),
+    pastHs: flight.distance > event.hill.hs,
     minMargin: flight.minMargin,
     stable: flight.minMargin >= PITCH.floor,
     need,

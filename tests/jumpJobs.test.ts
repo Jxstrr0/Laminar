@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { BRIEFS, JUMP_JOBS, PROMISE } from '../src/data/briefs'
 import { DEFAULT_JUMPER, type JumperDesign } from '../src/data/jumper'
 import { boardFor, briefTemplate, deliver, deliverJump, isJumpBrief, jumpEventOf, newCareer, openTo, type CareerState } from '../src/sim/career'
-import { referenceJump } from '../src/sim/jumper'
+import { jumpDay, referenceJump } from '../src/sim/jumper'
 import { reputationOf } from '../src/sim/reputation'
 
 const jumper = (leanDeg: number, vAngleDeg: number, bagginess: number): JumperDesign => ({ sport: 'skijump', posture: { leanDeg, vAngleDeg }, suit: { bagginess } })
@@ -29,10 +29,14 @@ describe('ski-jump briefs', () => {
       expect(ev.headwind).toBe(b.event.windSpeed)
       // The ask is reachable: some design gains it with the floor held.
       const base = referenceJump(b.setup as JumperDesign, ev).distance
-      const best = [DEFAULT_JUMPER, jumper(10, 38, 0.4), jumper(8, 40, 0.45)]
-        .map((d) => referenceJump(d, ev))
-        .filter((r) => r.stable)
-        .reduce((m, r) => Math.max(m, r.distance), 0)
+      // The longest stable jump over a coarse sweep of the design.
+      let best = 0
+      for (let lean = 6; lean <= 26; lean += 4)
+        for (let v = 20; v <= 45; v += 5)
+          for (let bag = 0; bag <= 0.6; bag += 0.2) {
+            const r = referenceJump(jumper(lean, v, bag), ev)
+            if (r.stable) best = Math.max(best, r.distance)
+          }
       expect(best - base).toBeGreaterThan(b.target)
     }
     expect(isJumpBrief('selivan-regional')).toBe(false)
@@ -99,5 +103,51 @@ describe('delivering a jumper', () => {
     expect(deliverJump(cycling, DEFAULT_JUMPER, 90)).toBeNull()
     // The CdA delivery still works as before.
     expect(deliver(cycling, briefTemplate('selivan-regional')!.setup, 0.25)).not.toBeNull()
+  })
+})
+
+describe('the cap at HS (Kelbo, 16 November 2026)', () => {
+  // The best stable jumper on the large hill flies past HS 134.
+  const long = jumper(6, 40, 0.2)
+  const id = 'kuzmenko-large'
+  const ev = () => jumpEventOf({ id })!
+
+  it('counts no metres past the hill size', () => {
+    const r = referenceJump(long, ev())
+    expect(r.stable).toBe(true)
+    expect(r.pastHs).toBe(true)
+    expect(r.distance).toBeGreaterThan(ev().hill.hs)
+    expect(r.counted).toBe(ev().hill.hs)
+    const short = referenceJump(DEFAULT_JUMPER, jumpEventOf({ id: 'zorin-junior' })!)
+    expect(short.pastHs).toBe(false)
+    expect(short.counted).toBe(short.distance)
+  })
+
+  it('bails out at HS on the day, safely and without blame', () => {
+    const event = { ...ev(), spread: { temperature: 0, wind: 0, speed: 0 } }
+    const day = jumpDay(long, event, 3)
+    expect(day.distance).toBe(event.hill.hs)
+    expect(day.trouble).toBe('long')
+  })
+
+  it('pays on the counted distance, and the forecast is judged against it', () => {
+    const base = referenceJump(briefTemplate(id)!.setup as JumperDesign, ev())
+    expect(base.stable).toBe(true)
+    expect(base.pastHs).toBe(false)
+    const d = deliverJump(onJob(id, 8), long, ev().hill.hs)!
+    expect(d.debrief.achieved).toBeCloseTo(ev().hill.hs - base.distance, 9)
+    expect(d.debrief.actual).toBe(ev().hill.hs)
+    expect(d.debrief.readError).toBe(0)
+    expect(d.debrief.met).toBe(true)
+    // Heading past HS is the jumper's call, not a fault the report blames on the suit.
+    if (d.debrief.day.trouble === 'long') expect(d.debrief.trouble).toBeNull()
+  })
+
+  it('opens the large hill only to a well-known lab', () => {
+    JUMP_JOBS.open = true
+    const b = BRIEFS.find((x) => x.id === id)!
+    expect(openTo(b, 30)).toBe(false)
+    expect(openTo(b, 60)).toBe(true)
+    JUMP_JOBS.open = false
   })
 })

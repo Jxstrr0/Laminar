@@ -181,3 +181,16 @@ describe('on the screen', () => {
     expect(soundLab(bad, DEFAULT_JUMPER)).toBeNull()
   })
 })
+
+describe('the forecast and the hill size', () => {
+  it('says what would count, and flags a jump past HS', () => {
+    const short = forecastJump(sweep(DEFAULT_JUMPER, ideal, 8, 42), PRACTICE_JUMP)!
+    expect(short.pastHs).toBe(false)
+    expect(short.counted).toBe(short.distance)
+    // The same jumper on a hill cut short at 70 m would fly past it.
+    const cut = { ...PRACTICE_JUMP, hill: { ...PRACTICE_JUMP.hill, hs: 70 } }
+    const long = forecastJump(sweep(DEFAULT_JUMPER, ideal, 8, 42), cut)!
+    expect(long.pastHs).toBe(true)
+    expect(long.counted).toBe(70)
+  })
+})

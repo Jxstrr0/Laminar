@@ -22,7 +22,7 @@
 import { BID, BRIEFS, CAREER, JUMP_JOBS, PROMISE, type BriefTemplate } from '../data/briefs'
 import { HILLS } from '../data/hills'
 import type { JumperDesign } from '../data/jumper'
-import { jumpDay, referenceJump, type JumpEvent, type JumpResult } from './jumper'
+import { jumpDay, referenceJump, type JumpEvent, type JumpResult, type ReferenceJump } from './jumper'
 import { REFERENCE_RIDER } from '../data/field'
 import { designComfort, designEvent, designShape, sportOf, sportRider, type Design } from './design'
 import type { FixTarget } from './failure'
@@ -647,9 +647,9 @@ export interface JumpDebrief {
   /** (declared − real) ÷ real. */
   readError: number
   read: Read
-  /** The reference jump, yours and the old setup's: distance, m, lowest margin and whether it held the floor. */
-  reference: { distance: number; minMargin: number; stable: boolean }
-  baselineReference: { distance: number; minMargin: number; stable: boolean }
+  /** The reference jump, yours and the old setup's: distance and what counts, m, lowest margin and whether it held the floor. */
+  reference: ReferenceJump
+  baselineReference: ReferenceJump
   /** The competition jump on the day, yours and the old setup's in the same air. */
   day: JumpResult
   baselineDay: JumpResult
@@ -658,7 +658,7 @@ export interface JumpDebrief {
    * does but dips under the stability floor, so the gain doesn't count ('pitch').
    */
   cause: 'design' | 'pitch' | null
-  /** Trouble on the day: metres lost to a wobble or a pitch-forward, and the control to change. */
+  /** Trouble on the day: metres lost to a wobble or a pitch-forward, and the control to change (a bail-out past HS is no fault). */
   trouble: { kind: 'pitch' | 'wobble'; lost: number; fix: FixTarget } | null
   reputation: { before: number; after: number }
 }
@@ -684,7 +684,8 @@ export function deliverJump(state: CareerState, design: JumperDesign, predicted:
   if (!event || setup.sport !== 'skijump') return null
   const reference = referenceJump(design, event)
   const baselineReference = referenceJump(setup, event)
-  const gain = reference.distance - baselineReference.distance
+  // Metres past the hill size don't count (Kelbo, 16 November 2026).
+  const gain = reference.counted - baselineReference.counted
   // Under the floor the gain doesn't count; a loss always does.
   const achieved = reference.stable ? gain : Math.min(0, gain)
   const { shortfall, penalty } = penaltyFor(job.brief.fee, job.promise, achieved)
@@ -692,9 +693,10 @@ export function deliverJump(state: CareerState, design: JumperDesign, predicted:
   const seed = daySeed(job.brief)
   const day = jumpDay(design, event, seed)
   const baselineDay = jumpDay(setup, event, seed)
-  const readError = (predicted - reference.distance) / reference.distance
+  // The declared length against the reference jump as it lands (at HS, if it bails out there).
+  const readError = (predicted - reference.counted) / reference.counted
   // A wobble or a pitch-forward is the suit's doing first: a tighter cut steadies the jumper.
-  const trouble = day.trouble ? { kind: day.trouble, lost: day.lostToPitch, fix: 'bagginess' as FixTarget } : null
+  const trouble = day.trouble === 'pitch' || day.trouble === 'wobble' ? { kind: day.trouble, lost: day.lostToPitch, fix: 'bagginess' as FixTarget } : null
   const debrief: JumpDebrief = {
     promised: job.promise,
     achieved,
@@ -702,7 +704,7 @@ export function deliverJump(state: CareerState, design: JumperDesign, predicted:
     shortfall,
     penalty,
     predicted,
-    actual: reference.distance,
+    actual: reference.counted,
     readError,
     read: readOf(readError),
     reference,
@@ -713,6 +715,6 @@ export function deliverJump(state: CareerState, design: JumperDesign, predicted:
     trouble,
     reputation: { before: firmReputation(state), after: 0 },
   }
-  const closed = closeJob(state, job, penalty, { achieved, predicted, actual: reference.distance })
+  const closed = closeJob(state, job, penalty, { achieved, predicted, actual: reference.counted })
   return { ...closed, job, event, debrief: { ...debrief, reputation: { ...debrief.reputation, after: firmReputation(closed.state) } } }
 }
