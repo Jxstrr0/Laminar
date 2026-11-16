@@ -60,9 +60,27 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 8o | Bobsled jobs in the career (sim): briefs, the promise in hundredths, race day | **Done** (v0.8.14.0) |
 | 8p | Bobsled jobs on screen: the board, the bid in hundredths, declaring a run time, the race-day debrief | **Done** (v0.8.15.0) |
 | 8q | The bobsled run replay | **Done** (v0.8.16.0) |
-| 9–14 | See the plan | Next: PR 9 |
+| 9a | Trucks in the sim: the rig and its parts, the Tarnovian Road Code, drag over yaw, the fuel run on the Stavren–Mostograd highway | **Done** (v0.9.0.0) |
+| 9b–14 | See the plan | Next: PR 9b, the truck on Shape |
 
 ## Versions
+
+- **0.9.0.0** (PR 9a): trucks in the sim. PR 9 (Road & motorsport) begins,
+  trucks first (Kelbo, 16 November 2026). Nothing changes on screen yet.
+  - A fleet's tractor and box trailer, with eight things to shape: the cab's
+    corner radius, a roof fairing, side extenders, the gap and a gap filler,
+    side skirts, and a boat-tail's length and panel angle.
+  - The fictional Tarnovian Road Code caps the boat-tail at 1.2 m and keeps
+    the skirts at least 0.25 m off the road.
+  - The drag: the rig's outside as one long box the drag model reads (its
+    skin, and the wake behind the doors or the boat-tail), plus the cab
+    corners, the roof step, the gap, the underside and the boat-tail's
+    panels. The gap and the underside get much worse in a crosswind, which
+    is where extenders and skirts pay off.
+  - The fuel run: a loaded rig at 90 km/h along the Stavren–Mostograd
+    highway, the wind meeting each leg at its own angle, slowing on climbs
+    the engine can't hold. The promise will be the fuel saved, averaged over
+    every wind direction.
 
 - **0.8.16.0** (PR 8q): the bobsled run replay. PR 8 (the rest of Sport)
   is done.

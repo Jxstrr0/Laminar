@@ -134,6 +134,10 @@ quirks you have to learn.
 | Ski-jump hills | **A normal hill and a large hill**; the large hill comes later, at higher reputation. *(16 Nov 2026, for PR 8)* |
 | Jumps past the hill size | **Capped at HS**: tuned so only a near-perfect stable design reaches HS, and metres past it don't count (the jumper bails out to a safe landing). *(16 Nov 2026, for PR 8)* |
 | Speed skating venues | **Indoor 400 m oval, plus one outdoor marathon** on natural lake ice. *(16 Nov 2026, for PR 8)* |
+| PR 9 order | **Trucks first**: regional truck fleets (fuel saving %), then touring and open-wheel cars, the land-speed record last. *(16 Nov 2026, for PR 9)* |
+| Truck rules | **A road-code cap**: a fictional Tarnovian Road Code caps the boat-tail's length and the skirts' ground gap; Shape shows the box and flags a break, like the cycling and bobsled rules. *(16 Nov 2026, for PR 9)* |
+| Truck floor | **A ground board now**: trucks sit on the model shop's ground board, like the bobsled. A rolling road (an own-tunnel upgrade) comes with race cars and fixes all of the floor's error. *(16 Nov 2026, for PR 9)* |
+| Race-car promise | **Lap-time gain**: tenths off a reference lap. Downforce and drag both feed the lap, and a balance window must hold. *(16 Nov 2026, for PR 9)* |
 | Firm name | **Asked at career start**, with a ready-made name to keep; renamable. *(16 Nov 2026, for PR 7)* |
 
 ---
