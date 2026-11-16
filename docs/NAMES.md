@@ -33,6 +33,8 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Stavren–Mostograd highway | A truck route across the plain and over a low ridge; the first fleet's run. | PR 9a |
 | Kosa coast road | A flat, windy truck route along the sea from Stavren to the Kosa port. | PR 9e |
 | Kosa port | The port at the Kosa spit; home of Prichal Logistics, whose yard on the spit is shingle (gravel). | PR 9e, 9g |
+| Dolgo Ring | A fast circuit by Lake Dolgo: a long main straight, sweepers and one hairpin. | PR 9i |
+| Stavren Park | A tight park circuit in Stavren: short straights and slow corners. | PR 9i |
 | Belogor | A ski-jump venue with a normal hill (HS 98) and a large hill (HS 134), and a sliding track on the same mountain. | PR 8g, 8h, 8l |
 
 ## Bodies
@@ -41,6 +43,7 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | --- | --- | --- |
 | Tarnovian Cycling Federation (TCF) | Sets the cycling rulebook and legality box. Fictional; never the real UCI. | Kept by Kelbo (15 November 2026) |
 | Tarnovian Sliding Federation | Sets the bobsled rule box (sled length, cowling height). Fictional; never the real IBSF. | PR 8l |
+| Tarnovian Motor Racing Federation | Sets the car rulebook (minimum ride height at the skid plank, maximum rear-wing chord). Fictional; never a real motorsport body. | PR 9i |
 | Tarnovian Road Code | The road rules that cap a truck's boat-tail length and its skirts' ground gap. Fictional. | PR 9a |
 
 ## Clients and events (PR 5c)

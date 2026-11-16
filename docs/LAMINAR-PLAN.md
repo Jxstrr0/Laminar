@@ -138,6 +138,10 @@ quirks you have to learn.
 | Truck rules | **A road-code cap**: a fictional Tarnovian Road Code caps the boat-tail's length and the skirts' ground gap; Shape shows the box and flags a break, like the cycling and bobsled rules. *(16 Nov 2026, for PR 9)* |
 | Truck floor | **A ground board now**: trucks sit on the model shop's ground board, like the bobsled. A rolling road (an own-tunnel upgrade) comes with race cars and fixes all of the floor's error. *(16 Nov 2026, for PR 9)* |
 | Gravel skirts | **Costs the promise**: some fleets' yards are gravel; skirts below a set height crack there, the trucks run without them, and the saving is judged that way. The brief says which yards are gravel, and the debrief names the skirts with a fix. *(16 Nov 2026, for PR 9)* |
+| Car classes | **Both together**: touring cars and open-wheel single-seaters arrive at the same time, on one car model with a class the client sets. *(16 Nov 2026, for PR 9)* |
+| Rolling road | **An own-tunnel upgrade**, about ₽900,000 and 30 days, like the wheel-drive rig. Before it, car models sit on the ground board, which fixes part of the floor error, so downforce reads somewhat off. *(16 Nov 2026, for PR 9)* |
+| Balance window | **The driver loses time**: outside the window the car understeers or oversteers, the driver lifts in the corners and the lap gets slower, judged that way; the debrief names it with a fix. *(16 Nov 2026, for PR 9)* |
+| Car rules | **A rule box**: a fictional Tarnovian Motor Racing Federation rulebook sets a minimum ride height (the skid plank) and a maximum rear-wing chord; Shape flags a break and the scrutineers make the team trim it. *(16 Nov 2026, for PR 9)* |
 | Race-car promise | **Lap-time gain**: tenths off a reference lap. Downforce and drag both feed the lap, and a balance window must hold. *(16 Nov 2026, for PR 9)* |
 | Firm name | **Asked at career start**, with a ready-made name to keep; renamable. *(16 Nov 2026, for PR 7)* |
 

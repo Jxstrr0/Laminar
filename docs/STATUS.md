@@ -68,10 +68,27 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 9f | Truck jobs on the board: the brief card (route, trailer), bids in per cent of fuel, the job's route and fleet truck in Shape and the tunnel, a Deliver sheet that declares a fuel figure from the tunnel's forecast, and the fuel-trial debrief with a "change this" for any part the road code cut back | **Done** (v0.9.5.0) |
 | 9g | The gravel yard: Prichal's yard on the Kosa spit is gravel, skirts lower than 0.45 m above the road crack there and the trucks run without them, judged that way; the brief card, Shape and the Deliver sheet warn, the debrief names it with a "Raise the skirts" jump | **Done** (v0.9.6.0) |
 | 9h | The fuel-run replay: the trial day down the client's route, your truck and the fleet's old one side by side, with the distance, the wind's angle, your diesel and the saving so far, a commentator for the yard, the windiest stretch, a slow climb and the arrival, then the fuel trial | **Done** (v0.9.7.0) |
-| 9i–14 | See the plan | Next: race cars (lap-time gain, the balance window, a rolling road, ground effect, porpoising), then the land-speed record. |
+| 9i | Racing cars in the sim: touring cars and single-seaters, front and rear wings, the floor in ground effect (stall and porpoising), ride heights that squash at speed, the balance window, the cooling inlet, the Tarnovian Motor Racing Federation's rulebook, and a flying lap on two circuits | **Done** (v0.9.8.0) |
+| 9j–14 | See the plan | Next: PR 9j, the car on Shape. Then the car in the tunnel (rolling road), car jobs, the lap replay, then the land-speed record. |
 
 ## Versions
 
+- **0.9.8.0** (PR 9i): racing cars in the sim (nothing on screen yet).
+  Kelbo chose touring cars and open-wheel single-seaters together, a
+  promise in lap time, a balance window that costs the driver time, a
+  rolling road as an own-tunnel upgrade (coming with the car in the
+  tunnel), and a rulebook. Each car has front and rear ride heights, a
+  front wing (a splitter flap on a touring car), a rear wing's angle and
+  chord, a diffuser, a floor-edge seal and a cooling inlet. The floor pulls
+  harder the lower it sits, until it stalls and the car porpoises (the
+  driver lifts there, capping the speed). Downforce squashes the springs,
+  so the car sits lower the faster it goes. A balance outside the window
+  costs grip in the corners, too small an inlet costs power, and the
+  fictional Tarnovian Motor Racing Federation's rulebook sets a minimum
+  ride height and a maximum rear-wing chord. The lap: corners at the speed
+  the tyres hold, straights flat out, braking as late as grip allows, on
+  the fast Dolgo Ring or the tight Stavren Park. A good setup is worth
+  about a second on a touring car and nearly two on a single-seater.
 - **0.9.7.0** (PR 9h): the fuel-run replay. Sending a truck to the fleet
   now plays the trial day first: both trucks down the client's route,
   yours in the right lane and theirs see-through on the left, fast-forwarded
