@@ -32,6 +32,7 @@ import { playCarReplay } from './carReplay'
 import { playRecordReplay } from './recordReplay'
 import { playDroneReplay } from './droneReplay'
 import { playAircraftReplay } from './aircraftReplay'
+import { playPodReplay } from './podReplay'
 import { playPlaneReplay } from './planeReplay'
 import type { BobsledDesign } from '../data/bobsled'
 import { GRAVEL_YARD, type TruckDesign } from '../data/truck'
@@ -58,6 +59,7 @@ import {
   nameFirm,
   retire,
   applyForClearance,
+  daySeed,
   clearanceBlock,
   firmClearance,
   hireStaff,
@@ -1594,8 +1596,8 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       if (!d) return
       deliverSheet?.close()
       careerStore.set(d.state)
-      // Straight to the debrief; the range-day replay comes in a later PR.
-      showPodDelivery(d)
+      // The sensor's-eye view of range day first (PR 10af), then the debrief.
+      replayPod(d, () => showPodDelivery(d))
     })
     deliverSheet.body.replaceChildren(
       el('p', 'shop-intro', t('deliver.introPod', { client: b.client, range: rangeName })),
@@ -1611,6 +1613,21 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
   }
 
   let podSheet: Sheet | null = null
+
+  /** Range day from the pod's sensor: the picture steady or blurred, both clocks on station; then `after`. */
+  function replayPod(d: PodDelivery, after: () => void) {
+    const b = briefTemplate(d.job.brief.id)!
+    playPodReplay({
+      client: b.client,
+      event: b.event.name,
+      seed: daySeed(d.job.brief),
+      flight: d.debrief.flight,
+      baselineFlight: d.debrief.baselineFlight,
+      predicted: d.debrief.predicted,
+      actual: d.debrief.actual,
+      onDone: after,
+    })
+  }
 
   /** Range day for a sensor pod: the promise judged on the usual day, both pods' patrols, and the sensor's picture with its fix. Secret: the public name never moves. */
   function showPodDelivery(d: PodDelivery) {

@@ -14,6 +14,14 @@
   --warn: #e08a00;
   --warn-text: #9a5b00;
   --sep: #d2462b;
+  /* The pod sensor's grey picture (PR 10af): the same in both themes. */
+  --sensor-bg: #3b4147;
+  --sensor-field-a: #51585e;
+  --sensor-field-b: #646b70;
+  --sensor-field-c: #474d53;
+  --sensor-road: #8d9499;
+  --sensor-hot: #e9ecee;
+  --sensor-ink: #e9ecee;
   --shadow: 0 -6px 24px rgba(19, 32, 43, 0.1);
   --font-ui: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-num: 'Spline Sans Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
@@ -37,6 +45,13 @@
     --warn: #f2a93b;
     --warn-text: #f2a93b;
     --sep: #f07158;
+    --sensor-bg: #3b4147;
+    --sensor-field-a: #51585e;
+    --sensor-field-b: #646b70;
+    --sensor-field-c: #474d53;
+    --sensor-road: #8d9499;
+    --sensor-hot: #e9ecee;
+    --sensor-ink: #e9ecee;
     --shadow: 0 -6px 24px rgba(0, 0, 0, 0.45);
   }
 }
@@ -909,6 +924,21 @@ html, body {
 .replay-key.is-mine { background: var(--accent); }
 .replay-key.is-old { margin-left: 8px; border: 2px solid var(--muted); }
 .replay-end { margin-top: 10px; }
+.sensor-stage { overflow: hidden; background: var(--sensor-bg); }
+.sensor-reticle { position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px; border: 2px solid var(--sensor-ink); border-radius: 50%; opacity: 0.8; pointer-events: none; }
+.sensor-reticle::before, .sensor-reticle::after { content: ''; position: absolute; background: var(--sensor-ink); }
+.sensor-reticle::before { left: 50%; top: -14px; bottom: -14px; width: 2px; margin-left: -1px; }
+.sensor-reticle::after { top: 50%; left: -14px; right: -14px; height: 2px; margin-top: -1px; }
+.sensor-tag { position: absolute; left: 12px; bottom: 8px; margin: 0; font-family: var(--font-num); font-size: 0.75rem; color: var(--sensor-ink); letter-spacing: 0.06em; }
+.pod-reads { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.replay-read-value.warn { color: var(--warn-text); }
+.pod-bars { display: grid; gap: 6px; margin: 2px 0 6px; }
+.pod-bar { display: grid; grid-template-columns: 5.5em minmax(0, 1fr); align-items: center; gap: 8px; font-size: 0.8rem; color: var(--muted); }
+.pod-bar-track { position: relative; height: 10px; border-radius: 5px; background: var(--panel-2); overflow: hidden; }
+.pod-bar-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 5px; }
+.pod-bar-fill.is-mine { background: var(--accent); }
+.pod-bar-fill.is-old { background: var(--muted); }
+.pod-bar-fill.is-stopped { background: var(--sep); }
 .replay-predicted { margin: 0 0 10px; font-family: var(--font-num); font-size: 0.9rem; }
 
 /* --- The guided first job (PR 5i): Irina's card on Jobs, and a glow on what to tap next. */

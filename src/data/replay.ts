@@ -417,3 +417,29 @@ export const AIRFIELD_SCENE = {
   cameraLow: 3,
   ghostOpacity: 0.45,
 }
+
+/**
+ * The sensor pod's range day (PR 10af; Kelbo chose the sensor's-eye view,
+ * 16 November 2026): the pod's picture of the Stepnoy steppe, steady or
+ * shaking and blurred, beside both pods' clocks on station. Every number
+ * comes from range day's two patrols; these only set how it is shown.
+ */
+export const POD_REPLAY = {
+  /** The longer patrol's clock fills in this many seconds; the shorter one's stops in proportion. */
+  clockSeconds: 12,
+  /** The ministry calls a blurred picture this many seconds in, and the run stops there. */
+  rejectAt: 5,
+  /** The buffet is read out this many seconds in. */
+  buffetAt: 2.5,
+  /** The picture shakes this many pixels per unit of buffet index. */
+  shakePerBuffet: 5,
+  /** Past the limit it blurs: this many pixels, plus this many per unit of buffet over the limit. */
+  blurBase: 2.5,
+  blurPerBuffet: 6,
+  /** The steppe slides under the sensor at this many pixels a second. */
+  drift: 18,
+  /** The fields, roads and farmsteads on the picture, laid out from the job's seed. */
+  fields: 26,
+  roads: 4,
+  farms: 9,
+}
