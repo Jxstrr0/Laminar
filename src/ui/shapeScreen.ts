@@ -18,7 +18,6 @@ import { BOBSLED_RANGE, DEFAULT_BOBSLED, SLED, type BobsledDesign } from '../dat
 import { TRACKS } from '../data/tracks'
 import { DEFAULT_TRUCK, FAIRING_MISS, FLEET_TRUCK, GRAVEL_YARD, TRUCK_RANGE, type TruckDesign } from '../data/truck'
 import { CAR_CLASS, CAR_DESK, CAR_RANGE, STOCK_CAR, type CarClass, type CarDesign } from '../data/car'
-import { CIRCUITS } from '../data/circuits'
 import { carAero, checkCarRules, circuitDensity, heatLoss, porpoiseSpeed, type CarRuleBreak } from '../sim/car'
 import { checkTruckRules, roofMismatch, skirtGap, truckParts, type TruckRuleBreak } from '../sim/truck'
 import { truckLength } from '../sim/geom/truck'
@@ -34,7 +33,7 @@ import { crewEffects } from '../sim/staff'
 import { designPose, designReadouts, designShape, isBobsled, isCar, isCyclist, isJumper, isSkater, isTruck, type Design } from '../sim/design'
 import { availableHandles, dragHandle, handleDef, handlePoint } from '../sim/geom/handles'
 import { ruleVolumes } from '../sim/geom/ruleBox'
-import { briefTemplate, currentEvent, currentJumpEvent, currentTruckEvent, currentTruckRun } from '../sim/career'
+import { briefTemplate, currentCarRun, currentEvent, currentJumpEvent, currentTruckEvent, currentTruckRun } from '../sim/career'
 import { cracksOnGravel, roadLegal } from '../sim/truckJob'
 import type { Highlight, ShapeView } from '../render/shapeScene'
 import type { GlossaryId } from '../data/glossary'
@@ -813,9 +812,8 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
    */
   function showCar(c: CarDesign) {
     const career = careerStore.get()
-    // Car jobs come in a later PR: until then the Dolgo Ring, against the class's stock setup.
-    const circuit = CIRCUITS['dolgo-ring']
-    const old = STOCK_CAR[c.class]
+    // The team's circuit and their car as it runs today: the job's, or a middling car at the Dolgo Ring between jobs.
+    const { circuit, old } = currentCarRun(career, c.class)
     const desk = carDeskEstimate(c, old, circuit, career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(c), crewEffects(career.crew).deskLevel)
     const signed = (v: number, digits: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${fixed(Math.abs(v), digits)}`
     carDeskR.value.textContent = `${signed(desk.value, 2)} s`

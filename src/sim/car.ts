@@ -224,7 +224,7 @@ export interface AeroTrim {
   down: number
   drag: number
 }
-const NO_TRIM: AeroTrim = { down: 1, drag: 1 }
+export const NO_TRIM: AeroTrim = { down: 1, drag: 1 }
 
 /**
  * One flying lap. The lap is cut into steps; each corner step gets the
@@ -238,6 +238,32 @@ export function lapTime(design: CarDesign, circuit: Circuit, temperature = circu
   const lap = lapOn(design, circuit, aeroLookup(table), porpoiseSpeed(design, density), temperature)
   const fastest = carAero(design, lap.top, density)
   return { ...lap, lowest: Math.min(fastest.front, fastest.rear) }
+}
+
+/** Troubles to take away from a lap, to see what each one cost (PR 9m). */
+export interface LapRelief {
+  /** The driver needn't lift where the floor stalls. */
+  porpoise?: boolean
+  /** The balance sits inside the drivers' window everywhere. */
+  balance?: boolean
+  /** The engine gets all the air it needs. */
+  heat?: boolean
+}
+
+/** A lap on the car's true aero with the chosen troubles taken away. */
+export function lapWith(design: CarDesign, circuit: Circuit, relief: LapRelief, temperature = circuit.temperature): Omit<Lap, 'lowest'> {
+  const density = circuitDensity(circuit, temperature)
+  const look = aeroLookup(carAeroTable(design, density))
+  const w = CAR_CLASS[design.class].window
+  const at: LapAero = relief.balance
+    ? (v) => {
+        const a = look(v)
+        return { ...a, balance: clamp(a.balance, w.low, w.high) }
+      }
+    : look
+  // Only the lap's power reads the inlet, so a wider one here cools the engine without touching the aero.
+  const cooled = relief.heat ? { ...design, inlet: Math.max(design.inlet, CAR_CLASS[design.class].coolNeed) } : design
+  return lapOn(cooled, circuit, at, relief.porpoise ? null : porpoiseSpeed(design, density), temperature)
 }
 
 /** The car's aero at a speed, as a lap reads it: downforce and drag areas, m², and the balance. */

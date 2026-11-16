@@ -14,6 +14,8 @@ import type { CourseSegment } from './field'
 import type { Track } from './tracks'
 import type { Route } from './routes'
 import { FLEET_TRUCK, type TruckDesign } from './truck'
+import { STOCK_CAR, type CarClass, type CarDesign } from './car'
+import type { Circuit } from './circuits'
 
 /** How a career starts, and how the brief board works. */
 export const CAREER = {
@@ -112,6 +114,12 @@ export interface EventTemplate {
    * yard is gravel (PR 9g): skirts lower than GRAVEL_YARD allows crack there.
    */
   truck?: { route: Route['id']; gravel?: boolean }
+  /**
+   * A race weekend (PR 9m): the circuit the team races at. `temperature`
+   * and `altitude` copy the circuit's usual day for the brief card, and
+   * `spread.temperature` says how far race day's air strays from it.
+   */
+  car?: { circuit: Circuit['id'] }
 }
 
 export interface BriefTemplate {
@@ -199,6 +207,22 @@ export const TRUCK_JOBS = {
   open: true,
 }
 
+/**
+ * Racing-car jobs (PR 9m; Kelbo, 16 November 2026): the promise is lap time
+ * gained on the circuit's usual day over the team's current car, after the
+ * scrutineers have passed it. One point is a tenth of a second, and bids
+ * move a tenth at a time. The declared number is the new car's lap time.
+ *
+ * Closed until PR 9n puts them on the board and the debrief.
+ */
+export const CAR_JOBS = {
+  open: false,
+  /** Seconds in one promised point. */
+  pointSeconds: 0.1,
+  /** A car bid's promise moves in these points: a tenth of a second. */
+  promiseStep: 1,
+}
+
 /** The indoor 400 m ice oval (PR 8b): longer straights than the velodrome, skated anticlockwise too. */
 export const OVAL = {
   lap: 400,
@@ -265,6 +289,8 @@ const sled = (crew: Crew, nose: number, tail: number, cowl: number, tuck: number
   sled: { nose, tail, cowl },
   tuck,
 })
+
+const car = (cls: CarClass, change: Partial<Omit<CarDesign, 'sport' | 'class'>> = {}): CarDesign => ({ ...STOCK_CAR[cls], ...change })
 
 const jumper = (leanDeg: number, vAngleDeg: number, bagginess: number): JumperDesign => ({
   sport: 'skijump',
@@ -689,5 +715,74 @@ export const BRIEFS: readonly BriefTemplate[] = [
     days: 24,
     minRep: 35,
     target: 16,
+  },
+  {
+    id: 'belan-sport',
+    client: 'Taras Belan',
+    who: 'Runs Belan Sport, a one-car touring team on a shoestring',
+    goal: 'Stavren Park is all slow corners. I can’t buy a bigger engine. Find me some grip that doesn’t cost a fortune.',
+    event: {
+      name: 'Tarnovian Touring Car Championship: Stavren Park',
+      place: 'Stavren Park',
+      temperature: 16,
+      altitude: 240,
+      windSpeed: 0,
+      riderSpeed: 30,
+      spread: { temperature: 5, wind: 0, power: 0 },
+      course: [],
+      car: { circuit: 'stavren-park' },
+    },
+    rider: { power: 0, mass: 0 },
+    setup: car('touring'),
+    fee: { min: 60000, max: 90000 },
+    days: 20,
+    minRep: 15,
+    target: 3,
+  },
+  {
+    id: 'granit-touring',
+    client: 'Zoya Rudneva',
+    who: 'Team principal at Granit Motorsport, two touring cars',
+    goal: 'Our drivers say the car pushes wide in every fast corner, and we lose a second a lap at the Dolgo Ring. Fix the front.',
+    event: {
+      name: 'Tarnovian Touring Car Championship: Dolgo Ring',
+      place: 'The Dolgo Ring',
+      temperature: 18,
+      altitude: 180,
+      windSpeed: 0,
+      riderSpeed: 45,
+      spread: { temperature: 6, wind: 0, power: 0 },
+      course: [],
+      car: { circuit: 'dolgo-ring' },
+    },
+    rider: { power: 0, mass: 0 },
+    setup: car('touring', { frontWing: 4, rearWing: { angle: 12, chord: 0.26 } }),
+    fee: { min: 120000, max: 160000 },
+    days: 24,
+    minRep: 30,
+    target: 8,
+  },
+  {
+    id: 'iskra-open',
+    client: 'Gleb Mirny',
+    who: 'Race engineer at Iskra Racing in the Tarnovian Open-wheel Series',
+    goal: 'We dropped the car to find downforce and now it bounces on every straight. Get it low without the bouncing.',
+    event: {
+      name: 'Tarnovian Open-wheel Series: Stavren Park',
+      place: 'Stavren Park',
+      temperature: 16,
+      altitude: 240,
+      windSpeed: 0,
+      riderSpeed: 35,
+      spread: { temperature: 5, wind: 0, power: 0 },
+      course: [],
+      car: { circuit: 'stavren-park' },
+    },
+    rider: { power: 0, mass: 0 },
+    setup: car('open', { ride: { front: 0.028, rear: 0.045 }, floorEdge: 0.6 }),
+    fee: { min: 200000, max: 260000 },
+    days: 28,
+    minRep: 50,
+    target: 14,
   },
 ]

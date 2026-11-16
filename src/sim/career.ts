@@ -19,7 +19,7 @@
  * - Delivering runs the event, pays the fee, jumps the calendar to the
  *   event and refreshes the board.
  */
-import { BID, BRIEFS, CAREER, JUMP_JOBS, PROMISE, SLED_JOBS, TRUCK_JOBS, type BriefTemplate } from '../data/briefs'
+import { BID, BRIEFS, CAREER, CAR_JOBS, JUMP_JOBS, PROMISE, SLED_JOBS, TRUCK_JOBS, type BriefTemplate } from '../data/briefs'
 import type { BobsledDesign } from '../data/bobsled'
 import { dayDrag, referenceConditions, referenceRun, runWith, type BobRun, type RunConditions } from './bobsled'
 import { cdAForTime, PRACTICE_RUN, raceConditions, sledEventFrom, type SledEvent } from './sledJob'
@@ -27,6 +27,10 @@ import { FLEET_TRUCK, GRAVEL_YARD, type TruckDesign } from '../data/truck'
 import type { Route } from '../data/routes'
 import { checkTruckRules, fuelRun, skirtGap, fuelSaving, windAveragedFuel, type FuelRun, type RouteDay, type TruckRuleBreak } from './truck'
 import { asRun, dragScaleForFuel, PRACTICE_ROUTE, roadLegal, straightOnCdA, trialDay, truckEventFrom, type TruckEvent } from './truckJob'
+import { CAR_DESK, STOCK_CAR, type CarClass, type CarDesign } from '../data/car'
+import type { Circuit } from '../data/circuits'
+import { carAero, checkCarRules, circuitDensity, lapTime, scrutineered, type CarRuleBreak, type Lap } from './car'
+import { carEventFrom, downScaleForLap, lapTroubles, PRACTICE_CIRCUIT, raceDayAir, worstBalance, type CarEvent } from './carJob'
 import { HILLS, PRACTICE_JUMP } from '../data/hills'
 import type { JumperDesign } from '../data/jumper'
 import { jumpDay, referenceJump, type JumpEvent, type JumpResult, type ReferenceJump } from './jumper'
@@ -144,6 +148,7 @@ export function openTo(b: BriefTemplate, reputation: number): boolean {
   if (b.event.jump && !JUMP_JOBS.open) return false
   if (b.event.sled && !SLED_JOBS.open) return false
   if (b.event.truck && !TRUCK_JOBS.open) return false
+  if (b.event.car && !CAR_JOBS.open) return false
   return (b.minRep ?? 0) <= reputation
 }
 
@@ -184,6 +189,16 @@ export function isTruckBrief(id: string): boolean {
 /** A truck brief's fuel trial, ready for the fuel run. Null for any other brief. */
 export function truckEventOf(brief: Pick<Brief, 'id'>): TruckEvent | null {
   return truckEventFrom(template(brief.id))
+}
+
+/** True for a racing-car brief: its promise is tenths of a second off the lap, its declaration a lap time. */
+export function isCarBrief(id: string): boolean {
+  return briefTemplate(id)?.event.car !== undefined
+}
+
+/** A car brief's race weekend, ready for the lap. Null for any other brief. */
+export function carEventOf(brief: Pick<Brief, 'id'>): CarEvent | null {
+  return carEventFrom(template(brief.id))
 }
 
 /**
@@ -359,6 +374,21 @@ export function currentTruckRun(state: CareerState, trailerTop: number): { route
   return { route: currentTruckEvent(state).route, old: setup && setup.sport === 'truck' ? setup : { ...FLEET_TRUCK, trailerTop } }
 }
 
+/** The race weekend a car is built for: the job's, or the Dolgo Ring on its usual day between jobs. */
+export function currentCarEvent(state: CareerState): CarEvent {
+  return (state.job && carEventOf(state.job.brief)) ?? PRACTICE_CIRCUIT
+}
+
+/**
+ * The circuit a car is forecast on and the team's car it's measured
+ * against: the job's, or a middling car of this class at the Dolgo Ring
+ * between jobs.
+ */
+export function currentCarRun(state: CareerState, cls: CarClass): { circuit: Circuit; old: CarDesign } {
+  const setup = state.job ? template(state.job.brief.id).setup : null
+  return { circuit: currentCarEvent(state).circuit, old: setup && setup.sport === 'car' && setup.class === cls ? setup : STOCK_CAR[cls] }
+}
+
 /** Take a brief off the board at its suggested fee and the client's ask. Only one job at a time. */
 export function acceptBrief(state: CareerState, id: string): CareerState {
   const brief = state.board.find((b) => b.id === id)
@@ -421,8 +451,8 @@ const roundTo = (x: number, step: number) => (step < 1 ? Math.round(x / step) / 
 export function clampBid(id: string, bid: Bid): Bid {
   const b = template(id)
   const price = Math.min(b.fee.max, Math.max(b.fee.min, roundTo(bid.price, BID.priceStep)))
-  // A sled's promise moves in hundredths of a second.
-  const step = isSledBrief(id) ? SLED_JOBS.promiseStep : BID.promiseStep
+  // A sled's promise moves in hundredths of a second, a car's in tenths.
+  const step = isSledBrief(id) ? SLED_JOBS.promiseStep : isCarBrief(id) ? CAR_JOBS.promiseStep : BID.promiseStep
   const promise = Math.min(BID.promiseMax, Math.max(BID.promiseMin, roundTo(bid.promise, step)))
   return { price, promise }
 }
@@ -965,5 +995,124 @@ export function deliverTruck(state: CareerState, design: TruckDesign, predicted:
     reputation: { before: firmReputation(state), after: 0 },
   }
   const closed = closeJob(state, job, penalty, { achieved, predicted: predictedCdA, actual: actualCdA })
+  return { ...closed, job, event, debrief: { ...debrief, reputation: { ...debrief.reputation, after: firmReputation(closed.state) } } }
+}
+
+/** What race weekend showed for a car (plan section 9: lap time gained on the circuit's usual day). */
+export interface CarDebrief {
+  /** Promised and achieved gain on the usual day's lap, points (tenths of a second). */
+  promised: number
+  achieved: number
+  met: boolean
+  /** Points short after the allowance (0 if met). */
+  shortfall: number
+  /** ₽ taken off the fee. */
+  penalty: number
+  /** Declared and real lap on the usual day, s. */
+  predicted: number
+  actual: number
+  /** The old car's lap on the usual day, s. */
+  baseline: number
+  /** The downforce areas the declared and real laps come from at 200 km/h, m²: the read is judged on these. */
+  predictedClA: number
+  actualClA: number
+  /** (declared − real) ÷ real, on downforce. */
+  readError: number
+  read: Read
+  /** Race day: its air, and both cars round the circuit in it. */
+  day: { temperature: number }
+  lap: Lap
+  baselineLap: Lap
+  /** What the scrutineers raised or trimmed before the car raced (none if it was legal). */
+  cutBack: CarRuleBreak[]
+  /**
+   * Why a miss happened: not enough gain ('design'), or enough until the
+   * scrutineers trimmed it ('rules'), or enough but for the floor
+   * porpoising ('porpoise'), the balance ('balance') or the engine running
+   * hot ('heat').
+   */
+  cause: 'design' | 'rules' | 'porpoise' | 'balance' | 'heat' | null
+  /** What each trouble cost on the usual day's lap, s, with the slider to change; null where it cost nothing. */
+  porpoise: { speed: number; lost: number; fix: FixTarget } | null
+  balance: { balance: number; low: number; high: number; lost: number; fix: FixTarget } | null
+  heat: { lost: number; fix: FixTarget } | null
+  reputation: { before: number; after: number }
+}
+
+export interface CarDelivery extends Closed {
+  job: Job
+  event: CarEvent
+  debrief: CarDebrief
+}
+
+/**
+ * Deliver a car with a declared lap time. The scrutineers raise or trim
+ * anything past the rulebook's limits, and the promise is judged on that
+ * car's lap on the circuit's usual day, the same for any race day. Race
+ * day, your car and the old one in the same air, is the show. The firm's
+ * record keeps the read on downforce. Null if there's no job, it isn't a
+ * car job, or the car isn't the team's class.
+ */
+export function deliverCar(state: CareerState, design: CarDesign, predicted: number): CarDelivery | null {
+  const job = state.job
+  if (!job) return null
+  const event = carEventOf(job.brief)
+  const setup = template(job.brief.id).setup
+  if (!event || setup.sport !== 'car' || design.class !== setup.class) return null
+  const circuit = event.circuit
+  const cutBack = checkCarRules(design)
+  const raced = scrutineered(design)
+  const reference = lapTime(raced, circuit)
+  const baseline = lapTime(setup, circuit).time
+  const gainOf = (time: number) => (baseline - time) / CAR_JOBS.pointSeconds
+  const achieved = gainOf(reference.time)
+  const { shortfall, penalty } = penaltyFor(job.brief.fee, job.promise, achieved)
+  const met = shortfall === 0
+  const day = raceDayAir(event, daySeed(job.brief))
+  // The read is on the car that raced, at the speed the sheet reads it.
+  const actualClA = carAero(raced, CAR_DESK.readSpeed, circuitDensity(circuit)).clA
+  const predictedClA = downScaleForLap(predicted, raced, circuit) * actualClA
+  const readError = (predictedClA - actualClA) / actualClA
+  const troubles = lapTroubles(raced, circuit, reference)
+  const keeps = (time: number) => penaltyFor(job.brief.fee, job.promise, gainOf(time)).shortfall === 0
+  // Would the car as drawn have kept it? Then the scrutineers cost it. Failing that, without one trouble?
+  const cause = met
+    ? null
+    : cutBack.length > 0 && keeps(lapTime(design, circuit).time)
+      ? 'rules'
+      : troubles.porpoise > 0 && keeps(reference.time - troubles.porpoise)
+        ? 'porpoise'
+        : troubles.balance > 0 && keeps(reference.time - troubles.balance)
+          ? 'balance'
+          : troubles.heat > 0 && keeps(reference.time - troubles.heat)
+            ? 'heat'
+            : 'design'
+  const bal = worstBalance(raced, reference)
+  const debrief: CarDebrief = {
+    promised: job.promise,
+    achieved,
+    met,
+    shortfall,
+    penalty,
+    predicted,
+    actual: reference.time,
+    baseline,
+    predictedClA,
+    actualClA,
+    readError,
+    read: readOf(readError),
+    day,
+    lap: lapTime(raced, circuit, day.temperature),
+    baselineLap: lapTime(setup, circuit, day.temperature),
+    cutBack,
+    cause,
+    // Ride height first: a car that sits higher keeps its floor working.
+    porpoise: reference.porpoise !== null && troubles.porpoise > 0 ? { speed: reference.porpoise, lost: troubles.porpoise, fix: 'rideHeight' } : null,
+    // The front wing moves the balance most directly, either way.
+    balance: bal && troubles.balance > 0 ? { ...bal, lost: troubles.balance, fix: 'frontWing' } : null,
+    heat: troubles.heat > 0 ? { lost: troubles.heat, fix: 'inlet' } : null,
+    reputation: { before: firmReputation(state), after: 0 },
+  }
+  const closed = closeJob(state, job, penalty, { achieved, predicted: predictedClA, actual: actualClA })
   return { ...closed, job, event, debrief: { ...debrief, reputation: { ...debrief.reputation, after: firmReputation(closed.state) } } }
 }

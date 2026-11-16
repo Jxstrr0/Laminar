@@ -71,6 +71,13 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Volok Freight | A forty-truck fleet across the plain. PR 9e. |
 | Stepan Brovar | Runs Prichal Logistics (Prichal Logistics fuel trial). PR 9e. |
 | Prichal Logistics | A coast fleet out of the Kosa port with tall box trailers. PR 9e. |
+| Taras Belan | Runs Belan Sport (Tarnovian Touring Car Championship: Stavren Park). PR 9m. |
+| Belan Sport | A one-car touring team on a shoestring. PR 9m. |
+| Zoya Rudneva | Team principal at Granit Motorsport (Tarnovian Touring Car Championship: Dolgo Ring). PR 9m. |
+| Granit Motorsport | A two-car touring team. PR 9m. |
+| Gleb Mirny | Race engineer at Iskra Racing (Tarnovian Open-wheel Series: Stavren Park). PR 9m. |
+| Iskra Racing | A single-seater team in the Tarnovian Open-wheel Series. PR 9m. |
+| Tarnovian Touring Car Championship, Tarnovian Open-wheel Series | Fictional race series; their rounds are at the Dolgo Ring and Stavren Park. PR 9m. |
 | Stavren Regional Time Trial, Club 16 km Time Trial, Lake Dolgo Hill Time Trial, Kosa Coast Time Trial, National Time Trial Championship, Track Championships: Individual Pursuit, Stavren Open: 10 000 m, Lake Dolgo Ice Marathon, Belogor Junior Cup, Belogor Winter Cup, Tarnovian Large Hill Championship, Belogor Club Cup: two-man, Tarnovian Two-man Championship, Tarnovian Four-man Championship, Kovyl Haulage fuel trial, Volok Freight fuel trial, Prichal Logistics fuel trial | The events above. |
 
 ## Rival firms (PR 7)

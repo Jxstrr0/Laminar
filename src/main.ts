@@ -21,7 +21,7 @@ import { DEFAULT_TRUCK } from './data/truck'
 import { STOCK_CAR } from './data/car'
 import type { Design } from './data/sport'
 import { careerStore, freshSeed } from './ui/careerStore'
-import { charge, currentEvent, currentJumpEvent, currentSledEvent, currentTruckRun, newCareer, orderBlock, orderModel, repairModel } from './sim/career'
+import { charge, currentCarRun, currentEvent, currentJumpEvent, currentSledEvent, currentTruckRun, newCareer, orderBlock, orderModel, repairModel } from './sim/career'
 import { makersOwned, tunnelSetup } from './sim/facility'
 import { crewEffects } from './sim/staff'
 import { afterDesign, afterOrder, afterRun, afterSwap, currentStep } from './sim/guide'
@@ -150,6 +150,8 @@ async function boot(): Promise<void> {
     sledRace: () => currentSledEvent(careerStore.get()),
     // A truck is forecast on the job's route against the fleet's own truck, or the Mostograd run between jobs.
     truckRun: (trailerTop) => currentTruckRun(careerStore.get(), trailerTop),
+    // A car is forecast at the job's circuit against the team's own car, or the Dolgo Ring between jobs.
+    carRun: (cls) => currentCarRun(careerStore.get(), cls),
     shop: () => {
       const career = careerStore.get()
       return {
