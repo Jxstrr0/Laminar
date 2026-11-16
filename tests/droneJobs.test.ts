@@ -50,9 +50,9 @@ describe('quad briefs (PR 10f)', () => {
     expect(isDroneBrief('selivan-regional')).toBe(false)
   })
 
-  it('stay off the board until it can show them, and bid a tenth of a second at a time', () => {
-    expect(DRONE_JOBS.open).toBe(false)
-    for (const b of droneBriefs) expect(openTo(b, 100)).toBe(false)
+  it('are on the board (PR 10g), and bid a tenth of a second at a time', () => {
+    expect(DRONE_JOBS.open).toBe(true)
+    for (const b of droneBriefs) expect(openTo(b, 100)).toBe(true)
     expect(clampBid('shmel-quad', { price: 40000, promise: 12.4 }).promise).toBe(12)
   })
 

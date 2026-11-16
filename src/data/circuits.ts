@@ -45,6 +45,6 @@ export function segmentLength(seg: CircuitSegment): number {
 }
 
 /** The lap's length, m. */
-export function lapLength(circuit: Circuit): number {
+export function lapLength(circuit: Pick<Circuit, 'segments'>): number {
   return circuit.segments.reduce((sum, seg) => sum + segmentLength(seg), 0)
 }
