@@ -165,11 +165,11 @@ export const JUMP_JOBS = {
  * One promised point is a tenth of a second, so a missed tenth costs what a
  * missed point of cut does; bids move in hundredths.
  *
- * Closed until the board and the debrief can show them (PR 8p). The switch
- * stays so a test can open them.
+ * Open since PR 8p put them on the board. The switch stays so a test (or a
+ * later change) can close them.
  */
 export const SLED_JOBS = {
-  open: false,
+  open: true,
   /** Seconds in one promised point. */
   pointSeconds: 0.1,
   /** A sled bid's promise moves in these points: a hundredth of a second. */

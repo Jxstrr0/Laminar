@@ -42,6 +42,12 @@ export function wrapLines(text: string, max: number, measure: (s: string) => num
   return kept
 }
 
+/** The best-job line, in the cut's own units: % of drag, metres further, or seconds quicker. */
+export function bestText(best: NonNullable<Legacy['best']>): string {
+  const key = best.unit === 'm' ? 'end.bestJump' : best.unit === 's' ? 'end.bestSled' : 'end.best'
+  return t(key, { client: best.client, event: best.event, cut: fixed(best.cut, best.unit === 's' ? 2 : 1) })
+}
+
 /** A file name for the picture: "laminar-legacy-strela-aero-works.png". */
 export function pictureFileName(firm: string): string {
   const slug = firm
@@ -148,7 +154,7 @@ export function drawLegacy(L: Legacy): HTMLCanvasElement {
   g.font = `700 60px ${UI}`
   const nameLines = wrapLines(L.firm, inner, fits, 2)
   g.font = `600 30px ${UI}`
-  const bestLines = L.best ? wrapLines(t(L.best.unit === 'm' ? 'end.bestJump' : 'end.best', { client: L.best.client, event: L.best.event, cut: fixed(L.best.cut, 1) }), inner, fits, 3) : []
+  const bestLines = L.best ? wrapLines(bestText(L.best), inner, fits, 3) : []
   const rows = stats(L)
   const rowH = 88
   const statsTop = top + 76 + nameLines.length * 72 + 48 + 24

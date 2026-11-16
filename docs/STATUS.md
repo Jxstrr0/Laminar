@@ -58,11 +58,23 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 8m | The bobsled on the Shape screen | **Done** (v0.8.12.0) |
 | 8n | The bobsled in the tunnel | **Done** (v0.8.13.0) |
 | 8o | Bobsled jobs in the career (sim): briefs, the promise in hundredths, race day | **Done** (v0.8.14.0) |
-| 8p | Bobsled jobs on screen: the board, the bid in hundredths, declaring a run time, the race-day debrief | Next |
-| 8q | The bobsled run replay | Not started |
+| 8p | Bobsled jobs on screen: the board, the bid in hundredths, declaring a run time, the race-day debrief | **Done** (v0.8.15.0) |
+| 8q | The bobsled run replay | Next |
 | 9–14 | See the plan | Not started |
 
 ## Versions
+
+- **0.8.15.0** (PR 8p): bobsled jobs on screen.
+  - The three sled briefs are on the board now (the four-man from
+    reputation 45). Their cards show the track, the ice and the crew.
+  - The bid's promise is in seconds off the run, stepping a hundredth.
+  - Deliver declares the reference run time. It starts from the tunnel's
+    run forecast for this sled, or the desk estimate until the tunnel has
+    read one, and warns when the reading was taken on the bare floor.
+  - Race day: both sleds' reference runs and the runs on the day, the
+    conditions, the read, money and reputation, and a "Lower the cowling"
+    jump when the driver steered late. The run replay comes in PR 8q.
+  - The legacy card counts a sled's best job in seconds.
 
 - **0.8.14.0** (PR 8o): bobsled jobs in the career (sim only).
   - Three clients: Danil Kostrov's club two-man on an old sled, Vera
