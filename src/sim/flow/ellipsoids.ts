@@ -15,7 +15,8 @@ import { BOB_SKELETON, FRAME, HELMET_MOUNT, SKATER_SKELETON, SKELETON } from '..
 import { SK_HEAD, type SkaterDesign } from '../../data/skater'
 import { JUMP_PARTS, JUMP_SKIS, type JumperDesign } from '../../data/jumper'
 import { SLED, type BobsledDesign } from '../../data/bobsled'
-import { isBobsled, isJumper, isSkater, isTruck, type Design } from '../design'
+import { isBobsled, isCar, isJumper, isSkater, isTruck, type Design } from '../design'
+import { CAR_BODY, type CarDesign } from '../../data/car'
 import { RIG, type TruckDesign } from '../../data/truck'
 import { truckLength } from '../geom/truck'
 import { sledLength } from '../geom/bobsled'
@@ -284,11 +285,33 @@ export function truckEllipsoids(design: TruckDesign): Ellipsoid[] {
   ]
 }
 
+/**
+ * The car (PR 9j): its shell as one low oval round the drag model's body,
+ * centred where the figure is (the car's middle at x = 0).
+ */
+export function carEllipsoids(design: CarDesign): Ellipsoid[] {
+  const b = CAR_BODY[design.class]
+  const floor = (design.ride.front + design.ride.rear) / 2
+  const half = (b.roof - floor) / 2
+  return [
+    {
+      id: 'car',
+      bodyId: 'car',
+      centre: { x: 0, y: floor + half, z: 0 },
+      axes: { a: b.length / 2, b: half, c: design.class === 'touring' ? b.width / 2 : b.width / 4.2 },
+      pitchRad: 0,
+      wrap: 'oval',
+      part: 'rider',
+    },
+  ]
+}
+
 /** The ellipsoids for any design in its pose. */
 export function designEllipsoids(design: Design, pose: Pose): Ellipsoid[] {
   if (isJumper(design)) return jumperEllipsoids(design, pose)
   if (isBobsled(design)) return bobsledEllipsoids(design, pose)
   if (isTruck(design)) return truckEllipsoids(design)
+  if (isCar(design)) return carEllipsoids(design)
   return isSkater(design) ? skaterEllipsoids(design, pose) : riderEllipsoids(design, pose)
 }
 

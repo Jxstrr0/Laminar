@@ -82,10 +82,14 @@ const VIEWS = {
   sled4: { target: { x: -0.2, y: 0.4 }, camera: { x: 2.4, y: 2.1, z: 3.2 } },
   // A truck from ahead and to the side, drawn small (TRUCK_SCALE) so the whole rig fits the stage.
   truck: { target: { x: -0.1, y: 0.3 }, camera: { x: 2.3, y: 1.3, z: 2.9 } },
+  // A racing car low and from ahead, so the front wing, the floor's rake and the rear wing all show.
+  car: { target: { x: 0, y: 0.22 }, camera: { x: 2.1, y: 0.95, z: 2.4 } },
 }
 
 /** A truck is drawn at this fraction of full size on the Shape stage (about a 2.5 m long model). */
 const TRUCK_SCALE = 0.14
+/** A racing car is drawn at this fraction of full size (about a 2 to 2.5 m long model). */
+const CAR_SCALE = 0.45
 
 export function createShapeView(host: HTMLElement): ShapeView {
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
@@ -142,6 +146,7 @@ export function createShapeView(host: HTMLElement): ShapeView {
   function build(state: ShapeViewState): THREE.Group {
     const g = buildRider(state)
     if (state.design.sport === 'truck') g.scale.setScalar(TRUCK_SCALE)
+    if (state.design.sport === 'car') g.scale.setScalar(CAR_SCALE)
     const isBroken = (h: Highlight) => state.broken.includes(h)
 
     // The rule box: where the hands and the helmet must stay.
@@ -268,7 +273,7 @@ export function createShapeView(host: HTMLElement): ShapeView {
       scene.add(figure)
       handles = state.handles
       const d = state.design
-      const want: keyof typeof VIEWS = d.sport === 'skijump' ? 'jumper' : d.sport === 'bobsled' ? (d.crew === 4 ? 'sled4' : 'sled') : d.sport === 'truck' ? 'truck' : 'usual'
+      const want: keyof typeof VIEWS = d.sport === 'skijump' ? 'jumper' : d.sport === 'bobsled' ? (d.crew === 4 ? 'sled4' : 'sled') : d.sport === 'truck' ? 'truck' : d.sport === 'car' ? 'car' : 'usual'
       if (want !== framed) {
         framed = want
         const v = VIEWS[want]

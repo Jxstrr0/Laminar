@@ -17,6 +17,9 @@ import { DEFAULT_JUMPER, FLIGHT_ATTITUDE, JUMPER_RANGE, PITCH, type JumperDesign
 import { BOBSLED_RANGE, DEFAULT_BOBSLED, SLED, type BobsledDesign } from '../data/bobsled'
 import { TRACKS } from '../data/tracks'
 import { DEFAULT_TRUCK, FAIRING_MISS, FLEET_TRUCK, GRAVEL_YARD, TRUCK_RANGE, type TruckDesign } from '../data/truck'
+import { CAR_CLASS, CAR_DESK, CAR_RANGE, STOCK_CAR, type CarClass, type CarDesign } from '../data/car'
+import { CIRCUITS } from '../data/circuits'
+import { carAero, checkCarRules, circuitDensity, heatLoss, porpoiseSpeed, type CarRuleBreak } from '../sim/car'
 import { checkTruckRules, roofMismatch, skirtGap, truckParts, type TruckRuleBreak } from '../sim/truck'
 import { truckLength } from '../sim/geom/truck'
 import { checkSledRules, sightMargin, type SledRuleBreak } from '../sim/bobsled'
@@ -25,10 +28,10 @@ import { TCF_TIME_TRIAL } from '../data/rules'
 import { t, type StringKey } from '../data/strings'
 import type { RuleBreak } from '../sim/cyclist'
 import type { FixTarget } from '../sim/failure'
-import { bobDeskEstimate, deskEstimate, jumpDeskEstimate, truckDeskEstimate } from '../sim/desk'
+import { bobDeskEstimate, carDeskEstimate, deskEstimate, jumpDeskEstimate, truckDeskEstimate } from '../sim/desk'
 import { jumperReadouts } from '../sim/jumper'
 import { crewEffects } from '../sim/staff'
-import { designPose, designReadouts, designShape, isBobsled, isCyclist, isJumper, isSkater, isTruck, type Design } from '../sim/design'
+import { designPose, designReadouts, designShape, isBobsled, isCar, isCyclist, isJumper, isSkater, isTruck, type Design } from '../sim/design'
 import { availableHandles, dragHandle, handleDef, handlePoint } from '../sim/geom/handles'
 import { ruleVolumes } from '../sim/geom/ruleBox'
 import { briefTemplate, currentEvent, currentJumpEvent, currentTruckEvent, currentTruckRun } from '../sim/career'
@@ -117,6 +120,13 @@ const TRUCK_BREAK: Record<TruckRuleBreak['part'], { id: string; look: Highlight 
   'trailer.skirts': { id: 'tk-skirts', look: 'skirts' },
 }
 
+/** Which car slider each rulebook break jumps to (by class, as the ranges differ), and the part that glows red. */
+const CAR_BREAK: Record<CarRuleBreak['part'], { tab: Tab; control: string; look: Highlight }> = {
+  'ride.front': { tab: 'position', control: 'rideFront', look: 'floor' },
+  'ride.rear': { tab: 'position', control: 'rideRear', look: 'floor' },
+  'rearWing.chord': { tab: 'kit', control: 'rearChord', look: 'rear-wing' },
+}
+
 const JUMPER_FORMAT: Record<JumperKey, (v: number) => string> = {
   leanDeg: (v) => `${fixed(v, 0)}°`,
   vAngleDeg: (v) => `${fixed(v, 0)}°`,
@@ -147,6 +157,9 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   const bs = (): BobsledDesign => (isBobsled(design) ? design : spareBobsled)
   const spareTruck = structuredClone(DEFAULT_TRUCK)
   const tk = (): TruckDesign => (isTruck(design) ? design : spareTruck)
+  // A car's sliders come in a set per class (their ranges differ); the other class's set writes to a spare.
+  const spareCar: Record<CarClass, CarDesign> = { touring: structuredClone(STOCK_CAR.touring), open: structuredClone(STOCK_CAR.open) }
+  const car = (cls: CarClass): CarDesign => (isCar(design) && design.class === cls ? design : spareCar[cls])
   let selected: HandleId | null = null
 
   // --- Header
@@ -158,7 +171,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   const showPlace = () => {
     const job = careerStore.get().job
     const who = job ? briefTemplate(job.brief.id)?.client : undefined
-    const plain = isTruck(design) ? 'shape.placeTruck' : isJumper(design) ? 'shape.placeJumper' : isBobsled(design) ? (design.crew === 4 ? 'shape.placeBobsled4' : 'shape.placeBobsled') : 'shape.place'
+    const plain = isCar(design) ? (design.class === 'open' ? 'shape.placeCarOpen' : 'shape.placeCar') : isTruck(design) ? 'shape.placeTruck' : isJumper(design) ? 'shape.placeJumper' : isBobsled(design) ? (design.crew === 4 ? 'shape.placeBobsled4' : 'shape.placeBobsled') : 'shape.place'
     place.textContent = who ? t('shape.placeJob', { client: who }) : t(plain)
   }
   showPlace()
@@ -196,7 +209,12 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   const truckDragR = readout(t('read.truckDrag'), 'cda')
   const partsR = readout(t('read.parts'), 'roadCode')
   const truckBoxes = [truckDeskR.box, truckDragR.box, partsR.box]
-  grid.append(deskR.box, jumpDeskR.box, bobDeskR.box, truckDeskR.box, comfortR.box, liftR.box, sledDragR.box, truckDragR.box, frontalR.box, marginR.box, sightR.box, partsR.box, rulesR.box)
+  // A racing car's sheet (PR 9j): the desk's lap-time gain, the downforce and drag, and the balance against the drivers' window.
+  const carDeskR = readout(t('read.carDesk'), 'lapGain')
+  const carDownR = readout(t('read.carDown'), 'downforce')
+  const carBalR = readout(t('read.carBalance'), 'carBalance')
+  const carBoxes = [carDeskR.box, carDownR.box, carBalR.box]
+  grid.append(deskR.box, jumpDeskR.box, bobDeskR.box, truckDeskR.box, carDeskR.box, comfortR.box, liftR.box, sledDragR.box, truckDragR.box, carDownR.box, frontalR.box, marginR.box, sightR.box, partsR.box, carBalR.box, rulesR.box)
 
   const breaks = el('ul', 'breaks')
   breaks.setAttribute('aria-live', 'polite')
@@ -400,6 +418,30 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   slider(tkBox.kit, 'tk-boatTail', t('ctl.boatTail'), TRUCK_RANGE.tail, () => tk().trailer.tail, (v) => (tk().trailer.tail = v), offOr(metres))
   slider(tkBox.kit, 'tk-tailAngle', t('ctl.tailAngle'), TRUCK_RANGE.tailAngle, () => tk().trailer.tailAngle, (v) => (tk().trailer.tailAngle = v), (v) => `${fixed(v, 0)}°`)
 
+  // The racing car: the floor (ride heights, diffuser, edge seal) on the first tab, the wings and cooling on the second.
+  const crBox = {
+    touring: { position: box(panels.position), kit: box(panels.kit) },
+    open: { position: box(panels.position), kit: box(panels.kit) },
+  }
+  const deg = (v: number) => `${fixed(v, 0)}°`
+  const cmFine = (v: number) => `${fixed(v * 100, 1)} cm`
+  for (const cls of ['touring', 'open'] as const) {
+    const R = CAR_RANGE[cls]
+    const b = crBox[cls]
+    const id = (name: string) => `cr-${cls}-${name}`
+    slider(b.position, id('rideFront'), t('ctl.rideFront'), R.front, () => car(cls).ride.front, (v) => (car(cls).ride.front = v), cmFine)
+    slider(b.position, id('rideRear'), t('ctl.rideRear'), R.rear, () => car(cls).ride.rear, (v) => (car(cls).ride.rear = v), cmFine)
+    slider(b.position, id('diffuser'), t('ctl.diffuser'), R.diffuser, () => car(cls).diffuser, (v) => (car(cls).diffuser = v), deg)
+    slider(b.position, id('floorEdge'), t('ctl.floorEdge'), R.floorEdge, () => car(cls).floorEdge, (v) => (car(cls).floorEdge = v), (v) => (v <= 0 ? t('opt.off') : `${fixed(v * 100, 0)} %`))
+    // A touring car's front wing is a flap on its splitter.
+    slider(b.kit, id('frontWing'), t(cls === 'touring' ? 'ctl.frontFlap' : 'ctl.frontWing'), R.frontWing, () => car(cls).frontWing, (v) => (car(cls).frontWing = v), deg)
+    slider(b.kit, id('rearAngle'), t('ctl.rearAngle'), R.angle, () => car(cls).rearWing.angle, (v) => (car(cls).rearWing.angle = v), deg)
+    slider(b.kit, id('rearChord'), t('ctl.rearChord'), R.chord, () => car(cls).rearWing.chord, (v) => (car(cls).rearWing.chord = v), cm)
+    slider(b.kit, id('inlet'), t('ctl.inlet'), R.inlet, () => car(cls).inlet, (v) => (car(cls).inlet = v), (v) => `${fixed(v * 100, 0)} %`)
+  }
+  /** Jump to a car slider by its name, in the set for the car's class. */
+  const jumpToCar = (tab: Tab, control: string) => jumpToControl({ tab, id: `cr-${isCar(design) ? design.class : 'touring'}-${control}` })
+
   const pct = (v: number) => `${fixed(v * 100, 0)} %`
   choice(cycBox.kit, 'ctl-helmet', t('ctl.helmet'), [{ value: 'road', key: 'opt.road' }, { value: 'aero', key: 'opt.aero' }], () => cyc().helmet.kind, (v) => (cyc().helmet.kind = v))
   const tailRow = slider(cycBox.kit, 'ctl-tail', t('ctl.tail'), PART_RANGE.tail, () => cyc().helmet.tail, (v) => (cyc().helmet.tail = v), pct)
@@ -432,7 +474,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     // Back to where the job started: the client's setup (or the plain starting design between jobs).
     const job = careerStore.get().job
     // A sled keeps its crew size: that's the job's, not a shape.
-    const plain = isTruck(design) ? { ...FLEET_TRUCK, trailerTop: design.trailerTop } : isJumper(design) ? DEFAULT_JUMPER : isBobsled(design) ? { ...DEFAULT_BOBSLED, crew: design.crew } : isSkater(design) ? DEFAULT_SKATER : DEFAULT_CYCLIST
+    const plain = isCar(design) ? STOCK_CAR[design.class] : isTruck(design) ? { ...FLEET_TRUCK, trailerTop: design.trailerTop } : isJumper(design) ? DEFAULT_JUMPER : isBobsled(design) ? { ...DEFAULT_BOBSLED, crew: design.crew } : isSkater(design) ? DEFAULT_SKATER : DEFAULT_CYCLIST
     design = structuredClone((job && briefTemplate(job.brief.id)?.setup) || plain)
     selected = null
     syncAll()
@@ -446,24 +488,27 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     const jumping = isJumper(design)
     const sliding = isBobsled(design)
     const trucking = isTruck(design)
-    const riding = !skating && !jumping && !sliding && !trucking
+    const racing = isCar(design)
+    const riding = !skating && !jumping && !sliding && !trucking && !racing
     for (const b of Object.values(cycBox)) b.hidden = !riding
     for (const b of Object.values(skBox)) b.hidden = !skating
     for (const b of Object.values(jpBox)) b.hidden = !jumping
     for (const b of Object.values(bsBox)) b.hidden = !sliding
     for (const b of Object.values(tkBox)) b.hidden = !trucking
-    for (const b of bodyBoxes) b.hidden = jumping || sliding || trucking
+    for (const cls of ['touring', 'open'] as const) for (const b of Object.values(crBox[cls])) b.hidden = !(isCar(design) && design.class === cls)
+    for (const b of bodyBoxes) b.hidden = jumping || sliding || trucking || racing
+    for (const b of carBoxes) b.hidden = !racing
     for (const b of truckBoxes) b.hidden = !trucking
     for (const b of jumpBoxes) b.hidden = !jumping
     for (const b of bobBoxes) b.hidden = !sliding
-    tabButtons.position.textContent = t(trucking ? 'tab.cab' : 'tab.position')
-    tabButtons.kit.textContent = t(sliding ? 'tab.sled' : trucking ? 'tab.trailer' : 'tab.kit')
+    tabButtons.position.textContent = t(trucking ? 'tab.cab' : racing ? 'tab.floor' : 'tab.position')
+    tabButtons.kit.textContent = t(sliding ? 'tab.sled' : trucking ? 'tab.trailer' : racing ? 'tab.wings' : 'tab.kit')
     // Only riders have a bike: the tab goes for the others, and the sheet falls back to Position if it was open.
     tabButtons.bike.hidden = !riding
     if (!riding && currentTab === 'bike') selectTab('position')
     tailRow.hidden = cyc().helmet.kind !== 'aero'
-    hint.textContent = t(trucking ? 'hint.shapeTruck' : jumping ? 'hint.shapeJumper' : sliding ? 'hint.shapeBobsled' : skating ? 'hint.shapeSkater' : 'hint.shape')
-    if (!jumping && !sliding && !trucking) rulesR.sub.textContent = t(skating ? 'book.skating' : 'book.tcf-tt')
+    hint.textContent = t(racing ? 'hint.shapeCar' : trucking ? 'hint.shapeTruck' : jumping ? 'hint.shapeJumper' : sliding ? 'hint.shapeBobsled' : skating ? 'hint.shapeSkater' : 'hint.shape')
+    if (!jumping && !sliding && !trucking && !racing) rulesR.sub.textContent = t(skating ? 'book.skating' : 'book.tcf-tt')
   }
   syncAll()
   // A new job puts the client's setup on the bench: take it up.
@@ -485,6 +530,14 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   // "Change this" after a model broke in the tunnel, or after trouble on race day (plan sections 7 and 8).
   window.addEventListener('laminar:fix', (e) => {
     const where = (e as CustomEvent<FixTarget>).detail
+    if (isCar(design)) {
+      // A car's fixes (PR 9j): the ride height for the floor, the inlets for heat, a wing for the balance.
+      if (where === 'inlet') jumpToCar('kit', 'inlet')
+      else if (where === 'frontWing') jumpToCar('kit', 'frontWing')
+      else if (where === 'rearWing') jumpToCar('kit', 'rearAngle')
+      else jumpToCar('position', 'rideFront')
+      return
+    }
     if (isTruck(design)) {
       // A truck's fixes (PR 9f): the boat-tail when the road code cut it back, otherwise the skirts.
       jumpToControl({ tab: 'kit', id: where === 'boatTail' ? 'tk-boatTail' : 'tk-skirts' })
@@ -544,6 +597,10 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     }
     if (isTruck(design)) {
       showTruck(design)
+      return
+    }
+    if (isCar(design)) {
+      showCar(design)
       return
     }
     const r = designReadouts(design, TCF_TIME_TRIAL)
@@ -741,6 +798,87 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
       // A part outside the road code glows red; a fairing that misses the trailer's roof, or skirts too low for a gravel yard, amber.
       broken: rules.map((b) => TRUCK_BREAK[b.part].look),
       strained: [...(Math.abs(miss) > FAIRING_MISS ? (['fairing'] as const) : []), ...(gravel ? (['skirts'] as const) : [])],
+      handles: [],
+      selected: null,
+      volumes: [],
+    })
+  }
+
+  /**
+   * The racing car's sheet (PR 9j): the desk's lap-time gain on the circuit
+   * against the car the team runs now, the downforce and drag at 200 km/h,
+   * the balance against the drivers' window, and the Motor Racing
+   * Federation's rule box. Porpoising, heat and a balance out of the window
+   * are amber warnings with a "change this" each.
+   */
+  function showCar(c: CarDesign) {
+    const career = careerStore.get()
+    // Car jobs come in a later PR: until then the Dolgo Ring, against the class's stock setup.
+    const circuit = CIRCUITS['dolgo-ring']
+    const old = STOCK_CAR[c.class]
+    const desk = carDeskEstimate(c, old, circuit, career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(c), crewEffects(career.crew).deskLevel)
+    const signed = (v: number, digits: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${fixed(Math.abs(v), digits)}`
+    carDeskR.value.textContent = `${signed(desk.value, 2)} s`
+    carDeskR.sub.textContent = t('read.deskCarNote', { spread: fixed((desk.high - desk.low) / 2, 2), circuit: t(`circuit.${circuit.id}`) })
+    carDownR.value.textContent = `${fixed(desk.downKg, 0)} kg`
+    carDownR.sub.textContent = t('read.carDownNote', { cda: fixed(desk.cdA, 2) })
+    const w = CAR_CLASS[c.class].window
+    const low = fixed(w.low * 100, 0)
+    const high = fixed(w.high * 100, 0)
+    const balPct = fixed(desk.balance * 100, 0)
+    const balState = desk.balance < w.low ? 'low' : desk.balance > w.high ? 'high' : 'ok'
+    carBalR.value.textContent = `${balPct} %`
+    carBalR.value.classList.toggle('warn', balState !== 'ok')
+    carBalR.sub.textContent = t(balState === 'low' ? 'read.carBalanceLow' : balState === 'high' ? 'read.carBalanceHigh' : 'read.carBalanceOk', { low, high })
+
+    const rules = checkCarRules(c)
+    rulesR.value.textContent = rules.length === 0 ? t('read.legal') : rules.length === 1 ? t('read.oneBreak') : t('read.breaks', { count: rules.length })
+    rulesR.value.classList.toggle('over', rules.length > 0)
+    const density = circuitDensity(circuit)
+    const fast = carAero(c, CAR_DESK.readSpeed, density)
+    rulesR.sub.textContent = t('read.carKit', { plank: fixed(Math.min(fast.front, fast.rear) * 100, 1) })
+    const cmOf = (v: number) => fixed(v * 100, 1)
+    breaks.replaceChildren(
+      ...rules.map((b) => {
+        const li = el('li', 'break')
+        li.append(el('span', 'break-text', t(`rule.${b.rule}`, { value: cmOf(b.value), limit: cmOf(b.limit), book: t('book.tmrf') })))
+        const fix = el('button', 'break-fix', t('rule.fix'))
+        fix.type = 'button'
+        fix.addEventListener('click', () => jumpToCar(CAR_BREAK[b.part].tab, CAR_BREAK[b.part].control))
+        li.append(fix)
+        return li
+      }),
+    )
+    // Warnings, in amber: legal, but they cost the lap.
+    const warn = (text: string, tab: Tab, control: string) => {
+      const li = el('li', 'break warn')
+      li.append(el('span', 'break-text', text))
+      const fix = el('button', 'break-fix', t('rule.fix'))
+      fix.type = 'button'
+      fix.addEventListener('click', () => jumpToCar(tab, control))
+      li.append(fix)
+      breaks.append(li)
+    }
+    const porpoise = porpoiseSpeed(c, density)
+    const strained: Highlight[] = []
+    if (porpoise !== null) {
+      warn(t('rule.porpoise', { speed: fixed(porpoise * 3.6, 0) }), 'position', 'rideFront')
+      strained.push('floor')
+    }
+    const heat = heatLoss(c)
+    if (heat > 0) {
+      warn(t('rule.heat', { pct: fixed(heat * 100, 0) }), 'kit', 'inlet')
+      strained.push('inlet')
+    }
+    if (balState !== 'ok') {
+      warn(t('rule.balance', { pct: balPct, low, high }), 'kit', balState === 'low' ? 'frontWing' : 'rearAngle')
+      strained.push(balState === 'low' ? 'front-wing' : 'rear-wing')
+    }
+    view.show({
+      design: c,
+      pose: designPose(c),
+      broken: rules.map((b) => CAR_BREAK[b.part].look),
+      strained,
       handles: [],
       selected: null,
       volumes: [],

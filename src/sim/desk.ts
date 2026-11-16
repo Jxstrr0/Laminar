@@ -12,6 +12,9 @@ import { TRUCK_DESK, type TruckDesign } from '../data/truck'
 import type { Route } from '../data/routes'
 import { truckCurve, truckFlow, truckMass, windAveragedFuel, windAveragedFuelWith } from './truck'
 import { cdAAt } from './aero/windAverage'
+import { CAR_DESK, type CarDesign } from '../data/car'
+import type { Circuit } from '../data/circuits'
+import { carAero, circuitDensity, downforceKg, lapTime } from './car'
 import type { ShapeSpec } from './geom/body'
 import { gaussian } from './noise'
 import { hashString, Rng } from './rng'
@@ -97,4 +100,35 @@ export function truckDeskEstimate(design: TruckDesign, old: TruckDesign, route: 
   const fuelAt = (f: number) => windAveragedFuelWith((y) => cdAAt(curve, y) * f, mass, route)
   const saving = (f: number) => (1 - fuelAt(f) / theirs) * 100
   return { value: saving(k), low: saving(k * (1 + spread)), high: saving(k * (1 - spread)), cdA: cdAAt(curve, 0) * k, cdA10: cdAAt(curve, 10) * k, fuel: fuelAt(k) }
+}
+
+/**
+ * The desk's guess at a racing car's lap-time gain, s (PR 9j): the car's
+ * downforce and drag through the job's bias and a design's jitter, lapped
+ * on the client's circuit against the car they run now (their own data,
+ * so known). `low` is the small-gain end (less downforce, more drag),
+ * `high` the big one. Also the desk's downforce at the read speed in kg,
+ * its drag area, and the balance there (the desk gets the split right; the
+ * size is what it guesses).
+ */
+export function carDeskEstimate(design: CarDesign, old: CarDesign, circuit: Circuit, jobSeed: number, designKey: string, analystLevel = 0): DeskEstimate & { downKg: number; cdA: number; balance: number } {
+  const narrow = Math.max(DESK.floor, 1 - DESK.perLevel * analystLevel)
+  const job = new Rng(jobSeed)
+  const mine = new Rng(jobSeed ^ hashString(designKey))
+  const down = 1 + narrow * (CAR_DESK.downBias * gaussian(job.fork('desk-down')) + CAR_DESK.jitter * gaussian(mine.fork('desk-jitter')))
+  const drag = 1 + narrow * CAR_DESK.dragBias * gaussian(job.fork('desk-drag'))
+  const sd = Math.sqrt(CAR_DESK.downBias * CAR_DESK.downBias + CAR_DESK.jitter * CAR_DESK.jitter) * narrow * DESK.bars
+  const sg = CAR_DESK.dragBias * narrow * DESK.bars
+  const theirs = lapTime(old, circuit).time
+  const gain = (dn: number, dg: number) => theirs - lapTime(design, circuit, circuit.temperature, { down: dn, drag: dg }).time
+  const density = circuitDensity(circuit)
+  const aero = carAero(design, CAR_DESK.readSpeed, density)
+  return {
+    value: gain(down, drag),
+    low: gain(down * (1 - sd), drag * (1 + sg)),
+    high: gain(down * (1 + sd), drag * (1 - sg)),
+    downKg: downforceKg(aero, density) * down,
+    cdA: aero.cdA * drag,
+    balance: aero.balance,
+  }
 }

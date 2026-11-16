@@ -1,6 +1,6 @@
 /**
  * The rider and bike (or the skater, PR 8b) as a three.js group, drawn from
- * a design and its pose. A truck (PR 9b) is drawn by truckFigure.ts.
+ * a design and its pose. A truck (PR 9b) is drawn by truckFigure.ts, a car (PR 9j) by carFigure.ts.
  * Shared by the Shape screen and the tunnel (where it stands on the mount at
  * model scale). Limbs come from the pose (src/sim/geom/pose.ts); the aero
  * helmet's outline is the very cross-section stack the aero model reads, so a
@@ -23,6 +23,7 @@ import { skaterShape } from '../sim/geom/skater'
 import type { BodySpec } from '../sim/geom/body'
 import type { Point, Pose } from '../sim/geom/pose'
 import { buildTruck } from './truckFigure'
+import { buildCar } from './carFigure'
 
 const COLOURS = {
   suit: 0x2b3a4a,
@@ -46,7 +47,7 @@ const COLOURS = {
 }
 
 /** Which drawn groups a rule break or a strained posture lights up. */
-export type Highlight = 'helmet' | 'hands' | 'front-wheel' | 'frame' | 'torso' | 'head' | 'arms' | 'legs' | 'fairing' | 'skirts' | 'boat-tail'
+export type Highlight = 'helmet' | 'hands' | 'front-wheel' | 'frame' | 'torso' | 'head' | 'arms' | 'legs' | 'fairing' | 'skirts' | 'boat-tail' | 'floor' | 'rear-wing' | 'front-wing' | 'inlet'
 
 export interface RiderState {
   design: Design
@@ -160,6 +161,7 @@ export function buildRider(state: RiderState): THREE.Group {
   if (state.design.sport === 'skijump') return buildJumper(state.design, state)
   if (state.design.sport === 'bobsled') return buildBobsled(state.design, state)
   if (state.design.sport === 'truck') return buildTruck(state.design, state)
+  if (state.design.sport === 'car') return buildCar(state.design, state)
   const design = state.design
   const g = new THREE.Group()
   const isBroken = (h: Highlight) => state.broken.includes(h)

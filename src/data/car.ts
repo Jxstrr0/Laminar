@@ -109,6 +109,16 @@ export const CAR_CLASS = {
   },
 } as const
 
+/**
+ * Each class's body as drawn and as the drag model's outline reads it
+ * (PR 9j): length, width and roof height, m, where the roof is highest
+ * (shares of the length), and where the axles sit (m from the nose).
+ */
+export const CAR_BODY = {
+  touring: { length: 4.6, width: 1.95, roof: 1.35, roofFrom: 0.35, roofTo: 0.72, nose: 0.55, frontAxle: 0.95, rearAxle: 3.65, wheel: 0.33 },
+  open: { length: 5.4, width: 1.9, roof: 0.95, roofFrom: 0.42, roofTo: 0.6, nose: 0.3, frontAxle: 1.05, rearAxle: 4.15, wheel: 0.33 },
+} as const
+
 /** How the aero parts behave, the same for both classes. */
 export const CAR_AERO = {
   /** The rear wing's lift slope per radian, its camber's lift at zero angle (per m² of wing), and its stall, degrees. */
@@ -179,6 +189,19 @@ export const CAR_RULES = {
   touring: { minRide: 0.05, maxChord: 0.3 },
   open: { minRide: 0.025, maxChord: 0.38 },
 } as const
+
+/**
+ * The desk's guess at a car (PR 9j): a job-wide bias and a design's jitter
+ * on its downforce (the floor is hard to guess on paper) and its drag, as
+ * shares of the truth.
+ */
+export const CAR_DESK = {
+  downBias: 0.06,
+  dragBias: 0.04,
+  jitter: 0.02,
+  /** The sheet reads downforce and balance at this speed, m/s (200 km/h). */
+  readSpeed: 200 / 3.6,
+}
 
 /** A client's car as the team runs it now: a middling setup. */
 export const STOCK_CAR: Record<CarClass, CarDesign> = {
