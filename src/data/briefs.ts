@@ -213,10 +213,11 @@ export const TRUCK_JOBS = {
  * scrutineers have passed it. One point is a tenth of a second, and bids
  * move a tenth at a time. The declared number is the new car's lap time.
  *
- * Closed until PR 9n puts them on the board and the debrief.
+ * Open since PR 9n put them on the board. The switch stays so a test (or a
+ * later change) can close them.
  */
 export const CAR_JOBS = {
-  open: false,
+  open: true,
   /** Seconds in one promised point. */
   pointSeconds: 0.1,
   /** A car bid's promise moves in these points: a tenth of a second. */

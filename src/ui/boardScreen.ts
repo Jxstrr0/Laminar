@@ -5,16 +5,19 @@
  * winning puts the client's current setup on the bench. Delivering runs the
  * event and pays the fee.
  */
-import { BID, CAREER, PROMISE, SLED_JOBS, TRACK, type BriefTemplate } from '../data/briefs'
+import { BID, CAREER, CAR_JOBS, PROMISE, SLED_JOBS, TRACK, type BriefTemplate } from '../data/briefs'
 import { BROKE, REPUTATION } from '../data/reputation'
 import { RIVALS, RIVAL_IDS } from '../data/rivals'
 import { OWN_BILLING, OWN_TUNNEL_BUILD, TUNNEL_UPGRADES, UPGRADE_IDS } from '../data/tunnel'
 import { buildBlock, machineBlock, ownReadyDay, upgradeBlock, upgradeReadyDay } from '../sim/facility'
 import { MACHINE_IDS, MACHINE_PRICE } from '../data/model'
-import { designShape, isBobsled, isJumper, isSkater, isTruck, type Design } from '../sim/design'
+import { designShape, isBobsled, isCar, isJumper, isSkater, isTruck, type Design } from '../sim/design'
+import { CAR_CLASS, type CarDesign } from '../data/car'
+import { checkCarRules, lapTime } from '../sim/car'
 import type { BobsledDesign } from '../data/bobsled'
 import { GRAVEL_YARD, type TruckDesign } from '../data/truck'
 import { ROUTES } from '../data/routes'
+import { CIRCUITS, lapLength } from '../data/circuits'
 import { checkTruckRules, skirtGap } from '../sim/truck'
 import { asRun, cracksOnGravel, roadLegal } from '../sim/truckJob'
 import { playTruckReplay } from './truckReplay'
@@ -23,6 +26,7 @@ import { HILLS } from '../data/hills'
 import { jumpForecast } from './jumpForecast'
 import { sledForecast } from './sledForecast'
 import { truckForecast } from './truckForecast'
+import { carForecast } from './carForecast'
 import { t } from '../data/strings'
 import {
   bidScore,
@@ -41,6 +45,9 @@ import {
   deliverJump,
   deliverSled,
   deliverTruck,
+  deliverCar,
+  currentCarRun,
+  isCarBrief,
   currentTruckRun,
   eventOf,
   isJumpBrief,
@@ -58,8 +65,9 @@ import {
   type JumpDelivery,
   type SledDelivery,
   type TruckDelivery,
+  type CarDelivery,
 } from '../sim/career'
-import { bobDeskEstimate, deskEstimate, jumpDeskEstimate, truckDeskEstimate } from '../sim/desk'
+import { bobDeskEstimate, carDeskEstimate, deskEstimate, jumpDeskEstimate, truckDeskEstimate } from '../sim/desk'
 import { crewEffects, wagesPerDay } from '../sim/staff'
 import type { Sale } from '../sim/broke'
 import { legacyOf } from '../sim/legacy'
@@ -128,11 +136,14 @@ function fact(label: string | HTMLElement, value: string): HTMLElement {
 
 /** A promise in points as seconds off a bobsled run (a point is a tenth of a second): 5.7 → "0.57". */
 const seconds = (n: number) => fixed(n * SLED_JOBS.pointSeconds, 2)
+/** A promise in points as seconds off a car's lap (a point is a tenth): 8 → "0.8". */
+const tenths = (n: number) => fixed(n * CAR_JOBS.pointSeconds, 1)
 
-/** A promise in its own units: −x % drag, +x m on a ski jump, −x s off a bobsled run, or −x % fuel for a truck. */
+/** A promise in its own units: −x % drag, +x m on a ski jump, −x s off a bobsled run or a lap, or −x % fuel for a truck. */
 function promiseText(id: string, n: number): string {
   if (isSledBrief(id)) return t('board.promiseSled', { s: seconds(n) })
   if (isTruckBrief(id)) return t('board.promiseTruck', { pct: pct(n) })
+  if (isCarBrief(id)) return t('board.promiseCar', { s: tenths(n) })
   return isJumpBrief(id) ? t('board.promiseJump', { m: pct(n) }) : t('board.promiseValue', { pct: pct(n) })
 }
 
@@ -186,6 +197,11 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     // A truck job declares a fuel figure.
     if (isTruckBrief(job.brief.id)) {
       openDeliverTruck(bench)
+      return
+    }
+    // A car job declares a lap time.
+    if (isCarBrief(job.brief.id)) {
+      openDeliverCar(bench)
       return
     }
     const b = briefTemplate(job.brief.id)!
@@ -636,12 +652,12 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
 
   let truckSheet: Sheet | null = null
 
-  /** A trouble line on the fuel trial with a "change this" jump to that part on Shape. */
-  function troubleBox(text: string, fixLabel: string, target: FixTarget): HTMLElement {
+  /** A trouble line on a debrief with a "change this" jump to that part on Shape (the truck's sheet unless another is named). */
+  function troubleBox(text: string, fixLabel: string, target: FixTarget, sheet: () => Sheet | null = () => truckSheet): HTMLElement {
     const box = el('div', 'race-trouble')
     const fix = button('save-btn quiet', fixLabel)
     fix.addEventListener('click', () => {
-      truckSheet?.close()
+      sheet()?.close()
       go('shape')
       window.dispatchEvent(new CustomEvent<FixTarget>('laminar:fix', { detail: target }))
     })
@@ -698,6 +714,140 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     if (d.state.ended) parts.push(el('p', 'save-due', t('end.reached')))
     truckSheet.body.replaceChildren(...parts)
     truckSheet.open()
+  }
+
+  /**
+   * The Deliver sheet for a racing car (PR 9n): the promise in tenths off
+   * the lap, and the declared lap time on the circuit's usual day, filled in
+   * from the tunnel's forecast for this design, or the desk estimate until
+   * the tunnel has read one. A car past the rulebook gets a warning: the
+   * scrutineers will raise or trim it.
+   */
+  function openDeliverCar(design: Design) {
+    const career = careerStore.get()
+    const job = career.job
+    if (!job || !deliverSheet) return
+    const b = briefTemplate(job.brief.id)!
+    const setup = b.setup as CarDesign
+    if (!isCar(design) || design.class !== setup.class) {
+      deliverSheet.body.replaceChildren(el('p', 'shop-intro', t('deliver.wrongCar', { kind: t(`car.class.${setup.class}`) })))
+      deliverSheet.open()
+      return
+    }
+    const car: CarDesign = design
+    const { circuit, old } = currentCarRun(career, car.class)
+    const circuitName = t(`circuit.${circuit.id}`)
+    const forecast = carForecast.get(car, circuit.id)
+    const desk = carDeskEstimate(car, old, circuit, job.brief.seed, JSON.stringify(car), crewEffects(career.crew).deskLevel)
+    const oldLap = lapTime(old, circuit).time
+    const deskLap = oldLap - desk.value
+    const start = forecast ? forecast.time : deskLap
+    const box = stepper('deliver-car', start.toFixed(2), 's', t('deliver.lessCar'), t('deliver.moreCar'), (dir) => {
+      const v = Number(box.input.value) || start
+      box.input.value = (Math.round(v * 100 + dir) / 100).toFixed(2)
+    })
+    box.input.step = '0.01'
+    box.input.min = '30'
+    box.input.max = '200'
+    const label = el('label', 'shop-label', t('deliver.predictCar'))
+    label.htmlFor = box.input.id
+    // A gain in seconds as words: "0.52 s quicker" or "0.17 s slower".
+    const delta = (gain: number) => t(gain >= 0 ? 'deliver.quicker' : 'deliver.slower', { s: fixed(Math.abs(gain), 2) })
+    const notes: HTMLElement[] = [el('p', 'shop-note', t('deliver.oldLapCar', { time: fixed(oldLap, 2) }))]
+    if (forecast) {
+      notes.push(el('p', 'shop-note', t('deliver.forecastCar', { time: fixed(forecast.time, 2), delta: delta(forecast.gain) })))
+      if (forecast.floor !== 'rolling') notes.push(el('p', 'shop-note', t(forecast.floor === 'board' ? 'deliver.forecastCarBoard' : 'deliver.forecastCarFloor')))
+      if (!forecast.covered) notes.push(el('p', 'shop-note', t('deliver.forecastCarLower')))
+      if (forecast.porpoise !== null) notes.push(el('p', 'save-due', t('deliver.forecastCarPorpoise', { speed: fixed(forecast.porpoise * 3.6, 0) })))
+    } else notes.push(el('p', 'shop-note', t('deliver.noForecastCar', { time: fixed(deskLap, 2), delta: delta(desk.value), spread: fixed((desk.high - desk.low) / 2, 2) })))
+    if (checkCarRules(car).length > 0) notes.push(el('p', 'save-due', t('deliver.carBreaks')))
+    const status = el('p', 'shop-note')
+    status.setAttribute('aria-live', 'polite')
+    const go = button('shop-order', t('deliver.car'))
+    go.addEventListener('click', () => {
+      const predicted = Number(box.input.value)
+      if (!Number.isFinite(predicted) || predicted < 30 || predicted > 200) {
+        status.textContent = t('deliver.badCar')
+        return
+      }
+      const d = deliverCar(careerStore.get(), car, predicted)
+      if (!d) return
+      deliverSheet?.close()
+      careerStore.set(d.state)
+      // The lap replay comes in a later PR: straight to the debrief for now.
+      showCarDelivery(d)
+    })
+    deliverSheet.body.replaceChildren(
+      el('p', 'shop-intro', t('deliver.introCar', { client: b.client, circuit: circuitName })),
+      el('p', 'deliver-promise', t('deliver.promiseCar', { s: tenths(job.promise) })),
+      el('p', 'shop-note', t('deliver.promiseNoteCar', { circuit: circuitName })),
+      label,
+      box.row,
+      ...notes,
+      status,
+      go,
+    )
+    deliverSheet.open()
+  }
+
+  let carSheet: Sheet | null = null
+
+  /** Race weekend for a car: the promise judged on the usual day's lap, race day, and each trouble or trim with its fix. */
+  function showCarDelivery(d: CarDelivery) {
+    carSheet ??= createSheet({ cls: 'raceday', title: t('cd.title'), closeLabel: t('cd.close') })
+    const b = briefTemplate(d.job.brief.id)!
+    const db = d.debrief
+    const verdict = el(
+      'p',
+      `race-verdict ${db.met ? 'is-met' : 'is-missed'}`,
+      db.met
+        ? t('cd.kept', { got: tenths(db.achieved), promised: tenths(db.promised) })
+        : db.achieved < 0
+          ? t('cd.missedSlower', { short: tenths(db.shortfall), got: tenths(-db.achieved), promised: tenths(db.promised) })
+          : t('cd.missed', { short: tenths(db.shortfall), got: tenths(db.achieved), promised: tenths(db.promised) }),
+    )
+    const off = fixed(Math.abs(db.readError) * 100, 1)
+    const facts = el('div', 'job-facts')
+    facts.append(
+      fact(t('cd.lap'), secs(db.actual)),
+      fact(t('cd.oldLap'), secs(db.baseline)),
+      fact(t('race.predicted'), secs(db.predicted)),
+      fact(t('race.read'), t(`race.read.${db.read}`, { pct: off, dir: t(db.readError >= 0 ? 'race.high' : 'race.low') })),
+      fact(t('cd.day'), secs(db.lap.time)),
+      fact(t('cd.oldDay'), secs(db.baselineLap.time)),
+      fact(t('cd.top'), `${fixed(db.lap.top * 3.6, 0)} km/h`),
+      fact(t('race.air'), deg(db.day.temperature, 0)),
+      fact(t('race.fee'), rubles(d.job.brief.fee)),
+      fact(t('race.penalty'), db.penalty ? `−${rubles(db.penalty)}` : rubles(0)),
+      fact(t('race.paid'), rubles(d.paid)),
+      ...(d.upkeep > 0 ? [fact(t('race.upkeep'), `−${rubles(d.upkeep)}`)] : []),
+      ...(d.wages > 0 ? [fact(t('race.wages'), `−${rubles(d.wages)}`)] : []),
+      fact(
+        glossaryTerm('reputation', t('race.reputation')),
+        t('race.repChange', { after: db.reputation.after, change: signed(db.reputation.after - db.reputation.before) }),
+      ),
+    )
+    const parts: HTMLElement[] = [el('p', 'shop-intro', t('cd.intro', { client: b.client, event: b.event.name })), verdict, facts]
+    if (db.cause) parts.push(el('p', 'shop-note', t(`cd.cause.${db.cause}`)))
+    const sheet = () => carSheet
+    const cm = (m: number) => fixed(m * 100, 1)
+    // Each part the scrutineers raised or trimmed, with a "change this" jump to it on Shape.
+    for (const cut of db.cutBack) {
+      if (cut.rule === 'chord') parts.push(troubleBox(t('cd.cutChord', { value: fixed(cut.value, 2), limit: fixed(cut.limit, 2) }), t('cd.fixChord'), 'rearWing', sheet))
+      else parts.push(troubleBox(t(cut.rule === 'rideFront' ? 'cd.cutFront' : 'cd.cutRear', { value: cm(cut.value), limit: cm(cut.limit) }), t('cd.fixRide'), 'rideHeight', sheet))
+    }
+    if (db.porpoise) parts.push(troubleBox(t('cd.porpoise', { speed: fixed(db.porpoise.speed * 3.6, 0), s: fixed(db.porpoise.lost, 2) }), t('cd.fixRide'), db.porpoise.fix, sheet))
+    if (db.balance) {
+      const bal = db.balance
+      const key = bal.balance < bal.low ? 'cd.balanceLow' : 'cd.balanceHigh'
+      parts.push(troubleBox(t(key, { pct: fixed(bal.balance * 100, 0), low: fixed(bal.low * 100, 0), high: fixed(bal.high * 100, 0), s: fixed(bal.lost, 2) }), t('cd.fixFront'), bal.fix, sheet))
+    }
+    if (db.heat) parts.push(troubleBox(t('cd.heat', { s: fixed(db.heat.lost, 2), need: fixed(CAR_CLASS[(b.setup as CarDesign).class].coolNeed * 100, 0) }), t('cd.fixInlet'), db.heat.fix, sheet))
+    parts.push(el('p', 'shop-note', t('cd.readNote')))
+    if (d.sale) parts.push(brokeBox(d.sale, d.state.money))
+    if (d.state.ended) parts.push(el('p', 'save-due', t('end.reached')))
+    carSheet.body.replaceChildren(...parts)
+    carSheet.open()
   }
 
   /** The race-day replay for a delivery, then `after`. */
@@ -827,17 +977,19 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     const jump = !!b.event.jump
     const sled = !!b.event.sled
     const truck = !!b.event.truck
-    // The words for each kind of promise: '' for a road or track job, 'Jump', 'Sled' or 'Truck'.
-    const kind = sled ? 'Sled' : jump ? 'Jump' : truck ? 'Truck' : ''
-    // A sled's box shows seconds (a point is a tenth), stepping a hundredth; the bid itself stays in points.
-    const shown = sled ? SLED_JOBS.pointSeconds : 1
-    const step = (sled ? SLED_JOBS.promiseStep : BID.promiseStep) * shown
+    const car = !!b.event.car
+    // The words for each kind of promise: '' for a road or track job, 'Jump', 'Sled', 'Truck' or 'Car'.
+    const kind = sled ? 'Sled' : jump ? 'Jump' : truck ? 'Truck' : car ? 'Car' : ''
+    // A sled's or a car's box shows seconds (a point is a tenth), stepping a hundredth or a tenth; the bid itself stays in points.
+    const timed = sled || car
+    const shown = sled ? SLED_JOBS.pointSeconds : car ? CAR_JOBS.pointSeconds : 1
+    const step = (sled ? SLED_JOBS.promiseStep : car ? CAR_JOBS.promiseStep : BID.promiseStep) * shown
     const digits = sled ? 2 : 1
-    const promise = stepper('bid-promise', sled ? seconds(b.target) : String(b.target), sled ? 's' : jump ? 'm' : '%', t(`bid.promiseLess${kind}`), t(`bid.promiseMore${kind}`), (dir) => {
+    const promise = stepper('bid-promise', sled ? seconds(b.target) : car ? tenths(b.target) : String(b.target), timed ? 's' : jump ? 'm' : '%', t(`bid.promiseLess${kind}`), t(`bid.promiseMore${kind}`), (dir) => {
       const v = Number(promise.input.value) || b.target * shown
       const next = Math.round(v / step) * step + dir * step
       const clamped = Math.min(BID.promiseMax * shown, Math.max(BID.promiseMin * shown, next))
-      promise.input.value = sled ? clamped.toFixed(digits) : String(Math.round(clamped * 10) / 10)
+      promise.input.value = timed ? clamped.toFixed(digits) : String(Math.round(clamped * 10) / 10)
       update()
     })
     promise.input.step = String(step)
@@ -861,8 +1013,8 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     const seal = button('shop-order', t('bid.seal'))
     seal.addEventListener('click', () => {
       const p = Number(price.input.value)
-      // Back from seconds to points for a sled (0.57 s → 5.7 points).
-      const q = sled ? Math.round(Number(promise.input.value) * 100) / (100 * shown) : Number(promise.input.value)
+      // Back from seconds to points for a sled or a car (0.57 s → 5.7 points).
+      const q = timed ? Math.round(Number(promise.input.value) * 100) / (100 * shown) : Number(promise.input.value)
       if (!Number.isFinite(p) || !Number.isFinite(q) || p <= 0 || q <= 0) {
         status.textContent = t('bid.bad')
         return
@@ -885,7 +1037,15 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       el(
         'p',
         'shop-note',
-        sled ? t('bid.askSled', { s: seconds(b.target) }) : jump ? t('bid.askJump', { m: pct(b.target) }) : truck ? t('bid.askTruck', { pct: pct(b.target) }) : t('bid.ask', { pct: pct(b.target) }),
+        sled
+          ? t('bid.askSled', { s: seconds(b.target) })
+          : jump
+            ? t('bid.askJump', { m: pct(b.target) })
+            : truck
+              ? t('bid.askTruck', { pct: pct(b.target) })
+              : car
+                ? t('bid.askCar', { s: tenths(b.target) })
+                : t('bid.ask', { pct: pct(b.target) }),
       ),
       worth,
       status,
@@ -917,7 +1077,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     for (const rb of r.rivals) parts.push(...block(RIVALS[rb.firm].name, rb.bid, rb.reputation, r.winner === rb.firm))
     if (contested)
       parts.push(
-        el('p', 'shop-note', t(isSledBrief(id) ? 'bids.howSled' : isJumpBrief(id) ? 'bids.howJump' : isTruckBrief(id) ? 'bids.howTruck' : 'bids.how', { worth: rubles(r.worth), max: rubles(briefTemplate(id)!.fee.max), rep: String(Math.round(1 / REPUTATION.bidPerPoint)) })),
+        el('p', 'shop-note', t(isSledBrief(id) ? 'bids.howSled' : isJumpBrief(id) ? 'bids.howJump' : isTruckBrief(id) ? 'bids.howTruck' : isCarBrief(id) ? 'bids.howCar' : 'bids.how', { worth: rubles(r.worth), max: rubles(briefTemplate(id)!.fee.max), rep: String(Math.round(1 / REPUTATION.bidPerPoint)) })),
       )
     if (r.won) {
       parts.push(el('p', 'shop-note', t('bids.wonNote')))
@@ -1121,6 +1281,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     if (b.event.jump) return t('board.eventJump', { event: b.event.name, hs: fixed(HILLS[b.event.jump.hill].hs, 0) })
     if (b.event.sled) return t('board.eventSled', { event: b.event.name, track: t(`track.${b.event.sled.track}`) })
     if (b.event.truck) return t('board.eventTruck', { event: b.event.name, route: t(`route.${b.event.truck.route}`) })
+    if (b.event.car) return t('board.eventCar', { event: b.event.name })
     return `${b.event.name} · ${fixed(km(b), 0)} km`
   }
 
@@ -1154,7 +1315,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       fact(t(isTruckBrief(job.brief.id) ? 'board.trialDay' : 'board.raceDay'), careerDate(career.day + job.daysLeft, CAREER.start)),
     )
     const actions = el('div', 'job-actions')
-    const shape = button('save-btn quiet guide-shape', t(isTruckBrief(job.brief.id) ? 'board.toShapeTruck' : 'board.toShape'))
+    const shape = button('save-btn quiet guide-shape', t(isTruckBrief(job.brief.id) ? 'board.toShapeTruck' : isCarBrief(job.brief.id) ? 'board.toShapeCar' : 'board.toShape'))
     shape.addEventListener('click', () => go('shape'))
     const send = button('save-btn guide-deliver', t('board.deliver'))
     send.addEventListener('click', openDeliver)
@@ -1183,7 +1344,10 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     const jump = b.event.jump
     const sled = b.event.sled
     const road = b.event.truck
-    const where = jump
+    const race = b.event.car
+    const where = race
+      ? fact(t('board.circuit'), t('board.circuitValue', { circuit: t(`circuit.${race.circuit}`), km: fixed(lapLength(CIRCUITS[race.circuit]) / 1000, 1) }))
+      : jump
       ? fact(t('board.hill'), t('board.hillValue', { hill: t(`hill.${jump.hill}`), hs: fixed(HILLS[jump.hill].hs, 0) }))
       : sled
         ? fact(t('board.track'), t(`track.${sled.track}`))
@@ -1196,13 +1360,16 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
         ? fact(t('board.crew'), t(`crew.${b.setup.crew}`))
         : b.setup.sport === 'truck'
           ? fact(t('board.trailer'), `${fixed(b.setup.trailerTop, 2)} m`)
-          : fact(t('board.power'), `${fixed(b.rider.power, 0)} W`)
+          : b.setup.sport === 'car'
+            ? fact(t('board.carClass'), t(`car.class.${b.setup.class}`))
+            : fact(t('board.power'), `${fixed(b.rider.power, 0)} W`)
     facts.append(
       fact(t('board.wants'), promiseText(brief.id, b.target)),
       fact(t('board.feeRange'), `${rublesShort(b.fee.min)}–${rublesShort(b.fee.max)}`),
       fact(t('board.days'), String(brief.days)),
       where,
-      fact(t('board.wind'), b.event.indoor ? t('board.indoors') : `~${fixed(b.event.windSpeed, 0)} m/s`),
+      // A race lap doesn't care about the wind much: a car shows the usual air instead.
+      race ? fact(t('board.air'), `~${fixed(b.event.temperature, 0)} °C`) : fact(t('board.wind'), b.event.indoor ? t('board.indoors') : `~${fixed(b.event.windSpeed, 0)} m/s`),
       ...(sled ? [fact(t('board.ice'), `${fixed(sled.iceTemp, 0)} °C`)] : []),
       who,
       ...(road?.gravel ? [fact(t('board.yard'), t('board.gravel', { gap: fixed(GRAVEL_YARD.minSkirtGap, 2) }))] : []),
