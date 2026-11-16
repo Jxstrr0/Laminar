@@ -16,6 +16,8 @@ import type { Route } from './routes'
 import { FLEET_TRUCK, type TruckDesign } from './truck'
 import { STOCK_CAR, type CarClass, type CarDesign } from './car'
 import type { Circuit } from './circuits'
+import { STOCK_RECORD, type RecordDesign } from './record'
+import type { SaltFlat } from './saltFlats'
 
 /** How a career starts, and how the brief board works. */
 export const CAREER = {
@@ -120,6 +122,12 @@ export interface EventTemplate {
    * `spread.temperature` says how far race day's air strays from it.
    */
   car?: { circuit: Circuit['id'] }
+  /**
+   * A speed week on the salt (PR 9t): the flat the team runs on.
+   * `temperature` and `altitude` copy the flat's usual day for the brief
+   * card; the record day's air comes from the flat's own spread.
+   */
+  record?: { flat: SaltFlat['id'] }
 }
 
 export interface BriefTemplate {
@@ -224,6 +232,23 @@ export const CAR_JOBS = {
   promiseStep: 1,
 }
 
+/**
+ * Land-speed record jobs (PR 9t; Kelbo, 16 November 2026: "km/h on their
+ * car"): the promise is km/h gained on the two-way mean on the salt's
+ * still day over the team's current car. A car that pulls its chutes sets
+ * no time and gains nothing. One point is 2 km/h, and bids move a point at
+ * a time. The declared number is the new car's two-way mean.
+ *
+ * Closed until PR 9u puts them on the board and the debrief.
+ */
+export const RECORD_JOBS = {
+  open: false,
+  /** km/h in one promised point. */
+  pointKmh: 2,
+  /** A record bid's promise moves in these points: 2 km/h. */
+  promiseStep: 1,
+}
+
 /** The indoor 400 m ice oval (PR 8b): longer straights than the velodrome, skated anticlockwise too. */
 export const OVAL = {
   lap: 400,
@@ -292,6 +317,8 @@ const sled = (crew: Crew, nose: number, tail: number, cowl: number, tuck: number
 })
 
 const car = (cls: CarClass, change: Partial<Omit<CarDesign, 'sport' | 'class'>> = {}): CarDesign => ({ ...STOCK_CAR[cls], ...change })
+
+const streamliner = (change: Partial<Omit<RecordDesign, 'sport' | 'class'>> = {}): RecordDesign => ({ ...STOCK_RECORD.streamliner, ...change })
 
 const jumper = (leanDeg: number, vAngleDeg: number, bagginess: number): JumperDesign => ({
   sport: 'skijump',
@@ -785,5 +812,51 @@ export const BRIEFS: readonly BriefTemplate[] = [
     days: 28,
     minRep: 50,
     target: 14,
+  },
+  {
+    id: 'kalina-streamliner',
+    client: 'Bogdan Lisovoy',
+    who: 'Built Kalina, a streamliner, in his barn, and drives it himself',
+    goal: 'Kalina has the engine for the Tarnovian record but she’s shaped like a bread van. Make her slippery and keep her on the ground.',
+    event: {
+      name: 'Sukhoye Speed Week',
+      place: 'Lake Sukhoye',
+      temperature: 28,
+      altitude: 420,
+      windSpeed: 0,
+      riderSpeed: 155,
+      spread: { temperature: 4, wind: 0, power: 0 },
+      course: [],
+      record: { flat: 'sukhoye' },
+    },
+    rider: { power: 0, mass: 0 },
+    setup: streamliner({ nose: { length: 1.2, droop: 1.5 }, canopy: 0.42, fin: 0.5, fairings: 0 }),
+    fee: { min: 220000, max: 300000 },
+    days: 30,
+    minRep: 55,
+    target: 14,
+  },
+  {
+    id: 'zarya-streamliner',
+    client: 'Vera Yarovaya',
+    who: 'Engineer for the Zarya Land Speed Project, chasing the Tarnovian record',
+    goal: 'We cut the canopy down to our driver’s helmet to save drag, and now she says she can’t see the line. Find us speed without blinding her.',
+    event: {
+      name: 'Sukhoye Speed Week',
+      place: 'Lake Sukhoye',
+      temperature: 28,
+      altitude: 420,
+      windSpeed: 0,
+      riderSpeed: 165,
+      spread: { temperature: 4, wind: 0, power: 0 },
+      course: [],
+      record: { flat: 'sukhoye' },
+    },
+    rider: { power: 0, mass: 0 },
+    setup: streamliner({ nose: { length: 2.4, droop: 3 }, canopy: 0.18, fin: 1.1, fairings: 0.8 }),
+    fee: { min: 320000, max: 420000 },
+    days: 34,
+    minRep: 70,
+    target: 8,
   },
 ]

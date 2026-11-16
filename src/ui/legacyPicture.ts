@@ -44,8 +44,8 @@ export function wrapLines(text: string, max: number, measure: (s: string) => num
 
 /** The best-job line, in the cut's own units: % of drag, metres further, or seconds quicker. */
 export function bestText(best: NonNullable<Legacy['best']>): string {
-  const key = best.unit === 'm' ? 'end.bestJump' : best.unit === 's' ? 'end.bestSled' : best.unit === 'fuel' ? 'end.bestTruck' : 'end.best'
-  return t(key, { client: best.client, event: best.event, cut: fixed(best.cut, best.unit === 's' ? 2 : 1) })
+  const key = best.unit === 'm' ? 'end.bestJump' : best.unit === 's' ? 'end.bestSled' : best.unit === 'fuel' ? 'end.bestTruck' : best.unit === 'kmh' ? 'end.bestRecord' : 'end.best'
+  return t(key, { client: best.client, event: best.event, cut: fixed(best.cut, best.unit === 's' ? 2 : best.unit === 'kmh' ? 0 : 1) })
 }
 
 /** A file name for the picture: "laminar-legacy-strela-aero-works.png". */

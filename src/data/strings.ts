@@ -836,6 +836,7 @@ export const STRINGS = {
   'compass.7': 'north-west',
   'end.bestSled': 'Best job: {client} at the {event}, {cut} s quicker.',
   'end.bestTruck': 'Best job: {client} at the {event}, {cut} % less fuel.',
+  'end.bestRecord': 'Best job: {client} at {event}, {cut} km/h faster.',
   // The bobsled replay (PR 8q).
   'sr.gap': 'Vs old sled',
   'sr.down': 'Down the track',

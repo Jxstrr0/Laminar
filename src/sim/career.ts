@@ -20,8 +20,10 @@
  *   event and refreshes the board.
  */
 import { STOCK_RECORD, type RecordClass, type RecordDesign } from '../data/record'
-import { SALT_FLATS, type SaltFlat } from '../data/saltFlats'
-import { BID, BRIEFS, CAREER, CAR_JOBS, JUMP_JOBS, PROMISE, SLED_JOBS, TRUCK_JOBS, type BriefTemplate } from '../data/briefs'
+import type { SaltFlat } from '../data/saltFlats'
+import { BID, BRIEFS, CAREER, CAR_JOBS, JUMP_JOBS, PROMISE, RECORD_JOBS, SLED_JOBS, TRUCK_JOBS, type BriefTemplate } from '../data/briefs'
+import { recordAero, recordDayAir, sightLoss, twoWay, type RecordAttempt, type RecordDay } from './record'
+import { dragScaleForSpeed, PRACTICE_FLAT, recordEventFrom, sightCost, stillAttempt, type RecordEvent } from './recordJob'
 import type { BobsledDesign } from '../data/bobsled'
 import { dayDrag, referenceConditions, referenceRun, runWith, type BobRun, type RunConditions } from './bobsled'
 import { cdAForTime, PRACTICE_RUN, raceConditions, sledEventFrom, type SledEvent } from './sledJob'
@@ -151,6 +153,7 @@ export function openTo(b: BriefTemplate, reputation: number): boolean {
   if (b.event.sled && !SLED_JOBS.open) return false
   if (b.event.truck && !TRUCK_JOBS.open) return false
   if (b.event.car && !CAR_JOBS.open) return false
+  if (b.event.record && !RECORD_JOBS.open) return false
   return (b.minRep ?? 0) <= reputation
 }
 
@@ -201,6 +204,16 @@ export function isCarBrief(id: string): boolean {
 /** A car brief's race weekend, ready for the lap. Null for any other brief. */
 export function carEventOf(brief: Pick<Brief, 'id'>): CarEvent | null {
   return carEventFrom(template(brief.id))
+}
+
+/** True for a land-speed record brief: its promise is km/h on the two-way mean, its declaration a record speed. */
+export function isRecordBrief(id: string): boolean {
+  return briefTemplate(id)?.event.record !== undefined
+}
+
+/** A record brief's speed week. Null for any other brief. */
+export function recordEventOf(brief: Pick<Brief, 'id'>): RecordEvent | null {
+  return recordEventFrom(template(brief.id))
 }
 
 /**
@@ -391,13 +404,19 @@ export function currentCarRun(state: CareerState, cls: CarClass): { circuit: Cir
   return { circuit: currentCarEvent(state).circuit, old: setup && setup.sport === 'car' && setup.class === cls ? setup : STOCK_CAR[cls] }
 }
 
+/** The speed week a record car is built for: the job's, or Lake Sukhoye on its usual day between jobs. */
+export function currentRecordEvent(state: CareerState): RecordEvent {
+  return (state.job && recordEventOf(state.job.brief)) ?? PRACTICE_FLAT
+}
+
 /**
- * The salt flat a record car is forecast on and the team's car it's
- * measured against (PR 9q): the team's streamliner as it runs now at Lake
- * Sukhoye. Record jobs come in a later PR.
+ * The salt flat a land-speed car is forecast on and the team's car it's
+ * measured against: the job's (PR 9t), or a middling streamliner at Lake
+ * Sukhoye between jobs.
  */
-export function currentRecordRun(_state: CareerState, cls: RecordClass): { flat: SaltFlat; old: RecordDesign } {
-  return { flat: SALT_FLATS.sukhoye, old: STOCK_RECORD[cls] }
+export function currentRecordRun(state: CareerState, cls: RecordClass): { flat: SaltFlat; old: RecordDesign } {
+  const setup = state.job ? template(state.job.brief.id).setup : null
+  return { flat: currentRecordEvent(state).flat, old: setup && setup.sport === 'record' && setup.class === cls ? setup : STOCK_RECORD[cls] }
 }
 
 /** Take a brief off the board at its suggested fee and the client's ask. Only one job at a time. */
@@ -462,8 +481,8 @@ const roundTo = (x: number, step: number) => (step < 1 ? Math.round(x / step) / 
 export function clampBid(id: string, bid: Bid): Bid {
   const b = template(id)
   const price = Math.min(b.fee.max, Math.max(b.fee.min, roundTo(bid.price, BID.priceStep)))
-  // A sled's promise moves in hundredths of a second, a car's in tenths.
-  const step = isSledBrief(id) ? SLED_JOBS.promiseStep : isCarBrief(id) ? CAR_JOBS.promiseStep : BID.promiseStep
+  // A sled's promise moves in hundredths of a second, a car's in tenths, a record car's 2 km/h at a time.
+  const step = isSledBrief(id) ? SLED_JOBS.promiseStep : isCarBrief(id) ? CAR_JOBS.promiseStep : isRecordBrief(id) ? RECORD_JOBS.promiseStep : BID.promiseStep
   const promise = Math.min(BID.promiseMax, Math.max(BID.promiseMin, roundTo(bid.promise, step)))
   return { price, promise }
 }
@@ -1125,5 +1144,109 @@ export function deliverCar(state: CareerState, design: CarDesign, predicted: num
     reputation: { before: firmReputation(state), after: 0 },
   }
   const closed = closeJob(state, job, penalty, { achieved, predicted: predictedClA, actual: actualClA })
+  return { ...closed, job, event, debrief: { ...debrief, reputation: { ...debrief.reputation, after: firmReputation(closed.state) } } }
+}
+
+/** What speed week showed for a record car (plan section 9: km/h gained on the two-way mean on the still day). */
+export interface RecordDebrief {
+  /** Promised and achieved gain on the still day's two-way mean, points (2 km/h each). */
+  promised: number
+  achieved: number
+  met: boolean
+  /** Points short after the allowance (0 if met). */
+  shortfall: number
+  /** ₽ taken off the fee. */
+  penalty: number
+  /** Declared and real two-way mean on the still day, m/s (real: null if the chutes came out). */
+  predicted: number
+  actual: number | null
+  /** The old car's two-way mean on the still day, m/s. */
+  baseline: number
+  /** The drag areas the declared and real speeds come from, m²: the read is judged on these. */
+  predictedCdA: number
+  actualCdA: number
+  /** (declared − real) ÷ real, on drag. */
+  readError: number
+  read: Read
+  /** The still day's attempt the promise is judged on. */
+  still: RecordAttempt
+  /** Record day: its air, and both cars' attempts in it. */
+  day: RecordDay
+  attempt: RecordAttempt
+  baselineAttempt: RecordAttempt
+  /**
+   * Why a miss happened: not enough speed ('design'), the nose going light
+   * ('lift') or the car wandering ('wander') so the chutes came out, or
+   * enough but for the power the driver gave up behind a low canopy
+   * ('sight').
+   */
+  cause: 'design' | 'lift' | 'wander' | 'sight' | null
+  /** Where the chutes came out on the still day, km/h, with the slider to change; null if they didn't. */
+  abort: { cause: 'lift' | 'wander'; speed: number; fix: FixTarget } | null
+  /** The share of power given up behind a low canopy and the km/h it cost, with the slider; null if none. */
+  sight: { share: number; lost: number; fix: FixTarget } | null
+  reputation: { before: number; after: number }
+}
+
+export interface RecordDelivery extends Closed {
+  job: Job
+  event: RecordEvent
+  debrief: RecordDebrief
+}
+
+/**
+ * Deliver a record car with a declared two-way mean, m/s. The promise is
+ * judged on the still day's attempt, the same for any record day; a car
+ * that pulls its chutes there gains nothing. Record day, your car and the
+ * old one in the same air, is the show. The firm's record keeps the read
+ * on drag. Null if there's no job, it isn't a record job, or the car isn't
+ * the team's class.
+ */
+export function deliverRecord(state: CareerState, design: RecordDesign, predicted: number): RecordDelivery | null {
+  const job = state.job
+  if (!job) return null
+  const event = recordEventOf(job.brief)
+  const setup = template(job.brief.id).setup
+  if (!event || setup.sport !== 'record' || design.class !== setup.class) return null
+  const flat = event.flat
+  const still = stillAttempt(design, flat)
+  const baseline = stillAttempt(setup, flat).mean ?? 0
+  const gainOf = (mean: number | null) => (mean === null ? 0 : ((mean - baseline) * 3.6) / RECORD_JOBS.pointKmh)
+  const achieved = gainOf(still.mean)
+  const { shortfall, penalty } = penaltyFor(job.brief.fee, job.promise, achieved)
+  const met = shortfall === 0
+  const dayAir = recordDayAir(flat, daySeed(job.brief))
+  // The read is on drag: the speed the car's drag is worth, had the driver kept going.
+  const actualCdA = recordAero(design).cdA
+  const predictedCdA = dragScaleForSpeed(predicted, design, flat) * actualCdA
+  const readError = (predictedCdA - actualCdA) / actualCdA
+  const first = still.runs[0].abort ?? still.runs[1].abort
+  const sight = sightCost(design, flat)
+  const keeps = (mean: number | null) => penaltyFor(job.brief.fee, job.promise, gainOf(mean)).shortfall === 0
+  const cause = met ? null : first ? first.cause : sight && keeps(sight.mean) ? 'sight' : 'design'
+  const debrief: RecordDebrief = {
+    promised: job.promise,
+    achieved,
+    met,
+    shortfall,
+    penalty,
+    predicted,
+    actual: still.mean,
+    baseline,
+    predictedCdA,
+    actualCdA,
+    readError,
+    read: readOf(readError),
+    still,
+    day: dayAir,
+    attempt: twoWay(design, flat, dayAir),
+    baselineAttempt: twoWay(setup, flat, dayAir),
+    cause,
+    // A light nose wants more droop; a wandering car more fin.
+    abort: first ? { cause: first.cause, speed: first.speed * 3.6, fix: first.cause === 'lift' ? 'noseDroop' : 'fin' } : null,
+    sight: sight && sightLoss(design) > 0 ? { share: sight.share, lost: sight.mean !== null && still.mean !== null ? (sight.mean - still.mean) * 3.6 : 0, fix: 'canopy' } : null,
+    reputation: { before: firmReputation(state), after: 0 },
+  }
+  const closed = closeJob(state, job, penalty, { achieved, predicted: predictedCdA, actual: actualCdA })
   return { ...closed, job, event, debrief: { ...debrief, reputation: { ...debrief.reputation, after: firmReputation(closed.state) } } }
 }

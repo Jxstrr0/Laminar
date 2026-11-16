@@ -63,8 +63,9 @@ describe('a good name brings bigger clients', () => {
     // With a top name, every client can turn up.
     const seen = new Set<string>()
     for (let round = 1; round < 40; round++) for (const b of boardFor(3, round, false, REPUTATION.max)) seen.add(b.id)
-    for (const b of BRIEFS.filter((x) => !x.tutorial)) expect(seen.has(b.id), b.id).toBe(true)
-    expect(BRIEFS.every((b) => openTo(b, REPUTATION.max))).toBe(true)
+    // Record jobs stay closed until PR 9u puts them on the board (tests/recordJobs.test.ts).
+    for (const b of BRIEFS.filter((x) => !x.tutorial && !x.event.record)) expect(seen.has(b.id), b.id).toBe(true)
+    expect(BRIEFS.filter((b) => !b.event.record).every((b) => openTo(b, REPUTATION.max))).toBe(true)
   })
 
   it('tips a close bid toward the better-known firm', () => {

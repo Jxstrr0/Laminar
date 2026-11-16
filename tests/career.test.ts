@@ -90,8 +90,8 @@ describe('the career', () => {
   })
 
   it('builds each event from its brief', () => {
-    // Ski jumps fly their own event (tests/jumpJobs.test.ts), sleds slide theirs (tests/sledJobs.test.ts), trucks run theirs (tests/truckJobs.test.ts), cars race theirs (tests/carJobs.test.ts).
-    for (const b of BRIEFS.filter((x) => !x.event.jump && !x.event.sled && !x.event.truck && !x.event.car)) {
+    // Ski jumps fly their own event (tests/jumpJobs.test.ts), sleds slide theirs (tests/sledJobs.test.ts), trucks run theirs (tests/truckJobs.test.ts), cars race theirs (tests/carJobs.test.ts), record cars run theirs (tests/recordJobs.test.ts).
+    for (const b of BRIEFS.filter((x) => !x.event.jump && !x.event.sled && !x.event.truck && !x.event.car && !x.event.record)) {
       const e = eventOf(b)
       expect(e.rider.power).toBe(b.rider.power)
       expect(e.spread).toEqual(b.event.spread)

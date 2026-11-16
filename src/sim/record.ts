@@ -186,6 +186,10 @@ export function crossHeldAt(margin: number): number {
  *   (the tunnel never sees it);
  * - holdStraight: pretend the driver holds a wandering car straight (to
  *   check the nose of a car that would otherwise wander before it got fast).
+ * - chutes: false runs on whatever happens (a light nose too), to price a
+ *   declared speed in drag (the job's read, PR 9t);
+ * - sighted: the driver sees the line however low the canopy, so no power
+ *   is given up (what a low canopy cost, PR 9t).
  */
 export interface RunOptions {
   trim?: RecordTrim
@@ -193,6 +197,8 @@ export interface RunOptions {
   margin?: number
   squeeze?: boolean
   holdStraight?: boolean
+  chutes?: boolean
+  sighted?: boolean
 }
 
 /** One run in this air. */
@@ -203,8 +209,9 @@ export function recordRun(design: RecordDesign, air: RunAir, opts: RunOptions = 
   const frontStatic = weight * c.massFront
   const aero = opts.aero ?? trimmed(design, opts.trim ?? NO_RECORD_TRIM)
   const squeeze = opts.squeeze ?? true
-  const power = c.power * (1 - sightLoss(design))
-  const stable = opts.holdStraight === true || (opts.margin ?? sideCentre(design).margin) >= marginNeeded(air.cross)
+  const power = c.power * (opts.sighted ? 1 : 1 - sightLoss(design))
+  const chutes = opts.chutes ?? true
+  const stable = !chutes || opts.holdStraight === true || (opts.margin ?? sideCentre(design).margin) >= marginNeeded(air.cross)
   const sound = soundSpeed(air.temperature)
   const end = RUN.runUp + RUN.timed
   const speeds = [0]
@@ -218,7 +225,7 @@ export function recordRun(design: RecordDesign, air: RunAir, opts: RunOptions = 
     const u = v + air.head
     const q = 0.5 * air.density * u * Math.abs(u)
     // The nose goes light, or the car wanders off the line: chutes out.
-    if (q * aero.liftFront > (1 - RUN.frontKeep) * frontStatic) return aborted('lift')
+    if (chutes && q * aero.liftFront > (1 - RUN.frontKeep) * frontStatic) return aborted('lift')
     if (!stable && v >= S.wanderSpeed) return aborted('wander')
     const mach = Math.abs(u) / sound
     const r = squeeze ? dragRise(design, mach) : 1
