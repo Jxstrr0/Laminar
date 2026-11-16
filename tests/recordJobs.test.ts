@@ -39,7 +39,7 @@ const setupOf = (id: string) => briefTemplate(id)!.setup as RecordDesign
 const pointsOf = (ms: number) => (ms * 3.6) / RECORD_JOBS.pointKmh
 
 afterEach(() => {
-  RECORD_JOBS.open = false
+  RECORD_JOBS.open = true
 })
 
 describe('record briefs', () => {
@@ -60,14 +60,18 @@ describe('record briefs', () => {
     expect(recordEventOf(briefTemplate('belan-sport')!)).toBeNull()
   })
 
-  it('stay off the board until they open, then come late in a career', () => {
-    for (const b of recordBriefs) expect(openTo(b, 100)).toBe(false)
-    for (let round = 0; round < 30; round++) expect(boardFor(1, round, false, 100).some((b) => isRecordBrief(b.id))).toBe(false)
-    RECORD_JOBS.open = true
+  it('come onto the board late in a career, Zarya last, and can be closed', () => {
     expect(openTo(briefTemplate('kalina-streamliner')!, 40)).toBe(false)
     expect(openTo(briefTemplate('kalina-streamliner')!, 60)).toBe(true)
     expect(openTo(briefTemplate('zarya-streamliner')!, 60)).toBe(false)
     expect(openTo(briefTemplate('zarya-streamliner')!, 80)).toBe(true)
+    let offered = false
+    for (let round = 0; round < 40; round++) offered ||= boardFor(1, round, false, 100).some((b) => isRecordBrief(b.id))
+    expect(offered).toBe(true)
+    // The switch still shuts them away.
+    RECORD_JOBS.open = false
+    for (const b of recordBriefs) expect(openTo(b, 100)).toBe(false)
+    for (let round = 0; round < 30; round++) expect(boardFor(1, round, false, 100).some((b) => isRecordBrief(b.id))).toBe(false)
   })
 
   it('ask for a gain a well-sorted car makes with room to spare', () => {
