@@ -30,6 +30,7 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Kosa spit | A coastal spit with a sea-wall road, site of a windy time trial. | PR 5c |
 | Stavren Velodrome | An indoor 250 m track in Stavren. | PR 5h |
 | Stavren Ice Oval | An indoor 400 m speed-skating oval in Stavren. | PR 8b |
+| Stavren–Mostograd highway | A truck route across the plain and over a low ridge; the first fleet's run. | PR 9a |
 | Belogor | A ski-jump venue with a normal hill (HS 98) and a large hill (HS 134), and a sliding track on the same mountain. | PR 8g, 8h, 8l |
 
 ## Bodies
@@ -38,6 +39,7 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | --- | --- | --- |
 | Tarnovian Cycling Federation (TCF) | Sets the cycling rulebook and legality box. Fictional; never the real UCI. | Kept by Kelbo (15 November 2026) |
 | Tarnovian Sliding Federation | Sets the bobsled rule box (sled length, cowling height). Fictional; never the real IBSF. | PR 8l |
+| Tarnovian Road Code | The road rules that cap a truck's boat-tail length and its skirts' ground gap. Fictional. | PR 9a |
 
 ## Clients and events (PR 5c)
 
