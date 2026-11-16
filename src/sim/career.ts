@@ -23,7 +23,7 @@ import { RECORD_TUNNEL, STOCK_RECORD, type RecordClass, type RecordDesign } from
 import { STOCK_AIRCRAFT, type AircraftClass, type AircraftDesign, type Airfield } from '../data/aircraft'
 import { OLD_POD, type PodClass, type PodDesign, type TestRange } from '../data/pod'
 import type { Sensor } from './pod'
-import { dragScaleForHours, podDragArea, podEventFrom, podFlight, PRACTICE_RANGE, rangeDay, usualRangeDay, type PodEvent, type PodFlight, type RangeDay } from './podJob'
+import { dragScaleForHours, planeDragArea, podEventFrom, podFlight, PRACTICE_RANGE, rangeDay, usualRangeDay, type PodEvent, type PodFlight, type RangeDay } from './podJob'
 import { stallFix } from './aircraft'
 import { applied, applyBlock, clearanceOn, isCleared, NO_CLEARANCE, reviewClearance, type ApplyBlock, type Clearance } from './clearance'
 import { CLEARANCE } from '../data/defence'
@@ -1740,7 +1740,7 @@ export interface PodDebrief {
   actual: number | null
   /** The ministry's pod as it hangs now: its hours on station on the usual day. */
   baseline: number
-  /** The pod's drag areas the declared and real hours come from, m²: the read is judged on these. */
+  /** The plane's drag areas with the pod the declared and real hours come from, m²: the read is judged on these. */
   predictedCdA: number
   actualCdA: number
   /** (declared − real) ÷ real, on drag. */
@@ -1789,9 +1789,9 @@ export function deliverPod(state: CareerState, design: PodDesign, predicted: num
   const { shortfall, penalty } = penaltyFor(job.brief.fee, job.promise, achieved)
   const met = shortfall === 0
   const day = rangeDay(event, daySeed(job.brief))
-  // The read is on drag: the pod's drag area the declared hours are worth.
-  const actualCdA = podDragArea(design)
-  const predictedCdA = dragScaleForHours(predicted, design, range) * actualCdA
+  // The read is on drag: the plane's drag area with the pod drag the declared hours are worth.
+  const actualCdA = planeDragArea(design)
+  const predictedCdA = planeDragArea(design, dragScaleForHours(predicted, design, range))
   const readError = (predictedCdA - actualCdA) / actualCdA
   const debrief: PodDebrief = {
     promised: job.promise,

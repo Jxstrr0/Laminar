@@ -5,17 +5,20 @@
  * winning puts the client's current setup on the bench. Delivering runs the
  * event and pays the fee.
  */
-import { AIRCRAFT_JOBS, BID, CAREER, CAR_JOBS, DRONE_JOBS, PLANE_JOBS, PROMISE, RECORD_JOBS, SLED_JOBS, TRACK, type BriefTemplate } from '../data/briefs'
+import { AIRCRAFT_JOBS, POD_JOBS, BID, CAREER, CAR_JOBS, DRONE_JOBS, PLANE_JOBS, PROMISE, RECORD_JOBS, SLED_JOBS, TRACK, type BriefTemplate } from '../data/briefs'
 import { BROKE, REPUTATION } from '../data/reputation'
 import { RIVALS, RIVAL_IDS } from '../data/rivals'
 import { OWN_BILLING, OWN_TUNNEL_BUILD, TUNNEL_UPGRADES, UPGRADE_IDS } from '../data/tunnel'
 import { buildBlock, machineBlock, ownReadyDay, upgradeBlock, upgradeReadyDay } from '../sim/facility'
 import { MACHINE_IDS, MACHINE_PRICE } from '../data/model'
-import { designShape, isAircraft, isBobsled, isCar, isDrone, isPlane, isJumper, isRecord, isSkater, isTruck, type Design } from '../sim/design'
+import { designShape, isAircraft, isPod, isBobsled, isCar, isDrone, isPlane, isJumper, isRecord, isSkater, isTruck, type Design } from '../sim/design'
 import { DRONE_CLASS, DRONE_COURSES, DRONE_RACE, type DroneDesign } from '../data/drone'
 import { droneForecast } from './droneForecast'
 import { planeForecast } from './planeForecast'
 import { aircraftForecast } from './aircraftForecast'
+import { podForecast } from './podForecast'
+import { POD_BUFFET, TEST_RANGES, type PodDesign } from '../data/pod'
+import { hoursOnStation, patrolDensity, podBuffet } from '../sim/pod'
 import { AIRCRAFT_CLASS, AIRFIELDS, type AircraftDesign } from '../data/aircraft'
 import { cruiseSpeed, KMH, stallCheck } from '../sim/aircraft'
 import { PLANE_TUNNEL, SURVEY_SITES, type PlaneDesign } from '../data/plane'
@@ -75,6 +78,10 @@ import {
   deliverAircraft,
   currentAircraftRun,
   type AircraftDelivery,
+  isPodBrief,
+  deliverPod,
+  currentPodRun,
+  type PodDelivery,
   type PlaneDelivery,
   currentDroneRun,
   isDroneBrief,
@@ -99,7 +106,7 @@ import {
   type CarDelivery,
   promiseLimits,
 } from '../sim/career'
-import { bobDeskEstimate, carDeskEstimate, deskEstimate, droneDeskEstimate, planeDeskEstimate, aircraftDeskEstimate, jumpDeskEstimate, recordDeskEstimate, truckDeskEstimate } from '../sim/desk'
+import { bobDeskEstimate, carDeskEstimate, deskEstimate, droneDeskEstimate, planeDeskEstimate, aircraftDeskEstimate, podDeskEstimate, jumpDeskEstimate, recordDeskEstimate, truckDeskEstimate } from '../sim/desk'
 import { crewEffects, wagesPerDay } from '../sim/staff'
 import type { Sale } from '../sim/broke'
 import { legacyOf } from '../sim/legacy'
@@ -181,6 +188,9 @@ const kmOf = (n: number) => fixed(n * PLANE_JOBS.pointKm, 0)
 /** A promise in points as km/h of a kit plane's cruise (a point is a km/h): 12 → "12". */
 const cruiseOf = (n: number) => fixed(n * AIRCRAFT_JOBS.pointKmh, 0)
 
+/** A promise in points as minutes on station of a sensor pod (a point is a minute): 25 → "25". */
+const minutesOf = (n: number) => fixed(n * POD_JOBS.pointHours * 60, 0)
+
 /** A promise in points as km/h on a record car's two-way mean (a point is 2 km/h): 7 → "14". */
 const kmhOf = (n: number) => fixed(n * RECORD_JOBS.pointKmh, 0)
 /** A speed in m/s as km/h, whole. */
@@ -195,12 +205,13 @@ function promiseText(id: string, n: number): string {
   if (isDroneBrief(id)) return t('board.promiseDrone', { s: droneTenths(n) })
   if (isPlaneBrief(id)) return t('board.promisePlane', { km: kmOf(n) })
   if (isAircraftBrief(id)) return t('board.promiseAircraft', { kmh: cruiseOf(n) })
+  if (isPodBrief(id)) return t('board.promisePod', { min: minutesOf(n) })
   return isJumpBrief(id) ? t('board.promiseJump', { m: pct(n) }) : t('board.promiseValue', { pct: pct(n) })
 }
 
 /** The "shape it" button's words for a job: the truck, the car, the quad or the plane, else `rider` (a position). */
 function shapeLabel(id: string, rider: StringKey): string {
-  return t(isTruckBrief(id) ? 'board.toShapeTruck' : isCarBrief(id) || isRecordBrief(id) ? 'board.toShapeCar' : isDroneBrief(id) ? 'board.toShapeDrone' : isPlaneBrief(id) ? 'board.toShapePlane' : isAircraftBrief(id) ? 'board.toShapeAircraft' : rider)
+  return t(isTruckBrief(id) ? 'board.toShapeTruck' : isCarBrief(id) || isRecordBrief(id) ? 'board.toShapeCar' : isDroneBrief(id) ? 'board.toShapeDrone' : isPlaneBrief(id) ? 'board.toShapePlane' : isAircraftBrief(id) ? 'board.toShapeAircraft' : isPodBrief(id) ? 'board.toShapePod' : rider)
 }
 
 /** A change in reputation, signed: "+6", "−4", "±0". */
@@ -278,6 +289,11 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     // A light-aircraft job declares a cruise speed (PR 10u).
     if (isAircraftBrief(job.brief.id)) {
       openDeliverAircraft(bench)
+      return
+    }
+    // A sensor-pod job declares hours on station (PR 10ad).
+    if (isPodBrief(job.brief.id)) {
+      openDeliverPod(bench)
       return
     }
     const b = briefTemplate(job.brief.id)!
@@ -1516,6 +1532,136 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
 
   let aircraftSheet: Sheet | null = null
 
+  /**
+   * The Deliver sheet for a sensor pod (PR 10ad): the promise in minutes
+   * over the ministry's pod, and the declared hours on station on the
+   * range's usual day, filled in from the tunnel's forecast for this design,
+   * or the desk estimate until the tunnel has read one. A forecast read
+   * with the pod on its own, one past the buffet limit, or a raw one gets a
+   * warning.
+   */
+  function openDeliverPod(design: Design) {
+    const career = careerStore.get()
+    const job = career.job
+    if (!job || !deliverSheet) return
+    const b = briefTemplate(job.brief.id)!
+    if (!isPod(design)) {
+      deliverSheet.body.replaceChildren(el('p', 'shop-intro', t('deliver.wrongPod')))
+      deliverSheet.open()
+      return
+    }
+    const pod: PodDesign = design
+    const { range, old, oldSensor } = currentPodRun(career, pod.class)
+    const rangeName = t(`range.${range.id}`)
+    const limit = fixed(POD_BUFFET.limit, 2)
+    const forecast = podForecast.get(pod, range.id)
+    const desk = podDeskEstimate(pod, old, range, job.brief.seed, JSON.stringify(pod), crewEffects(career.crew).deskLevel, oldSensor)
+    // Start from the tunnel's hours, else the desk's.
+    const start = forecast?.hours ?? desk.value
+    const box = stepper('deliver-pod', start.toFixed(2), 'h', t('deliver.lessPod'), t('deliver.morePod'), (dir) => {
+      const v = Number(box.input.value) || start
+      box.input.value = (Math.round(v * 100 + dir) / 100).toFixed(2)
+    })
+    box.input.step = '0.01'
+    box.input.min = String(POD_JOBS.declared.min)
+    box.input.max = String(POD_JOBS.declared.max)
+    const label = el('label', 'shop-label', t('deliver.predictPod'))
+    label.htmlFor = box.input.id
+    // A gain in hours as words: "38 min longer" or "12 min shorter".
+    const delta = (gain: number) => t(gain >= 0 ? 'deliver.longerMin' : 'deliver.shorterMin', { min: fixed(Math.abs(gain) * 60, 0) })
+    const notes: HTMLElement[] = [el('p', 'shop-note', t('deliver.oldPod', { hours: fixed(desk.old, 2) }))]
+    if (forecast) {
+      notes.push(el('p', 'shop-note', t('deliver.forecastPod', { hours: fixed(forecast.hours, 2), delta: delta(forecast.gain) })))
+      if (!forecast.wing) notes.push(el('p', 'save-due', t('deliver.forecastPodAlone')))
+      if (forecast.blurs) notes.push(el('p', 'save-due', t('deliver.forecastPodBlurs', { index: fixed(forecast.buffet, 2), limit })))
+      if (!forecast.calibrated) notes.push(el('p', 'shop-note', t('deliver.forecastPodRaw')))
+    } else notes.push(el('p', 'shop-note', t('deliver.noForecastPod', { hours: fixed(desk.value, 2), delta: delta(desk.value - desk.old), spread: fixed(((desk.high - desk.low) / 2) * 60, 0) })))
+    if (!forecast && desk.buffet.blurs) notes.push(el('p', 'save-due', t('deliver.deskPodBlurs', { index: fixed(desk.buffet.index, 2), limit })))
+    const status = el('p', 'shop-note')
+    status.setAttribute('aria-live', 'polite')
+    const go = button('shop-order', t('deliver.pod'))
+    go.addEventListener('click', () => {
+      const predicted = Number(box.input.value)
+      if (!Number.isFinite(predicted) || predicted < POD_JOBS.declared.min || predicted > POD_JOBS.declared.max) {
+        status.textContent = t('deliver.badPod', { min: fixed(POD_JOBS.declared.min, 0), max: fixed(POD_JOBS.declared.max, 0) })
+        return
+      }
+      const d = deliverPod(careerStore.get(), pod, predicted)
+      if (!d) return
+      deliverSheet?.close()
+      careerStore.set(d.state)
+      // Straight to the debrief; the range-day replay comes in a later PR.
+      showPodDelivery(d)
+    })
+    deliverSheet.body.replaceChildren(
+      el('p', 'shop-intro', t('deliver.introPod', { client: b.client, range: rangeName })),
+      el('p', 'deliver-promise', t('deliver.promisePod', { min: minutesOf(job.promise) })),
+      el('p', 'shop-note', t('deliver.promiseNotePod', { range: rangeName, limit })),
+      label,
+      box.row,
+      ...notes,
+      status,
+      go,
+    )
+    deliverSheet.open()
+  }
+
+  let podSheet: Sheet | null = null
+
+  /** Range day for a sensor pod: the promise judged on the usual day, both pods' patrols, and the sensor's picture with its fix. Secret: the public name never moves. */
+  function showPodDelivery(d: PodDelivery) {
+    podSheet ??= createSheet({ cls: 'raceday', title: t('rg.title'), closeLabel: t('rg.close') })
+    const b = briefTemplate(d.job.brief.id)!
+    const db = d.debrief
+    const verdict = el(
+      'p',
+      `race-verdict ${db.met ? 'is-met' : 'is-missed'}`,
+      db.met
+        ? t('rg.kept', { got: minutesOf(db.achieved), promised: minutesOf(db.promised) })
+        : db.actual === null
+          ? t('rg.missedBlur', { promised: minutesOf(db.promised) })
+          : db.achieved < 0
+            ? t('rg.missedShorter', { short: minutesOf(db.shortfall), got: minutesOf(-db.achieved), promised: minutesOf(db.promised) })
+            : t('rg.missed', { short: minutesOf(db.shortfall), got: minutesOf(db.achieved), promised: minutesOf(db.promised) }),
+    )
+    const off = fixed(Math.abs(db.readError) * 100, 1)
+    const hours = (h: number) => `${fixed(h, 2)} h`
+    const facts = el('div', 'job-facts')
+    facts.append(
+      fact(t('rg.hours'), db.actual === null ? t('rg.rejected') : hours(db.actual)),
+      fact(t('rg.old'), hours(db.baseline)),
+      fact(t('race.predicted'), hours(db.predicted)),
+      fact(t('race.read'), t(`race.read.${db.read}`, { pct: off, dir: t(db.readError >= 0 ? 'race.high' : 'race.low') })),
+      fact(t('rg.day'), db.flight.blurs ? t('rg.rejected') : hours(db.flight.hours)),
+      fact(t('rg.oldDay'), hours(db.baselineFlight.hours)),
+      fact(t('rg.buffet'), t('rg.buffetValue', { index: fixed(db.flight.buffet, 2), limit: fixed(db.flight.limit, 2) })),
+      fact(t('race.air'), deg(db.day.temperature, 0)),
+      fact(t('race.fee'), rubles(d.job.brief.fee)),
+      fact(t('race.penalty'), db.penalty ? `−${rubles(db.penalty)}` : rubles(0)),
+      fact(t('race.paid'), rubles(d.paid)),
+      ...(d.upkeep > 0 ? [fact(t('race.upkeep'), `−${rubles(d.upkeep)}`)] : []),
+      ...(d.wages > 0 ? [fact(t('race.wages'), `−${rubles(d.wages)}`)] : []),
+      // A defence job never moves the public name.
+      fact(glossaryTerm('reputation', t('race.reputation')), t('rg.secret', { rep: db.reputation.after })),
+    )
+    const parts: HTMLElement[] = [el('p', 'shop-intro', t('rg.intro', { client: b.client, event: b.event.name })), verdict, facts]
+    if (db.cause) parts.push(el('p', 'shop-note', t(`rg.cause.${db.cause}`)))
+    if (db.buffet)
+      parts.push(
+        troubleBox(
+          t(db.buffet.fix === 'senGap' ? 'rg.buffetOver.gap' : 'rg.buffetOver.tail', { index: fixed(db.buffet.index, 2), limit: fixed(db.buffet.limit, 2) }),
+          t(db.buffet.fix === 'senGap' ? 'rg.fixGap' : 'rg.fixTail'),
+          db.buffet.fix,
+          () => podSheet,
+        ),
+      )
+    parts.push(el('p', 'shop-note', t('rg.readNote')))
+    if (d.sale) parts.push(brokeBox(d.sale, d.state.money))
+    if (d.state.ended) parts.push(el('p', 'save-due', t('end.reached')))
+    podSheet.body.replaceChildren(...parts)
+    podSheet.open()
+  }
+
   /** Test day for a kit plane: the promise judged on the usual day, both planes' cruise runs, and the inspector's stall check with its fix. */
   function showAircraftDelivery(d: AircraftDelivery) {
     aircraftSheet ??= createSheet({ cls: 'raceday', title: t('tf.title'), closeLabel: t('tf.close') })
@@ -1704,17 +1850,18 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     const drone = !!b.event.drone
     const survey = !!b.event.plane
     const kit = !!b.event.aircraft
+    const pods = !!b.event.pod
     // The words for each kind of promise: '' for a road or track job, 'Jump', 'Sled', 'Truck', 'Car', 'Record', 'Drone' or 'Plane'.
-    const kind = sled ? 'Sled' : jump ? 'Jump' : truck ? 'Truck' : car ? 'Car' : record ? 'Record' : drone ? 'Drone' : survey ? 'Plane' : kit ? 'Aircraft' : ''
+    const kind = sled ? 'Sled' : jump ? 'Jump' : truck ? 'Truck' : car ? 'Car' : record ? 'Record' : drone ? 'Drone' : survey ? 'Plane' : kit ? 'Aircraft' : pods ? 'Pod' : ''
     // A sled's, a car's or a quad's box shows seconds (a point is a tenth), stepping a hundredth or a tenth; a record car's shows km/h (2 a point); the bid itself stays in points.
     const tenthsJob = car || drone
     const timed = sled || tenthsJob
     // A survey drone's shows kilometres of range (a point is a kilometre).
-    const shown = sled ? SLED_JOBS.pointSeconds : car ? CAR_JOBS.pointSeconds : drone ? DRONE_JOBS.pointSeconds : record ? RECORD_JOBS.pointKmh : survey ? PLANE_JOBS.pointKm : kit ? AIRCRAFT_JOBS.pointKmh : 1
-    const step = (sled ? SLED_JOBS.promiseStep : car ? CAR_JOBS.promiseStep : drone ? DRONE_JOBS.promiseStep : record ? RECORD_JOBS.promiseStep : survey ? PLANE_JOBS.promiseStep : kit ? AIRCRAFT_JOBS.promiseStep : BID.promiseStep) * shown
+    const shown = sled ? SLED_JOBS.pointSeconds : car ? CAR_JOBS.pointSeconds : drone ? DRONE_JOBS.pointSeconds : record ? RECORD_JOBS.pointKmh : survey ? PLANE_JOBS.pointKm : kit ? AIRCRAFT_JOBS.pointKmh : pods ? POD_JOBS.pointHours * 60 : 1
+    const step = (sled ? SLED_JOBS.promiseStep : car ? CAR_JOBS.promiseStep : drone ? DRONE_JOBS.promiseStep : record ? RECORD_JOBS.promiseStep : survey ? PLANE_JOBS.promiseStep : kit ? AIRCRAFT_JOBS.promiseStep : pods ? POD_JOBS.promiseStep : BID.promiseStep) * shown
     const digits = sled ? 2 : 1
     const limits = promiseLimits(b.id)
-    const promise = stepper('bid-promise', sled ? seconds(b.target) : tenthsJob ? fixed(b.target * shown, 1) : record ? kmhOf(b.target) : String(b.target), timed ? 's' : jump ? 'm' : record || kit ? 'km/h' : survey ? 'km' : '%', t(`bid.promiseLess${kind}`), t(`bid.promiseMore${kind}`), (dir) => {
+    const promise = stepper('bid-promise', sled ? seconds(b.target) : tenthsJob ? fixed(b.target * shown, 1) : record ? kmhOf(b.target) : String(b.target), timed ? 's' : jump ? 'm' : record || kit ? 'km/h' : survey ? 'km' : pods ? 'min' : '%', t(`bid.promiseLess${kind}`), t(`bid.promiseMore${kind}`), (dir) => {
       const v = Number(promise.input.value) || b.target * shown
       const next = Math.round(v / step) * step + dir * step
       const clamped = Math.min(limits.max * shown, Math.max(limits.min * shown, next))
@@ -1781,6 +1928,8 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
                 ? t('bid.askPlane', { km: kmOf(b.target) })
                 : kit
                 ? t('bid.askAircraft', { kmh: cruiseOf(b.target) })
+                : pods
+                ? t('bid.askPod', { min: minutesOf(b.target) })
                 : record
                   ? t('bid.askRecord', { kmh: kmhOf(b.target) })
                   : t('bid.ask', { pct: pct(b.target) }),
@@ -1815,7 +1964,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     for (const rb of r.rivals) parts.push(...block(RIVALS[rb.firm].name, rb.bid, rb.reputation, r.winner === rb.firm))
     if (contested)
       parts.push(
-        el('p', 'shop-note', t(isSledBrief(id) ? 'bids.howSled' : isJumpBrief(id) ? 'bids.howJump' : isTruckBrief(id) ? 'bids.howTruck' : isCarBrief(id) || isDroneBrief(id) ? 'bids.howCar' : isRecordBrief(id) ? 'bids.howRecord' : isPlaneBrief(id) ? 'bids.howPlane' : isAircraftBrief(id) ? 'bids.howAircraft' : 'bids.how', { worth: rubles(r.worth), max: rubles(briefTemplate(id)!.fee.max), rep: String(Math.round(1 / REPUTATION.bidPerPoint)) })),
+        el('p', 'shop-note', t(isSledBrief(id) ? 'bids.howSled' : isJumpBrief(id) ? 'bids.howJump' : isTruckBrief(id) ? 'bids.howTruck' : isCarBrief(id) || isDroneBrief(id) ? 'bids.howCar' : isRecordBrief(id) ? 'bids.howRecord' : isPlaneBrief(id) ? 'bids.howPlane' : isAircraftBrief(id) ? 'bids.howAircraft' : isPodBrief(id) ? 'bids.howPod' : 'bids.how', { worth: rubles(r.worth), max: rubles(briefTemplate(id)!.fee.max), rep: String(Math.round(1 / REPUTATION.bidPerPoint)) })),
       )
     if (r.won) {
       parts.push(el('p', 'shop-note', t('bids.wonNote')))
@@ -2025,6 +2174,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     if (b.event.drone) return t('board.eventCar', { event: b.event.name })
     if (b.event.plane) return t('board.eventCar', { event: b.event.name })
     if (b.event.aircraft) return t('board.eventCar', { event: b.event.name })
+    if (b.event.pod) return t('board.eventCar', { event: b.event.name })
     return `${b.event.name} · ${fixed(km(b), 0)} km`
   }
 
@@ -2055,7 +2205,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       fact(t('board.fee'), rubles(job.brief.fee)),
       fact(t('board.spent'), rubles(job.spent)),
       // A truck job ends in a fuel trial, not a race.
-      fact(t(isTruckBrief(job.brief.id) ? 'board.trialDay' : isPlaneBrief(job.brief.id) ? 'board.surveyDay' : isAircraftBrief(job.brief.id) ? 'board.testDay' : 'board.raceDay'), careerDate(career.day + job.daysLeft, CAREER.start)),
+      fact(t(isTruckBrief(job.brief.id) ? 'board.trialDay' : isPlaneBrief(job.brief.id) ? 'board.surveyDay' : isAircraftBrief(job.brief.id) ? 'board.testDay' : isPodBrief(job.brief.id) ? 'board.rangeDay' : 'board.raceDay'), careerDate(career.day + job.daysLeft, CAREER.start)),
     )
     const actions = el('div', 'job-actions')
     const shape = button('save-btn quiet guide-shape', shapeLabel(job.brief.id, 'board.toShape'))
@@ -2092,7 +2242,10 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     const gates = b.event.drone
     const fields = b.event.plane
     const strip = b.event.aircraft
-    const where = strip
+    const steppe = b.event.pod
+    const where = steppe
+      ? fact(t('board.range'), t('board.rangeValue', { range: t(`range.${steppe.range}`), limit: fixed(POD_BUFFET.limit, 2) }))
+      : strip
       ? fact(t('board.airfield'), t('board.airfieldValue', { field: t(`airfield.${strip.field}`), limit: fixed(AIRCRAFT_CLASS.kit.certifiedStall, 0) }))
       : fields
       ? fact(t('board.gusts'), t('board.gustsValue', { gust: kmh(SURVEY_SITES[fields.site].gust) }))
@@ -2128,6 +2281,13 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
                     t('board.plane'),
                     t(stallCheck(b.setup).passes ? 'board.aircraftValue' : 'board.aircraftGrounded', { kmh: fixed(cruiseSpeed(b.setup, AIRFIELDS[strip?.field ?? 'belyanka']) * KMH, 0) }),
                   )
+              : b.setup.sport === 'pod'
+                ? fact(
+                    t('board.pod'),
+                    t(podBuffet(b.setup).blurs ? 'board.podBlurs' : 'board.podValue', {
+                      hours: fixed(hoursOnStation(b.setup, { density: patrolDensity(TEST_RANGES[steppe?.range ?? 'stepnoy']) }), 2),
+                    }),
+                  )
               : fact(t('board.power'), `${fixed(b.rider.power, 0)} W`)
     facts.append(
       fact(t('board.wants'), promiseText(brief.id, b.target)),
@@ -2135,11 +2295,13 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       fact(t('board.days'), String(brief.days)),
       where,
       // A race lap doesn't care about the wind much: a car shows the usual air instead.
-      race || salt || gates || fields || strip ? fact(t('board.air'), `~${fixed(b.event.temperature, 0)} °C`) : fact(t('board.wind'), b.event.indoor ? t('board.indoors') : `~${fixed(b.event.windSpeed, 0)} m/s`),
+      race || salt || gates || fields || strip || steppe ? fact(t('board.air'), `~${fixed(b.event.temperature, 0)} °C`) : fact(t('board.wind'), b.event.indoor ? t('board.indoors') : `~${fixed(b.event.windSpeed, 0)} m/s`),
       ...(sled ? [fact(t('board.ice'), `${fixed(sled.iceTemp, 0)} °C`)] : []),
       who,
       ...(road?.gravel ? [fact(t('board.yard'), t('board.gravel', { gap: fixed(GRAVEL_YARD.minSkirtGap, 2) }))] : []),
       fact(t('board.where'), b.event.place),
+      // A defence brief: secret, so it never moves the firm's public name.
+      ...(b.defence ? [fact(t('board.secret'), t('board.secretValue'))] : []),
     )
     const bidders = biddersFor(brief.id)
     if (bidders.length > 0) facts.append(fact(t('board.bidders'), bidders.map((f) => RIVALS[f].name).join(', ')))
