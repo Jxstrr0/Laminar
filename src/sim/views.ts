@@ -96,6 +96,8 @@ export interface ModelSpec {
   seed: number
   /** The shop's trip strips on the long parts (plan section 6.5, MODEL_TRIPS). */
   trips?: boolean
+  /** A bobsled model sits on the shop's ground board (PR 8n, BOB_TUNNEL). */
+  board?: boolean
 }
 
 /** The tunnel as the reading sees it. */
@@ -168,6 +170,11 @@ export interface PreparedModel {
   scale: number
   /** Length of the model's longest part, m (for its Reynolds number). */
   longest: number
+  /**
+   * Drag the bodies don't carry, at model size, m²: a bobsled's nose, runners
+   * and crew (PR 8n). Read along with the bodies, straight on at any yaw.
+   */
+  fixedCdA?: number
 }
 
 export function prepareModel(spec: ShapeSpec, model: ModelSpec): PreparedModel {
@@ -195,7 +202,7 @@ export function readBalance(prepared: PreparedModel, tunnel: TunnelSpec, run: Ru
   const q = tunnel.quirks
   const section = tunnel.section
   const blocked = q && section ? blockageFactor(q.blockage, shape.frontalArea, section.width * section.height) : 1
-  const modelCdA = (forces.cdA * blocked + mountDrag(tunnel, run)) * (1 + tunnel.balanceNoise * gaussian(rng))
+  const modelCdA = ((forces.cdA + (prepared.fixedCdA ?? 0)) * blocked + mountDrag(tunnel, run)) * (1 + tunnel.balanceNoise * gaussian(rng))
   const cyA = forces.cyA * blocked * (1 + tunnel.balanceNoise * gaussian(rng))
   const s2 = prepared.scale * prepared.scale
   return {

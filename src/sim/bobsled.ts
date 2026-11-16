@@ -13,16 +13,13 @@
  * see over the cowling steers late and loses time in every curve.
  */
 import { ATMOSPHERE, FIELD_TURBULENCE } from '../data/field'
-import { BOB_BLIND, BOB_CREW, BOB_ICE, BOB_LOAD, BOB_STEP, SLED, SLIDING_RULES, type BobsledDesign } from '../data/bobsled'
+import { BOB_BLIND, BOB_CREW, BOB_HULL_SPEED, BOB_ICE, BOB_LOAD, BOB_STEP, SLED, SLIDING_RULES, type BobsledDesign } from '../data/bobsled'
 import { BOB_PUSH, BOB_REFERENCE, type Track } from '../data/tracks'
 import { shapeDrag } from './aero/drag'
 import type { Flow } from './aero/flow'
 import { densityAt, viscosityAt } from './field/atmosphere'
 import { describeShape } from './geom/body'
 import { sledLength, sledShape } from './geom/bobsled'
-
-/** The hull's drag is worked out at this speed, a typical one down the track, m/s. */
-const HULL_SPEED = 30
 
 /** The top of each crew member's helmet above the ice, m. */
 export function helmetTop(design: BobsledDesign): number {
@@ -214,7 +211,7 @@ export function runWith(cdA: number, design: BobsledDesign, track: Track, day: R
 
 /** The sled's drag areas in the air of a day on a track. */
 export function dayDrag(design: BobsledDesign, track: Track, day: RunConditions): SledDrag {
-  const flow: Flow = { density: densityAt(day.temperature, track.altitude), viscosity: viscosityAt(day.temperature), speed: HULL_SPEED, turbulence: FIELD_TURBULENCE }
+  const flow: Flow = { density: densityAt(day.temperature, track.altitude), viscosity: viscosityAt(day.temperature), speed: BOB_HULL_SPEED, turbulence: FIELD_TURBULENCE }
   return sledDrag(design, flow)
 }
 

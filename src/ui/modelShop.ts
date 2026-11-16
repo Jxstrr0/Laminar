@@ -87,6 +87,8 @@ export interface ShopContext {
   makers: readonly MakerId[]
   /** What your own model maker brings to price and days. */
   hand: MakerHand
+  /** The model is a bobsled, so the ground board is on offer (PR 8n). */
+  sled?: boolean
 }
 
 interface Shop {
@@ -120,6 +122,8 @@ function buildShop(): Shop {
     grade.set(order.grade)
     trips.set(order.trips ? 'on' : 'off')
     taps.set(order.taps ? 'on' : 'off')
+    board.box.hidden = context.sled !== true
+    board.set(order.board ? 'on' : 'off')
     const speed = matchedSpeed(1 / order.scale, context.event)
     const top = context.topSpeed
     reText.data =
@@ -186,6 +190,15 @@ function buildShop(): Shop {
     (v) => pick({ taps: v === 'on' }),
   )
   taps.note.textContent = t('shop.tapsNote')
+  const board = choice<'off' | 'on'>(
+    t('shop.board'),
+    [
+      { value: 'off', text: t('shop.board.off') },
+      { value: 'on', text: t('shop.board.on') },
+    ],
+    (v) => pick({ board: v === 'on' }),
+  )
+  board.note.append(t('shop.boardNote'), ' ', glossaryTerm('groundBoard', t('shop.boardLink')))
 
   const bill = el('div', 'shop-bill')
   const price = el('p', 'shop-price')
@@ -201,13 +214,15 @@ function buildShop(): Shop {
   })
   bill.append(price, free, orderBtn)
 
-  body.append(intro, maker.box, scale.box, finish.box, grade.box, trips.box, taps.box, bill)
+  body.append(intro, maker.box, scale.box, finish.box, grade.box, trips.box, taps.box, board.box, bill)
 
   return {
     sheet,
     show(current, ctx, onOrder) {
       // Start from the model on the mount, at a maker you still have.
       order = ctx.makers.includes(makerOf(current)) ? { ...current } : forMaker(current, 'shop')
+      // Only a sled sits on a ground board.
+      if (!ctx.sled) delete order.board
       context = ctx
       place = onOrder
       update()

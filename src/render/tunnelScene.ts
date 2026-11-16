@@ -20,10 +20,12 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { HANDLE_TOUCH } from '../data/handles'
+import { BOB_TUNNEL } from '../data/bobsled'
 import { FLIGHT_ATTITUDE } from '../data/jumper'
 import { FRAME } from '../data/pose'
 import { UNIVERSITY_TUNNEL, REFERENCE_SPHERE, REFERENCE_WHEEL } from '../data/tunnel'
 import type { FailurePart } from '../sim/failure'
+import { sledLength } from '../sim/geom/bobsled'
 import type { FlowField, Tuft } from '../sim/flow/field'
 import type { Tap } from '../sim/flow/taps'
 import { createFlowViz, type Instruments } from './flowViz'
@@ -34,6 +36,8 @@ const COLOURS = {
   background: 0xe9edf0,
   wall: 0xf3f5f7,
   floor: 0xc9d0d6,
+  /** A sled's ground board, pale plywood. */
+  board: 0xd9c7a3,
   ceilingLight: 0xffffff,
   frame: 0x8c97a1,
   window: 0x9fb4c6,
@@ -82,7 +86,7 @@ const WAKE_LENGTH = 4
 const WAKE_PUFFS = 90
 
 /** What stands in the test section. */
-export type TunnelModel = ({ kind: 'sphere' } | { kind: 'rider'; state: RiderState; scale: number } | { kind: 'wheel'; scale: number }) & {
+export type TunnelModel = ({ kind: 'sphere' } | { kind: 'rider'; state: RiderState; scale: number; board?: boolean } | { kind: 'wheel'; scale: number }) & {
   /** A tare run: the mount alone, with the model taken off. */
   tare?: boolean
 }
@@ -100,6 +104,10 @@ const RIDER_MID_X = (FRAME.rearAxleX + FRAME.frontAxleX) / 2
 /** A skater model stands on two short posts under its blades (full scale, m along and tall). */
 const SKATER_POSTS = [-0.1, 0.15]
 const SKATER_POST_HEIGHT = 0.02
+/** A bobsled model sits on two short posts under its runners (full scale, m along). */
+const SLED_POSTS = [-0.7, 0.7]
+/** The ground board under a sled: how far it reaches past each end, and its width and thickness (full scale, m). */
+const BOARD = { past: 0.5, width: 1.1, thick: 0.02 }
 /**
  * A ski jumper flies on a sting from behind: the model pivots about its hips,
  * held this high above the floor (full scale, m), with the sting this long
@@ -577,6 +585,8 @@ export function createTunnelView(host: HTMLElement): TunnelView {
 
   // --- The rider model on its mount: scaled, facing upstream, on fork posts.
   const postMat = new THREE.MeshStandardMaterial({ color: COLOURS.sting, roughness: 0.4, metalness: 0.6 })
+  /** The sled's ground board: pale plywood, so the sled reads against it. */
+  const boardMat = new THREE.MeshStandardMaterial({ color: COLOURS.board, roughness: 0.8 })
   let riderGroup: THREE.Group | null = null
   let modelKind: TunnelModel['kind'] = 'sphere'
   function clearRider() {
@@ -590,11 +600,12 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     pitchGroup = null
   }
   /** The posts with a rider on them, the reference wheel (null), or nothing for a tare run. */
-  function showRider(state: RiderState | null, scale: number, tare: boolean) {
+  function showRider(state: RiderState | null, scale: number, tare: boolean, board = false) {
     clearRider()
     clearDebris()
     strain = 0
     const skater = state?.design.sport === 'skating'
+    const sled = state?.design.sport === 'bobsled' ? state.design : null
     if (state?.design.sport === 'skijump') {
       showJumper(state, scale, tare)
       return
@@ -603,19 +614,35 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     rearIsDisc = state !== null && (state.design.sport === undefined || state.design.sport === 'cycling') && state.design.wheels.rear === 'disc'
     const g = new THREE.Group()
     // Two posts clamp the axles (or a skater's blades) to the balance under the floor.
-    const posts = skater ? SKATER_POSTS : [FRAME.rearAxleX, FRAME.frontAxleX]
-    const postH = skater ? SKATER_POST_HEIGHT : FRAME.wheelRadius
+    // A sled is built with its cockpit's middle at x = 0, not the bike's.
+    const midX = sled ? 0 : RIDER_MID_X
+    // On a ground board the sled sits that much higher, and the posts reach up through it.
+    const lift = sled && board ? BOB_TUNNEL.boardHeight : 0
+    const posts = sled ? SLED_POSTS : skater ? SKATER_POSTS : [FRAME.rearAxleX, FRAME.frontAxleX]
+    const postH = sled ? SKATER_POST_HEIGHT + lift : skater ? SKATER_POST_HEIGHT : FRAME.wheelRadius
     for (const axle of posts) {
       const post = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, postH, 12), postMat)
-      post.position.set(axle - RIDER_MID_X, postH / 2, 0)
+      post.position.set(axle - midX, postH / 2, 0)
       g.add(post)
+    }
+    if (sled && board) {
+      // The ground board: a plate on legs, longer than the sled, with a sharp front edge.
+      const length = sledLength(sled) + 2 * BOARD.past
+      const plate = new THREE.Mesh(new THREE.BoxGeometry(length, BOARD.thick, BOARD.width), boardMat)
+      plate.position.set((sled.sled.nose - sled.sled.tail) / 2, lift - BOARD.thick / 2, 0)
+      g.add(plate)
+      for (const end of [-1, 1]) {
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.03, lift, BOARD.width * 0.9), postMat)
+        leg.position.set(plate.position.x + end * (length / 2 - 0.1), (lift - BOARD.thick) / 2, 0)
+        g.add(leg)
+      }
     }
     if (!tare) {
       const figure = state ? buildRider(state) : buildReferenceWheel(REFERENCE_WHEEL.spokes)
-      figure.position.x = -RIDER_MID_X
+      figure.position.set(-midX, lift, 0)
       g.add(figure)
     }
-    flowViz.group.position.x = -RIDER_MID_X
+    flowViz.group.position.set(-midX, lift, 0)
     g.add(flowViz.group)
     g.scale.setScalar(scale)
     // The rider's forward is +x; the air comes from −x, so turn it round.
@@ -877,7 +904,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
       // With the sphere off there is nothing to bend the smoke round.
       for (const part of [sphere, smoke, smokeShadow, wakeSmoke, wakeShadow]) part.visible = !tare
       if (sepRing) sepRing.visible = !tare
-      if (model.kind === 'rider') showRider(model.state, model.scale, tare)
+      if (model.kind === 'rider') showRider(model.state, model.scale, tare, model.board === true)
       else if (model.kind === 'wheel') showRider(null, model.scale, tare)
       else clearRider()
       wand.visible = instruments.wand && model.kind === 'rider' && !tare
@@ -891,7 +918,9 @@ export function createTunnelView(host: HTMLElement): TunnelView {
           : model.kind === 'rider'
             ? model.state.design.sport === 'skijump'
               ? 'The wind tunnel test section with your ski jumper model on a pitching sting'
-              : 'The wind tunnel test section with your rider model on the yaw turntable'
+              : model.state.design.sport === 'bobsled'
+                ? `The wind tunnel test section with your bobsled model ${model.board ? 'on a ground board' : 'on the bare floor'}`
+                : 'The wind tunnel test section with your rider model on the yaw turntable'
             : model.kind === 'wheel'
               ? 'The wind tunnel test section with the reference wheel held still on the posts'
               : 'The wind tunnel test section with a sphere on a sting',

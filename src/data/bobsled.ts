@@ -141,3 +141,24 @@ export const BOB_DESK = {
 
 /** Fixed time step of the run, s. */
 export const BOB_STEP = 0.01
+
+/**
+ * The sled in the tunnel (PR 8n, Kelbo 16 November 2026). On the track the
+ * ice slides past under the sled; in the tunnel the floor stands still and
+ * grows its own slow layer of air, which the runners and axles sit in. So
+ * the balance misses some of their drag and an untreated sled reads too
+ * slippery. The model shop's ground board (a raised plate with a sharp
+ * front edge) starts a fresh, thin layer just ahead of the sled, which takes
+ * away most of the error. A rolling road (later, with cars) takes it all.
+ */
+export const BOB_TUNNEL = {
+  /** Share of the runners' drag the still floor hides from the balance. */
+  floorHidden: 0.45,
+  /** Share of that error still left with a ground board under the sled. */
+  boardLeft: 0.15,
+  /** The ground board's height above the tunnel floor, full scale, m (for the 3D view). */
+  boardHeight: 0.06,
+} as const
+
+/** The hull's drag is worked out at this speed, a typical one down the track, m/s (and the model's Reynolds number is matched to it). */
+export const BOB_HULL_SPEED = 30

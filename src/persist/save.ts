@@ -172,7 +172,7 @@ function soundOrder(x: unknown): ModelOrder | null {
   // Orders from before PR 7e were all the outside shop's.
   const maker = x.maker === undefined ? 'shop' : x.maker
   if (!oneOf(maker, MAKER_IDS)) return null
-  const order: ModelOrder = { scale: scale as ModelOrder['scale'], finish, grade, trips, taps: taps === true, ...(maker === 'shop' ? {} : { maker }) }
+  const order: ModelOrder = { scale: scale as ModelOrder['scale'], finish, grade, trips, taps: taps === true, ...(x.board === true ? { board: true } : {}), ...(maker === 'shop' ? {} : { maker }) }
   return canMake(order) ? order : null
 }
 

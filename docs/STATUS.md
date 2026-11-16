@@ -56,13 +56,32 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 8k | A sting that can break, and a fairer read on the helmet and boots | **Done** (v0.8.10.0) |
 | 8l | The bobsled in the sim: the sled, the crew's tuck, the rule box, the run down Belogor | **Done** (v0.8.11.0) |
 | 8m | The bobsled on the Shape screen | **Done** (v0.8.12.0) |
-| 8n | The bobsled in the tunnel | Next |
-| 8o | Bobsled jobs: the promise in hundredths, the board, race day | Not started |
+| 8n | The bobsled in the tunnel | **Done** (v0.8.13.0) |
+| 8o | Bobsled jobs: the promise in hundredths, the board, race day | Next |
 | 8p | The bobsled run replay | Not started |
 | 9–14 | See the plan | Not started |
 
 ## Versions
 
+- **0.8.13.0** (PR 8n): the bobsled in the tunnel.
+  - The sled sits on two short posts under its runners. The balance reads
+    the hull as a body (so it meets the Reynolds trap and trip strips like
+    a rider), plus its nose, runners and crew.
+  - Kelbo chose (16 November 2026) the ground board. On the track the ice
+    slides past under the sled; the tunnel floor stands still and its slow
+    air hides some of the runners' drag. On the bare floor a two-man sled
+    reads about 14 % too slippery, and its run about 0.4 s too quick.
+  - The model shop offers a ground board for a sled (₽4,000 and a day): a
+    raised plate with a sharp front edge, drawn under the model. It takes
+    away most of the error (within about 0.05 s at 1:2, 0.02 s at 1:4).
+    A rolling road, later with the cars, will take it all.
+  - Readouts: the run forecast down Belogor on the live reading takes the
+    yaw's place, and the Runs tab flies the pooled reading down the track,
+    with a warning while the sled is on the bare floor. The model's
+    Reynolds number is matched to the sled's speed (30 m/s), not a rider's.
+  - New glossary entries: Still floor, Ground board.
+  - Also fixed: the Runs tab's pedalling-average line stayed hidden after a
+    ski jumper had been on the mount.
 - **0.8.12.0** (PR 8m): the bobsled on the Shape screen.
   - The sled is drawn from the drag model's own cross-sections, open over
     the cockpit, on four runners, with the crew folded inside. Their helmets
