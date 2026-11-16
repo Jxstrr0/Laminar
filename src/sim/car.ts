@@ -72,8 +72,20 @@ function diffuserFactor(design: CarDesign): number {
   return 1 + A.diffuserGain * (f.stallDiffuser - f.refDiffuser) - A.diffuserStallDrop * (d - f.stallDiffuser)
 }
 
+/**
+ * How the floor is seen (PR 9k): on the road it is the truth. Over a
+ * tunnel's still floor (or the model shop's ground board) a layer of slow
+ * air grows on the floor under the model: the floor works as if it sat
+ * `delta` m lower (it stalls sooner) and pulls `read` of what it should.
+ */
+export interface FloorView {
+  delta: number
+  read: number
+}
+const ROAD: FloorView = { delta: 0, read: 1 }
+
 /** The aero at given ride heights (no springs), for a dynamic pressure's worth of nothing: areas only. */
-function aeroAt(design: CarDesign, front: number, rear: number) {
+export function aeroAt(design: CarDesign, front: number, rear: number, view: FloorView = ROAD) {
   const c = CAR_CLASS[design.class]
   // Front wing: its slope times its angle, more of it the nearer the front sits to the road.
   const fw = c.frontWing
@@ -94,7 +106,7 @@ function aeroAt(design: CarDesign, front: number, rear: number) {
   const rakeDeg = ((rear - front) / c.wheelbase) / DEG
   const seal = A.unsealedShare + (1 - A.unsealedShare) * design.floorEdge
   const rake = clamp(1 + A.rakeGain * rakeDeg, 0.5, 1.6)
-  const floor = c.floor.pull * floorFactor(design, mean) * diffuserFactor(design) * seal * rake
+  const floor = c.floor.pull * floorFactor(design, mean - view.delta) * diffuserFactor(design) * seal * rake * view.read
   const floorFront = clamp(A.floorFront + A.rakeShift * rakeDeg, 0.1, 0.8)
   const clAFront = frontWing + floor * floorFront - c.bodyLift.front
   const clARear = rearWing + floor * (1 - floorFront) - c.bodyLift.rear
@@ -109,7 +121,7 @@ function aeroAt(design: CarDesign, front: number, rear: number) {
     clARear,
     cdA: drag.body + drag.wings + drag.floor + drag.cooling,
     // The floor stalls under its critical height, or when either end of it is all but on the road.
-    stalled: mean < c.floor.critHeight || Math.min(front, rear) < c.floor.critHeight * A.edgeStall,
+    stalled: mean - view.delta < c.floor.critHeight || Math.min(front, rear) - view.delta < c.floor.critHeight * A.edgeStall,
     parts: { frontWing, rearWing, floor, body: -(c.bodyLift.front + c.bodyLift.rear), drag },
   }
 }
@@ -221,17 +233,29 @@ const NO_TRIM: AeroTrim = { down: 1, drag: 1 }
  * pass backward brakes into the next. Two laps forward give a flying start.
  */
 export function lapTime(design: CarDesign, circuit: Circuit, temperature = circuit.temperature, trim: AeroTrim = NO_TRIM): Lap {
-  const c = CAR_CLASS[design.class]
   const density = circuitDensity(circuit, temperature)
   const table = carAeroTable(design, density).map((a) => ({ ...a, clA: a.clA * trim.down, cdA: a.cdA * trim.drag }))
-  const at = aeroLookup(table)
+  const lap = lapOn(design, circuit, aeroLookup(table), porpoiseSpeed(design, density), temperature)
+  const fastest = carAero(design, lap.top, density)
+  return { ...lap, lowest: Math.min(fastest.front, fastest.rear) }
+}
+
+/** The car's aero at a speed, as a lap reads it: downforce and drag areas, m², and the balance. */
+export type LapAero = (speed: number) => { clA: number; cdA: number; balance: number }
+
+/**
+ * A lap on any aero: the truth (lapTime) or what the tunnel read (PR 9k).
+ * `porpoise` is the speed the floor stalls at, or null; the driver lifts
+ * there, so nothing on the lap goes faster.
+ */
+export function lapOn(design: CarDesign, circuit: Circuit, at: LapAero, porpoise: number | null, temperature = circuit.temperature): Omit<Lap, 'lowest'> {
+  const c = CAR_CLASS[design.class]
+  const density = circuitDensity(circuit, temperature)
   const g = ATMOSPHERE.gravity
   const m = c.mass
   const heat = heatLoss(design)
   const power = c.power * (1 - heat)
   const step = LAP.step
-  const porpoise = porpoiseSpeed(design, density)
-  // The driver lifts where the floor stalls: nothing on the lap goes faster.
   const ceiling = porpoise ?? LAP.topSpeed
 
   // Each step's speed limit: a corner's grip, or the top speed on a straight.
@@ -305,9 +329,8 @@ export function lapTime(design: CarDesign, circuit: Circuit, temperature = circu
     top = Math.max(top, speeds[i]!)
     length += lengths[i]!
   }
-  const fastest = carAero(design, top, density)
   // Porpoising only counts if the car got up to the speed where it starts.
-  return { time, length, top, corners, speeds, porpoise: porpoise !== null && top >= porpoise - 0.5 ? porpoise : null, lowest: Math.min(fastest.front, fastest.rear), heat }
+  return { time, length, top, corners, speeds, porpoise: porpoise !== null && top >= porpoise - 0.5 ? porpoise : null, heat }
 }
 
 /**

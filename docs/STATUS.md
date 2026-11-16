@@ -70,10 +70,23 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 9h | The fuel-run replay: the trial day down the client's route, your truck and the fleet's old one side by side, with the distance, the wind's angle, your diesel and the saving so far, a commentator for the yard, the windiest stretch, a slow climb and the arrival, then the fuel trial | **Done** (v0.9.7.0) |
 | 9i | Racing cars in the sim: touring cars and single-seaters, front and rear wings, the floor in ground effect (stall and porpoising), ride heights that squash at speed, the balance window, the cooling inlet, the Tarnovian Motor Racing Federation's rulebook, and a flying lap on two circuits | **Done** (v0.9.8.0) |
 | 9j | The racing car on Shape: a 3D touring car and single-seater drawn from the drag model's own shell, Floor and Wings tabs, the desk's lap-time gain on the Dolgo Ring, downforce and drag at 200 km/h, the balance against the drivers' window, the Motor Racing Federation's rule box, and amber warnings for porpoising, heat and balance. Try it with `?try=car` and `?try=car-open` | **Done** (v0.9.9.0) |
-| 9k–14 | See the plan | Next: the car in the tunnel (rolling road upgrade, ground board, downforce readings). Then car jobs, the lap replay, then the land-speed record. |
+| 9k | The racing car in the tunnel, in the sim: the mount lowers the model to read an aero map (the model can't squat as the real car does), the floor read through the tunnel's floor (still floor, ground board, or the new rolling road upgrade at ₽900,000 and 30 days), standing wheels read draggy, and the lap forecast on the map, porpoising and all | **Done** (v0.9.10.0) |
+| 9l–14 | See the plan | Next: PR 9l, the car on the Tunnel screen (the drop control, downforce and balance readouts, the map and the forecast). Then car jobs, the lap replay, then the land-speed record. |
 
 ## Versions
 
+- **0.9.10.0** (PR 9k): the racing car in the tunnel, in the sim (on
+  screen in PR 9l). A tunnel model is held still on its posts, so it
+  can't squat at speed as the real car does: the mount lowers it in
+  steps (the drop) and the readings make an aero map. The lap forecast
+  squashes the car on its springs at each speed and reads the map there;
+  a lower reading that lost downforce shows the floor's stall, and the
+  car porpoises at the speed that squashes it there. Over the tunnel's
+  still floor the car's floor pulls less and stalls too soon (it can even
+  show porpoising that isn't there); the model shop's ground board takes
+  part of that away, and the new rolling road upgrade for your own tunnel
+  (₽900,000, 30 days) all of it, and spins the wheels so they stop
+  reading draggy. Glossary: rolling road and aero map.
 - **0.9.9.0** (PR 9j): the racing car on Shape. `?try=car` puts a touring
   car on the bench and `?try=car-open` a single-seater (nothing is saved).
   The Floor tab sets the ride heights, the diffuser and the floor's edge

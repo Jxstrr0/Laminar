@@ -33,6 +33,8 @@ export const UNIVERSITY_TUNNEL = {
    * low (a quirk, plan section 7.2). The reference wheel shows by how much.
    */
   wheelDrive: false,
+  /** No rolling road (PR 9k): a car model sits over the still floor, or the model shop's ground board. */
+  rollingRoad: false,
   /** The yaw turntable: range and steps in degrees, and how fast it turns (degrees per second). */
   turntable: { min: -20, max: 20, step: 1, rate: 6 },
   /**
@@ -201,7 +203,7 @@ export const OWN_BILLING = {
  * needs. Each is paid for in cash and fitted over some days while you keep
  * working; it takes effect the day it's done.
  */
-export type UpgradeId = 'screens' | 'turntable' | 'wheelDrive' | 'fan'
+export type UpgradeId = 'screens' | 'turntable' | 'wheelDrive' | 'fan' | 'rollingRoad'
 
 export const TUNNEL_UPGRADES = {
   /** Fine mesh screens before the contraction: the test-section air's turbulence falls to this share. */
@@ -212,7 +214,13 @@ export const TUNNEL_UPGRADES = {
   wheelDrive: { price: 350_000, days: 21 },
   /** A bigger fan and motor: top speed, m/s, for a closer Reynolds match on small models. */
   fan: { price: 600_000, days: 30, topSpeed: 55 },
+  /**
+   * A belt under the model that runs at the air's speed, with the wheels
+   * spinning on it (Kelbo, 16 November 2026, for PR 9): a car's floor and
+   * wheels read true, as on the road.
+   */
+  rollingRoad: { price: 900_000, days: 30 },
 } as const satisfies Record<UpgradeId, { price: number; days: number; [k: string]: number }>
 
 /** The order they're shown in. */
-export const UPGRADE_IDS: readonly UpgradeId[] = ['screens', 'turntable', 'wheelDrive', 'fan']
+export const UPGRADE_IDS: readonly UpgradeId[] = ['screens', 'turntable', 'wheelDrive', 'fan', 'rollingRoad']

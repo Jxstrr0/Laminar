@@ -371,6 +371,8 @@ export const STRINGS = {
   'up.turntableWhat': 'Yaw sweeps out to ±{deg}°, for the gustiest courses.',
   'up.wheelDrive': 'Wheel-drive rig',
   'up.wheelDriveWhat': 'Spins the model’s wheels, so the spokes read true and need no correction.',
+  'up.rollingRoad': 'Rolling road',
+  'up.rollingRoadWhat': 'A belt under a car model that runs at the air’s speed, wheels spinning on it: the floor and wheels read as on the road.',
   'up.fan': 'Bigger fan',
   'up.fanWhat': 'Top speed {speed} m/s: a closer Reynolds match for small models.',
   'up.cost': '{price} · {days} days',

@@ -203,6 +203,34 @@ export const CAR_DESK = {
   readSpeed: 200 / 3.6,
 }
 
+/**
+ * The car in the tunnel (PR 9k). The model is held still on its posts, so
+ * it doesn't squat at speed as the real car does: the mount lowers it in
+ * steps instead, and the readings at each drop make an aero map. Without a
+ * rolling road the floor under it stands still, a slow layer of air grows
+ * on it, and the car's own floor works as if it sat lower (it stalls
+ * sooner) and pulls less; a ground board keeps that layer thin. The
+ * wheels stand still too, and read draggy, until a rolling road spins them.
+ */
+export const CAR_TUNNEL = {
+  /** The floor as each tunnel floor shows it: heights read `delta` m lower (full scale), the pull `read` of the truth. */
+  floor: {
+    still: { delta: 0.008, read: 0.85 },
+    board: { delta: 0.003, read: 0.95 },
+    rolling: { delta: 0, read: 1 },
+  },
+  /** Wheels standing still read this much extra drag area, full scale, m². */
+  staticWheels: 0.04,
+  /** A car model is built at this scale. */
+  scale: 0.4,
+  /** The mount lowers the model by up to this much below its static ride height, full scale, m, in steps. */
+  drop: { touring: 0.07, open: 0.04, step: 0.005 },
+  /** Readings within this much drop are pooled, m. */
+  sameDrop: 0.002,
+  /** The forecast trusts its map this far past the lowest drop read, m. */
+  coverSlack: 0.004,
+} as const
+
 /** A client's car as the team runs it now: a middling setup. */
 export const STOCK_CAR: Record<CarClass, CarDesign> = {
   touring: {
