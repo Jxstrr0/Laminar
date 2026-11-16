@@ -7,6 +7,7 @@
 import { DESIGN_CHOICES, PART_RANGE, POSTURE_RANGE, type CyclistDesign } from '../data/cyclist'
 import { SKATER_CHOICES, SKATER_RANGE, type SkaterDesign } from '../data/skater'
 import { JUMPER_RANGE, type JumperDesign } from '../data/jumper'
+import { BOBSLED_RANGE, type BobsledDesign } from '../data/bobsled'
 import type { Design } from '../sim/design'
 import { MACHINE_IDS, MAKER_IDS, MODEL_FINISH, MODEL_GRADE, MODEL_SCALES, type MachineId } from '../data/model'
 import { CRANK_DIAL, DEMO_TUNNEL_SEED } from '../data/tunnel'
@@ -51,6 +52,7 @@ export function soundDesign(x: unknown): Design | null {
   if (!isObj(x)) return null
   if (x.sport === 'skating') return soundSkater(x)
   if (x.sport === 'skijump') return soundJumper(x)
+  if (x.sport === 'bobsled') return soundBobsled(x)
   if (x.sport !== undefined && x.sport !== 'cycling') return null
   return soundCyclist(x)
 }
@@ -64,6 +66,18 @@ function soundJumper(x: Obj): JumperDesign | null {
     sport: 'skijump',
     posture: { leanDeg: clampTo(leanDeg, JUMPER_RANGE.leanDeg), vAngleDeg: clampTo(vAngleDeg, JUMPER_RANGE.vAngleDeg) },
     suit: { bagginess: clampTo(bagginess, JUMPER_RANGE.bagginess) },
+  }
+}
+
+function soundBobsled(x: Obj): BobsledDesign | null {
+  if (!isObj(x.sled) || (x.crew !== 2 && x.crew !== 4)) return null
+  const { nose, tail, cowl } = x.sled
+  if (!isNum(nose) || !isNum(tail) || !isNum(cowl) || !isNum(x.tuck)) return null
+  return {
+    sport: 'bobsled',
+    crew: x.crew,
+    sled: { nose: clampTo(nose, BOBSLED_RANGE.nose), tail: clampTo(tail, BOBSLED_RANGE.tail), cowl: clampTo(cowl, BOBSLED_RANGE.cowl) },
+    tuck: clampTo(x.tuck, BOBSLED_RANGE.tuck),
   }
 }
 

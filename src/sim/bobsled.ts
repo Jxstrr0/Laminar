@@ -78,6 +78,20 @@ export function noseCdA(design: BobsledDesign, frontalArea: number): number {
   return k * k * frontalArea
 }
 
+export interface BobsledReadouts {
+  /** The hull's front plus what of the crew shows over the cowling, m². */
+  frontalArea: number
+  /** The sled's own mass, kg (ballast tops the crew up to the limit). */
+  mass: number
+  price: number
+}
+
+export function bobsledReadouts(design: BobsledDesign): BobsledReadouts {
+  const hull = describeShape(sledShape(design)).frontalArea
+  const crew = exposedArea(helmetTop(design) - design.sled.cowl)
+  return { frontalArea: hull + crew, mass: SLED.mass[design.crew], price: SLED.price[design.crew] }
+}
+
 /** A rule the sled breaks, with the slider to change. */
 export interface SledRuleBreak {
   rule: 'length' | 'cowl'
@@ -198,10 +212,15 @@ export function runWith(cdA: number, design: BobsledDesign, track: Track, day: R
   return { time: t, finishSpeed: v, topSpeed: top, loadSpeed, blindLoss, trace }
 }
 
+/** The sled's drag areas in the air of a day on a track. */
+export function dayDrag(design: BobsledDesign, track: Track, day: RunConditions): SledDrag {
+  const flow: Flow = { density: densityAt(day.temperature, track.altitude), viscosity: viscosityAt(day.temperature), speed: HULL_SPEED, turbulence: FIELD_TURBULENCE }
+  return sledDrag(design, flow)
+}
+
 /** The design's own run on a day. */
 export function bobRun(design: BobsledDesign, track: Track, day: RunConditions): BobRun {
-  const flow: Flow = { density: densityAt(day.temperature, track.altitude), viscosity: viscosityAt(day.temperature), speed: HULL_SPEED, turbulence: FIELD_TURBULENCE }
-  return runWith(sledDrag(design, flow).cdA, design, track, day)
+  return runWith(dayDrag(design, track, day).cdA, design, track, day)
 }
 
 /** The run the promise is judged on: the design on the reference day. */

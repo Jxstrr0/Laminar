@@ -77,6 +77,9 @@ const FRAME = { lookY: 0.72, headY: 1.2, follow: 0.7 }
 const VIEWS = {
   usual: { target: { x: 0.1, y: 0.72 }, camera: { x: 1.15, y: 1.05, z: 2.6 } },
   jumper: { target: { x: -0.45, y: 0.85 }, camera: { x: 0.6, y: 2.2, z: 3 } },
+  // A sled from ahead and above, so the crew show over the cowling; the four-man is longer.
+  sled: { target: { x: 0, y: 0.4 }, camera: { x: 1.9, y: 1.7, z: 2.5 } },
+  sled4: { target: { x: -0.2, y: 0.4 }, camera: { x: 2.4, y: 2.1, z: 3.2 } },
 }
 
 export function createShapeView(host: HTMLElement): ShapeView {
@@ -258,7 +261,8 @@ export function createShapeView(host: HTMLElement): ShapeView {
       figure = build(state)
       scene.add(figure)
       handles = state.handles
-      const want = state.design.sport === 'skijump' ? 'jumper' : 'usual'
+      const d = state.design
+      const want: keyof typeof VIEWS = d.sport === 'skijump' ? 'jumper' : d.sport === 'bobsled' ? (d.crew === 4 ? 'sled4' : 'sled') : 'usual'
       if (want !== framed) {
         framed = want
         const v = VIEWS[want]
@@ -266,7 +270,7 @@ export function createShapeView(host: HTMLElement): ShapeView {
         camera.position.set(v.camera.x, v.camera.y, v.camera.z)
         controls.update()
       }
-      if (want === 'jumper') return
+      if (want !== 'usual') return
       // Keep a tall figure's head in view: the look point and the camera rise together.
       const lookY = FRAME.lookY + Math.max(0, state.pose.head.y - FRAME.headY) * FRAME.follow
       const rise = lookY - controls.target.y

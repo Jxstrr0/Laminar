@@ -11,10 +11,13 @@
  */
 import { BIKE, HELMET, type CyclistDesign } from '../../data/cyclist'
 import { ELLIPSOID_FIT as FIT } from '../../data/flowViz'
-import { FRAME, HELMET_MOUNT, SKATER_SKELETON, SKELETON } from '../../data/pose'
+import { BOB_SKELETON, FRAME, HELMET_MOUNT, SKATER_SKELETON, SKELETON } from '../../data/pose'
 import { SK_HEAD, type SkaterDesign } from '../../data/skater'
 import { JUMP_PARTS, JUMP_SKIS, type JumperDesign } from '../../data/jumper'
-import { isJumper, isSkater, type Design } from '../design'
+import { SLED, type BobsledDesign } from '../../data/bobsled'
+import { isBobsled, isJumper, isSkater, type Design } from '../design'
+import { sledLength } from '../geom/bobsled'
+import type { BobsledPose } from '../geom/bobsledPose'
 import { bodySpan } from '../jumper'
 import type { JumperPose } from '../geom/jumperPose'
 import { detAtan2, detCos, detSin } from '../det'
@@ -232,9 +235,37 @@ export function jumperEllipsoids(design: JumperDesign, pose: Pose): Ellipsoid[] 
   return out
 }
 
+/**
+ * The bobsled (PR 8m): the hull as one long oval, and each crew member's
+ * helmet as a ball over the cowling. The crew's drag is a sum in the sim,
+ * not a body of its own, so their helmets follow the hull's lines.
+ */
+export function bobsledEllipsoids(design: BobsledDesign, pose: Pose): Ellipsoid[] {
+  const half = (design.sled.cowl - SLED.floor) / 2
+  const out: Ellipsoid[] = [
+    {
+      id: 'hull',
+      bodyId: 'hull',
+      // The hull's middle, with the cockpit's middle at x = 0.
+      centre: { x: (design.sled.nose - design.sled.tail) / 2, y: SLED.floor + half, z: 0 },
+      axes: { a: sledLength(design) / 2, b: half, c: SLED.width / 2 },
+      pitchRad: 0,
+      wrap: 'oval',
+      part: 'bike',
+    },
+  ]
+  const seats = (pose as Partial<BobsledPose>).seats ?? [0]
+  const r = BOB_SKELETON.helmetRadius
+  seats.forEach((dx, i) => {
+    out.push({ id: `helmet-${i + 1}`, bodyId: 'hull', centre: { ...pose.head, x: pose.head.x + dx }, axes: { a: r, b: r, c: r }, pitchRad: 0, wrap: 'cross', part: 'rider' })
+  })
+  return out
+}
+
 /** The ellipsoids for any design in its pose. */
 export function designEllipsoids(design: Design, pose: Pose): Ellipsoid[] {
   if (isJumper(design)) return jumperEllipsoids(design, pose)
+  if (isBobsled(design)) return bobsledEllipsoids(design, pose)
   return isSkater(design) ? skaterEllipsoids(design, pose) : riderEllipsoids(design, pose)
 }
 

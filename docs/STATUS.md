@@ -55,14 +55,34 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 8j | The flight replay on the hill | **Done** (v0.8.9.0) |
 | 8k | A sting that can break, and a fairer read on the helmet and boots | **Done** (v0.8.10.0) |
 | 8l | The bobsled in the sim: the sled, the crew's tuck, the rule box, the run down Belogor | **Done** (v0.8.11.0) |
-| 8m | The bobsled on the Shape screen | Next |
-| 8n | The bobsled in the tunnel | Not started |
+| 8m | The bobsled on the Shape screen | **Done** (v0.8.12.0) |
+| 8n | The bobsled in the tunnel | Next |
 | 8o | Bobsled jobs: the promise in hundredths, the board, race day | Not started |
 | 8p | The bobsled run replay | Not started |
 | 9–14 | See the plan | Not started |
 
 ## Versions
 
+- **0.8.12.0** (PR 8m): the bobsled on the Shape screen.
+  - The sled is drawn from the drag model's own cross-sections, open over
+    the cockpit, on four runners, with the crew folded inside. Their helmets
+    sit exactly where the sim puts them, so what shows over the cowling on
+    screen is what meets the air.
+  - Sliders: the crew's tuck on Position; nose, tail and cowling height on
+    the Kit tab, which reads "Sled" for a bobsled.
+  - The sheet: the desk's run time down Belogor (±0.2–0.3 s: a few per cent
+    of drag is tenths of a second, so the tunnel matters), the drag area
+    with the crew's share, the driver's view over the cowling, and the
+    Sliding Federation's box with a "Change this" for each break. The hull
+    glows red outside the box; the driver's helmet glows amber when they
+    can't see.
+  - New glossary entries: Cowling, Crew tuck, Sliding Federation.
+  - Saves keep a sled (two- or four-man), and the run report names the sled
+    sliders that changed. Any change to a sled needs a new model: the shell
+    and its crew are one moulding.
+  - Try it before the jobs arrive: `?try=bobsled` or `?try=bobsled4` on the
+    address opens a throwaway career with a sled on the bench. The tunnel
+    doesn't read a sled properly until PR 8n.
 - **0.8.11.0** (PR 8l): the bobsled in the sim.
   - Kelbo chose (16 November 2026) to shape the sled and the crew's tuck,
     inside a rule box. The design: nose length, tail length, cowling height

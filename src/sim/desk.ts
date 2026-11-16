@@ -5,6 +5,9 @@
 import { DESK } from '../data/cyclist'
 import { JUMP_DESK, type JumperDesign } from '../data/jumper'
 import { referenceJump, type JumpEvent } from './jumper'
+import { BOB_DESK, type BobsledDesign } from '../data/bobsled'
+import type { Track } from '../data/tracks'
+import { dayDrag, referenceConditions, runWith, type SledDrag } from './bobsled'
 import type { ShapeSpec } from './geom/body'
 import { gaussian } from './noise'
 import { hashString, Rng } from './rng'
@@ -47,4 +50,25 @@ export function jumpDeskEstimate(design: JumperDesign, event: JumpEvent, jobSeed
   const value = ref.distance * (1 + bias + jitter)
   const spread = Math.sqrt(JUMP_DESK.bias * JUMP_DESK.bias + JUMP_DESK.jitter * JUMP_DESK.jitter) * narrow * DESK.bars
   return { value, low: value * (1 - spread), high: value * (1 + spread), stable: ref.stable, minMargin: ref.minMargin }
+}
+
+/**
+ * The desk's guess at a sled's reference run, s (PR 8m): the drag area
+ * through the job's bias and a design's jitter, then the run on the
+ * reference day. `low` is the quick end (less drag), `high` the slow end;
+ * `drag` is the desk's guess split into the sled's parts (each part off
+ * by the same share, so they add up to the guess).
+ */
+export function bobDeskEstimate(design: BobsledDesign, track: Track, jobSeed: number, designKey: string, analystLevel = 0): DeskEstimate & { cdA: number; drag: SledDrag } {
+  const day = referenceConditions(design)
+  const drag = dayDrag(design, track, day)
+  const narrow = Math.max(DESK.floor, 1 - DESK.perLevel * analystLevel)
+  const bias = BOB_DESK.bias * narrow * gaussian(new Rng(jobSeed).fork('desk-bias'))
+  const jitter = BOB_DESK.jitter * narrow * gaussian(new Rng(jobSeed ^ hashString(designKey)).fork('desk-jitter'))
+  const cdA = drag.cdA * (1 + bias + jitter)
+  const spread = Math.sqrt(BOB_DESK.bias * BOB_DESK.bias + BOB_DESK.jitter * BOB_DESK.jitter) * narrow * DESK.bars
+  const time = (c: number) => runWith(c, design, track, day).time
+  const k = 1 + bias + jitter
+  const guess: SledDrag = { hull: drag.hull * k, nose: drag.nose * k, runners: drag.runners * k, crew: drag.crew * k, cdA }
+  return { value: time(cdA), low: time(cdA * (1 - spread)), high: time(cdA * (1 + spread)), cdA, drag: guess }
 }

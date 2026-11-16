@@ -7,6 +7,7 @@
 import { DEFAULT_CYCLIST, type CyclistDesign } from '../data/cyclist'
 import type { SkaterDesign } from '../data/skater'
 import type { JumperDesign } from '../data/jumper'
+import type { BobsledDesign } from '../data/bobsled'
 import type { Design, Sport } from '../data/sport'
 import { ICE } from '../data/skater'
 import { comfort, readouts, riderEvent, type Comfort, type Readouts } from './cyclist'
@@ -20,6 +21,9 @@ import { skaterComfort, skaterEvent, skaterReadouts } from './skater'
 import { jumperParts } from './geom/jumper'
 import { jumperPose } from './geom/jumperPose'
 import { jumperComfort, jumperReadouts } from './jumper'
+import { sledShape } from './geom/bobsled'
+import { bobsledPose } from './geom/bobsledPose'
+import { bobsledReadouts } from './bobsled'
 import type { EventSpec } from './views'
 import type { RiderSpec } from './field/timeTrial'
 
@@ -38,6 +42,10 @@ export function isJumper(design: Design): design is JumperDesign {
   return design.sport === 'skijump'
 }
 
+export function isBobsled(design: Design): design is BobsledDesign {
+  return design.sport === 'bobsled'
+}
+
 export function isCyclist(design: Design): design is CyclistDesign {
   return design.sport === undefined || design.sport === 'cycling'
 }
@@ -48,17 +56,19 @@ export function isCyclist(design: Design): design is CyclistDesign {
  */
 export function designShape(design: Design, options: CyclistShapeOptions = {}): ShapeSpec {
   if (isJumper(design)) return jumperParts(design)
+  if (isBobsled(design)) return sledShape(design)
   return isSkater(design) ? skaterShape(design) : cyclistShape(design, options)
 }
 
 /** Where every joint sits. `crankDeg` only turns a cyclist's cranks. */
 export function designPose(design: Design, crankDeg?: number): Pose {
   if (isJumper(design)) return jumperPose(design)
+  if (isBobsled(design)) return bobsledPose(design)
   return isSkater(design) ? skaterPose(design) : riderPose(design, crankDeg)
 }
 
 export function designComfort(design: Design, limit?: number): Comfort<string> {
-  if (isJumper(design)) return jumperComfort()
+  if (isJumper(design) || isBobsled(design)) return jumperComfort()
   return isSkater(design) ? skaterComfort(design, limit) : comfort(design, limit)
 }
 
@@ -67,12 +77,17 @@ export function designReadouts(design: Design, rules: CyclingRules, limit?: numb
     const r = jumperReadouts(design)
     return { frontalArea: r.frontalArea, mass: r.mass, price: r.price, comfort: jumperComfort(), breaks: [] }
   }
+  if (isBobsled(design)) {
+    // The sled's rule box is the sliding federation's, not the cycling book: its sheet shows those breaks itself.
+    const r = bobsledReadouts(design)
+    return { frontalArea: r.frontalArea, mass: r.mass, price: r.price, comfort: jumperComfort(), breaks: [] }
+  }
   return isSkater(design) ? skaterReadouts(design, limit) : readouts(design, rules, limit)
 }
 
-/** The event as this design meets it: the athlete's power through their comfort meter (a jumper has no pedals to push). */
+/** The event as this design meets it: the athlete's power through their comfort meter (a jumper or a sled crew has no pedals to push). */
 export function designEvent(design: Design, event: EventSpec, limit?: number): EventSpec {
-  if (isJumper(design)) return event
+  if (isJumper(design) || isBobsled(design)) return event
   return isSkater(design) ? skaterEvent(design, event, limit) : riderEvent(design, event, limit)
 }
 

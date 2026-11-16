@@ -80,6 +80,8 @@ export const SLED = {
   /** Sled mass, kg, and the most sled plus crew may weigh (ballast tops it up). */
   mass: { 2: 170, 4: 210 },
   maxTotal: { 2: 390, 4: 630 },
+  /** What a new racing shell on the club's runners costs to build, ₽ (shown on the sheet). */
+  price: { 2: 360000, 4: 520000 },
 } as const
 
 /**
@@ -125,6 +127,17 @@ export const BOB_ICE = {
   bestTemp: -7,
   perDegree: 0.02,
 } as const
+
+/**
+ * The desk's guess at a sled (PR 8m): the drag area with a job-wide bias
+ * and a small per-design jitter (fractions, standard deviations), then the
+ * run on it. A few per cent of drag is tenths of a second down the track,
+ * far more than the hundredths a client asks for: that's what the tunnel is for.
+ */
+export const BOB_DESK = {
+  bias: 0.06,
+  jitter: 0.02,
+}
 
 /** Fixed time step of the run, s. */
 export const BOB_STEP = 0.01
