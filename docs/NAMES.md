@@ -146,6 +146,16 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Captain Rostislav Grachyov | Flight-trials officer at the Stepnoy range (Stepnoy sensor trial). PR 10ac. |
 | Ksenia Varlamova | Sensor-integration engineer at the ministry (Stepnoy sensor trial). PR 10ac. |
 
+## Tarnovian records (PR 11a)
+
+| Name | What it is |
+| --- | --- |
+| Anton Zimin | Standing holder of the Tarnovian hour record (2006, Stavren Velodrome). |
+| Oksana Rudakova | Standing holder of the 40 km time-trial record (2008). |
+| Fyodor Shirokov | Standing holder of the ski-jump record (2009, large hill). |
+| Mikhail Avdeev | Standing holder of the land-speed record (1997, Lake Sukhoye). |
+| Dubrova Transport | Truck fleet holding the fuel-figure record (2009). |
+
 ## Still to name (later PRs)
 
 The university and its tunnel, the outside model shop, other sport federations, more venues and export countries.

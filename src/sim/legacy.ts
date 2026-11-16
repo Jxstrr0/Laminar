@@ -3,8 +3,9 @@
  * shown when it ends (retired, or 2040). Everything comes from the career
  * state, so an ended save shows the same card every time.
  */
-import { briefTemplate, firmName, firmReputation, type CareerState, type Ending } from './career'
+import { briefTemplate, firmName, firmRecords, firmReputation, type CareerState, type Ending } from './career'
 import { correlationScore } from './reputation'
+import { recordsHeld } from './records'
 import { CAR_JOBS, PROMISE, RECORD_JOBS, SLED_JOBS } from '../data/briefs'
 
 export interface Legacy {
@@ -35,6 +36,8 @@ export interface Legacy {
   ownTunnel: boolean
   /** Times the firm went broke. */
   broke: number
+  /** Tarnovian records the firm's work holds at the end (PR 11a). */
+  records: number
 }
 
 export function legacyOf(state: CareerState): Legacy {
@@ -64,5 +67,6 @@ export function legacyOf(state: CareerState): Legacy {
     money: state.money,
     ownTunnel: state.facility.ownOrdered !== null,
     broke: state.broke.length,
+    records: recordsHeld(firmRecords(state)),
   }
 }

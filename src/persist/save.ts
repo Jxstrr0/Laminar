@@ -20,6 +20,7 @@ import { ALL_SCALES, MACHINE_IDS, MAKER_IDS, MODEL_FINISH, MODEL_GRADE, type Mac
 import { CRANK_DIAL, DEMO_TUNNEL_SEED } from '../data/tunnel'
 import { briefTemplate, newCareer, tidyFirmName, type Brief, type CareerState, type Ending, type Job, type JobRecord } from '../sim/career'
 import { NO_CLEARANCE, type Clearance } from '../sim/clearance'
+import { RECORD_IDS, type RecordId } from '../data/records'
 import { GUIDE_STEPS, type GuideStep } from '../sim/guide'
 import { NO_FACILITY, type Facility } from '../sim/facility'
 import { NO_CREW, soundCrew } from '../sim/staff'
@@ -375,6 +376,12 @@ function soundRecord(x: unknown): JobRecord | null {
   const record: JobRecord = { id: x.id, day: x.day, fee: x.fee, paid: x.paid, promised: x.promised, achieved: x.achieved, predicted: x.predicted, actual: x.actual }
   // A defence job (PR 10x).
   if (x.secret === true) record.secret = true
+  // A Tarnovian record the job broke (PR 11a); never on a secret job.
+  if (x.mark !== undefined) {
+    const m = x.mark
+    if (x.secret === true || !isObj(m) || typeof m.record !== 'string' || !(RECORD_IDS as readonly string[]).includes(m.record) || !isNum(m.value) || m.value <= 0) return null
+    record.mark = { record: m.record as RecordId, value: m.value }
+  }
   return record
 }
 

@@ -98,6 +98,8 @@ export interface EventTemplate {
   lap?: number
   /** Raced on ice (the replay draws an ice surface). */
   ice?: true
+  /** An hour-record attempt (PR 11a): the distance ridden in an hour counts for the Tarnovian hour record. */
+  hour?: true
   /**
    * A ski jump (PR 8g): the hill, the jumper's mass with kit, kg, and the
    * day-to-day spread of the take-off speed, m/s. `windSpeed` is the typical
