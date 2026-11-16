@@ -479,6 +479,13 @@ export const GLOSSARY = defineGlossary({
     aliases: ['moving belt', 'rolling floor', 'moving floor'],
     seeAlso: ['fixedFloor', 'groundBoard', 'groundEffect'],
   },
+  piv: {
+    term: 'PIV',
+    short: 'Particle image velocimetry: a laser sheet and a camera that measure the air’s speed.',
+    long: 'Fine seeding drifts through the tunnel, a laser lights a thin slice of it, and a camera times how far each speck moves between two flashes. That gives the air’s speed all over the slice: fast, clean air round the model and slow air in its wake. Behind a body, the speed the wake has lost adds up to half its drag area, so the speed loss is a second way to read drag, apart from the balance. Laminar’s is an upgrade for your own tunnel.',
+    aliases: ['particle image velocimetry', 'laser sheet', 'speed loss', 'wake survey'],
+    seeAlso: ['wake', 'separation', 'cda'],
+  },
   aeroMap: {
     term: 'Aero map',
     short: 'A car’s downforce, balance and drag read at many ride heights.',

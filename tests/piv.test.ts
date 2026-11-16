@@ -9,6 +9,13 @@ import type { Design } from '../src/sim/design'
 import { riderFlowField } from '../src/sim/flow/field'
 import { pivReading } from '../src/sim/flow/piv'
 import { pivDragArea, pivHint } from '../src/sim/pivHint'
+import { STRINGS } from '../src/data/strings'
+import { DEFAULT_SKATER } from '../src/data/skater'
+import { DEFAULT_BOBSLED } from '../src/data/bobsled'
+import { STOCK_CAR } from '../src/data/car'
+import { STOCK_RECORD } from '../src/data/record'
+import { STOCK_DRONE } from '../src/data/drone'
+import { STOCK_PLANE } from '../src/data/plane'
 
 const FLOW: Flow = { density: 1.2, viscosity: 1.8e-5, speed: 20, turbulence: 0.005 }
 const POD = STOCK_POD.patrol
@@ -103,5 +110,13 @@ describe('PIV hint (PR 10ag)', () => {
     expect(first.control).toBe('senTail')
     const next = pivHint({ ...POD, tail: 1 })
     expect(next?.control).not.toBe('senTail')
+  })
+
+  it('names every slider it can pick with the Shape screen’s own label (PR 10ah)', () => {
+    const designs: Design[] = [DEFAULT_CYCLIST, DEFAULT_SKATER, DEFAULT_JUMPER, DEFAULT_BOBSLED, DEFAULT_TRUCK, STOCK_CAR.touring, STOCK_CAR.open, STOCK_RECORD.streamliner, STOCK_RECORD.jet, STOCK_DRONE.racer, STOCK_PLANE.survey, STOCK_AIRCRAFT.kit, POD]
+    for (const d of designs) {
+      const h = pivHint(d)
+      if (h) expect(STRINGS).toHaveProperty(`ctl.${h.control}`)
+    }
   })
 })

@@ -199,6 +199,10 @@ async function boot(): Promise<void> {
       show('shape')
       window.dispatchEvent(new CustomEvent('laminar:fix', { detail: where }))
     },
+    goControl: (control) => {
+      show('shape')
+      window.dispatchEvent(new CustomEvent('laminar:control', { detail: control }))
+    },
   })
   const autosave = startAutosave(
     () => current(),
