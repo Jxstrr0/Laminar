@@ -23,6 +23,8 @@ import { HANDLE_TOUCH } from '../data/handles'
 import { BOB_TUNNEL } from '../data/bobsled'
 import { FLIGHT_ATTITUDE } from '../data/jumper'
 import { DRONE_BODY } from '../data/drone'
+import { PLANE_BODY } from '../data/plane'
+import { planeLength, planeX } from '../sim/geom/plane'
 import { FRAME } from '../data/pose'
 import { UNIVERSITY_TUNNEL, REFERENCE_SPHERE, REFERENCE_WHEEL } from '../data/tunnel'
 import type { FailurePart } from '../sim/failure'
@@ -153,16 +155,27 @@ const RECORD_CAMERA = 4
  */
 const DRONE_STING = { y: 0.9, length: 0.3, rod: 0.005, strut: 0.012, knuckle: 0.01 }
 const DRONE_CAMERA = 0.22
+/**
+ * A survey drone's model (PR 10l) is pitched on a sting into its tail cone,
+ * pivoting about the wing's middle, held at this height in the section, m,
+ * whatever the model's scale. Full-scale metres: how far behind the tail
+ * cone's end the strut stands, and the rod's and strut's radii. The camera
+ * stands this far back for its size.
+ */
+const PLANE_STING = { height: 0.95, past: 0.25, rod: 0.012, strut: 0.03, knuckle: 0.025 }
+const PLANE_CAMERA = 1.6
 /** A powered quad's props are drawn turning this many times a second: slow enough to see as props (real ones blur at hundreds). */
 const PROP_REVS = 3
 /** How each kind of model on the posts is framed: the height looked at and how far back the camera stands, as for a rider. */
-type Framing = 'rider' | 'truck' | 'car' | 'record' | 'drone'
+type Framing = 'rider' | 'truck' | 'car' | 'record' | 'drone' | 'plane'
 const FRAMING: Record<Framing, { y: number; back: number }> = {
   rider: { y: RIDER_CENTRE_Y, back: 1 },
   truck: { y: TRUCK_CENTRE_Y, back: TRUCK_CAMERA },
   car: { y: CAR_CENTRE_Y, back: CAR_CAMERA },
   record: { y: RECORD_CENTRE_Y, back: RECORD_CAMERA },
   drone: { y: DRONE_STING.y, back: DRONE_CAMERA },
+  // A plane's height is set whatever its scale (aim reads PLANE_STING).
+  plane: { y: 0, back: PLANE_CAMERA },
 }
 /**
  * A ski jumper flies on a sting from behind: the model pivots about its hips,
@@ -688,6 +701,10 @@ export function createTunnelView(host: HTMLElement): TunnelView {
       showDrone(state, scale, tare)
       return
     }
+    if (state?.design.sport === 'plane') {
+      showPlane(state, scale, tare)
+      return
+    }
     pitchGroup = null
     rearIsDisc = state !== null && (state.design.sport === undefined || state.design.sport === 'cycling') && state.design.wheels.rear === 'disc'
     const g = new THREE.Group()
@@ -916,6 +933,49 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     pitchSign = -1
     applyPitch()
   }
+  /**
+   * A survey drone on its sting (PR 10l): the rod runs forward into the tail
+   * cone's end to a pivot at the wing's middle, the strut down to the floor
+   * behind the tail. Built level, then pitched nose-up by the angle of attack
+   * (setPitch). Its pivot sits at the same height in the section whatever
+   * the model's scale.
+   */
+  function showPlane(state: RiderState, scale: number, tare: boolean) {
+    rearIsDisc = false
+    if (state.design.sport !== 'plane') return
+    const S = PLANE_STING
+    const y = S.height / scale
+    const back = -planeX(state.design, planeLength(state.design)) + S.past
+    const g = new THREE.Group()
+    const rod = new THREE.Mesh(new THREE.CylinderGeometry(S.rod, S.rod, back, 12), postMat)
+    rod.rotation.z = Math.PI / 2
+    rod.position.set(-back / 2, y, 0)
+    const strut = new THREE.Mesh(new THREE.CylinderGeometry(S.strut, S.strut * 1.3, y, 12), postMat)
+    strut.position.set(-back, y / 2, 0)
+    const knuckle = new THREE.Mesh(new THREE.SphereGeometry(S.knuckle, 16, 12), postMat)
+    knuckle.position.set(-back, y, 0)
+    g.add(rod, strut, knuckle)
+    const pivot = new THREE.Group()
+    pivot.position.set(0, y, 0)
+    if (!tare) {
+      // The plane is drawn with its axis at its stand's height: bring the axis to the pivot, and leave the stand out.
+      const figure = buildRider({ ...state, noStand: true })
+      figure.position.y = -PLANE_BODY.stand
+      pivot.add(figure)
+    }
+    flowViz.group.position.set(0, -PLANE_BODY.stand, 0)
+    pivot.add(flowViz.group)
+    g.add(pivot)
+    g.scale.setScalar(scale)
+    g.rotation.y = Math.PI
+    mount.add(g)
+    riderGroup = g
+    pitchGroup = pivot
+    pitchBuilt = 0
+    // The angle of attack is nose-up, as a jumper's pitch is.
+    pitchSign = 1
+    applyPitch()
+  }
   /** +1 turns the pitch group nose-up with the dial (a jumper), −1 nose-down (a quad's tilt). */
   let pitchSign = 1
   function applyPitch() {
@@ -1005,7 +1065,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     const frame = FRAMING[framing]
     const target =
       kind === 'rider'
-        ? new THREE.Vector3(0, floorY + frame.y * scale, 0)
+        ? new THREE.Vector3(0, floorY + (framing === 'plane' ? PLANE_STING.height : frame.y * scale), 0)
         : kind === 'wheel'
           ? new THREE.Vector3(0, floorY + FRAME.wheelRadius * scale, 0)
           : new THREE.Vector3(0, 0, 0)
@@ -1142,7 +1202,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     setModel(model) {
       // Re-aim when the kind of model changes, or a truck comes on or off the posts (it's ten times a rider's length).
       const sport = model.kind === 'rider' ? model.state.design.sport : undefined
-      const framing: Framing = sport === 'truck' || sport === 'car' || sport === 'record' || sport === 'drone' ? sport : 'rider'
+      const framing: Framing = sport === 'truck' || sport === 'car' || sport === 'record' || sport === 'drone' || sport === 'plane' ? sport : 'rider'
       const truckOn = framing === 'truck'
       const carOn = framing === 'car'
       const changed = model.kind !== modelKind || framing !== framed
@@ -1169,6 +1229,8 @@ export function createTunnelView(host: HTMLElement): TunnelView {
               ? 'The wind tunnel test section with your ski jumper model on a pitching sting'
               : framing === 'drone'
                 ? `The wind tunnel test section with your full-size racing quad on a tilting sting, its props ${model.state.props === 'spinning' ? 'spinning' : 'stopped'}`
+              : framing === 'plane'
+                ? 'The wind tunnel test section with your survey drone model on a pitching sting'
               : model.state.design.sport === 'bobsled'
                 ? `The wind tunnel test section with your bobsled model ${model.board ? 'on a ground board' : 'on the bare floor'}`
                 : framing === 'record'

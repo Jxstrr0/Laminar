@@ -61,6 +61,8 @@ export interface RiderState {
   tilt?: number
   /** A drone's props in the tunnel (PR 10e): still blades, or blades spun by the scene; a blur disc when flying. */
   props?: 'disc' | 'stopped' | 'spinning'
+  /** A plane on a sting (PR 10l) is drawn without its stage stand. */
+  noStand?: boolean
 }
 
 export const v3 = (p: Point) => new THREE.Vector3(p.x, p.y, p.z)
