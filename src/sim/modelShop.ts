@@ -3,7 +3,7 @@
  * days it takes, and the model it builds. Prices and days come from
  * MODEL_SHOP; the model's build errors from its own seed.
  */
-import { MODEL_GRADE, MODEL_SHOP, type ModelFinish, type ModelGrade, type ModelScale } from '../data/model'
+import { MAKERS, MODEL_GRADE, MODEL_SHOP, type MakerId, type ModelFinish, type ModelGrade, type ModelScale } from '../data/model'
 import type { EventSpec, ModelSpec, PreparedModel } from './views'
 import { eventFlow } from './views'
 import { AIR } from '../data/air'
@@ -16,6 +16,27 @@ export interface ModelOrder {
   trips: boolean
   /** Pressure taps fitted (they read the surface pressure; they don't change the drag). */
   taps: boolean
+  /** Who makes it: the outside shop (left out) or one of your machines. */
+  maker?: MakerId
+}
+
+/** Who makes an order. */
+export const makerOf = (order: Pick<ModelOrder, 'maker'>): MakerId => order.maker ?? 'shop'
+
+/** Whether the maker can build this order (scale, finish and grade within its limits). */
+export function canMake(order: ModelOrder): boolean {
+  const m = MAKERS[makerOf(order)]
+  return m.scales.includes(order.scale) && m.finishes.includes(order.finish) && m.grades.includes(order.grade)
+}
+
+/** The order moved to a maker, with anything it can't do changed to the nearest thing it can. */
+export function forMaker(order: ModelOrder, maker: MakerId): ModelOrder {
+  const m = MAKERS[maker]
+  const scale = m.scales.includes(order.scale) ? order.scale : m.scales[m.scales.length - 1]!
+  const finish = m.finishes.includes(order.finish) ? order.finish : order.finish === 'printed' ? m.finishes[0]! : m.finishes[m.finishes.length - 1]!
+  const grade = m.grades.includes(order.grade) ? order.grade : m.grades[0]!
+  const { maker: _old, ...rest } = order
+  return { ...rest, scale, finish, grade, ...(maker === 'shop' ? {} : { maker }) }
 }
 
 export interface Quote {
@@ -24,8 +45,19 @@ export interface Quote {
   days: number
 }
 
-/** What the shop charges for an order, and how long it takes. */
+/** What an order costs, and how long it takes: the shop's price list, times the maker's shares. */
 export function quote(order: ModelOrder): Quote {
+  const m = MAKERS[makerOf(order)]
+  const shop = shopQuote(order)
+  if (m.priceShare === 1 && m.daysShare === 1) return shop
+  return {
+    price: Math.round((shop.price * m.priceShare) / MODEL_SHOP.round) * MODEL_SHOP.round,
+    days: Math.max(1, Math.round(shop.days * m.daysShare)),
+  }
+}
+
+/** The outside shop's price and days for an order. */
+function shopQuote(order: ModelOrder): Quote {
   const base = MODEL_SHOP.scale[order.scale]
   const finish = MODEL_SHOP.finish[order.finish]
   const grade = MODEL_SHOP.grade[order.grade]
@@ -43,7 +75,7 @@ export function modelSpecOf(order: ModelOrder, seed: number): ModelSpec {
   return {
     scale: 1 / order.scale,
     finish: order.finish,
-    accuracy: MODEL_GRADE[order.grade].accuracy,
+    accuracy: MODEL_GRADE[order.grade].accuracy * MAKERS[makerOf(order)].accuracyTimes,
     seed,
     ...(order.trips ? { trips: true } : {}),
   }

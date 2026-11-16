@@ -5,6 +5,7 @@
  * working; once it's open, its upkeep is paid for every day that passes.
  */
 import { OWN_BILLING, OWN_QUIRKS, OWN_TUNNEL_BUILD, TUNNEL_BILLING, TUNNEL_UPGRADES, UNIVERSITY_QUIRKS, UNIVERSITY_TUNNEL, UPGRADE_IDS, type UpgradeId } from '../data/tunnel'
+import { MACHINE_PRICE, MAKER_IDS, type MachineId, type MakerId } from '../data/model'
 import { rollQuirks, type QuirkRanges, type TunnelQuirks } from './quirks'
 import { hashString } from './rng'
 
@@ -15,9 +16,24 @@ export interface Facility {
   ownOrdered: number | null
   /** The career day each upgrade was paid for (left out until it is). */
   upgrades: Partial<Record<UpgradeId, number>>
+  /** The career day each workshop machine was bought (left out until it is). */
+  machines: Partial<Record<MachineId, number>>
 }
 
-export const NO_FACILITY: Facility = { ownOrdered: null, upgrades: {} }
+export const NO_FACILITY: Facility = { ownOrdered: null, upgrades: {}, machines: {} }
+
+/** Who can make your models: the outside shop, and every machine you own. */
+export function makersOwned(f: Facility): MakerId[] {
+  return MAKER_IDS.filter((m) => m === 'shop' || f.machines[m] !== undefined)
+}
+
+/** Why a machine can't be bought now, or null if it can. */
+export type MachineBlock = 'owned' | 'money' | null
+
+export function machineBlock(f: Facility, money: number, id: MachineId): MachineBlock {
+  if (f.machines[id] !== undefined) return 'owned'
+  return money < MACHINE_PRICE[id] ? 'money' : null
+}
 
 /** The day your own tunnel opens, or null if it hasn't been ordered. */
 export function ownReadyDay(f: Facility): number | null {

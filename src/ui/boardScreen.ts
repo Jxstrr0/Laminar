@@ -9,7 +9,8 @@ import { BID, CAREER, PROMISE, TRACK, type BriefTemplate } from '../data/briefs'
 import { REPUTATION } from '../data/reputation'
 import { RIVALS, RIVAL_IDS } from '../data/rivals'
 import { OWN_BILLING, OWN_TUNNEL_BUILD, TUNNEL_UPGRADES, UPGRADE_IDS } from '../data/tunnel'
-import { buildBlock, ownReadyDay, upgradeBlock, upgradeReadyDay } from '../sim/facility'
+import { buildBlock, machineBlock, ownReadyDay, upgradeBlock, upgradeReadyDay } from '../sim/facility'
+import { MACHINE_IDS, MACHINE_PRICE } from '../data/model'
 import type { CyclistDesign } from '../data/cyclist'
 import { t } from '../data/strings'
 import {
@@ -17,6 +18,7 @@ import {
   biddersFor,
   briefTemplate,
   buildOwnTunnel,
+  buyMachine,
   orderUpgrade,
   deliver,
   eventOf,
@@ -429,6 +431,34 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     return card
   }
 
+  /** The workshop: machines to make your own models, each bought once. */
+  function workshopCard(): HTMLElement {
+    const career = careerStore.get()
+    const card = el('section', 'job-card own-card')
+    card.setAttribute('aria-labelledby', 'ws-title')
+    const head = el('h2', 'job-client', t('ws.title'))
+    head.id = 'ws-title'
+    const list = el('ul', 'upgrade-list')
+    for (const id of MACHINE_IDS) {
+      const row = el('li', 'upgrade')
+      const name = el('p', 'upgrade-name', t(`ws.${id}`))
+      row.append(name, el('p', 'job-who', t(`ws.${id}What`)))
+      const block = machineBlock(career.facility, career.money, id)
+      if (block === 'owned') name.append(' ', el('span', 'save-slot-tag', t('ws.owned')))
+      else {
+        const line = el('div', 'upgrade-buy')
+        const buy = button('save-btn', t('ws.buy'))
+        buy.disabled = block !== null
+        if (!block) twoTap(buy, t('ws.buy'), t('ws.buyConfirm', { price: rubles(MACHINE_PRICE[id]) }), () => careerStore.set(buyMachine(careerStore.get(), id)))
+        line.append(el('span', 'upgrade-cost', rubles(MACHINE_PRICE[id])), buy)
+        row.append(line)
+      }
+      list.append(row)
+    }
+    card.append(head, el('p', 'shop-note', t('ws.intro')), list)
+    return card
+  }
+
   /** Your tunnel's upgrades: what each does, its price and days, and whether it's fitted. */
   function upgradeList(): HTMLElement[] {
     const career = careerStore.get()
@@ -586,7 +616,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     if (career.board.length === 0 && !career.job) list.append(emptyCard())
     const intro = el('p', 'shop-note', t(career.job ? 'board.oneAtATime' : 'board.intro'))
     const guide = guideCard()
-    page.replaceChildren(firm, ...(guide ? [guide] : []), ...(now ? [now] : []), boardHead, intro, list, ownTunnelCard(), rivals)
+    page.replaceChildren(firm, ...(guide ? [guide] : []), ...(now ? [now] : []), boardHead, intro, list, workshopCard(), ownTunnelCard(), rivals)
   }
 
   return {
