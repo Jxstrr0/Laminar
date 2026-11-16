@@ -6,7 +6,7 @@
  * shows your prediction next to what the road read, then hands over to the
  * debrief. Every number comes from the field result; nothing is re-run.
  */
-import type { CyclistDesign } from '../data/cyclist'
+import type { Design } from '../sim/design'
 import type { CourseSegment } from '../data/field'
 import { REPLAY } from '../data/replay'
 import { t } from '../data/strings'
@@ -18,13 +18,15 @@ export interface ReplayInput {
   client: string
   event: string
   course: readonly CourseSegment[]
-  design: CyclistDesign
-  setup: CyclistDesign
+  design: Design
+  setup: Design
   result: FieldResult
   baseline: FieldResult
   predicted: number
   /** On the indoor track: the lap length, m. */
   lap?: number
+  /** Raced on ice. */
+  ice?: boolean
   /** Called when the replay closes, whether watched to the end or skipped. */
   onDone(): void
 }
@@ -63,7 +65,7 @@ function noteText(n: ReplayNote, input: ReplayInput): string {
     case 'gust':
       return t('replay.note.gust', { client: input.client })
     case 'fade':
-      return t('replay.note.fade', { client: input.client })
+      return t(input.design.sport === 'skating' ? 'replay.note.fadeSkater' : 'replay.note.fade', { client: input.client })
   }
 }
 
@@ -145,7 +147,7 @@ export async function playReplay(input: ReplayInput): Promise<void> {
   const view = createReplayView(stage, { still: reduce })
   const panelWatch = new ResizeObserver(() => view.setInset(panel.offsetHeight))
   panelWatch.observe(panel)
-  view.setCourse(input.course, { windFromDeg: input.result.windFromDeg, calm, lap: input.lap })
+  view.setCourse(input.course, { windFromDeg: input.result.windFromDeg, calm, lap: input.lap, ice: input.ice })
   view.setRiders(input.design, input.setup)
 
   let raf = 0

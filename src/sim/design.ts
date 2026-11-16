@@ -13,6 +13,8 @@ import type { CyclingRules } from '../data/rules'
 import type { ShapeSpec } from './geom/body'
 import { cyclistShape, type CyclistShapeOptions } from './geom/cyclist'
 import { skaterShape } from './geom/skater'
+import { skaterPose } from './geom/skaterPose'
+import { riderPose, type Pose } from './geom/pose'
 import { skaterComfort, skaterEvent, skaterReadouts } from './skater'
 import type { EventSpec } from './views'
 import type { RiderSpec } from './field/timeTrial'
@@ -40,6 +42,11 @@ export function designShape(design: Design, options: CyclistShapeOptions = {}): 
   return isSkater(design) ? skaterShape(design) : cyclistShape(design, options)
 }
 
+/** Where every joint sits. `crankDeg` only turns a cyclist's cranks. */
+export function designPose(design: Design, crankDeg?: number): Pose {
+  return isSkater(design) ? skaterPose(design) : riderPose(design, crankDeg)
+}
+
 export function designComfort(design: Design, limit?: number): Comfort<string> {
   return isSkater(design) ? skaterComfort(design, limit) : comfort(design, limit)
 }
@@ -53,10 +60,7 @@ export function designEvent(design: Design, event: EventSpec, limit?: number): E
   return isSkater(design) ? skaterEvent(design, event, limit) : riderEvent(design, event, limit)
 }
 
-/**
- * The design as a cyclist, for the screens that only draw cyclists until
- * PR 8b brings the skater's figure and controls (no skater reaches them before then).
- */
+/** The design as a cyclist (a skater gives the default cyclist), for code that only handles cyclists. */
 export function asCyclist(design: Design): CyclistDesign {
   return isCyclist(design) ? design : DEFAULT_CYCLIST
 }

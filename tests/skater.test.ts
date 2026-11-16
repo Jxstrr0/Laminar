@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_SKATER, ICE, SKATER_RANGE, UPRIGHT_SKATER, type SkaterDesign } from '../src/data/skater'
 import { DEFAULT_CYCLIST } from '../src/data/cyclist'
 import { REFERENCE_RIDER } from '../src/data/field'
-import { designComfort, designEvent, designShape, isCyclist, isSkater, sportOf, sportRider } from '../src/sim/design'
+import { designComfort, designEvent, designPose, designShape, isCyclist, isSkater, sportOf, sportRider } from '../src/sim/design'
+import { designEllipsoids } from '../src/sim/flow/ellipsoids'
+import { BRIEFS } from '../src/data/briefs'
+import { eventOf } from '../src/sim/career'
 import { skaterShape, standFactor } from '../src/sim/geom/skater'
 import { skaterComfort, skaterReadouts } from '../src/sim/skater'
 import { partChanges, postureChanged, swapParts } from '../src/sim/remodel'
@@ -110,5 +113,56 @@ describe('one design, any sport', () => {
     expect(soundDesign({ ...DEFAULT_SKATER, hood: 'balaclava' })).toBeNull()
     expect(soundDesign({ ...DEFAULT_SKATER, sport: 'curling' })).toBeNull()
     expect(soundDesign({ ...DEFAULT_CYCLIST, sport: 'cycling' })).toEqual(DEFAULT_CYCLIST)
+  })
+})
+
+describe('the skater in 3D and on the board (PR 8b)', () => {
+  const finite = (pose: ReturnType<typeof designPose>) =>
+    Object.values(pose).every((v) =>
+      typeof v === 'number' ? Number.isFinite(v) : (Array.isArray(v) ? v : [v]).every((q: { x: number; y: number; z: number }) => [q.x, q.y, q.z].every(Number.isFinite)),
+    )
+
+  it('crouches lower with bent knees and a flat back', () => {
+    const deep = designPose(tweak({ kneeDeg: 95, trunkDeg: 8 }))
+    const tall = designPose(tweak({ kneeDeg: 155, trunkDeg: 45 }))
+    expect(finite(deep)).toBe(true)
+    expect(finite(tall)).toBe(true)
+    expect(deep.hip[0].y).toBeLessThan(tall.hip[0].y)
+    expect(deep.shoulder[0].y).toBeLessThan(tall.shoulder[0].y)
+  })
+
+  it('folds the hands on the back, or swings them', () => {
+    const back = designPose(DEFAULT_SKATER)
+    const swing = designPose(tweak({}, { arms: 'swing' }))
+    // Folded hands rest above the hips; a swinging arm hangs below the shoulder.
+    expect(back.hand[0].y).toBeGreaterThan(back.hip[0].y)
+    expect(swing.hand[0].y).toBeLessThan(swing.shoulder[0].y)
+  })
+
+  it('gives the flow field a body for each part the shape has', () => {
+    const d = DEFAULT_SKATER
+    const ids = new Set(designEllipsoids(d, designPose(d)).map((e) => e.bodyId))
+    for (const id of ['head', 'torso', 'arm-1', 'thigh-1', 'shin-1']) expect(ids.has(id)).toBe(true)
+  })
+
+  it('has two skating briefs whose clients skate, on ice', () => {
+    const oval = BRIEFS.find((b) => b.id === 'lenok-oval')!
+    const lake = BRIEFS.find((b) => b.id === 'kosov-marathon')!
+    for (const b of [oval, lake]) {
+      expect(isSkater(b.setup)).toBe(true)
+      expect(b.event.ice).toBe(true)
+      expect(eventOf(b).rider.rollingResistance).toBe(ICE.friction)
+    }
+    const km = (b: typeof oval) => b.event.course.reduce((s, c) => s + c.length, 0) / 1000
+    expect(km(oval)).toBeCloseTo(10, 6)
+    expect(km(lake)).toBeCloseTo(40, 6)
+    expect(oval.event.indoor).toBe(true)
+    expect(oval.event.lap).toBe(400)
+    // A good crouch keeps each client's ask with room to spare.
+    for (const b of [oval, lake]) {
+      const ev = eventOf(b)
+      const cut = (1 - truth(designShape(DEFAULT_SKATER), ev).windAveragedCdA / truth(designShape(b.setup), ev).windAveragedCdA) * 100
+      expect(cut).toBeGreaterThan(b.target)
+    }
   })
 })

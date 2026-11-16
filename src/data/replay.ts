@@ -54,6 +54,8 @@ export const REPLAY_SCENE = {
     camera: { back: 26, up: 108, ahead: 4, fov: 70 },
     /** Radius of the ring under each rider, m. */
     marker: 1.8,
+    /** The camera above was framed for a lap this long, m; a longer oval lifts it in proportion. */
+    framedLap: 250,
   },
   /**
    * Trouble on the road, drawn (PR 6d): a rider easing off in the gusts
@@ -70,5 +72,7 @@ export const REPLAY_SCENE = {
     lasts: 0.9,
     /** Sitting up: the back comes up to at least this angle, degrees, and the head comes up. */
     sitUpTorso: 34,
+    /** A skater standing taller: the knees open to at least this angle, degrees. */
+    standKnee: 140,
   },
 }

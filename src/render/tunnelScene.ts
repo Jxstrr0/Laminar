@@ -96,6 +96,9 @@ const CAMERA_OFFSET = {
 const RIDER_CENTRE_Y = 0.65
 /** The rider bike's middle along its length at full scale (between the tyres' ends), m. */
 const RIDER_MID_X = (FRAME.rearAxleX + FRAME.frontAxleX) / 2
+/** A skater model stands on two short posts under its blades (full scale, m along and tall). */
+const SKATER_POSTS = [-0.1, 0.15]
+const SKATER_POST_HEIGHT = 0.02
 
 export interface TunnelView {
   /** Draw one frame. speed is the air speed in m/s; dt is real seconds since the last frame. */
@@ -580,12 +583,15 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     clearRider()
     clearDebris()
     strain = 0
-    rearIsDisc = state?.design.wheels.rear === 'disc'
+    const skater = state?.design.sport === 'skating'
+    rearIsDisc = state !== null && state.design.sport !== 'skating' && state.design.wheels.rear === 'disc'
     const g = new THREE.Group()
-    // Two posts clamp the axles to the balance under the floor.
-    for (const axle of [FRAME.rearAxleX, FRAME.frontAxleX]) {
-      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, FRAME.wheelRadius, 12), postMat)
-      post.position.set(axle - RIDER_MID_X, FRAME.wheelRadius / 2, 0)
+    // Two posts clamp the axles (or a skater's blades) to the balance under the floor.
+    const posts = skater ? SKATER_POSTS : [FRAME.rearAxleX, FRAME.frontAxleX]
+    const postH = skater ? SKATER_POST_HEIGHT : FRAME.wheelRadius
+    for (const axle of posts) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, postH, 12), postMat)
+      post.position.set(axle - RIDER_MID_X, postH / 2, 0)
       g.add(post)
     }
     if (!tare) {

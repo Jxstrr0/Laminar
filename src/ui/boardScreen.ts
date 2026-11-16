@@ -11,7 +11,7 @@ import { RIVALS, RIVAL_IDS } from '../data/rivals'
 import { OWN_BILLING, OWN_TUNNEL_BUILD, TUNNEL_UPGRADES, UPGRADE_IDS } from '../data/tunnel'
 import { buildBlock, machineBlock, ownReadyDay, upgradeBlock, upgradeReadyDay } from '../sim/facility'
 import { MACHINE_IDS, MACHINE_PRICE } from '../data/model'
-import { asCyclist, designShape, type Design } from '../sim/design'
+import { designShape, isSkater, type Design } from '../sim/design'
 import { t } from '../data/strings'
 import {
   bidScore,
@@ -195,12 +195,13 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       client: b.client,
       event: b.event.name,
       course: d.event.course,
-      design: asCyclist(design),
-      setup: asCyclist(b.setup),
+      design,
+      setup: b.setup,
       result: d.result,
       baseline: d.debrief.baseline,
       predicted: d.debrief.predicted,
-      lap: b.event.indoor ? TRACK.lap : undefined,
+      lap: b.event.indoor ? (b.event.lap ?? TRACK.lap) : undefined,
+      ice: b.event.ice === true,
       onDone: after,
     })
   }
@@ -241,7 +242,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       ),
     )
     const parts: HTMLElement[] = [
-      el('p', 'shop-intro', t('race.intro', { client: b.client, event: b.event.name, km: fixed(km(b), 0) })),
+      el('p', 'shop-intro', t(isSkater(design) ? 'race.introSkater' : 'race.intro', { client: b.client, event: b.event.name, km: fixed(km(b), 0) })),
       verdict,
       facts,
     ]
@@ -259,7 +260,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       parts.push(box)
     }
     if (db.gusts) trouble(t('race.gusts', { client: b.client, time: shortTime(db.gusts.lost) }), db.gusts.fix, t('race.fix.front'))
-    if (db.fade) trouble(t('race.fade', { client: b.client, time: shortTime(db.fade.lost) }), db.fade.fix, t('race.fix.position'))
+    if (db.fade) trouble(t(isSkater(design) ? 'race.fadeSkater' : 'race.fade', { client: b.client, time: shortTime(db.fade.lost) }), db.fade.fix, t('race.fix.position'))
     if (db.baseline.lostToGusts > 0) parts.push(el('p', 'shop-note', t('race.oldGusts', { time: shortTime(db.baseline.lostToGusts) })))
     parts.push(el('p', 'shop-note', t('race.readNote')))
     if (d.sale) parts.push(brokeBox(d.sale, d.state.money))

@@ -47,3 +47,47 @@ export const FRAME = {
   seatTop: { x: -0.13, y: 0.83 },
   tubeRadius: 0.018,
 }
+
+/**
+ * The skater's skeleton (PR 8b), for drawing: the gliding foot under the
+ * hips with its knee bent to the design's angle, the other leg pushed out
+ * to the side, and the trunk leaning forward from the hips. Same axes as
+ * the rider's: x forward along the ice, y up (ice at 0), z to the right.
+ */
+export const SKATER_SKELETON = {
+  /** The gliding ankle: on the blade, a little to the left. */
+  ankle: { x: 0, y: 0.14, z: -0.09 },
+  shin: 0.46,
+  thigh: 0.46,
+  /** The pushing foot: back and out to the side, its leg nearly straight. */
+  pushFoot: { back: 0.3, out: 0.42 },
+  torso: 0.6,
+  neck: 0.12,
+  /** Neck angle above the back with the head up; a full head drop takes off this much. */
+  neckUpDeg: 40,
+  neckDropDeg: 30,
+  headRadius: 0.11,
+  upperArm: 0.3,
+  forearm: 0.3,
+  shoulderWidth: 0.36,
+  hipWidth: 0.2,
+  /** Hands folded on the back: this far along the back from the hips, lifted this much, this far apart either side. */
+  handsOnBack: 0.15,
+  handsLift: 0.08,
+  handsGap: 0.04,
+  /** Folded arms: elbows this far above the higher of shoulder and hand, and this much wider than the shoulders. */
+  elbowLift: 0.12,
+  elbowOut: 1.3,
+  /** A swinging arm hangs this far forward of straight down, degrees (the near arm); the far arm swings back this many times as far, lifted a little. */
+  swingDeg: 35,
+  swingBack: 1.4,
+  swingBackLift: 0.1,
+  swingOut: 0.05,
+  /** The hood's tilt from the line of the head, degrees. */
+  hoodPitchDeg: -10,
+  /** The blades: length, height, and how far ahead of the ankle they reach. */
+  blade: { length: 0.44, height: 0.06, ahead: 0.12 },
+  /** Hood (or cap) mount from the head's centre, and how much lies ahead of it. */
+  hoodOffset: { x: -0.02, y: 0.02 },
+  hoodNose: 0.35,
+}

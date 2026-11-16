@@ -62,6 +62,13 @@ export interface ShapeView {
 }
 
 
+/**
+ * The camera looks at this height, m, while the head sits at or below
+ * `headY`; a taller figure (a skater standing up) lifts the view by `follow`
+ * of the extra height, so the head stays clear of the chips at the top.
+ */
+const FRAME = { lookY: 0.72, headY: 1.2, follow: 0.7 }
+
 export function createShapeView(host: HTMLElement): ShapeView {
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
@@ -239,6 +246,13 @@ export function createShapeView(host: HTMLElement): ShapeView {
       figure = build(state)
       scene.add(figure)
       handles = state.handles
+      // Keep a tall figure's head in view: the look point and the camera rise together.
+      const lookY = FRAME.lookY + Math.max(0, state.pose.head.y - FRAME.headY) * FRAME.follow
+      const rise = lookY - controls.target.y
+      if (Math.abs(rise) > 0.005) {
+        controls.target.y += rise
+        camera.position.y += rise
+      }
     },
     frame() {
       controls.update()

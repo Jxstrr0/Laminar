@@ -1,5 +1,6 @@
 /**
- * The rider and bike as a three.js group, drawn from a design and its pose.
+ * The rider and bike (or the skater, PR 8b) as a three.js group, drawn from
+ * a design and its pose.
  * Shared by the Shape screen and the tunnel (where it stands on the mount at
  * model scale). Limbs come from the pose (src/sim/geom/pose.ts); the aero
  * helmet's outline is the very cross-section stack the aero model reads, so a
@@ -9,8 +10,12 @@
  */
 import * as THREE from 'three'
 import { BIKE, HELMET, type CyclistDesign } from '../data/cyclist'
-import { FRAME, SKELETON } from '../data/pose'
+import { FRAME, SKATER_SKELETON, SKELETON } from '../data/pose'
+import type { SkaterDesign } from '../data/skater'
+import type { Design } from '../data/sport'
 import { cyclistShape } from '../sim/geom/cyclist'
+import { skaterShape } from '../sim/geom/skater'
+import type { BodySpec } from '../sim/geom/body'
 import type { Point, Pose } from '../sim/geom/pose'
 
 const COLOURS = {
@@ -25,15 +30,17 @@ const COLOURS = {
   disc: 0x5d6873,
   bars: 0x5d6873,
   trip: 0xe08a00,
+  blade: 0xb8c2cb,
+  cap: 0x5d6873,
   broken: 0xd2462b,
   strain: 0xe08a00,
 }
 
 /** Which drawn groups a rule break or a strained posture lights up. */
-export type Highlight = 'helmet' | 'hands' | 'front-wheel' | 'frame' | 'torso' | 'head' | 'arms'
+export type Highlight = 'helmet' | 'hands' | 'front-wheel' | 'frame' | 'torso' | 'head' | 'arms' | 'legs'
 
 export interface RiderState {
-  design: CyclistDesign
+  design: Design
   pose: Pose
   broken: Highlight[]
   strained: Highlight[]
@@ -57,6 +64,8 @@ const M = {
   disc: new THREE.MeshStandardMaterial({ color: COLOURS.disc, roughness: 0.4, metalness: 0.2, side: THREE.DoubleSide }),
   bars: mat(COLOURS.bars, 0.4, 0.3),
   trip: mat(COLOURS.trip, 0.6),
+  blade: mat(COLOURS.blade, 0.25, 0.8),
+  cap: mat(COLOURS.cap, 0.95),
   broken: new THREE.MeshStandardMaterial({ color: COLOURS.broken, emissive: COLOURS.broken, emissiveIntensity: 0.35, roughness: 0.5 }),
   strain: new THREE.MeshStandardMaterial({ color: COLOURS.strain, emissive: COLOURS.strain, emissiveIntensity: 0.25, roughness: 0.6 }),
 }
@@ -81,7 +90,11 @@ export function ball(at: THREE.Vector3, radius: number, material: THREE.Material
 
 /** The helmet from the aero model's own cross-sections, as a solid of revolution. */
 function helmetMesh(design: CyclistDesign, material: THREE.Material): THREE.Object3D {
-  const body = cyclistShape(design).bodies.find((b) => b.id === 'helmet')
+  return latheMesh(cyclistShape(design).bodies.find((b) => b.id === 'helmet'), material)
+}
+
+/** A body from the aero model's cross-sections, as a solid of revolution laid nose forward. */
+function latheMesh(body: BodySpec | undefined, material: THREE.Material): THREE.Object3D {
   if (!body) return new THREE.Group()
   const st = body.stations
   const length = st[st.length - 1]!.x
@@ -130,7 +143,9 @@ export function buildReferenceWheel(spokes: number): THREE.Group {
 
 /** The rider and bike for a design, as a fresh group (dispose it with disposeGroup). */
 export function buildRider(state: RiderState): THREE.Group {
-  const { design, pose } = state
+  const { pose } = state
+  if (state.design.sport === 'skating') return buildSkater(state.design, state)
+  const design = state.design
   const g = new THREE.Group()
   const isBroken = (h: Highlight) => state.broken.includes(h)
   const isStrained = (h: Highlight) => state.strained.includes(h)
@@ -250,6 +265,73 @@ export function buildRider(state: RiderState): THREE.Group {
   visor.rotation.z = (pose.headPitchDeg * Math.PI) / 180
   g.add(visor)
 
+  return g
+}
+
+/** The skater for a design (PR 8b): crouched on the gliding leg, the other pushing out to the side. */
+function buildSkater(design: SkaterDesign, state: RiderState): THREE.Group {
+  const { pose } = state
+  const g = new THREE.Group()
+  const S = SKATER_SKELETON
+  const isBroken = (h: Highlight) => state.broken.includes(h)
+  const isStrained = (h: Highlight) => state.strained.includes(h)
+  const tint = (h: Highlight, base: THREE.Material) => (isBroken(h) ? M.broken : isStrained(h) ? M.strain : base)
+  const suit = design.suit.fabric === 'textured' ? M.suitTextured : M.suit
+  const legMat = tint('legs', suit)
+
+  for (let i = 0; i < 2; i++) {
+    const hip = v3(pose.hip[i]!)
+    const knee = v3(pose.knee[i]!)
+    const ankle = v3(pose.foot[i]!)
+    g.add(rod(hip, knee, 0.075, legMat))
+    g.add(rod(knee, ankle, 0.055, legMat))
+    if (design.suit.legTrips) g.add(rod(knee.clone().lerp(ankle, 0.3), knee.clone().lerp(ankle, 0.38), 0.058, M.trip))
+    // Boot and blade, along the ice.
+    const boot = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.11, 0.09), M.tyre)
+    boot.position.set(ankle.x + 0.03, ankle.y - 0.06, ankle.z)
+    g.add(boot)
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(S.blade.length, S.blade.height * 0.25, 0.006), M.blade)
+    blade.position.set(ankle.x + S.blade.ahead - S.blade.length / 2 + 0.1, S.blade.height * 0.125, ankle.z)
+    g.add(blade)
+    for (const dx of [-0.08, 0.1]) g.add(rod(new THREE.Vector3(ankle.x + dx, S.blade.height * 0.25, ankle.z), new THREE.Vector3(ankle.x + dx, ankle.y - 0.11, ankle.z), 0.006, M.blade))
+  }
+
+  const hipC = v3(pose.hip[0]).add(v3(pose.hip[1])).multiplyScalar(0.5)
+  const shC = v3(pose.shoulder[0]).add(v3(pose.shoulder[1])).multiplyScalar(0.5)
+  const width = S.shoulderWidth / 0.2
+  const torso = rod(hipC, shC, 0.11, tint('torso', suit))
+  torso.scale.set(1, 1, width)
+  g.add(torso)
+  const stripe = rod(hipC.clone().setZ(0.001), shC.clone().setZ(0.001), 0.112, M.panel)
+  stripe.scale.set(0.35, 0.98, width * 1.01)
+  g.add(stripe)
+
+  const armMat = tint('arms', suit)
+  for (let i = 0; i < 2; i++) {
+    const sh = v3(pose.shoulder[i]!)
+    const el = v3(pose.elbow[i]!)
+    const hand = v3(pose.hand[i]!)
+    g.add(rod(sh, el, 0.048, armMat))
+    g.add(rod(el, hand, 0.042, armMat))
+    g.add(ball(hand, 0.038, M.tyre))
+  }
+  const neck = v3(pose.neck)
+  g.add(rod(shC, neck, 0.05, tint('head', suit)))
+  const head = v3(pose.head)
+  g.add(ball(head, S.headRadius * 0.85, M.skin))
+
+  // A smooth hood (the aero model's own sections) or a knitted cap.
+  const headMat = tint('helmet', design.hood === 'hood' ? suit : M.cap)
+  const cover = design.hood === 'hood' ? latheMesh(skaterShape(design).bodies.find((b) => b.id === 'head'), headMat) : roadHelmet(headMat)
+  cover.position.copy(v3(pose.helmet))
+  cover.rotation.z = (pose.headPitchDeg * Math.PI) / 180
+  cover.name = 'helmet'
+  g.add(cover)
+  const visor = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 8, -0.9, 1.8, 1.2, 0.7), M.visor)
+  visor.rotation.y = Math.PI / 2
+  visor.position.copy(head).add(new THREE.Vector3(0.02, 0, 0))
+  visor.rotation.z = (pose.headPitchDeg * Math.PI) / 180
+  g.add(visor)
   return g
 }
 

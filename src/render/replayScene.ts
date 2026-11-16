@@ -7,10 +7,9 @@
  * one it says sat up is drawn sitting up.
  */
 import * as THREE from 'three'
-import type { CyclistDesign } from '../data/cyclist'
 import { FIELD_TROUBLE, type CourseSegment } from '../data/field'
 import { REPLAY_SCENE as S } from '../data/replay'
-import { riderPose } from '../sim/geom/pose'
+import { designPose, type Design } from '../sim/design'
 import type { TrackPoint } from '../sim/replay'
 import { buildRider, disposeGroup } from './riderFigure'
 
@@ -25,6 +24,10 @@ const COLOURS = {
   cone: 0xd2462b,
   ghost: 0xffffff,
   boards: 0xc89f6a,
+  /** Skated ice, indoors or on the lake. */
+  ice: 0xe2edf4,
+  /** Snow round the lake, a shade darker than the ice so the loop reads. */
+  snow: 0xc3d0da,
   infield: 0xa9b8c6,
   line: 0xffffff,
   markMine: 0x2456e8,
@@ -45,6 +48,8 @@ export interface CourseOptions {
   calm: boolean
   /** On the indoor track: the lap length, m. Only one lap is drawn, and the camera watches from the stands. */
   lap?: number
+  /** Raced on ice: the boards or the road are drawn as ice. */
+  ice?: boolean
 }
 
 export interface ReplayOptions {
@@ -54,14 +59,18 @@ export interface ReplayOptions {
 
 /** A rider as drawn: tucked as designed, and (built the first time it's needed) sitting up. */
 interface Figure {
-  design: CyclistDesign
+  design: Design
   ghost: boolean
   tucked: THREE.Group
   sitting: THREE.Group | null
 }
 
-/** The same rider sitting up: back up to the trouble table's angle, head up. */
-function sitUp(design: CyclistDesign): CyclistDesign {
+/** The same rider sitting up (a skater standing taller): back up to the trouble table's angle, head up. */
+function sitUp(design: Design): Design {
+  if (design.sport === 'skating') {
+    const p = design.posture
+    return { ...design, posture: { trunkDeg: Math.max(p.trunkDeg, S.trouble.sitUpTorso), kneeDeg: Math.max(p.kneeDeg, S.trouble.standKnee), headDrop: 0 } }
+  }
   const p = design.posture
   return { ...design, posture: { ...p, torsoDeg: Math.max(p.torsoDeg, S.trouble.sitUpTorso), headDrop: 0 } }
 }
@@ -69,7 +78,7 @@ function sitUp(design: CyclistDesign): CyclistDesign {
 export interface ReplayView {
   /** Lay out the course and the wind (blowing from `windFromDeg`). */
   setCourse(course: readonly CourseSegment[], opts: CourseOptions): void
-  setRiders(mine: CyclistDesign, old: CyclistDesign): void
+  setRiders(mine: Design, old: Design): void
   /** Put both riders where the race clock says, and move the camera (dt in seconds). */
   place(mine: TrackPoint, old: TrackPoint, dt: number): void
   /** The readout panel covers this many pixels at the bottom: the picture centres above it. */
@@ -144,8 +153,8 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
   /** Seconds of replay so far, for the gusts' rhythm. */
   let clock = 0
 
-  function build(design: CyclistDesign, ghost: boolean): THREE.Group {
-    const g = buildRider({ design, pose: riderPose(design), broken: [], strained: [] })
+  function build(design: Design, ghost: boolean): THREE.Group {
+    const g = buildRider({ design, pose: designPose(design), broken: [], strained: [] })
     // Heading first, then the roll about the rider's own forward line.
     g.rotation.order = 'YXZ'
     if (ghost)
@@ -156,7 +165,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     return g
   }
 
-  function figure(design: CyclistDesign, ghost: boolean): Figure {
+  function figure(design: Design, ghost: boolean): Figure {
     const tucked = build(design, ghost)
     return { design, ghost, tucked, sitting: null }
   }
@@ -265,7 +274,8 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     const cx = (minX + maxX) / 2
     const cz = (minZ + maxZ) / 2
     const c = S.track.camera
-    broadcast = { at: new THREE.Vector3(cx - c.back, c.up, cz), look: new THREE.Vector3(cx + c.ahead, 0, cz) }
+    const k = Math.max(1, lap / S.track.framedLap)
+    broadcast = { at: new THREE.Vector3(cx - c.back * k, c.up * k, cz), look: new THREE.Vector3(cx + c.ahead * k, 0, cz) }
   }
 
   return {
@@ -274,7 +284,9 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       broadcast = null
       ringMine.visible = ringOld.visible = !!opts.lap
       grid.visible = !opts.lap
-      ;(ground.material as THREE.MeshLambertMaterial).color.setHex(opts.lap ? COLOURS.infield : COLOURS.ground)
+      boardsMat.color.setHex(opts.ice ? COLOURS.ice : COLOURS.boards)
+      roadMat.color.setHex(opts.ice ? COLOURS.ice : COLOURS.road)
+      ;(ground.material as THREE.MeshLambertMaterial).color.setHex(opts.lap ? COLOURS.infield : opts.ice ? COLOURS.snow : COLOURS.ground)
       if (opts.lap) {
         layTrack(segs, opts.lap)
         return
