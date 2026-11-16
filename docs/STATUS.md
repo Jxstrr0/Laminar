@@ -89,10 +89,13 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 9z+ | The sound barrier in the record replay: a jet car's run shows its Mach number, the replay slows from the moment it goes through the barrier, the commentator calls it with a white flash (none with reduced motion), and past Mach 1 its shock trails across the salt from the nose as a V of lines. The land-speed record (PR 9) is finished | **Done** (v0.9.26.0) |
 | 10a | The racing quad in the sim (Kelbo's PR 10 answers in the plan): the body pod's length, rake and vents and the arm fairings; drag at the quad's tilt, thrust falling with speed and lost to the downwash on the arms, the controllers overheating with too few vents, corners flown on the spare thrust, and the pod's twist tumbling the quad (hardest on the brakes); a race of five laps of the Lugovoy meadow gate course | **Done** (v0.10.0.0) |
 | 10b | The racing quad on Shape (`?try=quad`): drawn flying flat out at its true tilt with streaks of oncoming air; Pod (length, rake, vents) and Arms (fairings) tabs; the desk's race time against the club's quad, top speed with the tilt and the pod's angle to the air, and the worst twist against what the motors hold; a tumble, a twist near the limit and overheating vents are amber warnings with "Change this"; saves, run reports and the model shop know the quad; glossary: flying tilted, twist, downwash | **Done** (v0.10.1.0) |
-| 10c–14 | See the plan | Next: the racing quad in the tunnel (10c). |
+| 10c | The racing quad in the tunnel, in the sim: read full size on the sting at any tilt (nose down, or tipped back as when braking) for its drag and the twist on its pod; a powered model with spinning props also reads what the downwash on the arms takes. The forecast flies the race on the readings: with the props stopped it takes the motor maker's bare-arm downwash figure, so faired arms read about a second slow (Kelbo's "props stopped" trap); with no reading that meets the pod at an angle it can't see the twist, so it misses a tumble | **Done** (v0.10.2.0) |
+| 10d–14 | See the plan | Next: the racing quad on the Tunnel screen (10d). |
 
 ## Versions
 
+- **0.10.2.0** (PR 10c): the racing quad in the tunnel, in the sim only.
+  Nothing new to see on a phone; the Tunnel screen gets it in 10d.
 - **0.10.1.0** (PR 10b): the racing quad on Shape. Open the game with
   `?try=quad` and tap Shape: rake the pod up until it points into the
   arrows of air, fair the arms, and watch the race time and the twist.
