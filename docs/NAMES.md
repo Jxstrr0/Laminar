@@ -83,6 +83,10 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Kalina | Bogdan Lisovoy's home-built streamliner. PR 9t. |
 | Vera Yarovaya | Engineer for the Zarya Land Speed Project (Sukhoye Speed Week). PR 9t. |
 | Zarya Land Speed Project | A record team chasing the Tarnovian land-speed record. PR 9t. |
+| Tikhon Shatrov | Built Ognivo, a jet car, round an old fighter engine (Sukhoye Speed Week). PR 9z. |
+| Ognivo | Tikhon Shatrov's jet car. PR 9z. |
+| Raisa Belova | Lead engineer of the Proryv Project (Sukhoye Speed Week). PR 9z. |
+| Proryv Project | A jet-car team out to take a car through the sound barrier; Proryv is also the car. PR 9z. |
 | Sukhoye Speed Week | The land-speed meeting on Lake Sukhoye: a run each way, the mean counts. PR 9t. |
 | Stavren Regional Time Trial, Club 16 km Time Trial, Lake Dolgo Hill Time Trial, Kosa Coast Time Trial, National Time Trial Championship, Track Championships: Individual Pursuit, Stavren Open: 10 000 m, Lake Dolgo Ice Marathon, Belogor Junior Cup, Belogor Winter Cup, Tarnovian Large Hill Championship, Belogor Club Cup: two-man, Tarnovian Two-man Championship, Tarnovian Four-man Championship, Kovyl Haulage fuel trial, Volok Freight fuel trial, Prichal Logistics fuel trial | The events above. |
 

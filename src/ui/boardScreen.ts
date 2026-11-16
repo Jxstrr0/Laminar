@@ -12,7 +12,7 @@ import { OWN_BILLING, OWN_TUNNEL_BUILD, TUNNEL_UPGRADES, UPGRADE_IDS } from '../
 import { buildBlock, machineBlock, ownReadyDay, upgradeBlock, upgradeReadyDay } from '../sim/facility'
 import { MACHINE_IDS, MACHINE_PRICE } from '../data/model'
 import { designShape, isBobsled, isCar, isJumper, isRecord, isSkater, isTruck, type Design } from '../sim/design'
-import type { RecordDesign } from '../data/record'
+import { COMPRESSIBILITY, type RecordDesign } from '../data/record'
 import { recordForecast } from './recordForecast'
 import { CAR_CLASS, type CarDesign } from '../data/car'
 import { checkCarRules, lapTime, scrutineered } from '../sim/car'
@@ -84,6 +84,7 @@ import { DESK } from '../data/cyclist'
 import { correlationScore } from '../sim/reputation'
 import { rivalRecord } from '../sim/rivals'
 import type { FixTarget } from '../sim/failure'
+import { soundSpeed } from '../sim/record'
 import { careerStore } from './careerStore'
 import { designStore } from './designStore'
 import { careerDate, fixed, pct, raceTime, rubles, rublesShort, shortTime } from './format'
@@ -931,7 +932,16 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     const parts: HTMLElement[] = [el('p', 'shop-intro', t('rd.intro', { client: b.client, event: b.event.name })), verdict, facts]
     if (db.cause) parts.push(el('p', 'shop-note', t(`rd.cause.${db.cause}`)))
     const sheet = () => recordSheet
-    if (db.abort) parts.push(troubleBox(t(db.abort.cause === 'lift' ? 'rd.light' : 'rd.wander', { speed: fixed(db.abort.speed, 0) }), t(db.abort.cause === 'lift' ? 'rd.fixDroop' : 'rd.fixFin'), db.abort.fix, sheet))
+    if (db.abort) {
+      // A nose that went light right at the sound barrier: the shock under it did that (PR 9z).
+      const mach = db.abort.speed / 3.6 / soundSpeed(d.event.flat.temperature)
+      const shock = db.abort.cause === 'lift' && mach > 1 - COMPRESSIBILITY.shock.width
+      const text = shock ? t('rd.lightShock', { speed: fixed(db.abort.speed, 0), mach: fixed(mach, 2) }) : t(db.abort.cause === 'lift' ? 'rd.light' : 'rd.wander', { speed: fixed(db.abort.speed, 0) })
+      parts.push(troubleBox(text, t(db.abort.cause === 'lift' ? 'rd.fixDroop' : 'rd.fixFin'), db.abort.fix, sheet))
+    }
+    if (db.squeeze && !db.met) parts.push(troubleBox(t('rd.squeeze', { mach: fixed(db.squeeze.mach, 2), pct: fixed(db.squeeze.extra * 100, 0) }), t('rd.fixWaist'), db.squeeze.fix, sheet))
+    else if (db.squeeze) parts.push(el('p', 'shop-note', t('rd.squeezeKept', { mach: fixed(db.squeeze.mach, 2), pct: fixed(db.squeeze.extra * 100, 0) })))
+    if (db.meanMach !== null && db.meanMach > 1) parts.push(el('p', 'shop-note', t('rd.barrier', { mach: fixed(db.meanMach, 3) })))
     if (db.sight) parts.push(troubleBox(t('rd.sight', { pct: fixed(db.sight.share * 100, 0), kmh: fixed(db.sight.lost, 0) }), t('rd.fixCanopy'), db.sight.fix, sheet))
     // Record day can pull the chutes on a car that ran clean in still air: the wind found it out.
     if (db.attempt.mean === null && db.actual !== null) parts.push(el('p', 'shop-note', t('rd.dayChutes')))
