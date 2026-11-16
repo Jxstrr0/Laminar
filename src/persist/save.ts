@@ -10,7 +10,7 @@ import { JUMPER_RANGE, type JumperDesign } from '../data/jumper'
 import { BOBSLED_RANGE, type BobsledDesign } from '../data/bobsled'
 import { TRUCK_RANGE, type TruckDesign } from '../data/truck'
 import type { Design } from '../sim/design'
-import { MACHINE_IDS, MAKER_IDS, MODEL_FINISH, MODEL_GRADE, MODEL_SCALES, type MachineId } from '../data/model'
+import { ALL_SCALES, MACHINE_IDS, MAKER_IDS, MODEL_FINISH, MODEL_GRADE, type MachineId } from '../data/model'
 import { CRANK_DIAL, DEMO_TUNNEL_SEED } from '../data/tunnel'
 import { briefTemplate, newCareer, tidyFirmName, type Brief, type CareerState, type Ending, type Job, type JobRecord } from '../sim/career'
 import { GUIDE_STEPS, type GuideStep } from '../sim/guide'
@@ -186,7 +186,7 @@ const soundCrank = (x: unknown): x is number =>
 function soundOrder(x: unknown): ModelOrder | null {
   if (!isObj(x)) return null
   const { scale, finish, grade, trips, taps } = x
-  if (!MODEL_SCALES.includes(scale as never) || !oneOf(finish, Object.keys(MODEL_FINISH) as (keyof typeof MODEL_FINISH)[])) return null
+  if (!ALL_SCALES.includes(scale as never) || !oneOf(finish, Object.keys(MODEL_FINISH) as (keyof typeof MODEL_FINISH)[])) return null
   if (!oneOf(grade, Object.keys(MODEL_GRADE) as (keyof typeof MODEL_GRADE)[]) || typeof trips !== 'boolean') return null
   // Orders from before PR 7e were all the outside shop's.
   const maker = x.maker === undefined ? 'shop' : x.maker

@@ -82,7 +82,7 @@ import { fixFor, repairQuote, stepStrain, strains, wobbleOf, type Failure, type 
 import { gaussian } from '../sim/noise'
 import { createSheet, type Sheet } from './sheet'
 import { modelSpecOf, quote, reynoldsRatio, type ModelOrder } from '../sim/modelShop'
-import { prepareExact, prepareModel, readBalance, readTare, tunnelTurbulence, type EventSpec, type PreparedModel, type TunnelSpec } from '../sim/views'
+import { fixedDrag, prepareExact, prepareModel, readBalance, readTare, tunnelTurbulence, type EventSpec, type PreparedModel, type TunnelSpec } from '../sim/views'
 import type { TunnelView } from '../render/tunnelScene'
 import { createChart, describeLast, type ChartPoint } from './chart'
 import { openModelShop, type ShopContext } from './modelShop'
@@ -1583,7 +1583,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       return
     }
     const r = readBalance(prepared, tunnel, { speed: fan.speed, yawDeg: table.angle, mount: 'posts' }, balanceRng)
-    loadArea = Math.hypot(r.forces.cdA + (prepared.fixedCdA ?? 0), r.forces.cyA)
+    loadArea = Math.hypot(r.forces.cdA + fixedDrag(prepared, table.angle), r.forces.cyA)
     const q = dynamicPressure(AIR.density, fan.speed)
     const s2 = prepared.scale * prepared.scale
     const k = settle(dt)

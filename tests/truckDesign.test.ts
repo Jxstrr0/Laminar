@@ -97,10 +97,18 @@ describe('the truck in saves, run reports and the model shop', () => {
     expect(changedControls(DEFAULT_TRUCK, DEFAULT_BOBSLED)).toContain('boatTail')
   })
 
-  it('builds a new model for any change, for now: bolt-on swaps come with the truck tunnel', () => {
-    expect(partChanges(DEFAULT_TRUCK, truck({ trailer: { skirts: 0.3 } }))).toEqual([])
-    expect(postureChanged(DEFAULT_TRUCK, truck({ trailer: { skirts: 0.3 } }))).toBe(true)
-    expect(postureChanged(DEFAULT_TRUCK, structuredClone(DEFAULT_TRUCK))).toBe(false)
-    expect(swapParts(DEFAULT_TRUCK, truck({ trailer: { skirts: 0.3 } }))).toEqual(DEFAULT_TRUCK)
+  it('swaps bolt-on parts on the model, and needs a new one for the cab, the gap or the trailer', () => {
+    const skirts = truck({ trailer: { skirts: 0.3 }, cab: { fairing: 0.8 } })
+    expect(partChanges(DEFAULT_TRUCK, skirts)).toEqual(['fairing', 'skirts'])
+    expect(partChanges(DEFAULT_TRUCK, truck({ trailer: { tailAngle: 16 } }))).toEqual(['boatTail'])
+    expect(postureChanged(DEFAULT_TRUCK, skirts)).toBe(false)
+    expect(swapParts(DEFAULT_TRUCK, skirts)).toEqual(skirts)
+    // The cab's corners and the gap's length are the model's body.
+    const moved = truck({ cab: { nose: 0.2 }, gap: { length: 1.2 }, trailer: { skirts: 0.3 } })
+    expect(postureChanged(DEFAULT_TRUCK, moved)).toBe(true)
+    expect(swapParts(DEFAULT_TRUCK, moved)).toEqual(truck({ trailer: { skirts: 0.3 } }))
+    expect(postureChanged(DEFAULT_TRUCK, { ...DEFAULT_TRUCK, trailerTop: 3.8 })).toBe(true)
+    expect(postureChanged(DEFAULT_TRUCK, DEFAULT_BOBSLED)).toBe(true)
+    expect(partChanges(DEFAULT_TRUCK, DEFAULT_BOBSLED)).toEqual([])
   })
 })

@@ -25,7 +25,16 @@ export type ModelGrade = keyof typeof MODEL_GRADE
 /** The scales the shop offers for a rider, as the 4 in 1:4. */
 export const MODEL_SCALES = [4, 3, 2] as const
 
-export type ModelScale = (typeof MODEL_SCALES)[number]
+/**
+ * A truck is ten times a rider's length, so its models are much smaller
+ * (PR 9c): at 1:8 the rig is about 2.3 m long and blocks under 4 % of the
+ * university tunnel's section.
+ */
+export const TRUCK_SCALES = [12, 10, 8] as const
+
+export const ALL_SCALES = [...MODEL_SCALES, ...TRUCK_SCALES] as const
+
+export type ModelScale = (typeof ALL_SCALES)[number]
 
 /**
  * The outside model shop's price list, ₽ and days. A model's price is its
@@ -37,6 +46,10 @@ export const MODEL_SHOP = {
     4: { price: 24000, days: 4 },
     3: { price: 36000, days: 5 },
     2: { price: 52000, days: 7 },
+    // A truck model is small but long and full of parts.
+    12: { price: 30000, days: 5 },
+    10: { price: 38000, days: 6 },
+    8: { price: 50000, days: 7 },
   } satisfies Record<ModelScale, { price: number; days: number }>,
   finish: {
     printed: { times: 0.75, days: -1 },
@@ -48,11 +61,11 @@ export const MODEL_SHOP = {
     fine: { times: 1.5, days: 2 },
   } satisfies Record<ModelGrade, { times: number; days: number }>,
   trips: { price: 3000, days: 1 },
-  /** A ground board for a bobsled model: a raised plate with a sharp front edge (PR 8n, BOB_TUNNEL). */
+  /** A ground board for a bobsled or truck model: a raised plate with a sharp front edge (PR 8n, BOB_TUNNEL; PR 9c, TRUCK_TUNNEL). */
   board: { price: 4000, days: 1 },
   /** Pressure taps: pinholes over the rider piped to the tunnel's scanner. */
   taps: { price: 8000, days: 2 },
-  /** Swapping one bolt-on part (helmet, suit, bars, a wheel, the frame) on a model you have, ₽ (no days). */
+  /** Swapping one bolt-on part (helmet, suit, bars, a wheel, the frame; a truck's fairing, skirts and the like) on a model you have, ₽ (no days). */
   partSwap: 1500,
   /** Prices round to this many rubles. */
   round: 500,
@@ -116,10 +129,10 @@ export interface Maker {
 }
 
 export const MAKERS: Record<MakerId, Maker> = {
-  shop: { scales: [4, 3, 2], finishes: ['printed', 'sanded', 'polished'], grades: ['standard', 'fine'], priceShare: 1, daysShare: 1, stiffness: 1, accuracyTimes: 1 },
-  resin: { scales: [4, 3], finishes: ['sanded', 'polished'], grades: ['standard', 'fine'], priceShare: 0.3, daysShare: 0.3, stiffness: 0.8, accuracyTimes: 1 },
-  fdm: { scales: [4, 3, 2], finishes: ['printed', 'sanded'], grades: ['standard'], priceShare: 0.2, daysShare: 0.5, stiffness: 0.9, accuracyTimes: 1 },
-  cnc: { scales: [4, 3, 2], finishes: ['sanded', 'polished'], grades: ['standard', 'fine'], priceShare: 0.45, daysShare: 0.6, stiffness: 1.3, accuracyTimes: 0.5 },
+  shop: { scales: [4, 3, 2, 12, 10, 8], finishes: ['printed', 'sanded', 'polished'], grades: ['standard', 'fine'], priceShare: 1, daysShare: 1, stiffness: 1, accuracyTimes: 1 },
+  resin: { scales: [4, 3, 12, 10], finishes: ['sanded', 'polished'], grades: ['standard', 'fine'], priceShare: 0.3, daysShare: 0.3, stiffness: 0.8, accuracyTimes: 1 },
+  fdm: { scales: [4, 3, 2, 12, 10, 8], finishes: ['printed', 'sanded'], grades: ['standard'], priceShare: 0.2, daysShare: 0.5, stiffness: 0.9, accuracyTimes: 1 },
+  cnc: { scales: [4, 3, 2, 12, 10, 8], finishes: ['sanded', 'polished'], grades: ['standard', 'fine'], priceShare: 0.45, daysShare: 0.6, stiffness: 1.3, accuracyTimes: 0.5 },
 }
 
 /** What each machine costs to buy, ₽. */

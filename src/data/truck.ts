@@ -210,6 +210,23 @@ export const TRUCK_DESK = {
   jitter: 0.02,
 }
 
+/**
+ * The truck in the tunnel (PR 9c). On the road the tarmac slides back under
+ * the truck at its own speed; the tunnel's floor stands still and grows a
+ * slow layer of air that the wheels and underside sit in, so the balance
+ * misses some of their drag. The shop's ground board (as for a bobsled)
+ * takes most of that error away; a rolling road comes with race cars.
+ */
+export const TRUCK_TUNNEL = {
+  /** Share of the wheels' and underside's drag the still floor hides. */
+  floorHidden: 0.55,
+  /** Share of that error still left on a ground board. */
+  boardLeft: 0.15,
+  /** The parts' yaw-dependent drag is carried with the model at this step, degrees, out to `maxYaw`. */
+  stepDeg: 2.5,
+  maxYaw: 30,
+} as const
+
 /** The Shape sheet tints the fairing amber when its top misses the trailer's roof by more than this, m. */
 export const FAIRING_MISS = 0.15
 
