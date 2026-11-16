@@ -77,10 +77,15 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 9o | The lap replay: race day round the circuit from behind your car, the team's old car as a see-through twin alongside, the lap clock, speed and gap, the commentator on the slowest corner, the top speed and porpoising (the car bounces where it porpoises), then the declared lap against the real one | **Done** (v0.9.14.0) |
 | 9p | The land-speed streamliner in the sim: nose cone (length and droop), canopy, tail fin and wheel fairings; drag, nose lift and pointing straight (the side force behind the mass); the air squeezing near the speed of sound, which a longer nose puts off; a run from a standstill through the timed kilometre on the salt at Lake Sukhoye; chutes out if the nose goes light or the car wanders; the record as the mean of a run each way. Not on screen yet | **Done** (v0.9.15.0) |
 | 9q | The streamliner on Shape: the car drawn from the drag model's own shell with its nose drooped, a glass canopy, the fin and the wheel fairings; Body and Fin & wheels tabs; the desk's record speed against the team's car at Lake Sukhoye, the nose's weight at top speed and the crosswind it holds straight in; a light nose, a wander, a low canopy and the air squeezing as amber warnings with a "Change this". Saves and the model shop know the car. Preview with `?try=record`. The tunnel reads it in 9r | **Done** (v0.9.16.0) |
-| 9r–14 | See the plan | Next: the streamliner in the tunnel. |
+| 9r | The streamliner in the tunnel, in the sim: a scale model read for drag, nose lift and side force over a still floor, a moving board or the rolling road; still wheels add drag unless the fairings cover them; the still floor reads the nose's lift low, so a nose that goes light on the salt can pass in a still tunnel; a yaw sweep finds the centre of side force. The forecast turns the readings into a record speed, the nose's weight and the crosswind held | **Done** (v0.9.17.0) |
+| 9s–14 | See the plan | Next: the streamliner on the Tunnel screen. |
 
 ## Versions
 
+- **0.9.17.0** (PR 9r): the streamliner in the tunnel, in the sim only
+  (nothing new on screen yet). The tunnel reads a scale model of the car;
+  a still floor reads the nose's lift about 15% low, so a nose that lifts
+  at speed on the salt can look safe. Test it on the Tunnel screen in 9s.
 - **0.9.16.0** (PR 9q): the streamliner on the Shape screen. Open
   `?try=record` and tap Shape: the nose cone (length and droop) and the
   canopy are on the Body tab, the tail fin and wheel fairings on Fin &

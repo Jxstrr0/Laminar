@@ -174,6 +174,38 @@ export const RECORD_DESK = {
   liftWarn: 0.62,
 }
 
+/**
+ * The streamliner in the tunnel (PR 9r). A scale model on the turntable,
+ * read at the tunnel's own top speed; the forecast scales the readings up
+ * to the salt. Kelbo (16 November 2026): no high-speed tunnel, so the air
+ * squeezing near the speed of sound is never seen, and learning that
+ * correction is the skill.
+ *
+ * - The floor under the model: a still floor grows a slow layer of air that
+ *   the real salt (rushing under the car) never has, and the nose's lift
+ *   reads low there; a ground board helps; a rolling road reads true.
+ * - Wheels standing still read a little draggy, less the more the fairings
+ *   cover them, until a rolling road spins them.
+ * - The turntable yaws the model to read the side force and where it acts.
+ *   At small yaw the side force is tiny and its centre hard to place; the
+ *   forecast only trusts readings at `minYaw` or more.
+ */
+export const RECORD_TUNNEL = {
+  floor: {
+    still: { lift: 0.85 },
+    board: { lift: 0.94 },
+    rolling: { lift: 1 },
+  },
+  /** Open wheels standing still read this much extra drag area, full scale, m²; faired, `wheelsCovered` of it. */
+  staticWheels: 0.03,
+  /** How far off the side force's centre reads, full scale, m, per unit of balance noise at 1° of yaw (less at more yaw): 0.6 m at 1° in the university tunnel. */
+  centreNoise: 60,
+  /** The forecast needs readings at this much yaw or more to place the side force, degrees. */
+  minYaw: 2,
+  /** Readings within this much yaw of straight count as straight ahead, degrees. */
+  straight: 1,
+}
+
 /** A client's car as the team runs it now. */
 export const STOCK_RECORD: Record<RecordClass, RecordDesign> = {
   streamliner: {
