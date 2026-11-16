@@ -9,7 +9,7 @@
 import type { CyclistDesign } from '../data/cyclist'
 import { FAILURE } from '../data/failure'
 import { MAKERS, MODEL_SHOP } from '../data/model'
-import { makerOf, quote, type ModelOrder, type Quote } from './modelShop'
+import { makerOf, quote, type MakerHand, type ModelOrder, type Quote } from './modelShop'
 
 export type FailureMode = 'flutter' | 'mount' | 'detach'
 /** The part that gives: the helmet tail, a disc wheel's cover, the mount's posts or a glued-on helmet. */
@@ -48,16 +48,17 @@ export function flutterSpeed(model: MountedModel, part: 'tail' | 'disc'): number
 
 /**
  * How close each weak point is to its limit at this air speed and total
- * load on the posts (drag and side force together, N). Only rider models
+ * load on the posts (drag and side force together, N). A tunnel tech who's
+ * good with mounts makes the posts hold more (`mountStrength`). Only rider models
  * have weak points; the sphere and the wheel are the tunnel's own.
  */
-export function strains(model: MountedModel, speed: number, loadN: number): Strain[] {
+export function strains(model: MountedModel, speed: number, loadN: number, mountStrength = 1): Strain[] {
   const out: Strain[] = []
   for (const part of ['tail', 'disc'] as const) {
     const v = flutterSpeed(model, part)
     if (v !== null) out.push({ mode: 'flutter', part, level: speed / v })
   }
-  out.push({ mode: 'mount', part: 'posts', level: loadN / FAILURE.mountN })
+  out.push({ mode: 'mount', part: 'posts', level: loadN / (FAILURE.mountN * mountStrength) })
   if (model.order.finish === 'printed') out.push({ mode: 'detach', part: 'helmet', level: speed / FAILURE.detachSpeed })
   return out
 }
@@ -98,8 +99,8 @@ export function wobbleOf(warn: Strain | null): number {
 }
 
 /** What putting a broken model right costs: half its price and days, plus the screens if it tore off the mount. */
-export function repairQuote(order: ModelOrder, failure: Failure): Quote & { screens: number } {
-  const q = quote(order)
+export function repairQuote(order: ModelOrder, failure: Failure, hand?: MakerHand): Quote & { screens: number } {
+  const q = quote(order, hand)
   const share = FAILURE.repair.share
   return {
     price: Math.round((q.price * share) / MODEL_SHOP.round) * MODEL_SHOP.round,

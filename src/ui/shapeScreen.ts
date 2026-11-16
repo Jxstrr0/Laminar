@@ -17,6 +17,7 @@ import { t, type StringKey } from '../data/strings'
 import { readouts, type RuleBreak } from '../sim/cyclist'
 import type { FixTarget } from '../sim/failure'
 import { deskEstimate } from '../sim/desk'
+import { crewEffects } from '../sim/staff'
 import { cyclistShape } from '../sim/geom/cyclist'
 import { availableHandles, dragHandle, handleDef, handlePoint } from '../sim/geom/handles'
 import { riderPose } from '../sim/geom/pose'
@@ -383,7 +384,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     const shape = cyclistShape(design)
     // The desk estimate is for the job's event, with the job's own bias.
     const career = careerStore.get()
-    const desk = deskEstimate(shape, currentEvent(career), career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(design))
+    const desk = deskEstimate(shape, currentEvent(career), career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(design), crewEffects(career.crew).deskLevel)
     deskR.value.textContent = `${fixed(desk.value, 3)} m²`
     deskR.sub.textContent = t('read.deskNote', { spread: fixed((desk.high - desk.low) / 2, 3) })
 

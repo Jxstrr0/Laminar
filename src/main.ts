@@ -18,6 +18,7 @@ import { DEFAULT_CYCLIST } from './data/cyclist'
 import { careerStore, freshSeed } from './ui/careerStore'
 import { charge, currentEvent, newCareer, orderBlock, orderModel, repairModel } from './sim/career'
 import { makersOwned, tunnelSetup } from './sim/facility'
+import { crewEffects } from './sim/staff'
 import { afterDesign, afterOrder, afterRun, afterSwap, currentStep } from './sim/guide'
 import { runCost } from './sim/run'
 import { rublesShort } from './ui/format'
@@ -113,7 +114,7 @@ async function boot(): Promise<void> {
     tunnelSeed: careerStore.get().seed,
     tunnel: () => {
       const career = careerStore.get()
-      return tunnelSetup(career.seed, career.facility, career.day)
+      return tunnelSetup(career.seed, career.facility, career.day, career.crew)
     },
     event: () => currentEvent(careerStore.get()),
     shop: () => {
@@ -124,6 +125,7 @@ async function boot(): Promise<void> {
         daysLeft: career.job?.daysLeft ?? 0,
         topSpeed: tunnelSetup(career.seed, career.facility, career.day).build.topSpeed,
         makers: makersOwned(career.facility),
+        hand: crewEffects(career.crew),
       }
     },
     onOrder: (price, days) => careerStore.set(afterOrder(orderModel(careerStore.get(), price, days))),

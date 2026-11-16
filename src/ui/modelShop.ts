@@ -9,7 +9,7 @@
  */
 import { MAKERS, MAKER_IDS, MODEL_FINISH, MODEL_GRADE, MODEL_SCALES, type MakerId, type ModelFinish, type ModelGrade, type ModelScale } from '../data/model'
 import { t, type StringKey } from '../data/strings'
-import { forMaker, makerOf, matchedSpeed, quote, type ModelOrder } from '../sim/modelShop'
+import { forMaker, makerOf, matchedSpeed, quote, type MakerHand, type ModelOrder } from '../sim/modelShop'
 import type { OrderBlock } from '../sim/career'
 import type { EventSpec } from '../sim/views'
 import { fixed } from './format'
@@ -85,6 +85,8 @@ export interface ShopContext {
   topSpeed: number
   /** Who can make the model: the outside shop and any machines you own. */
   makers: readonly MakerId[]
+  /** What your own model maker brings to price and days. */
+  hand: MakerHand
 }
 
 interface Shop {
@@ -126,7 +128,7 @@ function buildShop(): Shop {
         : t('shop.noMatch', { speed: fixed(speed, 0), top: `${fixed(top, 0)} m/s` })
     finish.note.textContent = t('shop.finishNote', { um: fixed(MODEL_FINISH[order.finish] * 1e6, 0) })
     grade.note.textContent = t('shop.gradeNote', { pct: fixed(MODEL_GRADE[order.grade].accuracy * 100, 1) })
-    const q = quote(order)
+    const q = quote(order, context.hand)
     price.textContent = t('shop.quote', { price: fixed(q.price, 0), days: q.days })
     const block = context.block(q.days)
     const left = context.daysLeft

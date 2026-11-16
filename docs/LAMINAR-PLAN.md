@@ -115,6 +115,8 @@ quirks you have to learn.
 | Rival firms | **Bystro Aero** (cheap, sloppy correlation) and **Vysota Aerolab** (prestige, big tunnel, overcharges). *(16 Nov 2026, for PR 7)* |
 | Tunnel build time | **90 days, keep working**: you keep renting the university's tunnel while yours is built. *(16 Nov 2026, for PR 7)* |
 | Own tunnel running cost | **Cheap runs plus daily upkeep**: no run fee, power at an industrial rate, and upkeep for every day that passes. *(16 Nov 2026, for PR 7)* |
+| Staff size | **One per role, three at most**: model maker, tunnel tech and analyst, each role with a couple of people to choose from (different traits and wages). *(16 Nov 2026, for PR 7)* |
+| Poaching | **No poaching**: staff stay until you let them go. *(16 Nov 2026, for PR 7)* |
 
 ---
 
@@ -477,13 +479,13 @@ A few specialists, each with 2–3 traits:
   presets.
 - **Analyst:** narrows desk-estimate error bars, turns calibration data into
   corrections, spots flutter early, flags noise-sized changes.
-Light touch: hire, pay, sometimes lose them to a rival. No staff minigame.
+Light touch: hire, pay, let go. No staff minigame, and no poaching (Kelbo, 16 Nov 2026).
 
 ### 9.5 Rivals
 - **Two named rival firms**: a cheap firm with sloppy correlation, and a
   prestige firm with a big tunnel that overcharges. Their correlation scores
   are public like yours.
-- Rivals win jobs, set records, and poach staff and clients.
+- Rivals win jobs, set records and win clients (they never poach staff).
 - International rival firms arrive with export (section 9.7).
 
 ### 9.6 Sectors and tiers

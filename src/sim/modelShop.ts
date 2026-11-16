@@ -45,14 +45,27 @@ export interface Quote {
   days: number
 }
 
-/** What an order costs, and how long it takes: the shop's price list, times the maker's shares. */
-export function quote(order: ModelOrder): Quote {
+/** A model maker on the staff: price and days times these (1 with nobody). */
+export interface MakerHand {
+  modelPrice: number
+  modelDays: number
+}
+
+const NO_HAND: MakerHand = { modelPrice: 1, modelDays: 1 }
+
+/**
+ * What an order costs, and how long it takes: the shop's price list, times
+ * the maker's shares, times what your own model maker brings.
+ */
+export function quote(order: ModelOrder, hand: MakerHand = NO_HAND): Quote {
   const m = MAKERS[makerOf(order)]
   const shop = shopQuote(order)
-  if (m.priceShare === 1 && m.daysShare === 1) return shop
+  const price = m.priceShare * hand.modelPrice
+  const days = m.daysShare * hand.modelDays
+  if (price === 1 && days === 1) return shop
   return {
-    price: Math.round((shop.price * m.priceShare) / MODEL_SHOP.round) * MODEL_SHOP.round,
-    days: Math.max(1, Math.round(shop.days * m.daysShare)),
+    price: Math.round((shop.price * price) / MODEL_SHOP.round) * MODEL_SHOP.round,
+    days: Math.max(1, Math.round(shop.days * days)),
   }
 }
 
