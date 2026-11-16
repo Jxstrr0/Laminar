@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BRIEFS } from '../src/data/briefs'
+import { BRIEFS, PLANE_JOBS } from '../src/data/briefs'
 import { CORRELATION, REPUTATION } from '../src/data/reputation'
 import { bidScore, boardFor, newCareer, openTo, placeBid, pointWorth, type CareerState, type JobRecord } from '../src/sim/career'
 import { correlationScore, reputationChange, reputationOf } from '../src/sim/reputation'
@@ -65,8 +65,10 @@ describe('a good name brings bigger clients', () => {
     // With a top name, every client can turn up.
     const seen = new Set<string>()
     for (let round = 1; round < 80; round++) for (const b of boardFor(3, round, false, REPUTATION.max)) seen.add(b.id)
-    for (const b of BRIEFS.filter((x) => !x.tutorial)) expect(seen.has(b.id), b.id).toBe(true)
-    expect(BRIEFS.every((b) => openTo(b, REPUTATION.max))).toBe(true)
+    // Survey jobs stay off the board until it can show them (PR 10n).
+    const live = BRIEFS.filter((b) => !b.event.plane || PLANE_JOBS.open)
+    for (const b of live.filter((x) => !x.tutorial)) expect(seen.has(b.id), b.id).toBe(true)
+    expect(live.every((b) => openTo(b, REPUTATION.max))).toBe(true)
   })
 
   it('tips a close bid toward the better-known firm', () => {

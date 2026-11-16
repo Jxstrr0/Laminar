@@ -95,6 +95,12 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Nikita Rogov | Builds the quads for Strizh Racing (Lugovoy Club Race). PR 10f. |
 | Strizh Racing | A two-pilot quad team in the club league. PR 10f. |
 | Lugovoy Club Race | The drone club's race at the Lugovoy meadow: five laps of the gates from a standing start. PR 10f. |
+| Daria Kolos | Agronomist for the Ozimka farm co-operative who flies its survey plane (Ozimka crop survey). PR 10m. |
+| Lev Borozdin | Runs Pashnya Mapping (Ozimka crop survey). PR 10m. |
+| Pashnya Mapping | A small firm with three survey planes for hire. PR 10m. |
+| Alina Tropova | Chief pilot at Vekha Geodata (Ozimka crop survey). PR 10m. |
+| Vekha Geodata | Maps pipeline routes with survey drones. PR 10m. |
+| Ozimka crop survey | A survey contract over the Ozimka fields: range on one charge at survey speed. PR 10m. |
 | Stavren Regional Time Trial, Club 16 km Time Trial, Lake Dolgo Hill Time Trial, Kosa Coast Time Trial, National Time Trial Championship, Track Championships: Individual Pursuit, Stavren Open: 10 000 m, Lake Dolgo Ice Marathon, Belogor Junior Cup, Belogor Winter Cup, Tarnovian Large Hill Championship, Belogor Club Cup: two-man, Tarnovian Two-man Championship, Tarnovian Four-man Championship, Kovyl Haulage fuel trial, Volok Freight fuel trial, Prichal Logistics fuel trial | The events above. |
 
 ## Rival firms (PR 7)
