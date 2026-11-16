@@ -17,6 +17,7 @@ import {
   placeBid,
   pointWorth,
   readOf,
+  biddersFor,
   rivalBid,
   waitForBriefs,
   type CareerState,
@@ -129,21 +130,25 @@ describe('the career', () => {
     expect(readOf(0.1)).toBe('poor')
   })
 
-  it('lets the first client ask for you alone, and a rival bid on the rest', () => {
+  it('lets the first client ask for you alone, and the rivals bid on the rest', () => {
     const c = newCareer(5)
     const tutorial = c.board[0]!
-    expect(rivalBid(tutorial)).toBeNull()
+    expect(biddersFor(tutorial.id)).toEqual([])
     const r = placeBid(c, tutorial.id, { price: 130000, promise: 10 })!
     expect(r.won).toBe(true)
+    expect(r.rivals).toEqual([])
+    expect(r.winner).toBeNull()
     expect(r.state.job?.brief.fee).toBe(130000)
     expect(r.state.job?.promise).toBe(10)
     // Another bid while on the job does nothing.
     expect(placeBid(r.state, c.board[1]!.id, { price: 1, promise: 1 })).toBeNull()
     for (let seed = 1; seed < 40; seed++) {
       for (const b of boardFor(seed, 1)) {
-        const rival = rivalBid(b)!
-        expect(rival).toEqual(rivalBid(b))
-        expect(clampBid(b.id, rival)).toEqual(rival)
+        for (const firm of biddersFor(b.id)) {
+          const rival = rivalBid(b, firm)
+          expect(rival).toEqual(rivalBid(b, firm))
+          expect(clampBid(b.id, rival)).toEqual(rival)
+        }
       }
     }
   })

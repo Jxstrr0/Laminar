@@ -34,11 +34,21 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 6c | Failures in the field: crosswind steer, fading position | **Done** (v0.6.2.0) |
 | 6d | Field failures in the 3D replay: the wobble in a gust, the rider sitting up | **Done** (v0.6.3.0) |
 | 7a | Reputation and correlation score: bigger clients and close bids for a good name | **Done** (v0.7.0.0) |
-| 7b | The named rivals, Bystro Aero and Vysota Aerolab | Next |
-| 7c–14 | See the plan | Not started |
+| 7b | The named rivals, Bystro Aero and Vysota Aerolab | **Done** (v0.7.1.0) |
+| 7c | Your own tunnel: save up and build it (cash only), then upgrades | Next |
+| 7d–14 | See the plan | Not started |
 
 ## Versions
 
+- **0.7.1.0** (PR 7b): the named rivals.
+  - Bystro Aero bids on every paid brief: cheap, and it promises big.
+    Vysota Aerolab only bids on the big jobs (top fee ₽120k or more), at a
+    high price, with a big name behind it.
+  - The Jobs screen lists both under "Rival firms", with their reputation
+    and correlation score (they move a little each week). Each brief says
+    who else is bidding.
+  - The bids sheet shows every firm's price, promise, reputation and value,
+    and names the firm that won if it wasn't you.
 - **0.7.0.0** (PR 7a): reputation and correlation score.
   - The Jobs screen shows your reputation (out of 100, starting at 20) and
     your correlation score: how close your predictions came to the road over

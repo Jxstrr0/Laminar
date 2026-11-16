@@ -7,21 +7,25 @@
  */
 import { BID, CAREER, PROMISE, TRACK, type BriefTemplate } from '../data/briefs'
 import { REPUTATION } from '../data/reputation'
+import { RIVALS, RIVAL_IDS } from '../data/rivals'
 import type { CyclistDesign } from '../data/cyclist'
 import { t } from '../data/strings'
 import {
   bidScore,
+  biddersFor,
   briefTemplate,
   deliver,
   eventOf,
   placeBid,
   waitForBriefs,
+  type Bid,
   type Brief,
   type BidResult,
   type Delivery,
 } from '../sim/career'
 import { deskEstimate } from '../sim/desk'
 import { correlationScore, reputationOf } from '../sim/reputation'
+import { rivalRecord } from '../sim/rivals'
 import type { FixTarget } from '../sim/failure'
 import { cyclistShape } from '../sim/geom/cyclist'
 import { careerStore } from './careerStore'
@@ -320,21 +324,25 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
   function showBids(r: BidResult) {
     bidsSheet ??= createSheet({ cls: 'bids', title: t('bids.title'), closeLabel: t('bids.close') })
     const id = r.state.job?.brief.id ?? r.state.lost[r.state.lost.length - 1]!
-    const verdict = el('p', `race-verdict ${r.won ? 'is-met' : 'is-missed'}`, t(r.won ? (r.rival ? 'bids.won' : 'bids.solo') : 'bids.lost'))
-    const facts = el('div', 'job-facts')
-    facts.append(fact(t('bids.yourPrice'), rubles(r.mine.price)), fact(t('bids.yourPromise'), t('board.promiseValue', { pct: pct(r.mine.promise) })))
-    if (r.rival) {
+    const contested = r.rivals.length > 0
+    const verdictText = r.won ? t(contested ? 'bids.won' : 'bids.solo') : t('bids.lostTo', { firm: RIVALS[r.winner!].name })
+    const verdict = el('p', `race-verdict ${r.won ? 'is-met' : 'is-missed'}`, verdictText)
+    // One block of facts per firm: yours first, then each rival in the order they bid.
+    const block = (name: string, bid: Bid, rep: number, best: boolean) => {
+      const facts = el('div', 'job-facts')
       facts.append(
-        fact(t('bids.theirPrice'), rubles(r.rival.price)),
-        fact(t('bids.theirPromise'), t('board.promiseValue', { pct: pct(r.rival.promise) })),
-        fact(glossaryTerm('reputation', t('bids.yourRep')), String(r.myRep)),
-        fact(glossaryTerm('reputation', t('bids.theirRep')), String(r.rivalRep)),
-        fact(t('bids.yourValue'), rubles(bidScore(id, r.mine, r.myRep))),
-        fact(t('bids.theirValue'), rubles(bidScore(id, r.rival, r.rivalRep))),
+        fact(t('bids.price'), rubles(bid.price)),
+        fact(t('bids.promise'), t('board.promiseValue', { pct: pct(bid.promise) })),
+        fact(glossaryTerm('reputation', t('board.reputation')), String(rep)),
+        fact(t('bids.value'), rubles(bidScore(id, bid, rep))),
       )
+      const head = el('h3', 'bids-firm', name)
+      if (best) head.append(' ', el('span', 'save-slot-tag', t('bids.winner')))
+      return [head, facts]
     }
-    const parts: HTMLElement[] = [verdict, facts]
-    if (r.rival)
+    const parts: HTMLElement[] = [verdict, ...block(t('bids.you'), r.mine, r.myRep, contested && r.won)]
+    for (const rb of r.rivals) parts.push(...block(RIVALS[rb.firm].name, rb.bid, rb.reputation, r.winner === rb.firm))
+    if (contested)
       parts.push(
         el('p', 'shop-note', t('bids.how', { worth: rubles(r.worth), max: rubles(briefTemplate(id)!.fee.max), rep: String(Math.round(1 / REPUTATION.bidPerPoint)) })),
       )
@@ -449,6 +457,8 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       fact(t('board.power'), `${fixed(b.rider.power, 0)} W`),
       fact(t('board.where'), b.event.place),
     )
+    const bidders = biddersFor(brief.id)
+    if (bidders.length > 0) facts.append(fact(t('board.bidders'), bidders.map((f) => RIVALS[f].name).join(', ')))
     card.append(top, el('p', 'job-who', b.who), el('blockquote', 'job-goal', b.goal), el('p', 'job-event', b.event.name), facts)
     const take = button('save-btn guide-bid', t('board.take'))
     if (busy) {
@@ -481,6 +491,22 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       el('p', 'firm-date', t(career.jobsDone === 1 ? 'board.dateOne' : 'board.date', { date: careerDate(career.day, CAREER.start), jobs: career.jobsDone })),
       name,
     )
+    const rivals = el('section', 'rival-strip')
+    rivals.setAttribute('aria-labelledby', 'rivals-title')
+    const rivalsHead = el('h2', 'board-heading', t('board.rivals'))
+    rivalsHead.id = 'rivals-title'
+    rivals.append(rivalsHead)
+    for (const firm of RIVAL_IDS) {
+      const rec = rivalRecord(career.seed, firm, career.day)
+      const row = el('div', 'rival-row')
+      const facts = el('div', 'firm-name')
+      facts.append(
+        fact(t('board.reputation'), t('board.outOf', { n: rec.reputation })),
+        fact(t('board.correlation'), t('board.outOf', { n: rec.correlation })),
+      )
+      row.append(el('p', 'rival-name', RIVALS[firm].name), el('p', 'job-who', RIVALS[firm].blurb), facts)
+      rivals.append(row)
+    }
     const now = jobCard()
     const boardHead = el('h2', 'board-heading', t('board.title'))
     const list = el('ul', 'job-list')
@@ -489,7 +515,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     if (career.board.length === 0 && !career.job) list.append(emptyCard())
     const intro = el('p', 'shop-note', t(career.job ? 'board.oneAtATime' : 'board.intro'))
     const guide = guideCard()
-    page.replaceChildren(firm, ...(guide ? [guide] : []), ...(now ? [now] : []), boardHead, intro, list)
+    page.replaceChildren(firm, ...(guide ? [guide] : []), ...(now ? [now] : []), boardHead, intro, list, rivals)
   }
 
   return {

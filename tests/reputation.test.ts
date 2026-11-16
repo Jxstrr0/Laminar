@@ -83,7 +83,7 @@ describe('a good name brings bigger clients', () => {
     const b = placeBid(famous, brief.id, { price: t.fee.max, promise: t.target })!
     expect(a.myRep).toBe(REPUTATION.start)
     expect(b.myRep).toBe(REPUTATION.max)
-    expect(a.rivalRep).toBe(REPUTATION.rival)
-    if (a.rival) expect(bidScore(brief.id, b.mine, b.myRep)).toBeGreaterThan(bidScore(brief.id, a.mine, a.myRep))
+    expect(a.rivals.length).toBeGreaterThan(0)
+    expect(bidScore(brief.id, b.mine, b.myRep)).toBeGreaterThan(bidScore(brief.id, a.mine, a.myRep))
   })
 })
