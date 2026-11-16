@@ -40,7 +40,9 @@ import { t, type StringKey } from '../data/strings'
 import { dynamicPressure, reynolds } from '../sim/air'
 import { bodyDrag, shapeDrag, type Regime } from '../sim/aero/drag'
 import { fanAtRest, setFanTarget, stepFan, type FanState } from '../sim/fan'
-import { modelFlowField, tufts as tuftsOf } from '../sim/flow/field'
+import { modelFlowField, riderFlowField, tufts as tuftsOf } from '../sim/flow/field'
+import { pivReading, pivScatter } from '../sim/flow/piv'
+import { pivDragArea, pivHint, type PivHint } from '../sim/pivHint'
 import { readTaps, tapExtremes, tapLayout } from '../sim/flow/taps'
 import {
   bookCurve,
@@ -100,7 +102,7 @@ import { correctJumper, forecastJump, isJumperRun, jumperReadings, prepareJumper
 import type { JumpEvent } from '../sim/jumper'
 import { jumpForecast } from './jumpForecast'
 import type { LabState } from '../sim/lab'
-import { changedControls } from '../sim/designDiff'
+import { changedControls, type ControlId } from '../sim/designDiff'
 import { compareRuns, headlineCompare, headlineGroup, legCycle, poolRuns, yawGroups, type YawGroup } from '../sim/runStats'
 import { addSample, newRecorder, runCost, runTunnel, stepRecorder, type Recorder, type Run, type RunSample } from '../sim/run'
 import { setYawTarget, stepTurntable, turntableAtRest, type TurntableSpec, type TurntableState } from '../sim/turntable'
@@ -117,6 +119,7 @@ import { createChart, describeLast, type ChartPoint } from './chart'
 import { openModelShop, type ShopContext } from './modelShop'
 import { partChanges, postureChanged, swapCost, swapParts } from '../sim/remodel'
 import { createCpLegend } from './cpLegend'
+import { createPivPanel } from './pivPanel'
 import { designStore } from './designStore'
 import { fixed, scientific } from './format'
 import { glossaryTerm } from './glossary'
@@ -250,6 +253,8 @@ export interface TunnelHooks {
   onRepair(price: number, days: number): boolean
   /** "Change this" after a break: open Shape at the helmet or the wheels. */
   goFix(where: 'helmet' | 'wheels'): void
+  /** The PIV's "Change this" (PR 10ah): open Shape at this slider. */
+  goControl(control: ControlId): void
 }
 
 export interface TunnelControl {
@@ -647,13 +652,13 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   foot.append(footHint, version)
 
   // Flow instruments: toggle chips over the 3D view, just above the sheet.
-  type Inst = 'wand' | 'rake' | 'tufts' | 'taps' | 'dark'
-  const inst: Record<Inst, boolean> = { wand: false, rake: false, tufts: false, taps: false, dark: false }
+  type Inst = 'wand' | 'rake' | 'tufts' | 'taps' | 'piv' | 'dark'
+  const inst: Record<Inst, boolean> = { wand: false, rake: false, tufts: false, taps: false, piv: false, dark: false }
   const instChips = new Map<Inst, HTMLButtonElement>()
   const instBar = el('div', 'instruments')
   instBar.setAttribute('role', 'group')
   instBar.setAttribute('aria-label', t('inst.label'))
-  for (const id of ['wand', 'rake', 'tufts', 'taps', 'dark'] as const) {
+  for (const id of ['wand', 'rake', 'tufts', 'taps', 'piv', 'dark'] as const) {
     const b = el('button', 'chip', t(`inst.${id}`))
     b.type = 'button'
     b.setAttribute('aria-pressed', 'false')
@@ -671,9 +676,13 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   const tapsChip = instChips.get('taps')!
   tapsChip.hidden = true
   const cpLegend = createCpLegend()
+  // The PIV chip only shows once the laser is fitted to your own tunnel (PR 10ah).
+  const pivChip = instChips.get('piv')!
+  pivChip.hidden = !spec.piv
+  const pivPanel = createPivPanel((control) => hooks.goControl(control))
 
-  sheet.append(mountRow, fanCtl.row, yawCtl.row, runLine, viewBar, riderGrid, jumperGrid, carGrid, recGrid, droneGrid, planeGrid, aircraftGrid, podGrid, sphereGrid, wheelGrid, tareGrid, chartBox, calBox, runsBox, foot)
-  app.append(header, sheet, instBar, cpLegend.root)
+  sheet.append(mountRow, fanCtl.row, yawCtl.row, runLine, pivPanel.box, viewBar, riderGrid, jumperGrid, carGrid, recGrid, droneGrid, planeGrid, aircraftGrid, podGrid, sphereGrid, wheelGrid, tareGrid, chartBox, calBox, runsBox, foot)
+  app.append(header, sheet, instBar, cpLegend.root, pivPanel.legend)
 
   // Keep the 3D model centred in the space above the sheet.
   const sheetObserver = new ResizeObserver(() => {
@@ -979,6 +988,44 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     }
   }
 
+  // --- PIV (PR 10ah): the laser sheet, the wake's speed loss and the hint.
+  let pivKey = ''
+  let pivAge = Infinity
+  /** The hint, worked out once per design on the mount. */
+  let pivHintFor: { version: number; hint: PivHint | null } | null = null
+  function updatePiv(dt: number) {
+    pivAge += dt
+    const on = inst.piv && spec.piv && mount === 'rider' && !tare && !broken
+    pivPanel.setShown(on)
+    if (!on) {
+      if (pivKey !== 'off') view.setPiv(null)
+      pivKey = 'off'
+      return
+    }
+    if (fan.speed < spec.readFrom) {
+      if (pivKey !== 'wait') {
+        view.setPiv(null)
+        pivPanel.show(null)
+      }
+      pivKey = 'wait'
+      return
+    }
+    // The sheet follows the air the field is built for: a turntable's yaw, never a sting's pitch or a car's drop.
+    const yaw = yawOpen() && !jumper && !racing && !quad && !flyer ? Math.round(table.angle) : 0
+    const key = `${modelVersion}|${yaw}|${Math.round(fan.speed / 2)}`
+    if (key === pivKey || pivAge < 0.25) return
+    pivKey = key
+    pivAge = 0
+    const design = modelDesign
+    const flow = { density: AIR.density, viscosity: AIR.viscosity, speed: fan.speed, turbulence: airTurbulence }
+    const field = riderFlowField(design, flow, yaw)
+    const area = (pivDragArea(design) ?? 0) * pivScatter(`${JSON.stringify(design)}|${yaw}`)
+    const reading = pivReading(field, area, { skipWing: isPod(design) })
+    if (!pivHintFor || pivHintFor.version !== modelVersion) pivHintFor = { version: modelVersion, hint: pivHint(design) }
+    view.setPiv(reading.sheet)
+    pivPanel.show({ loss: reading.loss, hint: pivHintFor.hint })
+  }
+
   // --- Runs: the recorder, the session's finished runs and the bill.
   let rec: Recorder = { ...newRecorder(), nextId: saved.nextRunId }
   const runs: Run[] = [...saved.runs]
@@ -1039,6 +1086,13 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     setup = next
     spec = next.build
     current = next.id
+    // The PIV goes with the tunnel it's fitted to.
+    pivChip.hidden = !spec.piv
+    if (!spec.piv && inst.piv) {
+      inst.piv = false
+      pivChip.setAttribute('aria-pressed', 'false')
+    }
+    if (yawOpen() && (jumper || racing || recordCar || quad || flyer)) instBar.hidden = !spec.piv
     tunnel = { ...spec, quirks: next.quirks }
     airTurbulence = tunnelTurbulence(tunnel)
     place.textContent = t(current === 'own' ? 'tunnel.placeOwn' : 'tunnel.place')
@@ -2444,7 +2498,19 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     yawCtl.row.hidden = !yawOpen() || podModel !== null
     crankBox.hidden = !yawOpen() || modelDesign.sport === 'skating' || isBobsled(modelDesign) || isTruck(modelDesign) || jumper || racing || recordCar || quad || flyer
     shopBtn.hidden = !yawOpen()
-    instBar.hidden = !yawOpen() || jumper || racing || recordCar || quad || flyer
+    // The smoke instruments read a rider's, skater's, sled's or truck's air; the PIV (PR 10ah) reads any model's.
+    const smokeOk = !(jumper || racing || recordCar || quad || flyer)
+    let smokeOff = false
+    for (const id of ['wand', 'rake', 'tufts'] as const) {
+      instChips.get(id)!.hidden = !smokeOk
+      if (!smokeOk && inst[id]) {
+        inst[id] = false
+        instChips.get(id)!.setAttribute('aria-pressed', 'false')
+        smokeOff = true
+      }
+    }
+    if (smokeOff) applyInstruments()
+    instBar.hidden = !yawOpen() || (!smokeOk && !spec.piv)
     showStale()
     showBroken()
     selectView(view_)
@@ -2754,6 +2820,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       updateFlow(dt)
     } else if (mount === 'wheel') updateWheel(dt)
     else updateSphere(dt)
+    updatePiv(dt)
     showRun()
     drawChart()
     updateSledForecast(dt)

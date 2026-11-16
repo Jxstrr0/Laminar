@@ -32,6 +32,8 @@ export const PIV = {
   depthMax: 6,
   /** The thin wake (skin friction's, behind the whole model) starts this many model lengths ahead of the tail. */
   thinRamp: 0.15,
+  /** The PIV's drag reading scatters by this share (one standard deviation), repeatably per setting. */
+  scatter: 0.03,
 } as const
 
 /**
@@ -56,4 +58,26 @@ export const PIV_HINT = {
   truckTemperature: 15,
   /** A quad's tilt at racing speed, radians. */
   droneTilt: 0.5,
+} as const
+
+/**
+ * How the PIV slice is drawn (PR 10ah). One hue, dark to pale, so speed
+ * reads as lightness alone (colour-blind safe, and in greyscale): still air
+ * is deep cobalt, air at the tunnel's speed nearly white. Faster than the
+ * tunnel (round the shoulders) stays palest.
+ */
+export const PIV_PALETTE = {
+  stops: ['#0B1B4D', '#1F45B8', '#5F86EE', '#AFC4F7', '#EEF2FC'],
+  /** The speed share each stop sits at. */
+  at: [0, 0.35, 0.65, 0.88, 1],
+  /** Legend ticks, share of the tunnel's speed. */
+  ticks: [0, 0.5, 1],
+  /** The sheet's opacity over the lab. */
+  opacity: 0.85,
+  /**
+   * Air at the tunnel's speed is drawn this opaque (times the sheet's), still
+   * air fully: clean air fades back so the model shows through it and the
+   * wake stands out.
+   */
+  clearAlpha: 0.25,
 } as const

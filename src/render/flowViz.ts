@@ -17,7 +17,10 @@ import { SMOKE_VIZ, TAPS, TUFT_VIZ } from '../data/flowViz'
 import { FRAME } from '../data/pose'
 import type { FlowField, Tuft } from '../sim/flow/field'
 import type { Tap } from '../sim/flow/taps'
+import type { PivGrid } from '../sim/flow/piv'
+import { PIV_PALETTE } from '../data/piv'
 import { cpRgb } from './cpScale'
+import { pivRgb } from './pivScale'
 import type { Point } from '../sim/geom/pose'
 
 const COLOURS = {
@@ -44,6 +47,8 @@ export interface FlowViz {
   setInstruments(on: Instruments): void
   /** The taps and their latest scan (an empty list hides them). */
   setTaps(taps: readonly Tap[], cps: readonly number[]): void
+  /** The PIV's side sheet (PR 10ah), coloured by the air's speed; null hides it. */
+  setPiv(grid: PivGrid | null): void
   /** The wand's tip, in the rider's coordinates. */
   setWandTip(p: Point): void
   /** Advance the smoke and tufts; `fan` is the air speed over the fan's top speed. */
@@ -265,6 +270,57 @@ export function createFlowViz(dot: THREE.Texture): FlowViz {
     smokeGeo.attributes.position!.needsUpdate = true
   }
 
+  // --- PIV (PR 10ah): the side sheet as a flat quad, one texel per sample.
+  // The texture is linear-filtered so the slice reads as smooth air; cells
+  // inside the model are clear.
+  const pivMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: PIV_PALETTE.opacity, side: THREE.DoubleSide, depthWrite: false })
+  let pivMesh: THREE.Mesh | null = null
+  let pivTex: THREE.DataTexture | null = null
+  function showPiv(grid: PivGrid | null) {
+    if (pivMesh) {
+      group.remove(pivMesh)
+      pivMesh.geometry.dispose()
+      pivMesh = null
+    }
+    pivTex?.dispose()
+    pivTex = null
+    pivMat.map = null
+    if (!grid) return
+    const { cols, rows } = grid
+    const data = new Uint8Array(cols * rows * 4)
+    grid.values.forEach((v, i) => {
+      if (Number.isNaN(v)) return
+      const [r, g, b] = pivRgb(v)
+      const slow = 1 - Math.min(1, Math.max(0, v))
+      data.set([r, g, b, Math.round(255 * (PIV_PALETTE.clearAlpha + (1 - PIV_PALETTE.clearAlpha) * slow))], i * 4)
+    })
+    pivTex = new THREE.DataTexture(data, cols, rows, THREE.RGBAFormat)
+    pivTex.magFilter = THREE.LinearFilter
+    pivTex.minFilter = THREE.LinearFilter
+    pivTex.colorSpace = THREE.SRGBColorSpace
+    pivTex.needsUpdate = true
+    pivMat.map = pivTex
+    pivMat.needsUpdate = true
+    // The quad's corners are the grid's first and last samples; uv puts each texel's centre on its sample.
+    const w = (cols - 1) * grid.du
+    const h = (rows - 1) * grid.dv
+    const o = grid.origin
+    const u = grid.colAxis
+    const v = grid.rowAxis
+    const corner = (a: number, b: number) => [o.x + u.x * a + v.x * b, o.y + u.y * a + v.y * b, o.z + u.z * a + v.z * b]
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute('position', new THREE.Float32BufferAttribute([...corner(0, 0), ...corner(w, 0), ...corner(w, h), ...corner(0, h)], 3))
+    const u0 = 0.5 / cols
+    const u1 = 1 - u0
+    const v0 = 0.5 / rows
+    const v1 = 1 - v0
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute([u0, v0, u1, v0, u1, v1, u0, v1], 2))
+    geo.setIndex([0, 1, 2, 0, 2, 3])
+    pivMesh = new THREE.Mesh(geo, pivMat)
+    pivMesh.renderOrder = 2
+    group.add(pivMesh)
+  }
+
   return {
     group,
     setField(next, list) {
@@ -281,6 +337,9 @@ export function createFlowViz(dot: THREE.Texture): FlowViz {
     setTaps(taps, cps) {
       buildTaps(on.taps ? taps : [], cps)
     },
+    setPiv(grid) {
+      showPiv(grid)
+    },
     setWandTip(p) {
       wandTip = { ...p }
     },
@@ -292,6 +351,8 @@ export function createFlowViz(dot: THREE.Texture): FlowViz {
       if (tuftLines.visible) placeTufts(fan)
     },
     dispose() {
+      showPiv(null)
+      pivMat.dispose()
       smokeGeo.dispose()
       tuftGeo.dispose()
       smokeMat.dispose()

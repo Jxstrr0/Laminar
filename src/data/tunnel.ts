@@ -35,6 +35,8 @@ export const UNIVERSITY_TUNNEL = {
   wheelDrive: false,
   /** No rolling road (PR 9k): a car model sits over the still floor, or the model shop's ground board. */
   rollingRoad: false,
+  /** No PIV (PR 10ah): no laser sheet to show the air's speed round the model. */
+  piv: false,
   /** The yaw turntable: range and steps in degrees, and how fast it turns (degrees per second). */
   turntable: { min: -20, max: 20, step: 1, rate: 6 },
   /**
@@ -203,7 +205,7 @@ export const OWN_BILLING = {
  * needs. Each is paid for in cash and fitted over some days while you keep
  * working; it takes effect the day it's done.
  */
-export type UpgradeId = 'screens' | 'turntable' | 'wheelDrive' | 'fan' | 'rollingRoad'
+export type UpgradeId = 'screens' | 'turntable' | 'wheelDrive' | 'fan' | 'rollingRoad' | 'piv'
 
 export const TUNNEL_UPGRADES = {
   /** Fine mesh screens before the contraction: the test-section air's turbulence falls to this share. */
@@ -220,7 +222,13 @@ export const TUNNEL_UPGRADES = {
    * wheels read true, as on the road.
    */
   rollingRoad: { price: 900_000, days: 30 },
+  /**
+   * PIV (Kelbo, 16 November 2026, for PR 10ag–10ah): a laser sheet and a
+   * camera that track seeding in the air, showing its speed round the model,
+   * how much the wake has lost, and which slider would cut it most.
+   */
+  piv: { price: 900_000, days: 21 },
 } as const satisfies Record<UpgradeId, { price: number; days: number; [k: string]: number }>
 
 /** The order they're shown in. */
-export const UPGRADE_IDS: readonly UpgradeId[] = ['screens', 'turntable', 'wheelDrive', 'fan', 'rollingRoad']
+export const UPGRADE_IDS: readonly UpgradeId[] = ['screens', 'turntable', 'wheelDrive', 'fan', 'rollingRoad', 'piv']

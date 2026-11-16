@@ -100,11 +100,12 @@ export function tunnelRunCost(id: TunnelId, energyKWh: number): number {
   return b.perRun + energyKWh * b.perKWh
 }
 
-export type TunnelBuild = Omit<typeof UNIVERSITY_TUNNEL, 'topSpeed' | 'wheelDrive' | 'rollingRoad' | 'turntable' | 'balanceNoise'> & {
+export type TunnelBuild = Omit<typeof UNIVERSITY_TUNNEL, 'topSpeed' | 'wheelDrive' | 'rollingRoad' | 'piv' | 'turntable' | 'balanceNoise'> & {
   topSpeed: number
   balanceNoise: number
   wheelDrive: boolean
   rollingRoad: boolean
+  piv: boolean
   turntable: { min: number; max: number; step: number; rate: number }
 }
 
@@ -134,6 +135,7 @@ export function tunnelSetup(careerSeed: number, f: Facility, day: number, crew: 
     topSpeed: has('fan') ? TUNNEL_UPGRADES.fan.topSpeed : base.topSpeed,
     wheelDrive: has('wheelDrive'),
     rollingRoad: has('rollingRoad'),
+    piv: has('piv'),
     turntable: { ...base.turntable, min: -yaw, max: yaw },
   }
   const raw = tunnelQuirks(id, careerSeed)

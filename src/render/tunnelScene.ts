@@ -44,6 +44,7 @@ import { recordLength, recordX } from '../sim/geom/record'
 import type { FlowField, Tuft } from '../sim/flow/field'
 import type { Tap } from '../sim/flow/taps'
 import { createFlowViz, type Instruments } from './flowViz'
+import type { PivGrid } from '../sim/flow/piv'
 import { buildReferenceWheel, buildRider, disposeGroup, type RiderState } from './riderFigure'
 
 /** Scene colours: a bright, clean lab (plan section 11). */
@@ -225,6 +226,8 @@ export interface TunnelView {
   setInstruments(on: Instruments & { dark: boolean }): void
   /** The pressure taps and their latest scan (an empty list hides them). */
   setTaps(taps: readonly Tap[], cps: readonly number[]): void
+  /** The PIV's side sheet (PR 10ah); null hides it. */
+  setPiv(grid: PivGrid | null): void
   /** Keep the sphere clear of the bottom sheet: pass its height in CSS pixels. */
   setSheetHeight(px: number): void
   /** How hard the rider model buzzes: 0 still, 1 at a part's limit (plan section 8). */
@@ -1317,6 +1320,9 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     },
     setTaps(taps, cps) {
       flowViz.setTaps(taps, cps)
+    },
+    setPiv(grid) {
+      flowViz.setPiv(grid)
     },
     setInstruments(next) {
       instruments = { ...next }

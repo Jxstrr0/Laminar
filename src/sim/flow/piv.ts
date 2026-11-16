@@ -23,7 +23,9 @@
 import { WAKE_VIZ } from '../../data/flowViz'
 import { PIV } from '../../data/piv'
 import { detCos, detSin } from '../det'
+import { gaussian } from '../noise'
 import { smoothstep } from '../num'
+import { hashString, Rng } from '../rng'
 import type { Point } from '../geom/pose'
 import type { FieldBody, FlowField } from './field'
 
@@ -303,4 +305,14 @@ export function pivReading(field: FlowField, dragArea: number, options: PivOptio
   })
   const crossValues = cross.map((c) => (c.inside ? Number.NaN : U > 0 ? dot(air(c, depth), all.down) / U : 1))
   return { sheet: grid(sf, sheet), cross: grid(cf, crossValues), loss: U > 0 ? lossAt(cross, all.down, U, depth) : 0 }
+}
+
+/**
+ * The PIV's own scatter (PR 10ah): its reading of the drag is off by a
+ * small, repeatable amount for each setting (seeding, laser timing), so it
+ * is a second opinion on the balance, not the hidden truth. The same key
+ * (design and yaw) always gives the same factor.
+ */
+export function pivScatter(key: string): number {
+  return 1 + PIV.scatter * gaussian(new Rng(hashString(`piv:${key}`)))
 }

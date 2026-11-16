@@ -38,6 +38,7 @@ import type { FixTarget } from '../sim/failure'
 import { bobDeskEstimate, carDeskEstimate, deskEstimate, droneDeskEstimate, jumpDeskEstimate, planeDeskEstimate, aircraftDeskEstimate, podDeskEstimate, recordDeskEstimate, truckDeskEstimate } from '../sim/desk'
 import { jumperReadouts } from '../sim/jumper'
 import { crewEffects } from '../sim/staff'
+import type { ControlId } from '../sim/designDiff'
 import { designPose, designReadouts, designShape, isAircraft, isBobsled, isCar, isCyclist, isDrone, isJumper, isPlane, isPod, isRecord, isSkater, isTruck, type Design } from '../sim/design'
 import { availableHandles, dragHandle, handleDef, handlePoint } from '../sim/geom/handles'
 import { ruleVolumes } from '../sim/geom/ruleBox'
@@ -146,6 +147,19 @@ const SKATER_FORMAT: Record<SkaterKey, (v: number) => string> = {
 
 export interface ScreenControl {
   setActive(active: boolean): void
+}
+
+/**
+ * The Shape screen's element id for a control on this design (PR 10ah).
+ * Ids are the sport's prefix and the control id, except a sled's nose and
+ * tail, which are just "nose" and "tail".
+ */
+function controlDomId(design: Design, control: ControlId): string | null {
+  if (isCar(design)) return `cr-${design.class}-${control}`
+  if (isRecord(design)) return `rc-${design.class}-${control}`
+  if (isBobsled(design)) return `bs-${control === 'sledNose' ? 'nose' : control === 'sledTail' ? 'tail' : control}`
+  const prefix = isPod(design) ? 'sp' : isAircraft(design) ? 'ac' : isPlane(design) ? 'pl' : isDrone(design) ? 'dn' : isTruck(design) ? 'tk' : isJumper(design) ? 'jp' : isSkater(design) ? 'sk' : 'ctl'
+  return `${prefix}-${control}`
 }
 
 export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenControl {
@@ -760,6 +774,17 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     else if (where === 'wheels') jumpToControl({ tab: 'bike', id: 'ctl-rear' })
     else if (where === 'front') jumpToControl(BREAK_TARGET['wheels.front'])
     else jumpToControl({ tab: 'position', id: `ctl-${where}` })
+  })
+
+  // The PIV's "Change this" (PR 10ah) names a slider by its control id; each
+  // sport's sliders carry a prefix (a car's and a record car's their class too).
+  window.addEventListener('laminar:control', (e) => {
+    const control = (e as CustomEvent<ControlId>).detail
+    const id = controlDomId(design, control)
+    const node = id ? document.getElementById(id) : null
+    const panel = node?.closest<HTMLElement>('[id^="panel-"]')
+    if (!node || !panel) return
+    jumpToControl({ tab: panel.id.slice('panel-'.length) as Tab, id: node.id })
   })
 
   function jumpToControl(target: { tab: Tab; id: string }) {
