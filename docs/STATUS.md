@@ -54,11 +54,36 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 8i | Ski-jump jobs on screen: the board, the bid in metres, declaring a distance, the jump-day debrief | **Done** (v0.8.8.0) |
 | 8j | The flight replay on the hill | **Done** (v0.8.9.0) |
 | 8k | A sting that can break, and a fairer read on the helmet and boots | **Done** (v0.8.10.0) |
-| 8l–8m | Bobsled | Next |
+| 8l | The bobsled in the sim: the sled, the crew's tuck, the rule box, the run down Belogor | **Done** (v0.8.11.0) |
+| 8m | The bobsled on the Shape screen | Next |
+| 8n | The bobsled in the tunnel | Not started |
+| 8o | Bobsled jobs: the promise in hundredths, the board, race day | Not started |
+| 8p | The bobsled run replay | Not started |
 | 9–14 | See the plan | Not started |
 
 ## Versions
 
+- **0.8.11.0** (PR 8l): the bobsled in the sim.
+  - Kelbo chose (16 November 2026) to shape the sled and the crew's tuck,
+    inside a rule box. The design: nose length, tail length, cowling height
+    and the tuck (from a loose racing tuck to the deepest the crew can hold),
+    for a two-man or four-man sled.
+  - The fictional Tarnovian Sliding Federation's box caps the whole length
+    (2.70 m two-man, 3.80 m four-man), so nose and tail share it, and the
+    cowling's height (0.60 m).
+  - Drag: the hull (the drag model reads it, so a longer tail closes its
+    wake), the nose (short is blunt), the runners, and the crew: what of
+    each shows over the cowling, the driver in clean air and the rest
+    sheltered. About 0.19 m² for a good sled, 0.31 m² for an old club one.
+  - The trades: the best split of length is in the middle (about 0.7 m of
+    nose, 0.45 m of tail); a deeper tuck sheds drag but loads slower after
+    the push; a taller cowling hides the crew but the driver must still see
+    over it, or they steer late and lose time in every curve.
+  - The run: the push, loading, then gravity against runner friction (more
+    in each curve) and the air down Belogor's sliding track, 1 250 m and
+    109 m of drop with ten curves: about 50 s at up to 130 km/h. Wind along
+    the track, the ice's temperature and the crew's push all change it.
+  - Not on screen yet: the Shape screen comes in PR 8m.
 - **0.8.10.0** (PR 8k): the jumper's sting, and trip strips that fix its read.
   - A jumper's model hangs on a sting that takes its lift as well as its
     drag, up to 170 N. Past that it groans first (the warning, the shaking

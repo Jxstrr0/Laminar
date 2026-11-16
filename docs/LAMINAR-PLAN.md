@@ -126,6 +126,8 @@ quirks you have to learn.
 | Sharing the legacy | **A picture to share** (PR 7j). *(16 Nov 2026, for PR 7)* |
 | Bobsled bid | **Run time gain**: hundredths of a second off a run. *(16 Nov 2026, for PR 8)* |
 | Bobsled crews | **Two-man and four-man**; four-man comes later, at higher reputation. *(16 Nov 2026, for PR 8)* |
+| Bobsled shaping | **The sled and the crew's tuck**: nose and tail length, cowling height, and how low the crew fold. *(16 Nov 2026, for PR 8)* |
+| Bobsled rules | **A rule box**, like the cycling federation's: a fictional sliding federation caps the sled's length and the cowling's height. *(16 Nov 2026, for PR 8)* |
 | Ski-jump suit rules | **None**: bagginess only trades lift against stability. *(16 Nov 2026, for PR 8)* |
 | Ski-jump declaration | **Predicted distance**: you declare the reference jump's length, forecast from the tunnel's lift and drag. *(16 Nov 2026, for PR 8)* |
 | Ski-jump hills | **A normal hill and a large hill**; the large hill comes later, at higher reputation. *(16 Nov 2026, for PR 8)* |
