@@ -124,3 +124,45 @@ export const JUMP_SCENE = {
   /** Marks across the slope: thickness, m. */
   mark: 0.35,
 }
+
+/**
+ * The bobsled replay (PR 8q): the run down the track from behind, your sled
+ * with the old one as a see-through ghost in the same ice channel. Every
+ * position and speed comes from the day's runs; these numbers only set how
+ * they are shown.
+ */
+export const SLED_REPLAY = {
+  /** Start to the later finish, plus the hold, plays in this many seconds (runs last about 50 s, so this is fast-forward). */
+  seconds: 20,
+  /** The picture holds on the finish this long, in run seconds. */
+  hold: 2,
+  /** The track's centre line is worked out every this many metres. */
+  step: 1,
+  /** A sled rides up the curve wall no further than this, degrees, easing up and down over this many metres either side of a curve's ends. */
+  maxBankDeg: 72,
+  easeSpan: 8,
+  /** Gravity for the ride up the wall, m/s². */
+  gravity: 9.81,
+}
+
+/** The bobsled replay's ice channel, the snow beside it and the chase camera, m. */
+export const SLED_SCENE = {
+  /** The channel is a half pipe this wide in radius, its walls reaching this far round from the bottom, degrees. */
+  trough: 1.7,
+  wallDeg: 105,
+  /** Snow banks on each side of the channel, this wide. */
+  bank: 7,
+  /** The channel is drawn every this many metres along. */
+  drawEvery: 2,
+  /** Fir trees beside the track: one every this many metres, this far out from the channel's centre. */
+  treeEvery: 16,
+  treeOut: 11,
+  /**
+   * Chase camera: this far behind your sled along the track and above it,
+   * following `follow` of the way up the wall the sled rides. It looks at
+   * the sled, moved `lead` of the way toward the track `ahead` metres on.
+   */
+  camera: { back: 8, up: 3, follow: 0.6, ahead: 8, lead: 0.3, lookUp: 0.5, fov: 55 },
+  /** The old sled is a see-through slate ghost. */
+  ghostOpacity: 0.4,
+}

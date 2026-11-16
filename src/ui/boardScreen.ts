@@ -64,6 +64,7 @@ import { glossaryTerm } from './glossary'
 import { GUIDE_STEPS, currentStep, guideOn, hideGuide, stepDone } from '../sim/guide'
 import { playReplay } from './replayOverlay'
 import { playJumpReplay } from './jumpReplay'
+import { playSledReplay } from './sledReplay'
 import { createSheet, type Sheet } from './sheet'
 import { twoTap } from './twoTap'
 import { bestText, shareLegacy } from './legacyPicture'
@@ -424,8 +425,8 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       if (!d) return
       deliverSheet?.close()
       careerStore.set(d.state)
-      // The run replay comes in PR 8q; for now the debrief comes straight up.
-      showSledDelivery(d)
+      // The run plays out first; the debrief follows.
+      replaySled(d, sled, () => showSledDelivery(d, sled))
     })
     deliverSheet.body.replaceChildren(
       el('p', 'shop-intro', t('deliver.introSled', { client: b.client, event: b.event.name })),
@@ -442,8 +443,25 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
 
   let sledSheet: Sheet | null = null
 
+  /** The run replay for a sled delivery, then `after`. */
+  function replaySled(d: SledDelivery, design: BobsledDesign, after: () => void) {
+    const b = briefTemplate(d.job.brief.id)!
+    void playSledReplay({
+      client: b.client,
+      event: b.event.name,
+      track: d.event.track,
+      design,
+      setup: b.setup as BobsledDesign,
+      day: d.debrief.day,
+      baselineDay: d.debrief.baselineDay,
+      predicted: d.debrief.predicted,
+      actual: d.debrief.actual,
+      onDone: after,
+    })
+  }
+
   /** Race day for a sled: the promise judged on the reference run, the run on the day, and any trouble with its fix. */
-  function showSledDelivery(d: SledDelivery) {
+  function showSledDelivery(d: SledDelivery, design: BobsledDesign) {
     sledSheet ??= createSheet({ cls: 'raceday', title: t('sd.title'), closeLabel: t('sd.close') })
     const b = briefTemplate(d.job.brief.id)!
     const db = d.debrief
@@ -497,6 +515,12 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     parts.push(el('p', 'shop-note', t('sd.readNote')))
     if (d.sale) parts.push(brokeBox(d.sale, d.state.money))
     if (d.state.ended) parts.push(el('p', 'save-due', t('end.reached')))
+    const again = button('save-btn quiet', t('race.replay'))
+    again.addEventListener('click', () => {
+      sledSheet?.close()
+      replaySled(d, design, () => showSledDelivery(d, design))
+    })
+    parts.push(again)
     sledSheet.body.replaceChildren(...parts)
     sledSheet.open()
   }
