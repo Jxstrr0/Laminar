@@ -746,6 +746,8 @@ html, body {
 .board-heading { margin: 18px 0 6px; font-size: 1rem; }
 .job-list { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
 .job-card { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.own-card { margin-top: 18px; }
+.own-card h2 { margin: 0; font-size: 1rem; }
 .job-card.is-active { margin-top: 12px; border-color: var(--accent); }
 .job-card.is-active .board-heading { margin-top: 0; }
 .job-client { margin: 0; font-weight: 700; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }

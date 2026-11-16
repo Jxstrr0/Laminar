@@ -160,3 +160,38 @@ export const CALIBRATION = {
   /** The book curve: air speeds from, to and step, m/s. */
   book: { from: 1, to: 40, step: 0.25 },
 }
+
+/**
+ * Your own tunnel (plan section 9.2; Kelbo's calls of 16 November 2026): a
+ * small closed-return tunnel, paid for in cash, built over about 90 days
+ * while you keep renting the university's. Runs then cost power only, at an
+ * industrial rate, and the tunnel's upkeep is paid every day that passes.
+ */
+export const OWN_TUNNEL_BUILD = {
+  /** What it costs, ₽, all up front (no loans). */
+  price: 2_000_000,
+  /** Days from paying to the first run in it. */
+  days: 90,
+  /** Upkeep for every day it's open (rent on the building, the fan's service), ₽. */
+  upkeepPerDay: 400,
+}
+
+/**
+ * Your tunnel's test section and fan match the university's (the upgrades
+ * that change them come next). It's new, so its air is calmer and its mount
+ * is cleaner, and blockage is about the same: the section is the same size.
+ */
+export const OWN_QUIRKS = {
+  blockage: { min: 0.8, max: 1.1 },
+  turbulence: { min: 0.002, max: 0.005 },
+  mount: {
+    sting: { min: 0.0015, max: 0.0022 },
+    posts: { min: 0.002, max: 0.003 },
+  },
+} as const
+
+/** What a run costs in your own tunnel: no fee, and power at the industrial rate. */
+export const OWN_BILLING = {
+  perRun: 0,
+  perKWh: 500,
+}

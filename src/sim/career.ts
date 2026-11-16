@@ -8,6 +8,8 @@
  * - A brief is won with a sealed bid against the rival firms (Bystro Aero on
  *   every brief, Vysota Aerolab on the big ones); a lost brief
  *   leaves the board and another takes its place while any are left.
+ * - Your own tunnel is bought with cash and opens OWN_TUNNEL_BUILD.days later;
+ *   from then on its upkeep is paid for every day that passes (passDays).
  * - Delivering runs the event, pays the fee, jumps the calendar to the
  *   event and refreshes the board.
  */
@@ -23,6 +25,8 @@ import { readOf, reputationOf, type Read } from './reputation'
 import { REPUTATION } from '../data/reputation'
 import { RIVALS, RIVAL_IDS, type RivalId } from '../data/rivals'
 import { rivalRecord } from './rivals'
+import { buildBlock, NO_FACILITY, upkeepDays, type Facility } from './facility'
+import { OWN_TUNNEL_BUILD } from '../data/tunnel'
 import { fieldResult, REFERENCE_TT, truth, type EventSpec, type FieldResult } from './views'
 
 /** A brief as it sits on the board: which client, and the terms on offer. */
@@ -80,6 +84,8 @@ export interface CareerState {
   history: JobRecord[]
   /** The partner's guide through the first job (src/sim/guide.ts). */
   guide: Guide
+  /** Where the firm tests: the university's tunnel, and your own once it's paid for. */
+  facility: Facility
 }
 
 /** Why a model can't be ordered now, or null if it can. */
@@ -137,7 +143,29 @@ export function newCareer(seed: number): CareerState {
     job: null,
     history: [],
     guide: { off: false, done: [] },
+    facility: NO_FACILITY,
   }
+}
+
+/** The upkeep due for `days` more days from the career's day, ₽. */
+export function upkeepFor(state: CareerState, days: number): number {
+  return upkeepDays(state.facility, state.day, state.day + days) * OWN_TUNNEL_BUILD.upkeepPerDay
+}
+
+/**
+ * Let days pass: the calendar moves on and the open tunnel's upkeep is paid
+ * for each of them. Upkeep is the firm's cost, not the job's, so it stays
+ * off the job's tally.
+ */
+export function passDays(state: CareerState, days: number): CareerState {
+  if (days <= 0) return state
+  return { ...state, money: state.money - upkeepFor(state, days), day: state.day + days }
+}
+
+/** Pay for your own tunnel (cash only); it opens OWN_TUNNEL_BUILD.days later. Unchanged if it can't be bought. */
+export function buildOwnTunnel(state: CareerState): CareerState {
+  if (buildBlock(state.facility, state.money)) return state
+  return { ...state, money: state.money - OWN_TUNNEL_BUILD.price, facility: { ...state.facility, ownOrdered: state.day } }
 }
 
 /** The event a brief is for, ready for the field model. */
@@ -283,7 +311,7 @@ export function placeBid(state: CareerState, id: string, bid: Bid): BidResult | 
 export function waitForBriefs(state: CareerState): CareerState {
   if (state.job) return state
   const round = state.round + 1
-  return { ...state, day: state.day + BID.waitDays, round, board: boardFor(state.seed, round, state.jobsDone === 0, reputationOf(state.history)), lost: [] }
+  return { ...passDays(state, BID.waitDays), round, board: boardFor(state.seed, round, state.jobsDone === 0, reputationOf(state.history)), lost: [] }
 }
 
 /** Spend money (a run, a model). Goes on the job's tally when there is one. */
@@ -303,8 +331,8 @@ export function orderBlock(state: CareerState, days: number): OrderBlock {
 /** Order a model: pay for it and let its days pass (Kelbo: days pass at once, the model arrives straight away). */
 export function orderModel(state: CareerState, price: number, days: number): CareerState {
   if (orderBlock(state, days)) return state
-  const paid = charge(state, price)
-  return { ...paid, day: paid.day + days, job: { ...paid.job!, daysLeft: paid.job!.daysLeft - days } }
+  const paid = passDays(charge(state, price), days)
+  return { ...paid, job: { ...paid.job!, daysLeft: paid.job!.daysLeft - days } }
 }
 
 /**
@@ -315,7 +343,9 @@ export function orderModel(state: CareerState, price: number, days: number): Car
 export function repairModel(state: CareerState, price: number, days: number): CareerState {
   if (state.job && days > state.job.daysLeft) return state
   const paid = charge(state, price)
-  return paid.job ? { ...paid, day: paid.day + days, job: { ...paid.job, daysLeft: paid.job.daysLeft - days } } : paid
+  if (!paid.job) return paid
+  const later = passDays(paid, days)
+  return { ...later, job: { ...paid.job, daysLeft: paid.job.daysLeft - days } }
 }
 
 /** How close a declared CdA was to the road's. */
@@ -372,6 +402,8 @@ export interface Delivery {
   debrief: Debrief
   /** What the client paid, ₽. */
   paid: number
+  /** Your tunnel's upkeep for the days up to race day, ₽ (0 before it's open). */
+  upkeep: number
 }
 
 /** The seed for a job's event day. */
@@ -434,9 +466,10 @@ export function deliver(state: CareerState, design: CyclistDesign, predicted: nu
     predicted,
     actual: result.cdA,
   }
+  const upkeep = upkeepFor(state, job.daysLeft)
   const next: CareerState = {
     ...state,
-    money: state.money + paid,
+    money: state.money + paid - upkeep,
     day: raceDay,
     jobsDone,
     round: state.round + 1,
@@ -445,5 +478,5 @@ export function deliver(state: CareerState, design: CyclistDesign, predicted: nu
     job: null,
     history: [...state.history, record],
   }
-  return { state: next, job, event, result, debrief, paid }
+  return { state: next, job, event, result, debrief, paid, upkeep }
 }

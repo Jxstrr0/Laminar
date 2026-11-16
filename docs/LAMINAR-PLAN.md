@@ -113,6 +113,8 @@ quirks you have to learn.
 | Own tunnel | **Save up, cash only** (about ₽2M); no loans. *(16 Nov 2026, for PR 7)* |
 | Staff pay | **Per day that passes**, so a slow job costs wages as well as time. *(16 Nov 2026, for PR 7)* |
 | Rival firms | **Bystro Aero** (cheap, sloppy correlation) and **Vysota Aerolab** (prestige, big tunnel, overcharges). *(16 Nov 2026, for PR 7)* |
+| Tunnel build time | **90 days, keep working**: you keep renting the university's tunnel while yours is built. *(16 Nov 2026, for PR 7)* |
+| Own tunnel running cost | **Cheap runs plus daily upkeep**: no run fee, power at an industrial rate, and upkeep for every day that passes. *(16 Nov 2026, for PR 7)* |
 
 ---
 

@@ -9,6 +9,7 @@ import { MODEL_FINISH, MODEL_GRADE, MODEL_SCALES } from '../data/model'
 import { CRANK_DIAL, DEMO_TUNNEL_SEED } from '../data/tunnel'
 import { briefTemplate, newCareer, type Brief, type CareerState, type Job, type JobRecord } from '../sim/career'
 import { GUIDE_STEPS, type GuideStep } from '../sim/guide'
+import { NO_FACILITY, type Facility } from '../sim/facility'
 import type { Failure, FailureMode, FailurePart } from '../sim/failure'
 import type { LabState, RunNote } from '../sim/lab'
 import type { ModelOrder } from '../sim/modelShop'
@@ -88,7 +89,8 @@ function soundRun(x: unknown): x is Run {
     isNum(x.duration) &&
     isNum(x.energyKWh) &&
     isNum(x.topSpeed) &&
-    (x.failure === undefined || soundFailure(x.failure) !== null)
+    (x.failure === undefined || soundFailure(x.failure) !== null) &&
+    (x.tunnel === undefined || x.tunnel === 'own')
   )
 }
 
@@ -176,6 +178,12 @@ function soundRecord(x: unknown): JobRecord | null {
   return { id: x.id, day: x.day, fee: x.fee, paid: x.paid, promised: x.promised, achieved: x.achieved, predicted: x.predicted, actual: x.actual }
 }
 
+function soundFacility(x: unknown): Facility | null {
+  if (!isObj(x)) return null
+  if (x.ownOrdered !== null && !isCount(x.ownOrdered)) return null
+  return { ownOrdered: x.ownOrdered as number | null }
+}
+
 /** The career, or null if it isn't one the game could have written. */
 export function soundCareer(x: unknown): CareerState | null {
   if (!isObj(x) || !isSeed(x.seed) || !isNum(x.money) || !isCount(x.day) || !isCount(x.jobsDone)) return null
@@ -198,6 +206,9 @@ export function soundCareer(x: unknown): CareerState | null {
   const guide = x.guide === undefined ? { off: x.jobsDone > 0, done: [] } : x.guide
   if (!isObj(guide) || typeof guide.off !== 'boolean' || !Array.isArray(guide.done)) return null
   if (!guide.done.every((s) => (GUIDE_STEPS as readonly unknown[]).includes(s))) return null
+  // Careers from before PR 7c rent the university's tunnel.
+  const facility = soundFacility(x.facility === undefined ? NO_FACILITY : x.facility)
+  if (!facility) return null
   return {
     seed: x.seed,
     money: x.money,
@@ -209,6 +220,7 @@ export function soundCareer(x: unknown): CareerState | null {
     job,
     history: history as JobRecord[],
     guide: { off: guide.off, done: guide.done as GuideStep[] },
+    facility,
   }
 }
 

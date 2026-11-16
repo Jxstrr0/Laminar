@@ -35,11 +35,21 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 6d | Field failures in the 3D replay: the wobble in a gust, the rider sitting up | **Done** (v0.6.3.0) |
 | 7a | Reputation and correlation score: bigger clients and close bids for a good name | **Done** (v0.7.0.0) |
 | 7b | The named rivals, Bystro Aero and Vysota Aerolab | **Done** (v0.7.1.0) |
-| 7c | Your own tunnel: save up and build it (cash only), then upgrades | Next |
-| 7d–14 | See the plan | Not started |
+| 7c | Your own tunnel: save up and build it (cash only), 90 days, cheap runs and daily upkeep | **Done** (v0.7.2.0) |
+| 7d | Tunnel upgrades | Next |
+| 7e–14 | See the plan (workshop chain, staff, going broke, backup file, 2040 ending, then PRs 8–14) | Not started |
 
 ## Versions
 
+- **0.7.2.0** (PR 7c): your own tunnel.
+  - The Jobs screen has a "Your own tunnel" card: ₽2,000,000, cash only.
+    Pay (two taps) and it's built over 90 days while you keep working in
+    the university's tunnel.
+  - Once it opens, runs cost power only (₽500 a kWh, no run fee), its air
+    is calmer and its mount cleaner, and upkeep (₽400 a day) is paid for
+    every day that passes. The debrief shows the upkeep.
+  - Its quirks are its own: the tunnel screen says "Your tunnel" and only
+    runs made there count towards its tare and calibration.
 - **0.7.1.0** (PR 7b): the named rivals.
   - Bystro Aero bids on every paid brief: cheap, and it promises big.
     Vysota Aerolab only bids on the big jobs (top fee ₽120k or more), at a

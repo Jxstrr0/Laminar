@@ -35,7 +35,7 @@ import { AIR } from '../data/air'
 import type { GlossaryId } from '../data/glossary'
 import { TUFT_VIZ } from '../data/flowViz'
 import { DEMO_MODEL_SEED, STANDARD_MODEL } from '../data/model'
-import { CALIBRATION, CRANK_DIAL, REFERENCE_SPHERE, REFERENCE_WHEEL, RUN_RECORDING, RUN_STATS, TUNNEL_BILLING, UNIVERSITY_QUIRKS, UNIVERSITY_TUNNEL } from '../data/tunnel'
+import { CALIBRATION, CRANK_DIAL, REFERENCE_SPHERE, REFERENCE_WHEEL, RUN_RECORDING, RUN_STATS, TUNNEL_BILLING, UNIVERSITY_TUNNEL } from '../data/tunnel'
 import { t, type StringKey } from '../data/strings'
 import { dynamicPressure, reynolds } from '../sim/air'
 import { bodyDrag, shapeDrag, type Regime } from '../sim/aero/drag'
@@ -66,9 +66,10 @@ import type { CyclistDesign } from '../data/cyclist'
 import type { LabState } from '../sim/lab'
 import { changedControls } from '../sim/designDiff'
 import { compareRuns, headlineCompare, headlineGroup, legCycle, poolRuns, yawGroups, type YawGroup } from '../sim/runStats'
-import { addSample, newRecorder, runCost, stepRecorder, type Recorder, type Run, type RunSample } from '../sim/run'
+import { addSample, newRecorder, runCost, runTunnel, stepRecorder, type Recorder, type Run, type RunSample } from '../sim/run'
 import { setYawTarget, stepTurntable, turntableAtRest, type TurntableState } from '../sim/turntable'
-import { rollQuirks, type MountKind } from '../sim/quirks'
+import type { MountKind } from '../sim/quirks'
+import { tunnelQuirks, type TunnelId } from '../sim/facility'
 import { FAILURE } from '../data/failure'
 import { fixFor, repairQuote, stepStrain, strains, wobbleOf, type Failure, type FailurePart, type Strain, type StrainClock } from '../sim/failure'
 import { gaussian } from '../sim/noise'
@@ -179,8 +180,10 @@ export interface TunnelHooks {
   onChange(): void
   /** A run finished: bill it. */
   onRun(run: Run): void
-  /** The career's seed, which sets the tunnel's hidden quirks. */
+  /** The career's seed, which sets each tunnel's hidden quirks. */
   tunnelSeed: number
+  /** The tunnel the firm tests in today: the university's, or your own once it's open. */
+  tunnelId(): TunnelId
   /** The event the design is being built for (the job's). */
   event(): EventSpec
   /** The model shop's view of the job. */
@@ -205,9 +208,13 @@ export interface TunnelControl {
 export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: LabState, hooks: TunnelHooks): TunnelControl {
   const onChange = hooks.onChange
   const spec = UNIVERSITY_TUNNEL
-  // The tunnel as the balance reads it, hidden quirks and all (each career's tunnel has its own).
-  const tunnel: TunnelSpec = { ...UNIVERSITY_TUNNEL, quirks: rollQuirks(UNIVERSITY_QUIRKS, hooks.tunnelSeed) }
-  const airTurbulence = tunnelTurbulence(tunnel)
+  // The tunnel as the balance reads it, hidden quirks and all (each career's tunnels have their own).
+  // It changes once, when your own tunnel opens (syncTunnel).
+  let current: TunnelId = hooks.tunnelId()
+  let tunnel: TunnelSpec = { ...UNIVERSITY_TUNNEL, quirks: tunnelQuirks(current, hooks.tunnelSeed) }
+  let airTurbulence = tunnelTurbulence(tunnel)
+  /** Runs made in the tunnel in use: only they say anything about its quirks. */
+  const here = () => runs.filter((r) => runTunnel(r) === current)
   const sectionArea = spec.section.width * spec.section.height
   let fan: FanState = fanAtRest()
   let table: TurntableState = turntableAtRest()
@@ -225,7 +232,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   // --- Header
   const header = el('header', 'top-bar')
   const titleBlock = el('div', 'title-block')
-  titleBlock.append(el('h1', 'wordmark', t('game.title')), el('p', 'place', t('tunnel.place')))
+  const place = el('p', 'place', t(current === 'own' ? 'tunnel.placeOwn' : 'tunnel.place'))
+  titleBlock.append(el('h1', 'wordmark', t('game.title')), place)
   header.append(titleBlock)
 
   // --- Bottom sheet
@@ -768,10 +776,11 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   /** What comes off the reference wheel's own readings: the posts and its (small) blockage. */
   let wheelFix: Corrections = NO_CORRECTIONS
   const refreshCal = () => {
-    cal = calibrate(runs, ball, sectionArea)
-    const posts = latestTare(runs, 'posts')
+    const mine = here()
+    cal = calibrate(mine, ball, sectionArea)
+    const posts = latestTare(mine, 'posts')
     wheelFix = corrections(cal, posts, wheelModel.shape.frontalArea, sectionArea)
-    wheel = wheelFix.tare !== null ? wheelCheck(runs, wheelSpinning, wheelFix.tare, wheelFix.blockage) : null
+    wheel = wheelFix.tare !== null ? wheelCheck(mine, wheelSpinning, wheelFix.tare, wheelFix.blockage) : null
     if (!prepared) {
       fix = NO_CORRECTIONS
       return
@@ -779,6 +788,23 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     // With no wheel drive the rider's still spokes read low: add back the reference wheel's gap, scaled by its spokes.
     const wheels = wheel?.trusted && !spec.wheelDrive ? wheel.gap * spokeShare(prepared.shape, wheelSpinning) : null
     fix = corrections(cal, posts, prepared.shape.frontalArea, sectionArea, wheels)
+  }
+  /**
+   * Move to the tunnel in use if it has changed (your own tunnel opened while
+   * a model was being made, or between visits). Never mid-run: the run in
+   * progress finishes where it started. The new tunnel's quirks are unknown
+   * again, so its calibration starts from scratch.
+   */
+  function syncTunnel() {
+    const id = hooks.tunnelId()
+    if (id === current || rec.run) return
+    current = id
+    tunnel = { ...UNIVERSITY_TUNNEL, quirks: tunnelQuirks(current, hooks.tunnelSeed) }
+    airTurbulence = tunnelTurbulence(tunnel)
+    place.textContent = t(current === 'own' ? 'tunnel.placeOwn' : 'tunnel.place')
+    refreshCal()
+    runsDirty = true
+    chartDirty = true
   }
   /** The run name for what's on the mount now. */
   const runModel = () => (tare ? tareModel(MOUNT_KIND[mount]) : mount === 'wheel' ? WHEEL_RUN : mount)
@@ -844,7 +870,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     }
     if (live) setText(runNow, t('run.live', { id: live.id, time: clock(live.duration), cost: fixed(runCost(live), 0) }))
     else if (done) setText(runNow, t('run.last', { id: done.id, time: clock(done.duration), cost: fixed(runCost(done), 0) }))
-    else setText(runNow, t('run.idle', { fee: fixed(TUNNEL_BILLING.perRun, 0) }))
+    else setText(runNow, current === 'own' ? t('run.idleOwn') : t('run.idle', { fee: fixed(TUNNEL_BILLING.perRun, 0) }))
     const total = runs.reduce((sum, r) => sum + runCost(r), live ? runCost(live) : 0)
     setText(runTotal, runs.length || live ? t('run.session', { total: fixed(total, 0) }) : '')
   }
@@ -989,7 +1015,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   function drawPool() {
     const now = modelDesign
     const byCrank = new Map<number, Run[]>()
-    for (const run of runs) {
+    for (const run of here()) {
       const d = designs.get(run.id)
       const c = cranks.get(run.id)
       if (run.model !== 'rider' || !d || c === undefined || builds.get(run.id) !== build || changedControls(d, now).length > 0) continue
@@ -1226,7 +1252,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
             : '',
     )
     calLines.block.hidden = calLines.block.textContent === ''
-    const posts = latestTare(runs, 'posts')
+    const posts = latestTare(here(), 'posts')
     setText(
       calLines.posts,
       !posts
@@ -1237,7 +1263,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     )
     const share = prepared ? spokeShare(prepared.shape, wheelSpinning) : 0
     const postsTare = posts?.trusted ? posts : null
-    const wheelRuns = runs.filter((r) => r.model === WHEEL_RUN)
+    const wheelRuns = here().filter((r) => r.model === WHEEL_RUN)
     const ww = wheel
     setText(
       calLines.wheel,
@@ -1318,6 +1344,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     const dt = Math.min((now - last) / 1000, 0.25)
     last = now
     carry += dt
+    syncTunnel()
     while (carry >= STEP) {
       fan = stepFan(fan, STEP, spec)
       table = stepTurntable(table, STEP, spec.turntable)
@@ -1330,7 +1357,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
         if (step.broke) breakModel(step.broke)
       } else warn = null
       if (coasting && fan.speed < RUN_RECORDING.endBelow) coasting = false
-      const step = coasting ? { recorder: rec, sampleDue: false, finished: null } : stepRecorder(rec, fan.speed, STEP, runModel())
+      const step = coasting ? { recorder: rec, sampleDue: false, finished: null } : stepRecorder(rec, fan.speed, STEP, runModel(), current)
       rec = step.recorder
       if (step.finished) {
         runs.push(step.finished)
@@ -1371,6 +1398,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       if (on === active) return
       active = on
       if (on) {
+        syncTunnel()
         view.setSheetHeight(sheet.offsetHeight)
         last = performance.now()
         raf = requestAnimationFrame(loop)
