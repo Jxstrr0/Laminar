@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { reputationOf } from '../src/sim/reputation'
 import { BRIEFS, CAREER } from '../src/data/briefs'
 import { DEFAULT_CYCLIST } from '../src/data/cyclist'
 import {
@@ -158,8 +159,10 @@ describe('the career', () => {
   })
 
   it('wins on a better bid, and a lost brief makes way for another', () => {
-    // Past the first job: a board with a rival on every brief.
-    const base: CareerState = { ...newCareer(8), jobsDone: 1, round: 1, board: boardFor(8, 1) }
+    // Past the first job, with a good enough name for every client to call: a board with a rival on every brief.
+    const good = { id: 'stavren-club', day: 1, fee: 1, paid: 1, promised: 3, achieved: 5, predicted: 0.25, actual: 0.25 }
+    const history = [good, good, good]
+    const base: CareerState = { ...newCareer(8), jobsDone: 3, round: 1, history, board: boardFor(8, 1, false, reputationOf(history)) }
     const brief = base.board[0]!
     const t = BRIEFS.find((b) => b.id === brief.id)!
     const cheap = placeBid(base, brief.id, { price: t.fee.min, promise: BID.promiseMax })!

@@ -409,6 +409,20 @@ export const GLOSSARY = defineGlossary({
     aliases: ['rules', 'legality box', 'legal box'],
     seeAlso: ['tcf'],
   },
+  reputation: {
+    term: 'Reputation',
+    short: 'Your firm’s name, from 0 to 100: built from kept promises and close reads.',
+    long: 'Every delivery moves it. A kept promise and a close read raise it; a missed promise or a wild guess lowers it. Bigger clients only call a firm with a good name, and in a close bid the client leans toward the better-known firm.',
+    aliases: ['rep', 'name'],
+    seeAlso: ['correlationScore'],
+  },
+  correlationScore: {
+    term: 'Correlation score',
+    short: 'How well your tunnel’s numbers match the road, from 0 to 100.',
+    long: 'It is worked out from how close your declared CdA came to the road’s over your last five jobs. A perfect read every time scores 100; reads off by a tenth or more score nothing. Rival firms’ scores are public too.',
+    aliases: ['correlation'],
+    seeAlso: ['reputation', 'windAveragedCda'],
+  },
   tcf: {
     term: 'TCF',
     short: 'The Tarnovian Cycling Federation, which writes Tarnovia’s cycling rules.',

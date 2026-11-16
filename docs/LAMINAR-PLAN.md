@@ -109,6 +109,10 @@ quirks you have to learn.
 | Break warnings | **Always warn first**: the part buzzes, the trace wobbles, the partner shouts; a model breaks only if the fan stays past the limit. *(16 Nov 2026, for PR 6)* |
 | Crosswind steer | **Loses time in gusts**: the rider eases off to stay on line; never a stop, never hurt. *(16 Nov 2026, for PR 6)* |
 | Unholdable position | **Fades in the last third**: power drops late as the rider sits up, instead of a flat loss all race. *(16 Nov 2026, for PR 6)* |
+| Reputation | **Bigger briefs and close bids**: a good name opens national-level clients and tips a close sealed bid; it never changes the tunnel or the race. *(16 Nov 2026, for PR 7)* |
+| Own tunnel | **Save up, cash only** (about ₽2M); no loans. *(16 Nov 2026, for PR 7)* |
+| Staff pay | **Per day that passes**, so a slow job costs wages as well as time. *(16 Nov 2026, for PR 7)* |
+| Rival firms | **Bystro Aero** (cheap, sloppy correlation) and **Vysota Aerolab** (prestige, big tunnel, overcharges). *(16 Nov 2026, for PR 7)* |
 
 ---
 

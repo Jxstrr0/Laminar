@@ -18,6 +18,8 @@ import type { FixTarget } from './failure'
 import { cyclistShape } from './geom/cyclist'
 import { hashString, Rng } from './rng'
 import type { Guide } from './guide'
+import { readOf, reputationOf, type Read } from './reputation'
+import { REPUTATION } from '../data/reputation'
 import { fieldResult, REFERENCE_TT, truth, type EventSpec, type FieldResult } from './views'
 
 /** A brief as it sits on the board: which client, and the terms on offer. */
@@ -42,7 +44,7 @@ export interface Job {
   spent: number
 }
 
-/** One finished job, kept for the firm's record (and the correlation score in PR 7). */
+/** One finished job, kept for the firm's record: its reputation and correlation score come from these. */
 export interface JobRecord {
   id: string
   /** Race day. */
@@ -96,16 +98,22 @@ function onBoard(b: BriefTemplate, rng: Rng): Brief {
   return { id: b.id, fee, days: b.days, seed: rng.int(1, 0x7fffffff) }
 }
 
+/** Clients who'll call a firm with this reputation (Kelbo: a good name brings bigger clients). */
+export function openTo(b: BriefTemplate, reputation: number): boolean {
+  return (b.minRep ?? 0) <= reputation
+}
+
 /**
  * Board number `round`: the tutorial first while no job is done, and always
- * one small brief. (Round n of a career that has never waited or lost is the
+ * one small brief; the rest are clients who'll call a firm with this
+ * reputation. (Round n of a career that has never waited or lost is the
  * board after n jobs, as before bids.)
  */
-export function boardFor(seed: number, round: number, firstJob = round === 0): Brief[] {
+export function boardFor(seed: number, round: number, firstJob = round === 0, reputation: number = REPUTATION.start): Brief[] {
   const rng = new Rng(seed).fork(`board-${round}`)
   const first = firstJob ? BRIEFS.filter((b) => b.tutorial) : []
   const small = rng.shuffle(BRIEFS.filter((b) => b.small))
-  const rest = rng.shuffle(BRIEFS.filter((b) => !b.tutorial && !b.small))
+  const rest = rng.shuffle(BRIEFS.filter((b) => !b.tutorial && !b.small && openTo(b, reputation)))
   const picked = [...first, ...small.slice(0, 1)]
   for (const b of [...rest, ...small.slice(1)]) {
     if (picked.length >= CAREER.boardSize) break
@@ -176,6 +184,9 @@ export interface BidResult {
   rival: Bid | null
   /** What the client counts each promised point as worth, ₽. */
   worth: number
+  /** Your firm's reputation and the rival's, as the client weighed them. */
+  myRep: number
+  rivalRep: number
 }
 
 /** ₽ the client counts each promised point as worth: a share of the middle of the fee range. */
@@ -184,9 +195,13 @@ export function pointWorth(id: string): number {
   return Math.round((((b.fee.min + b.fee.max) / 2) * BID.pointValue) / 100) * 100
 }
 
-/** How the client rates a bid: the promise's worth plus what it saves under the top of the fee range. Higher wins. */
-export function bidScore(id: string, bid: Bid): number {
-  return bid.promise * pointWorth(id) + template(id).fee.max - bid.price
+/**
+ * How the client rates a bid: the promise's worth plus what it saves under
+ * the top of the fee range, plus a little for the firm's name (each
+ * reputation point counts as a small share of a promised point). Higher wins.
+ */
+export function bidScore(id: string, bid: Bid, reputation = 0): number {
+  return (bid.promise + reputation * REPUTATION.bidPerPoint) * pointWorth(id) + template(id).fee.max - bid.price
 }
 
 const roundTo = (x: number, step: number) => Math.round(x / step) * step
@@ -221,23 +236,25 @@ export function placeBid(state: CareerState, id: string, bid: Bid): BidResult | 
   const mine = clampBid(id, bid)
   const rival = rivalBid(brief)
   const worth = pointWorth(id)
-  const won = !rival || bidScore(id, mine) >= bidScore(id, rival)
-  if (won) return { state: take(state, brief, mine), won, mine, rival, worth }
+  const myRep = reputationOf(state.history)
+  const rivalRep = REPUTATION.rival
+  const won = !rival || bidScore(id, mine, myRep) >= bidScore(id, rival, rivalRep)
+  if (won) return { state: take(state, brief, mine), won, mine, rival, worth, myRep, rivalRep }
   const lost = [...state.lost, id]
   const board = state.board.filter((b) => b.id !== id)
-  const spare = BRIEFS.filter((b) => !b.tutorial && !lost.includes(b.id) && !board.some((o) => o.id === b.id))
+  const spare = BRIEFS.filter((b) => !b.tutorial && openTo(b, myRep) && !lost.includes(b.id) && !board.some((o) => o.id === b.id))
   if (spare.length > 0) {
     const rng = new Rng(state.seed).fork(`refill-${state.round}-${lost.length}`)
     board.push(onBoard(rng.pick(spare), rng))
   }
-  return { state: { ...state, board, lost }, won, mine, rival, worth }
+  return { state: { ...state, board, lost }, won, mine, rival, worth, myRep, rivalRep }
 }
 
 /** Wait a week for a fresh board (when the rival has taken every brief). */
 export function waitForBriefs(state: CareerState): CareerState {
   if (state.job) return state
   const round = state.round + 1
-  return { ...state, day: state.day + BID.waitDays, round, board: boardFor(state.seed, round, state.jobsDone === 0), lost: [] }
+  return { ...state, day: state.day + BID.waitDays, round, board: boardFor(state.seed, round, state.jobsDone === 0, reputationOf(state.history)), lost: [] }
 }
 
 /** Spend money (a run, a model). Goes on the job's tally when there is one. */
@@ -273,7 +290,7 @@ export function repairModel(state: CareerState, price: number, days: number): Ca
 }
 
 /** How close a declared CdA was to the road's. */
-export type Read = 'good' | 'fair' | 'poor'
+export { readOf, type Read }
 
 /** What race day showed (plan section 4, step 8). */
 export interface Debrief {
@@ -306,6 +323,8 @@ export interface Debrief {
    */
   gusts: { lost: number; fix: FixTarget } | null
   fade: { lost: number; fix: FixTarget } | null
+  /** The firm's reputation before and after this job. */
+  reputation: { before: number; after: number }
 }
 
 /** The fee, less a slice per point short (Kelbo: at most half, after a small allowance). */
@@ -313,11 +332,6 @@ export function penaltyFor(fee: number, promised: number, achieved: number): { s
   const shortfall = Math.max(0, promised - PROMISE.allowance - achieved)
   const share = Math.min(PROMISE.maxShare, shortfall * PROMISE.perPoint)
   return { shortfall, penalty: Math.round((fee * share) / 100) * 100 }
-}
-
-export function readOf(error: number): Read {
-  const e = Math.abs(error)
-  return e <= PROMISE.goodRead ? 'good' : e <= 2 * PROMISE.goodRead ? 'fair' : 'poor'
 }
 
 export interface Delivery {
@@ -373,6 +387,10 @@ export function deliver(state: CareerState, design: CyclistDesign, predicted: nu
     // A gust turns the bike by its front: the front wheel is the part to change.
     gusts: result.lostToGusts > 0 ? { lost: result.lostToGusts, fix: 'front' } : null,
     fade: result.lostToFade > 0 ? { lost: result.lostToFade, fix: comfort(design).worst ?? 'torsoDeg' } : null,
+    reputation: {
+      before: reputationOf(state.history),
+      after: reputationOf([...state.history, { promised: job.promise, achieved, predicted, actual: result.cdA }]),
+    },
   }
   const paid = job.brief.fee - penalty
   const jobsDone = state.jobsDone + 1
@@ -393,7 +411,7 @@ export function deliver(state: CareerState, design: CyclistDesign, predicted: nu
     day: raceDay,
     jobsDone,
     round: state.round + 1,
-    board: boardFor(state.seed, state.round + 1, false),
+    board: boardFor(state.seed, state.round + 1, false, reputationOf([...state.history, record])),
     lost: [],
     job: null,
     history: [...state.history, record],

@@ -738,6 +738,8 @@ html, body {
 .firm-money { margin: 0; font-family: var(--font-num); font-size: 1.6rem; font-weight: 500; }
 .firm-money.over { color: var(--sep); }
 .firm-date { margin: 2px 0 0; color: var(--muted); font-size: 0.85rem; }
+/* Reputation and correlation score under the money (PR 7a). */
+.firm-name { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
 .board-heading { margin: 18px 0 6px; font-size: 1rem; }
 .job-list { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
 .job-card { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }

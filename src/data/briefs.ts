@@ -101,6 +101,8 @@ export interface BriefTemplate {
   tutorial?: true
   /** A small, low-fee brief: one is always on the board (plan section 9.8). */
   small?: true
+  /** The reputation a firm needs before this client calls (0 if left out; src/data/reputation.ts). */
+  minRep?: number
 }
 
 /**
@@ -240,6 +242,7 @@ export const BRIEFS: readonly BriefTemplate[] = [
     setup: setup({ torsoDeg: 20, headDrop: 0.4, armWidth: 0.32, handReach: 0.7, handHeight: 0 }, { helmet: { kind: 'aero', tail: 0.4, vents: 0.1 }, wheels: { front: 'deep', rear: 'deep' } }),
     fee: { min: 120000, max: 170000 },
     days: 24,
+    minRep: 25,
     target: 3,
   },
   {
@@ -269,6 +272,7 @@ export const BRIEFS: readonly BriefTemplate[] = [
     ),
     fee: { min: 160000, max: 220000 },
     days: 28,
+    minRep: 45,
     target: 2,
   },
   {
@@ -294,6 +298,7 @@ export const BRIEFS: readonly BriefTemplate[] = [
     ),
     fee: { min: 110000, max: 150000 },
     days: 18,
+    minRep: 35,
     target: 5,
   },
 ]
