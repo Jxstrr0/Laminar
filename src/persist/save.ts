@@ -14,6 +14,7 @@ import { RECORD_RANGE, type RecordDesign } from '../data/record'
 import { DRONE_RANGE, type DroneDesign } from '../data/drone'
 import { PLANE_RANGE, type PlaneDesign } from '../data/plane'
 import { AIRCRAFT_RANGE, type AircraftDesign } from '../data/aircraft'
+import { POD_RANGE, type PodDesign } from '../data/pod'
 import type { Design } from '../sim/design'
 import { ALL_SCALES, MACHINE_IDS, MAKER_IDS, MODEL_FINISH, MODEL_GRADE, type MachineId } from '../data/model'
 import { CRANK_DIAL, DEMO_TUNNEL_SEED } from '../data/tunnel'
@@ -66,6 +67,7 @@ export function soundDesign(x: unknown): Design | null {
   if (x.sport === 'drone') return soundDrone(x)
   if (x.sport === 'plane') return soundPlane(x)
   if (x.sport === 'aircraft') return soundAircraft(x)
+  if (x.sport === 'pod') return soundPod(x)
   if (x.sport !== undefined && x.sport !== 'cycling') return null
   return soundCyclist(x)
 }
@@ -157,6 +159,13 @@ function soundPlane(x: Obj): PlaneDesign | null {
     // The span slider came in PR 10w: a plane saved before it has the maker's wing.
     span: isNum(x.span) ? n(x.span, R.span) : 1,
   }
+}
+
+function soundPod(x: Obj): PodDesign | null {
+  if (!oneOf(x.class, ['patrol'] as const) || ![x.nose, x.tail, x.gap, x.at].every(isNum)) return null
+  const R = POD_RANGE[x.class]
+  const n = (v: unknown, r: { min: number; max: number }) => clampTo(v as number, r)
+  return { sport: 'pod', class: x.class, nose: n(x.nose, R.nose), tail: n(x.tail, R.tail), gap: n(x.gap, R.gap), at: n(x.at, R.at) }
 }
 
 function soundAircraft(x: Obj): AircraftDesign | null {

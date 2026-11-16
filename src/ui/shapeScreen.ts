@@ -23,6 +23,7 @@ import { crossHeld, sideCentre, sightLoss, thrustKept } from '../sim/record'
 import { DRONE_DESK, DRONE_RANGE, STOCK_DRONE, type DroneDesign } from '../data/drone'
 import { AIRCRAFT_BODY, AIRCRAFT_DESK, AIRCRAFT_RANGE, STOCK_AIRCRAFT, type AircraftDesign } from '../data/aircraft'
 import { stallFix } from '../sim/aircraft'
+import { POD_BODY, POD_BUFFET, POD_DESK, POD_RANGE, STOCK_POD, type PodDesign } from '../data/pod'
 import { PLANE_BODY, PLANE_CLASS, PLANE_DESK, PLANE_GUST, PLANE_RANGE, STOCK_PLANE, type PlaneDesign } from '../data/plane'
 import { courseDensity, droneMass, steadyTilt, topSpeed } from '../sim/drone'
 import { carAero, checkCarRules, circuitDensity, heatLoss, porpoiseSpeed, type CarRuleBreak } from '../sim/car'
@@ -34,13 +35,13 @@ import { TCF_TIME_TRIAL } from '../data/rules'
 import { t, type StringKey } from '../data/strings'
 import type { RuleBreak } from '../sim/cyclist'
 import type { FixTarget } from '../sim/failure'
-import { bobDeskEstimate, carDeskEstimate, deskEstimate, droneDeskEstimate, jumpDeskEstimate, planeDeskEstimate, aircraftDeskEstimate, recordDeskEstimate, truckDeskEstimate } from '../sim/desk'
+import { bobDeskEstimate, carDeskEstimate, deskEstimate, droneDeskEstimate, jumpDeskEstimate, planeDeskEstimate, aircraftDeskEstimate, podDeskEstimate, recordDeskEstimate, truckDeskEstimate } from '../sim/desk'
 import { jumperReadouts } from '../sim/jumper'
 import { crewEffects } from '../sim/staff'
-import { designPose, designReadouts, designShape, isAircraft, isBobsled, isCar, isCyclist, isDrone, isJumper, isPlane, isRecord, isSkater, isTruck, type Design } from '../sim/design'
+import { designPose, designReadouts, designShape, isAircraft, isBobsled, isCar, isCyclist, isDrone, isJumper, isPlane, isPod, isRecord, isSkater, isTruck, type Design } from '../sim/design'
 import { availableHandles, dragHandle, handleDef, handlePoint } from '../sim/geom/handles'
 import { ruleVolumes } from '../sim/geom/ruleBox'
-import { briefTemplate, currentAircraftRun, currentCarRun, currentDroneRun, currentPlaneRun, currentRecordRun, currentEvent, currentJumpEvent, currentTruckEvent, currentTruckRun } from '../sim/career'
+import { briefTemplate, currentAircraftRun, currentPodRun, currentCarRun, currentDroneRun, currentPlaneRun, currentRecordRun, currentEvent, currentJumpEvent, currentTruckEvent, currentTruckRun } from '../sim/career'
 import { cracksOnGravel, roadLegal } from '../sim/truckJob'
 import type { Highlight, ShapeView } from '../render/shapeScene'
 import type { GlossaryId } from '../data/glossary'
@@ -180,6 +181,9 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   // A kit plane's sliders (PR 10q); hidden ones write to a spare.
   const spareAircraft = structuredClone(STOCK_AIRCRAFT.kit)
   const ac = (): AircraftDesign => (isAircraft(design) ? design : spareAircraft)
+  // A sensor pod's sliders (PR 10z); hidden ones write to a spare.
+  const sparePod = structuredClone(STOCK_POD.patrol)
+  const sp = (): PodDesign => (isPod(design) ? design : sparePod)
   let selected: HandleId | null = null
 
   // --- Header
@@ -191,7 +195,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   const showPlace = () => {
     const job = careerStore.get().job
     const who = job ? briefTemplate(job.brief.id)?.client : undefined
-    const plain = isAircraft(design) ? 'shape.placeAircraft' : isPlane(design) ? 'shape.placePlane' : isDrone(design) ? 'shape.placeDrone' : isRecord(design) ? (design.class === 'jet' ? 'shape.placeRecordJet' : 'shape.placeRecord') : isCar(design) ? (design.class === 'open' ? 'shape.placeCarOpen' : 'shape.placeCar') : isTruck(design) ? 'shape.placeTruck' : isJumper(design) ? 'shape.placeJumper' : isBobsled(design) ? (design.crew === 4 ? 'shape.placeBobsled4' : 'shape.placeBobsled') : 'shape.place'
+    const plain = isPod(design) ? 'shape.placePod' : isAircraft(design) ? 'shape.placeAircraft' : isPlane(design) ? 'shape.placePlane' : isDrone(design) ? 'shape.placeDrone' : isRecord(design) ? (design.class === 'jet' ? 'shape.placeRecordJet' : 'shape.placeRecord') : isCar(design) ? (design.class === 'open' ? 'shape.placeCarOpen' : 'shape.placeCar') : isTruck(design) ? 'shape.placeTruck' : isJumper(design) ? 'shape.placeJumper' : isBobsled(design) ? (design.crew === 4 ? 'shape.placeBobsled4' : 'shape.placeBobsled') : 'shape.place'
     place.textContent = who ? t('shape.placeJob', { client: who }) : t(plain)
   }
   showPlace()
@@ -253,9 +257,13 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   const acDeskR = readout(t('read.aircraftDesk'), 'cruiseSpeed')
   const stallR = readout(t('read.stallSpeed'), 'stallSpeed')
   const aircraftBoxes = [acDeskR.box, stallR.box]
+  // A sensor pod's sheet (PR 10z): the desk's hours on station, and the buffet the ministry checks.
+  const podDeskR = readout(t('read.podDesk'), 'hoursOnStation')
+  const buffetR = readout(t('read.buffet'), 'buffet')
+  const podBoxes = [podDeskR.box, buffetR.box]
   grid.append(
-    deskR.box, jumpDeskR.box, bobDeskR.box, truckDeskR.box, carDeskR.box, recDeskR.box, dnDeskR.box, plDeskR.box, acDeskR.box,
-    comfortR.box, liftR.box, sledDragR.box, truckDragR.box, carDownR.box, noseR.box, dnTopR.box, plMarginR.box, stallR.box,
+    deskR.box, jumpDeskR.box, bobDeskR.box, truckDeskR.box, carDeskR.box, recDeskR.box, dnDeskR.box, plDeskR.box, acDeskR.box, podDeskR.box,
+    comfortR.box, liftR.box, sledDragR.box, truckDragR.box, carDownR.box, noseR.box, dnTopR.box, plMarginR.box, stallR.box, buffetR.box,
     frontalR.box, marginR.box, sightR.box, partsR.box, carBalR.box, straightR.box, twistR.box, gustR.box,
     rulesR.box,
   )
@@ -553,6 +561,22 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     slider(acBox.kit, 'ac-acPodAt', t('ctl.acPodAt'), R.podAt, () => ac().pod.at, (v) => (ac().pod.at = v), slide)
   }
 
+  // The sensor pod (PR 10z): the nose and tail on the first tab, the pylon's gap and the stagger on the second.
+  const podBox = { position: box(panels.position), kit: box(panels.kit) }
+  {
+    const R = POD_RANGE.patrol
+    const pct = (v: number) => `${fixed(v * 100, 0)} %`
+    const cmText = (v: number) => `${fixed(v * 100, 0)} cm`
+    const stagger = (v: number) => {
+      const d = fixed(Math.abs(v) * POD_BODY.slide * 100, 0)
+      return Math.abs(v) < 0.05 ? t('opt.centred') : t(v > 0 ? 'opt.forwardCm' : 'opt.aftCm', { cm: d })
+    }
+    slider(podBox.position, 'sp-senNose', t('ctl.senNose'), R.nose, () => sp().nose, (v) => (sp().nose = v), (v) => (v <= 0 ? t('opt.dome') : pct(v)))
+    slider(podBox.position, 'sp-senTail', t('ctl.senTail'), R.tail, () => sp().tail, (v) => (sp().tail = v), (v) => (v <= 0 ? t('opt.cutOff') : pct(v)))
+    slider(podBox.kit, 'sp-senGap', t('ctl.senGap'), R.gap, () => sp().gap, (v) => (sp().gap = v), cmText)
+    slider(podBox.kit, 'sp-senAt', t('ctl.senAt'), R.at, () => sp().at, (v) => (sp().at = v), stagger)
+  }
+
   /** Jump to a car slider by its name, in the set for the car's class. */
   const jumpToCar = (tab: Tab, control: string) => jumpToControl({ tab, id: `cr-${isCar(design) ? design.class : 'touring'}-${control}` })
 
@@ -588,7 +612,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     // Back to where the job started: the client's setup (or the plain starting design between jobs).
     const job = careerStore.get().job
     // A sled keeps its crew size: that's the job's, not a shape.
-    const plain = isAircraft(design) ? STOCK_AIRCRAFT[design.class] : isPlane(design) ? STOCK_PLANE[design.class] : isDrone(design) ? STOCK_DRONE[design.class] : isRecord(design) ? STOCK_RECORD[design.class] : isCar(design) ? STOCK_CAR[design.class] : isTruck(design) ? { ...FLEET_TRUCK, trailerTop: design.trailerTop } : isJumper(design) ? DEFAULT_JUMPER : isBobsled(design) ? { ...DEFAULT_BOBSLED, crew: design.crew } : isSkater(design) ? DEFAULT_SKATER : DEFAULT_CYCLIST
+    const plain = isPod(design) ? STOCK_POD[design.class] : isAircraft(design) ? STOCK_AIRCRAFT[design.class] : isPlane(design) ? STOCK_PLANE[design.class] : isDrone(design) ? STOCK_DRONE[design.class] : isRecord(design) ? STOCK_RECORD[design.class] : isCar(design) ? STOCK_CAR[design.class] : isTruck(design) ? { ...FLEET_TRUCK, trailerTop: design.trailerTop } : isJumper(design) ? DEFAULT_JUMPER : isBobsled(design) ? { ...DEFAULT_BOBSLED, crew: design.crew } : isSkater(design) ? DEFAULT_SKATER : DEFAULT_CYCLIST
     design = structuredClone((job && briefTemplate(job.brief.id)?.setup) || plain)
     selected = null
     syncAll()
@@ -607,7 +631,8 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     const flying = isDrone(design)
     const surveying = isPlane(design)
     const piloting = isAircraft(design)
-    const riding = !skating && !jumping && !sliding && !trucking && !racing && !recording && !flying && !surveying && !piloting
+    const podding = isPod(design)
+    const riding = !skating && !jumping && !sliding && !trucking && !racing && !recording && !flying && !surveying && !piloting && !podding
     for (const b of Object.values(cycBox)) b.hidden = !riding
     for (const b of Object.values(skBox)) b.hidden = !skating
     for (const b of Object.values(jpBox)) b.hidden = !jumping
@@ -618,22 +643,24 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     for (const b of Object.values(dnBox)) b.hidden = !flying
     for (const b of Object.values(plBox)) b.hidden = !surveying
     for (const b of Object.values(acBox)) b.hidden = !piloting
-    for (const b of bodyBoxes) b.hidden = jumping || sliding || trucking || racing || recording || flying || surveying || piloting
+    for (const b of Object.values(podBox)) b.hidden = !podding
+    for (const b of bodyBoxes) b.hidden = jumping || sliding || trucking || racing || recording || flying || surveying || piloting || podding
     for (const b of droneBoxes) b.hidden = !flying
     for (const b of planeBoxes) b.hidden = !surveying
     for (const b of aircraftBoxes) b.hidden = !piloting
+    for (const b of podBoxes) b.hidden = !podding
     for (const b of carBoxes) b.hidden = !racing
     for (const b of recBoxes) b.hidden = !recording
     for (const b of truckBoxes) b.hidden = !trucking
     for (const b of jumpBoxes) b.hidden = !jumping
     for (const b of bobBoxes) b.hidden = !sliding
-    tabButtons.position.textContent = t(piloting ? 'tab.noseWheels' : trucking ? 'tab.cab' : racing ? 'tab.floor' : recording || surveying ? 'tab.body' : flying ? 'tab.pod' : 'tab.position')
-    tabButtons.kit.textContent = t(piloting ? 'tab.wingPod' : sliding ? 'tab.sled' : trucking ? 'tab.trailer' : racing ? 'tab.wings' : recording ? 'tab.finWheels' : flying ? 'tab.arms' : surveying ? 'tab.camera' : 'tab.kit')
+    tabButtons.position.textContent = t(podding ? 'tab.noseTail' : piloting ? 'tab.noseWheels' : trucking ? 'tab.cab' : racing ? 'tab.floor' : recording || surveying ? 'tab.body' : flying ? 'tab.pod' : 'tab.position')
+    tabButtons.kit.textContent = t(podding ? 'tab.pylon' : piloting ? 'tab.wingPod' : sliding ? 'tab.sled' : trucking ? 'tab.trailer' : racing ? 'tab.wings' : recording ? 'tab.finWheels' : flying ? 'tab.arms' : surveying ? 'tab.camera' : 'tab.kit')
     // Only riders have a bike: the tab goes for the others, and the sheet falls back to Position if it was open.
     tabButtons.bike.hidden = !riding
     if (!riding && currentTab === 'bike') selectTab('position')
     tailRow.hidden = cyc().helmet.kind !== 'aero'
-    hint.textContent = t(piloting ? 'hint.shapeAircraft' : surveying ? 'hint.shapePlane' : flying ? 'hint.shapeDrone' : recording ? (rec('jet') === design ? 'hint.shapeRecordJet' : 'hint.shapeRecord') : racing ? 'hint.shapeCar' : trucking ? 'hint.shapeTruck' : jumping ? 'hint.shapeJumper' : sliding ? 'hint.shapeBobsled' : skating ? 'hint.shapeSkater' : 'hint.shape')
+    hint.textContent = t(podding ? 'hint.shapePod' : piloting ? 'hint.shapeAircraft' : surveying ? 'hint.shapePlane' : flying ? 'hint.shapeDrone' : recording ? (rec('jet') === design ? 'hint.shapeRecordJet' : 'hint.shapeRecord') : racing ? 'hint.shapeCar' : trucking ? 'hint.shapeTruck' : jumping ? 'hint.shapeJumper' : sliding ? 'hint.shapeBobsled' : skating ? 'hint.shapeSkater' : 'hint.shape')
     if (riding || skating) rulesR.sub.textContent = t(skating ? 'book.skating' : 'book.tcf-tt')
   }
   syncAll()
@@ -656,6 +683,11 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   // "Change this" after a model broke in the tunnel, or after trouble on race day (plan sections 7 and 8).
   window.addEventListener('laminar:fix', (e) => {
     const where = (e as CustomEvent<FixTarget>).detail
+    if (isPod(design)) {
+      // A sensor pod's fixes (PR 10z): the pylon's gap if named, otherwise the tail cone (what most often buffets).
+      jumpToControl(where === 'senGap' ? { tab: 'kit', id: 'sp-senGap' } : { tab: 'position', id: 'sp-senTail' })
+      return
+    }
     if (isAircraft(design)) {
       // A kit plane's fixes (PR 10q): the part named, otherwise the wingtips (what most often lifts the stall speed).
       const ids: Partial<Record<FixTarget, { tab: Tab; id: string }>> = {
@@ -779,6 +811,10 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     }
     if (isAircraft(design)) {
       showAircraft(design)
+      return
+    }
+    if (isPod(design)) {
+      showPod(design)
       return
     }
     const r = designReadouts(design, TCF_TIME_TRIAL)
@@ -1141,6 +1177,45 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
    * close to the limit and closed vents are amber warnings with a "change
    * this" each. The quad is drawn tilted as it flies flat out.
    */
+  /**
+   * The sensor pod's sheet (PR 10z): the desk's hours on station
+   * against the ministry's plane with its old pod, and the buffet against
+   * the ministry's limit, with an amber warning and a "change this" to the
+   * tail cone or the pylon's gap, whichever shakes it more.
+   */
+  function showPod(p: PodDesign) {
+    const career = careerStore.get()
+    const { range, old } = currentPodRun(career, p.class)
+    const desk = podDeskEstimate(p, old, range, career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(p), crewEffects(career.crew).deskLevel)
+    podDeskR.value.textContent = `${fixed(desk.value, 2)} h`
+    podDeskR.sub.textContent = t('read.deskPodNote', { spread: fixed(((desk.high - desk.low) / 2) * 60, 0), old: fixed(desk.old, 2) })
+    const b = desk.buffet
+    const limit = fixed(POD_BUFFET.limit, 2)
+    const close = b.index > POD_BUFFET.limit - POD_DESK.buffetClose
+    buffetR.value.textContent = fixed(b.index, 2)
+    buffetR.value.classList.toggle('warn', close)
+    buffetR.sub.textContent = t('read.buffetNote', { limit, mass: fixed(desk.mass, 0) })
+    rulesR.value.textContent = t(b.blurs ? 'read.blurs' : 'read.steady')
+    rulesR.value.classList.toggle('over', b.blurs)
+    rulesR.sub.textContent = t('read.steadyNote')
+
+    // Warnings, in amber: a pod that blurs the sensor fails its range trials whatever its hours.
+    breaks.replaceChildren()
+    const strained: Highlight[] = []
+    if (close) {
+      const gap = b.cause === 'gap'
+      const li = el('li', 'break warn')
+      li.append(el('span', 'break-text', t(!b.blurs ? 'rule.buffetClose' : gap ? 'rule.buffetGap' : 'rule.buffetTail', { index: fixed(b.index, 2), limit })))
+      const btn = el('button', 'break-fix', t('rule.fix'))
+      btn.type = 'button'
+      btn.addEventListener('click', () => jumpToControl(gap ? { tab: 'kit', id: 'sp-senGap' } : { tab: 'position', id: 'sp-senTail' }))
+      li.append(btn)
+      breaks.append(li)
+      strained.push(gap ? 'pylon' : 'boat-tail')
+    }
+    view.show({ design: p, pose: designPose(p), broken: [], strained, handles: [], selected: null, volumes: [] })
+  }
+
   /**
    * The kit plane's sheet (PR 10q): the desk's cruise speed over the
    * client's airfield against their plane as they fly it, and the stall speed

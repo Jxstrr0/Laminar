@@ -21,6 +21,7 @@
  */
 import { RECORD_TUNNEL, STOCK_RECORD, type RecordClass, type RecordDesign } from '../data/record'
 import { STOCK_AIRCRAFT, type AircraftClass, type AircraftDesign, type Airfield } from '../data/aircraft'
+import { OLD_POD, TEST_RANGES, type PodClass, type PodDesign, type TestRange } from '../data/pod'
 import { stallFix } from './aircraft'
 import { applied, applyBlock, clearanceOn, isCleared, NO_CLEARANCE, reviewClearance, type ApplyBlock, type Clearance } from './clearance'
 import { CLEARANCE } from '../data/defence'
@@ -511,6 +512,15 @@ export function currentAircraftEvent(state: CareerState): AircraftEvent {
 export function currentAircraftRun(state: CareerState, cls: AircraftClass): { field: Airfield; old: AircraftDesign } {
   const setup = state.job ? template(state.job.brief.id).setup : null
   return { field: currentAircraftEvent(state).field, old: setup && setup.sport === 'aircraft' && setup.class === cls ? setup : STOCK_AIRCRAFT[cls] }
+}
+
+/**
+ * The range a sensor pod is forecast over and the ministry's plane with its
+ * old pod (PR 10z): Stepnoy and the old pod, until the defence jobs bring
+ * their own (a later PR).
+ */
+export function currentPodRun(_state: CareerState, cls: PodClass): { range: TestRange; old: PodDesign } {
+  return { range: TEST_RANGES.stepnoy, old: OLD_POD[cls] }
 }
 
 /**

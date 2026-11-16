@@ -24,6 +24,8 @@ import { PLANE_DESK, type PlaneDesign, type SurveySite } from '../data/plane'
 import { cameraTooHigh, gustLimit, gustTurn, planeMass, planeRange, staticMargin } from './plane'
 import { AIRCRAFT_DESK, type AircraftDesign, type Airfield } from '../data/aircraft'
 import { aircraftMass, cruiseSpeed, KMH, stallCheck } from './aircraft'
+import { POD_DESK, type PodDesign, type TestRange } from '../data/pod'
+import { hoursOnStation, patrolDensity, podBuffet, podMass, type Buffet } from './pod'
 import type { ShapeSpec } from './geom/body'
 import { gaussian } from './noise'
 import { hashString, Rng } from './rng'
@@ -341,5 +343,43 @@ export function aircraftDeskEstimate(design: AircraftDesign, old: AircraftDesign
     limit: check.limit,
     passes: check.passes,
     mass: aircraftMass(design),
+  }
+}
+
+/** The desk's guess at a sensor pod (PR 10z). */
+export interface PodDeskEstimate {
+  /** Hours on station at patrol speed over the range on its usual day; `low` the short end (more drag), `high` the long one. */
+  value: number
+  low: number
+  high: number
+  /** The ministry's plane with its old pod (their own logbooks, so known), h. */
+  old: number
+  /** The buffet on a sensor run (worked from the pod's shape, so no bias). */
+  buffet: Buffet
+  /** The pod with its pylon, kg. */
+  mass: number
+}
+
+/**
+ * The desk's guess at a sensor pod (PR 10z): hours on station over the
+ * range on its usual day, with the pod's drag through the job's bias and a
+ * design's jitter, against the ministry's plane with its old pod. The desk
+ * works from the pod under the real wing, pylon and all.
+ */
+export function podDeskEstimate(design: PodDesign, old: PodDesign, range: TestRange, jobSeed: number, designKey: string, analystLevel = 0): PodDeskEstimate {
+  const narrow = Math.max(DESK.floor, 1 - DESK.perLevel * analystLevel)
+  const job = new Rng(jobSeed)
+  const mine = new Rng(jobSeed ^ hashString(designKey))
+  const density = patrolDensity(range)
+  const drag = 1 + narrow * (POD_DESK.dragBias * gaussian(job.fork('desk-drag')) + POD_DESK.jitter * gaussian(mine.fork('desk-jitter')))
+  const sd = Math.sqrt(POD_DESK.dragBias * POD_DESK.dragBias + POD_DESK.jitter * POD_DESK.jitter) * narrow * DESK.bars
+  const at = (dg: number) => hoursOnStation(design, { density, podDrag: dg })
+  return {
+    value: at(drag),
+    low: at(drag * (1 + sd)),
+    high: at(drag * (1 - sd)),
+    old: hoursOnStation(old, { sensor: 'old', density }),
+    buffet: podBuffet(design),
+    mass: podMass(design),
   }
 }

@@ -170,3 +170,37 @@ export const TEST_RANGES: Record<TestRange['id'], TestRange> = {
   /** The Stepnoy test range: open steppe in Tarnovia's east, where the ministry tries new kit. */
   stepnoy: { id: 'stepnoy', altitude: 300, patrolAltitude: 1500, temperature: 9 },
 }
+
+/**
+ * The pod's build, for its outline and its drawing (PR 10z): the pod on its
+ * pylon under a stretch of the patrol plane's left wing. The aero above uses
+ * its own numbers; these only shape and place the parts. Full size, m.
+ */
+export const POD_BODY = {
+  /** The nose fairing's tip as a share of the sensor's radius, rounded (a dome) and fine (a point). */
+  noseTip: { dome: 0.35, fine: 0.04 },
+  /** How fully the nose rounds out: 0.5 an ellipse (a dome), larger a slimmer point. */
+  noseCurve: { dome: 0.5, fine: 1 },
+  /** The tail cone's base as a share of the sensor's radius: cut off flat, and at its finest. */
+  base: { blunt: 0.78, fine: 0.04 },
+  /** The stretch of wing drawn: its span, m, its chord, m, and its thickness as a share of chord. */
+  wingSpan: 2.6,
+  chord: 1.9,
+  wingThick: 0.16,
+  /** How far the pod's middle moves forward of the wing's thickest part per unit of stagger, m (the thickest part is 30 % back from the leading edge). */
+  slide: 0.7,
+  thickestAt: 0.3,
+  /** The pylon's chord and thickness, m. */
+  pylonChord: 0.9,
+  pylonThick: 0.07,
+  /** The pod's axis above the drawing's floor, m. */
+  axis: 0.6,
+}
+
+/** The desk's guess at a pod (PR 10z): how far off its drag can be, shared by a job and per design. */
+export const POD_DESK = {
+  dragBias: 0.05,
+  jitter: 0.015,
+  /** A buffet index within this of the limit is an amber warning on the sheet. */
+  buffetClose: 0.15,
+}

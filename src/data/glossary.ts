@@ -648,6 +648,20 @@ export const GLOSSARY = defineGlossary({
     aliases: ['stall speed', 'certified', 'inspector', 'sign off', 'sign-off', 'square tips', 'wingtips', 'clmax', 'most lift'],
     seeAlso: ['stall', 'lift', 'angleOfAttack'],
   },
+  hoursOnStation: {
+    term: 'Hours on station',
+    short: 'How long a patrol plane can stay on patrol on the fuel left after getting there and back.',
+    long: 'A patrol plane flies slowly over its patch, so its fuel lasts as long as the power it needs to hold its patrol speed. That power is its drag times its speed: the plane’s own, the drag of making lift, and anything hung on it, like a sensor pod. A pod that drags less, or weighs less, buys minutes on every patrol.',
+    aliases: ['on station', 'patrol endurance', 'patrol', 'patrol plane', 'loiter', 'sensor pod', 'gorlitsa'],
+    seeAlso: ['interferenceDrag', 'inducedDrag', 'buffet'],
+  },
+  buffet: {
+    term: 'Buffet',
+    short: 'Shaking from a wake that sheds unevenly behind a part.',
+    long: 'Behind a blunt base the air tumbles off in swirls that let go first from one side, then the other, and each one tugs the part. A pod hung close under a wing shakes more, because its wake and the wing’s air squeeze each other. A long, fine tail cone and a fair gap to the wing keep the wake calm, so a sensor in the pod sees a steady picture.',
+    aliases: ['buffeting', 'shake', 'shaking', 'blurred', 'blur', 'vortex shedding'],
+    seeAlso: ['wake', 'boatTail', 'separation'],
+  },
   tmrf: {
     term: 'Motor Racing Federation',
     short: 'The Tarnovian Motor Racing Federation, which writes Tarnovia’s racing car rules.',

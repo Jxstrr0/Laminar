@@ -95,8 +95,16 @@ export function patrolDensity(range: TestRange = TEST_RANGES.stepnoy, temperatur
   return densityAt(temperature, range.patrolAltitude)
 }
 
+/** How patrol drag is worked out: which sensor, the air, the pod alone (no wing), and a scale on the pod's own drag (the desk's guess; 1 as it is). */
+export interface PatrolOpts {
+  sensor?: Sensor
+  density?: number
+  alone?: boolean
+  podDrag?: number
+}
+
 /** The whole plane's drag at patrol speed with this pod, N: its parasite drag, the pod's (installed or alone) and the drag of making lift. */
-export function patrolDrag(design: PodDesign, opts: { sensor?: Sensor; density?: number; alone?: boolean } = {}): number {
+export function patrolDrag(design: PodDesign, opts: PatrolOpts = {}): number {
   const c = POD_CLASS[design.class]
   const sensor = opts.sensor ?? 'new'
   const density = opts.density ?? patrolDensity()
@@ -104,11 +112,11 @@ export function patrolDrag(design: PodDesign, opts: { sensor?: Sensor; density?:
   const pod = podDrag(design, sensor)
   const weight = (c.mass + podMass(design, sensor)) * ATMOSPHERE.gravity
   const induced = (weight * weight) / (q * PI * c.oswald * c.span * c.span)
-  return q * (c.airframeCdA + (opts.alone ? pod.alone : pod.installed)) + induced
+  return q * (c.airframeCdA + (opts.alone ? pod.alone : pod.installed) * (opts.podDrag ?? 1)) + induced
 }
 
 /** Hours on station at patrol speed on the patrol leg's fuel. */
-export function hoursOnStation(design: PodDesign, opts: { sensor?: Sensor; density?: number; alone?: boolean } = {}): number {
+export function hoursOnStation(design: PodDesign, opts: PatrolOpts = {}): number {
   const c = POD_CLASS[design.class]
   const energy = c.fuel * c.fuelEnergy * c.efficiency
   return energy / (patrolDrag(design, opts) * c.patrol) / 3600
