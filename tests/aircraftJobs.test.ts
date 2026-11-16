@@ -50,9 +50,10 @@ describe('light-aircraft briefs (PR 10t)', () => {
     expect(isAircraftBrief('kolos-survey')).toBe(false)
   })
 
-  it('stay off the board until it can show them (10u), and bid a km/h at a time', () => {
-    expect(AIRCRAFT_JOBS.open).toBe(false)
-    for (const b of kitBriefs) expect(openTo(b, 100)).toBe(false)
+  it('are on the board (PR 10u) once the firm is well known, and bid a km/h at a time', () => {
+    expect(AIRCRAFT_JOBS.open).toBe(true)
+    for (const b of kitBriefs) expect(openTo(b, 100)).toBe(true)
+    expect(openTo(briefTemplate('belyanka-club')!, 30)).toBe(false)
     expect(clampBid('belyanka-club', { price: 180000, promise: 12.4 }).promise).toBe(12)
   })
 

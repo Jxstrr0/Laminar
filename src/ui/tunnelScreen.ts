@@ -88,6 +88,7 @@ import { truckForecast } from './truckForecast'
 import { carForecast } from './carForecast'
 import { droneForecast } from './droneForecast'
 import { planeForecast } from './planeForecast'
+import { aircraftForecast } from './aircraftForecast'
 import { recordForecast } from './recordForecast'
 import { FLIGHT_ATTITUDE, JUMP_TUNNEL, PITCH } from '../data/jumper'
 import { correctJumper, forecastJump, isJumperRun, jumperReadings, prepareJumper, readJumper, type JumperFix, type JumpForecast, type PreparedJumper } from '../sim/jumpTunnel'
@@ -2208,6 +2209,13 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     const readings = aircraftReadings(modelRuns()).map((r) => correctAircraft(r, fix, model, sectionArea))
     const { field, old } = aircraftRun(modelDesign)
     aircraftCast = forecastAircraft(readings, modelDesign, old, field)
+    // Kept for the Deliver sheet (PR 10u): the declared cruise starts from it.
+    const f = aircraftCast
+    aircraftForecast.set(
+      modelDesign,
+      field.id,
+      f ? { cruise: f.cruise, gain: f.gain, powered: f.powered, stall: f.stall, passes: f.passes, calibrated: fix.tare !== null && fix.blockageK !== null } : null,
+    )
     runsDirty = true
   }
   function showAircraftForecast() {

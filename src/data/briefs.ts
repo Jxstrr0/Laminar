@@ -345,10 +345,10 @@ export const PLANE_JOBS = {
  * Test day is the show: its air, the test pilot's timed cruise runs for
  * both planes, and the inspector's stall check.
  *
- * Closed to the board until PR 10u puts them on it.
+ * On the board since PR 10u.
  */
 export const AIRCRAFT_JOBS = {
-  open: false,
+  open: true,
   /** km/h in one promised point. */
   pointKmh: 1,
   /** A light-aircraft bid's promise moves in these points: a km/h. */
