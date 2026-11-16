@@ -5,6 +5,8 @@
  * Every name here is fictional and listed in docs/NAMES.md.
  */
 import type { CyclistDesign } from './cyclist'
+import type { HillId } from './hills'
+import type { JumperDesign } from './jumper'
 import type { SkaterDesign } from './skater'
 import type { Design } from './sport'
 import type { CourseSegment } from './field'
@@ -84,6 +86,12 @@ export interface EventTemplate {
   lap?: number
   /** Raced on ice (the replay draws an ice surface). */
   ice?: true
+  /**
+   * A ski jump (PR 8g): the hill, the jumper's mass with kit, kg, and the
+   * day-to-day spread of the take-off speed, m/s. `windSpeed` is the typical
+   * wind along the hill (positive: a headwind), `riderSpeed` the take-off speed.
+   */
+  jump?: { hill: HillId; mass: number; speedSpread: number }
 }
 
 export interface BriefTemplate {
@@ -124,6 +132,20 @@ export const TRACK = {
   straight: 0.2,
   /** Pieces per bend. */
   bendPieces: 8,
+}
+
+/**
+ * Ski-jump jobs (PR 8g): the promise is metres gained on the reference jump
+ * (plan section 9: the hill's own take-off speed, still air) over the
+ * client's current setup, and it counts only above the pitch-stability floor.
+ * The declared number is the reference jump's distance. A promised metre is
+ * weighed like a promised point of cut, and missed the same way.
+ *
+ * The board offers them from PR 8h, when the board and debrief can show
+ * them; until then they stay off it.
+ */
+export const JUMP_JOBS = {
+  open: false,
 }
 
 /** The indoor 400 m ice oval (PR 8b): longer straights than the velodrome, skated anticlockwise too. */
@@ -175,6 +197,12 @@ const skater = (posture: SkaterDesign['posture'], parts: Partial<Omit<SkaterDesi
   hood: 'cap',
   suit: { fabric: 'smooth', legTrips: false },
   ...parts,
+})
+
+const jumper = (leanDeg: number, vAngleDeg: number, bagginess: number): JumperDesign => ({
+  sport: 'skijump',
+  posture: { leanDeg, vAngleDeg },
+  suit: { bagginess },
 })
 
 const setup = (
@@ -384,5 +412,51 @@ export const BRIEFS: readonly BriefTemplate[] = [
     days: 18,
     minRep: 10,
     target: 6,
+  },
+  {
+    id: 'zorin-junior',
+    client: 'Kirill Zorin',
+    who: 'Junior ski jumper, strong off the table',
+    goal: 'I jump well and then just sink. My coach says I fly like a plank with the skis too narrow. Find me some metres.',
+    event: {
+      name: 'Belogor Junior Cup',
+      place: 'Belogor normal hill (HS 98)',
+      temperature: -4,
+      altitude: 640,
+      windSpeed: 0.5,
+      riderSpeed: 24.9,
+      spread: { temperature: 3, wind: 1, power: 0 },
+      course: [],
+      jump: { hill: 'normal', mass: 61, speedSpread: 0.3 },
+    },
+    rider: { power: 0, mass: 61 },
+    setup: jumper(18, 28, 0.2),
+    fee: { min: 45000, max: 65000 },
+    days: 16,
+    minRep: 15,
+    target: 6,
+  },
+  {
+    id: 'vetrova-cup',
+    client: 'Polina Vetrova',
+    who: 'National-level jumper chasing her first podium',
+    goal: 'My V is already wide. I want the last few metres without the wobble my old suit gave me.',
+    event: {
+      name: 'Belogor Winter Cup',
+      place: 'Belogor normal hill (HS 98)',
+      temperature: -7,
+      altitude: 640,
+      windSpeed: -0.3,
+      riderSpeed: 24.9,
+      spread: { temperature: 4, wind: 1.2, power: 0 },
+      course: [],
+      jump: { hill: 'normal', mass: 58, speedSpread: 0.3 },
+    },
+    rider: { power: 0, mass: 58 },
+    setup: jumper(14, 36, 0.35),
+    fee: { min: 80000, max: 110000 },
+    days: 20,
+    minRep: 30,
+    target: 4,
   },
 ]

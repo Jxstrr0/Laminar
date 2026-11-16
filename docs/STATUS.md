@@ -49,12 +49,27 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 8d | Ski jump on Shape: the jumper's figure, controls and readouts; a preview link | **Done** (v0.8.3.0) |
 | 8e | Ski jump in the tunnel, part 1: readings and the distance forecast (sim) | **Done** (v0.8.4.0) |
 | 8f | Ski jump in the tunnel, part 2: the pitch dial, readings and forecast on screen | **Done** (v0.8.5.0) |
-| 8g | Ski-jump flight replay and ski-jump briefs (normal hill, then large) | Next |
-| 8h–8i | Bobsled | Not started |
+| 8g | Ski-jump jobs in the career (sim): briefs, the promise in metres, delivering a jumper | **Done** (v0.8.6.0) |
+| 8h | Ski-jump jobs on screen: the board, declaring a distance, the debrief and the flight replay | Next |
+| 8i | The large hill, balance (landings past the hill size), a sting that can break | Not started |
+| 8j–8k | Bobsled | Not started |
 | 9–14 | See the plan | Not started |
 
 ## Versions
 
+- **0.8.6.0** (PR 8g): ski-jump jobs in the career, sim side.
+  - Two normal-hill briefs at Belogor (HS 98): Kirill Zorin's junior cup
+    (from reputation 15, asks for 6 m) and Polina Vetrova's winter cup (from
+    30, asks for 4 m). They stay off the board until PR 8h can show them.
+  - The promise is metres gained on the reference jump over the client's old
+    setup (still air, the hill's own take-off speed), and it counts only if
+    the stability margin holds the 2 % floor all the way. A promised metre
+    is bid, weighed and missed like a point of cut.
+  - The declared number is the reference jump's length; the read compares it
+    with the truth, as a share, like a declared CdA.
+  - The competition jump on the day, yours and the old setup's in the same
+    air, is the show: a wobble or a pitch-forward names the suit as the
+    thing to change.
 - **0.8.5.0** (PR 8f): the ski jumper in the tunnel, on screen.
   - A jumper model flies on a sting from behind, pivoting at the hips. The
     angle row becomes **Pitch** (6–44°, "Flight angle" sets 34°); no cranks,

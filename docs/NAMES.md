@@ -30,6 +30,7 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Kosa spit | A coastal spit with a sea-wall road, site of a windy time trial. | PR 5c |
 | Stavren Velodrome | An indoor 250 m track in Stavren. | PR 5h |
 | Stavren Ice Oval | An indoor 400 m speed-skating oval in Stavren. | PR 8b |
+| Belogor | A ski-jump venue with a normal hill (HS 98). | PR 8g |
 
 ## Bodies
 
@@ -50,7 +51,9 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Alina Vesnina | Track pursuiter on the national team (Track Championships: Individual Pursuit). PR 5h. |
 | Sonya Lenok | Young distance speed skater (Stavren Open: 10 000 m). PR 8b. |
 | Ilya Kosov | Outdoor marathon skater (Lake Dolgo Ice Marathon). PR 8b. |
-| Stavren Regional Time Trial, Club 16 km Time Trial, Lake Dolgo Hill Time Trial, Kosa Coast Time Trial, National Time Trial Championship, Track Championships: Individual Pursuit, Stavren Open: 10 000 m, Lake Dolgo Ice Marathon | The events above. |
+| Kirill Zorin | Junior ski jumper (Belogor Junior Cup). PR 8g. |
+| Polina Vetrova | National-level ski jumper (Belogor Winter Cup). PR 8g. |
+| Stavren Regional Time Trial, Club 16 km Time Trial, Lake Dolgo Hill Time Trial, Kosa Coast Time Trial, National Time Trial Championship, Track Championships: Individual Pursuit, Stavren Open: 10 000 m, Lake Dolgo Ice Marathon, Belogor Junior Cup, Belogor Winter Cup | The events above. |
 
 ## Rival firms (PR 7)
 

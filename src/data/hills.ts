@@ -8,8 +8,10 @@
  * x runs forward from the take-off edge, y up; metres, degrees, m/s.
  */
 
+export type HillId = 'normal' | 'large'
+
 export interface Hill {
-  id: 'normal' | 'large'
+  id: HillId
   /** The construction point and the hill size: the landing slope's target and its end, m along the surface. */
   k: number
   hs: number

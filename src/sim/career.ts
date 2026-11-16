@@ -19,7 +19,10 @@
  * - Delivering runs the event, pays the fee, jumps the calendar to the
  *   event and refreshes the board.
  */
-import { BID, BRIEFS, CAREER, PROMISE, type BriefTemplate } from '../data/briefs'
+import { BID, BRIEFS, CAREER, JUMP_JOBS, PROMISE, type BriefTemplate } from '../data/briefs'
+import { HILLS } from '../data/hills'
+import type { JumperDesign } from '../data/jumper'
+import { jumpDay, referenceJump, type JumpEvent, type JumpResult } from './jumper'
 import { REFERENCE_RIDER } from '../data/field'
 import { designComfort, designEvent, designShape, sportOf, sportRider, type Design } from './design'
 import type { FixTarget } from './failure'
@@ -131,7 +134,27 @@ function onBoard(b: BriefTemplate, rng: Rng): Brief {
 
 /** Clients who'll call a firm with this reputation (Kelbo: a good name brings bigger clients). */
 export function openTo(b: BriefTemplate, reputation: number): boolean {
+  if (b.event.jump && !JUMP_JOBS.open) return false
   return (b.minRep ?? 0) <= reputation
+}
+
+/** True for a ski-jump brief: its promise and declaration are in metres. */
+export function isJumpBrief(id: string): boolean {
+  return briefTemplate(id)?.event.jump !== undefined
+}
+
+/** A ski-jump brief's jump, ready for the flight model. Null for any other brief. */
+export function jumpEventOf(brief: Pick<Brief, 'id'>): JumpEvent | null {
+  const e = template(brief.id).event
+  if (!e.jump) return null
+  return {
+    hill: HILLS[e.jump.hill],
+    mass: e.jump.mass,
+    temperature: e.temperature,
+    altitude: e.altitude,
+    headwind: e.windSpeed,
+    spread: { temperature: e.spread.temperature, wind: e.spread.wind, speed: e.jump.speedSpread },
+  }
 }
 
 /**
@@ -552,19 +575,30 @@ export function deliver(state: CareerState, design: Design, predicted: number): 
       after: reputationOf([...state.history, { promised: job.promise, achieved, predicted, actual: result.cdA }], state.broke),
     },
   }
+  const closed = closeJob(state, job, penalty, { achieved, predicted, actual: result.cdA })
+  return { ...closed, job, event, result, debrief: { ...debrief, reputation: { ...debrief.reputation, after: firmReputation(closed.state) } } }
+}
+
+/** What closing a job leaves: the career on race day, and the money that moved. */
+interface Closed {
+  state: CareerState
+  paid: number
+  upkeep: number
+  wages: number
+  sale: Sale | null
+}
+
+/**
+ * Race day for any job: the calendar jumps to it, the client pays the fee less
+ * any penalty, the upkeep and wages for the days are paid, the job goes on the
+ * record and a fresh board comes up. If that leaves cash below zero, the
+ * soft landing sells kit and the firm takes the dip.
+ */
+function closeJob(state: CareerState, job: Job, penalty: number, result: Pick<JobRecord, 'achieved' | 'predicted' | 'actual'>): Closed {
   const paid = job.brief.fee - penalty
   const jobsDone = state.jobsDone + 1
   const raceDay = state.day + job.daysLeft
-  const record: JobRecord = {
-    id: job.brief.id,
-    day: raceDay,
-    fee: job.brief.fee,
-    paid,
-    promised: job.promise,
-    achieved,
-    predicted,
-    actual: result.cdA,
-  }
+  const record: JobRecord = { id: job.brief.id, day: raceDay, fee: job.brief.fee, paid, promised: job.promise, ...result }
   const upkeep = upkeepFor(state, job.daysLeft)
   const wages = wagesFor(state, job.daysLeft)
   const history = [...state.history, record]
@@ -593,7 +627,92 @@ export function deliver(state: CareerState, design: Design, predicted: number): 
     facility,
     broke,
   })
-  // The reputation after includes any dip for going broke.
-  const after = firmReputation(next)
-  return { state: next, job, event, result, debrief: { ...debrief, reputation: { ...debrief.reputation, after } }, paid, upkeep, wages, sale }
+  // The reputation after (firmReputation of the new state) includes any dip for going broke.
+  return { state: next, paid, upkeep, wages, sale }
+}
+
+/** What the jump showed (plan section 9: distance gain at a reference speed, with a pitch-stability floor). */
+export interface JumpDebrief {
+  /** Promised and achieved gain on the reference jump, m. */
+  promised: number
+  achieved: number
+  met: boolean
+  /** Metres short after the allowance (0 if met). */
+  shortfall: number
+  /** ₽ taken off the fee. */
+  penalty: number
+  /** Declared and real reference jump, m. */
+  predicted: number
+  actual: number
+  /** (declared − real) ÷ real. */
+  readError: number
+  read: Read
+  /** The reference jump, yours and the old setup's: distance, m, lowest margin and whether it held the floor. */
+  reference: { distance: number; minMargin: number; stable: boolean }
+  baselineReference: { distance: number; minMargin: number; stable: boolean }
+  /** The competition jump on the day, yours and the old setup's in the same air. */
+  day: JumpResult
+  baselineDay: JumpResult
+  /**
+   * Why a miss happened: the design doesn't gain enough ('design'), or it
+   * does but dips under the stability floor, so the gain doesn't count ('pitch').
+   */
+  cause: 'design' | 'pitch' | null
+  /** Trouble on the day: metres lost to a wobble or a pitch-forward, and the control to change. */
+  trouble: { kind: 'pitch' | 'wobble'; lost: number; fix: FixTarget } | null
+  reputation: { before: number; after: number }
+}
+
+export interface JumpDelivery extends Closed {
+  job: Job
+  event: JumpEvent
+  debrief: JumpDebrief
+}
+
+/**
+ * Deliver a ski jumper with a declared reference distance. The promise is
+ * judged on the reference jump (still air at the hill's own take-off speed),
+ * the same for any day, and counts only if the margin holds the floor all the
+ * way. The competition jump on the day, yours and the old setup's in the same
+ * air, is the show. Null if there's no job or it isn't a ski jump.
+ */
+export function deliverJump(state: CareerState, design: JumperDesign, predicted: number): JumpDelivery | null {
+  const job = state.job
+  if (!job) return null
+  const event = jumpEventOf(job.brief)
+  const setup = template(job.brief.id).setup
+  if (!event || setup.sport !== 'skijump') return null
+  const reference = referenceJump(design, event)
+  const baselineReference = referenceJump(setup, event)
+  const gain = reference.distance - baselineReference.distance
+  // Under the floor the gain doesn't count; a loss always does.
+  const achieved = reference.stable ? gain : Math.min(0, gain)
+  const { shortfall, penalty } = penaltyFor(job.brief.fee, job.promise, achieved)
+  const met = shortfall === 0
+  const seed = daySeed(job.brief)
+  const day = jumpDay(design, event, seed)
+  const baselineDay = jumpDay(setup, event, seed)
+  const readError = (predicted - reference.distance) / reference.distance
+  // A wobble or a pitch-forward is the suit's doing first: a tighter cut steadies the jumper.
+  const trouble = day.trouble ? { kind: day.trouble, lost: day.lostToPitch, fix: 'bagginess' as FixTarget } : null
+  const debrief: JumpDebrief = {
+    promised: job.promise,
+    achieved,
+    met,
+    shortfall,
+    penalty,
+    predicted,
+    actual: reference.distance,
+    readError,
+    read: readOf(readError),
+    reference,
+    baselineReference,
+    day,
+    baselineDay,
+    cause: met ? null : !reference.stable && gain > 0 ? 'pitch' : 'design',
+    trouble,
+    reputation: { before: firmReputation(state), after: 0 },
+  }
+  const closed = closeJob(state, job, penalty, { achieved, predicted, actual: reference.distance })
+  return { ...closed, job, event, debrief: { ...debrief, reputation: { ...debrief.reputation, after: firmReputation(closed.state) } } }
 }

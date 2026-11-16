@@ -88,7 +88,8 @@ describe('the career', () => {
   })
 
   it('builds each event from its brief', () => {
-    for (const b of BRIEFS) {
+    // Ski jumps fly their own event (tests/jumpJobs.test.ts).
+    for (const b of BRIEFS.filter((x) => !x.event.jump)) {
       const e = eventOf(b)
       expect(e.rider.power).toBe(b.rider.power)
       expect(e.spread).toEqual(b.event.spread)
@@ -185,7 +186,7 @@ describe('the career', () => {
       const bt = BRIEFS.find((x) => x.id === b.id)!
       s = placeBid(s, b.id, { price: bt.fee.max, promise: BID.promiseMin })!.state
     }
-    expect(s.lost.length).toBe(BRIEFS.length - 1)
+    expect(s.lost.length).toBe(BRIEFS.filter((b) => !b.event.jump).length - 1)
     const w = waitForBriefs(s)
     expect(w.day).toBe(s.day + BID.waitDays)
     expect(w.round).toBe(s.round + 1)
