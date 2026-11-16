@@ -27,6 +27,7 @@ import { checkCarRules, lapTime, scrutineered } from '../sim/car'
 import { playCarReplay } from './carReplay'
 import { playRecordReplay } from './recordReplay'
 import { playDroneReplay } from './droneReplay'
+import { playAircraftReplay } from './aircraftReplay'
 import { playPlaneReplay } from './planeReplay'
 import type { BobsledDesign } from '../data/bobsled'
 import { GRAVEL_YARD, type TruckDesign } from '../data/truck'
@@ -1481,8 +1482,8 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       if (!d) return
       deliverSheet?.close()
       careerStore.set(d.state)
-      // Straight to the debrief; the test-day replay comes in PR 10v.
-      showAircraftDelivery(d)
+      // Test day in 3D (PR 10v), then the debrief.
+      replayAircraft(d, plane, () => showAircraftDelivery(d))
     })
     deliverSheet.body.replaceChildren(
       el('p', 'shop-intro', t('deliver.introAircraft', { client: b.client, field: fieldName })),
@@ -1495,6 +1496,22 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       go,
     )
     deliverSheet.open()
+  }
+
+  /** Test day in 3D: the stall check, then the timed passes; then `after`. */
+  function replayAircraft(d: AircraftDelivery, design: AircraftDesign, after: () => void) {
+    const b = briefTemplate(d.job.brief.id)!
+    void playAircraftReplay({
+      client: b.client,
+      event: b.event.name,
+      design,
+      setup: b.setup as AircraftDesign,
+      flight: d.debrief.flight,
+      baselineFlight: d.debrief.baselineFlight,
+      predicted: d.debrief.predicted,
+      actual: d.debrief.actual,
+      onDone: after,
+    })
   }
 
   let aircraftSheet: Sheet | null = null

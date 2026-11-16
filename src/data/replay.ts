@@ -362,3 +362,58 @@ export const SURVEY_SCENE = {
   rows: 8,
   ghostOpacity: 0.45,
 }
+
+/**
+ * The light aircraft's test day (PR 10v; Kelbo chose speed runs and the
+ * stall check, 16 November 2026). Speeds in km/h, times in flight seconds.
+ */
+export const AIRCRAFT_REPLAY = {
+  /**
+   * The inspector's check: from this airspeed, slowing this many km/h a
+   * second until the wing lets go, played this many times faster than life.
+   * The plane stalls over this point along the runway, m.
+   */
+  check: { from: 130, slow: 2, rate: 3, over: 500 },
+  /** The break: over this many seconds the nose drops this far below level and a wing this far, degrees, losing this much height, m; played at this rate. */
+  stallBreak: { seconds: 4, noseDeg: 14, wingDeg: 18, drop: 14, rate: 1 },
+  /** Recovered, the plane gains this much airspeed a second, km/h. */
+  regain: 6,
+  /** Not signed off: the plane parked by the runway's start for this long, s, this far along it and this far off it, m. */
+  parked: { seconds: 4, at: -60, off: 24 },
+  /**
+   * The timed passes over the measured course, m: both planes start abreast
+   * this far before its first marker and fly on this far past the second,
+   * played at this rate.
+   */
+  pass: { course: 1000, runIn: 160, runOut: 140, rate: 1 },
+  /** A pause, s, between the check and the passes (a cut: never played). */
+  gap: 30,
+  /** The replay holds this long on the last moment, replay seconds. */
+  hold: 1.2,
+}
+
+/** Belyanka airfield from a camera flying alongside your plane, m. */
+export const AIRFIELD_SCENE = {
+  /** The inspector's check is flown this high; the timed passes this low over the runway. */
+  checkHeight: 70,
+  passHeight: 14,
+  /** Abreast on the passes, a wingspan and a bit apart: yours right of the runway's line, theirs left of it. */
+  laneMine: 5.5,
+  laneOld: -5.5,
+  /** The runway: from and to along x, and its width; its centre-line dashes. */
+  runway: { from: -700, to: 1700, width: 20 },
+  /** A timing mast each side of the runway at each marker: its height, and the board on top (width, height). */
+  mast: { height: 9, board: 3, boardHeight: 1.6, out: 18 },
+  /**
+   * The cameras, both on a portrait phone's narrow view: through the check
+   * (your plane alone), side-on from its right, this far out, ahead and up,
+   * so the nose can be watched; on the passes, a camera plane this far ahead
+   * of yours on the runway's centre line, this far up, looking back at a
+   * point this far behind it, so both planes are in the picture as theirs
+   * drops back.
+   */
+  camera: { side: { out: 26, ahead: 1, up: 1.5 }, front: { ahead: 46, up: 3, lookBack: 10 }, fov: 55 },
+  /** The camera never sinks below this height. */
+  cameraLow: 3,
+  ghostOpacity: 0.45,
+}
