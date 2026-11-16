@@ -7,6 +7,7 @@
  */
 import { AIRCRAFT_JOBS, POD_JOBS, BID, CAREER, CAR_JOBS, DRONE_JOBS, PLANE_JOBS, PROMISE, RECORD_JOBS, SLED_JOBS, TRACK, type BriefTemplate } from '../data/briefs'
 import { BROKE, REPUTATION } from '../data/reputation'
+import { CLEARANCE } from '../data/defence'
 import { RIVALS, RIVAL_IDS } from '../data/rivals'
 import { OWN_BILLING, OWN_TUNNEL_BUILD, TUNNEL_UPGRADES, UPGRADE_IDS } from '../data/tunnel'
 import { buildBlock, machineBlock, ownReadyDay, upgradeBlock, upgradeReadyDay } from '../sim/facility'
@@ -56,6 +57,9 @@ import {
   firmReputation,
   nameFirm,
   retire,
+  applyForClearance,
+  clearanceBlock,
+  firmClearance,
   hireStaff,
   letStaffGo,
   orderUpgrade,
@@ -2045,6 +2049,54 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     return card
   }
 
+  /**
+   * Defence clearance (PR 10ae; Kelbo: apply, then wait). What the
+   * ministry wants before a firm may apply, the fee and the weeks of
+   * vetting; then the ministry's briefs reach the board, until the firm
+   * goes broke or its reads go poor.
+   */
+  function clearanceCard(): HTMLElement {
+    const career = careerStore.get()
+    const card = el('section', 'job-card own-card')
+    card.setAttribute('aria-labelledby', 'clear-title')
+    const head = el('h2', 'job-client')
+    head.append(glossaryTerm('clearance', t('clear.title')))
+    head.id = 'clear-title'
+    card.append(head)
+    const c = firmClearance(career)
+    if (c.status === 'cleared') {
+      card.append(el('p', 'job-who', t('clear.cleared', { date: careerDate(c.since, CAREER.start) })), el('p', 'shop-note', t('clear.keep', { poor: CLEARANCE.poorRun })))
+      return card
+    }
+    if (c.status === 'vetting') {
+      const days = c.ready - career.day
+      card.append(el('p', 'job-who', t(days === 1 ? 'clear.vettingOne' : 'clear.vetting', { date: careerDate(c.ready, CAREER.start), days })))
+      return card
+    }
+    if (c.status === 'lost') card.append(el('p', 'save-due', t(c.why === 'broke' ? 'clear.lostBroke' : 'clear.lostReads', { date: careerDate(c.on, CAREER.start) })))
+    else card.append(el('p', 'job-who', t('clear.pitch')))
+    const corr = correlationScore(career.history)
+    const facts = el('div', 'job-facts')
+    facts.append(
+      fact(t('board.reputation'), t('clear.need', { have: firmReputation(career), need: CLEARANCE.minReputation })),
+      fact(t('board.correlation'), t('clear.need', { have: corr ?? 0, need: CLEARANCE.minCorrelation })),
+      fact(t('clear.fee'), rubles(CLEARANCE.fee)),
+      fact(t('clear.vettingFor'), t('clear.days', { days: CLEARANCE.vettingDays })),
+    )
+    card.append(facts)
+    const block = clearanceBlock(career)
+    // Say what's in the way, if anything: the wait after losing it, the name, the reads or the money.
+    if (block === 'wait' && c.status === 'lost') card.append(el('p', 'shop-note', t('clear.wait', { date: careerDate(c.on + CLEARANCE.reapplyAfter, CAREER.start) })))
+    else if (block === 'reputation' || block === 'correlation' || block === 'money') card.append(el('p', 'shop-note', t(`clear.block.${block}`)))
+    const apply = button('save-btn', t('clear.apply'))
+    apply.disabled = block !== null
+    if (!block) twoTap(apply, t('clear.apply'), t('clear.applyConfirm', { fee: rubles(CLEARANCE.fee) }), () => careerStore.set(applyForClearance(careerStore.get())))
+    const actions = el('div', 'job-actions')
+    actions.append(apply)
+    card.append(actions)
+    return card
+  }
+
   /** The workshop: machines to make your own models, each bought once. */
   function workshopCard(): HTMLElement {
     const career = careerStore.get()
@@ -2476,6 +2528,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       staffCard(),
       workshopCard(),
       ownTunnelCard(),
+      clearanceCard(),
       rivals,
       retireCard(),
     )

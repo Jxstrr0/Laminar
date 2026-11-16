@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { CLEARANCE } from '../src/data/defence'
 import { REPUTATION } from '../src/data/reputation'
 import { applyForClearance, briefTemplate, clearanceBlock, firmClearance, newCareer, openTo, type CareerState, type JobRecord } from '../src/sim/career'
@@ -25,23 +25,22 @@ function known(): CareerState {
   return { ...newCareer(4), day: 300, money: 1_000_000, history: Array.from({ length: 12 }, () => job(0.005)) }
 }
 
-describe('defence clearance while the defence jobs are still being built', () => {
-  it('is closed: nobody can apply, and no firm counts as cleared', () => {
-    expect(CLEARANCE.open).toBe(false)
+describe('defence clearance when closed', () => {
+  afterEach(() => {
+    CLEARANCE.open = true
+  })
+
+  it('is open since the sensor-pod jobs went on the board (PR 10ae); closed, nobody can apply and no firm counts as cleared', () => {
+    expect(CLEARANCE.open).toBe(true)
+    expect(newCareer(1).clearance).toEqual(NO_CLEARANCE)
+    CLEARANCE.open = false
     expect(clearanceBlock(known())).toBe('closed')
     expect(applyForClearance(known())).toEqual(known())
     expect(isCleared({ status: 'cleared', since: 0 }, 10)).toBe(false)
-    expect(newCareer(1).clearance).toEqual(NO_CLEARANCE)
   })
 })
 
 describe('defence clearance (PR 10x)', () => {
-  beforeEach(() => {
-    CLEARANCE.open = true
-  })
-  afterEach(() => {
-    CLEARANCE.open = false
-  })
 
   it('needs the reputation, the correlation score and the fee', () => {
     expect(clearanceBlock(newCareer(4))).toBe('reputation')

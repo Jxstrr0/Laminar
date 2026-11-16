@@ -117,7 +117,8 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 10ab | The sensor pod on the Tunnel screen: the stretch of wing as a model-shop choice, the pod on a sting into its tail (the wing tied to the walls above it when ordered), readings of its drag, shake, hours on station and buffet, and the forecast on the Runs tab saying whether the gap was read | **Done** (v0.10.27.0) |
 | 10ac | Sensor-pod jobs in the sim: three defence briefs for the Ministry of Defence over Stepnoy (Major Tumanova's workshop pod, Captain Grachyov's tight one from a contractor who tested it alone, Ksenia Varlamova's forward one with a cut-off tail). The promise is minutes on station over their pod as it hangs now; a pod that buffets past the limit blurs the picture, the run is rejected and gains nothing. Seeded range day, the read judged on drag, a debrief naming the tail or the gap, kept as a secret job. Closed to the board until clearance opens | **Done** (v0.10.28.0) |
 | 10ad | Sensor-pod jobs on the board, for a cleared firm: the brief card names the range, the buffet limit and the ministry's pod (a "Defence · secret" line), bids go a minute at a time, Deliver fills in the tunnel's forecast (or the desk's) and warns about a pod read on its own, a buffet past the limit or raw readings, and the range-day debrief shows both pods' patrols, the buffet, "Lengthen the tail" or "Open the gap", and the public name unchanged. The read is now judged on the plane's whole drag area with the pod | **Done** (v0.10.29.0) |
-| 10ae–14 | See the plan | Next: clearance opens (applying from the firm strip), then the range-day replay. |
+| 10ae | Defence clearance opens: a "Defence clearance" card on the Jobs screen shows what the ministry wants (reputation 60, correlation score 70), the ₽ 250,000 fee and the 42 days of vetting; a two-tap Apply, then the vetting date, then "Cleared"; a lost clearance says why and when the firm may apply again. A glossary entry explains it. The ministry's pod jobs now reach a cleared firm's board | **Done** (v0.10.30.0) |
+| 10af–14 | See the plan | Next: the range-day replay for the sensor pod, then PIV. |
 
 ## Versions
 
@@ -125,6 +126,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 - **0.10.27.0** (PR 10ab): the sensor pod on the Tunnel screen.
 - **0.10.28.0** (PR 10ac): sensor-pod (defence) jobs in the sim.
 - **0.10.29.0** (PR 10ad): sensor-pod jobs on the board (seen once clearance opens).
+- **0.10.30.0** (PR 10ae): defence clearance opens.
 - **0.10.25.0** (PR 10z): the sensor pod on the Shape screen.
 - **0.10.24.0** (PR 10y): the patrol plane's sensor pod in the sim only.
 - **0.10.23.0** (PR 10x): defence clearance and secrecy in the sim only.
