@@ -263,7 +263,8 @@ function soundSample(x: unknown): x is RunSample {
     (x.downwash === undefined || isNum(x.downwash)) &&
     (x.cl === undefined || isNum(x.cl)) &&
     (x.cm === undefined || isNum(x.cm)) &&
-    (x.re === undefined || isNum(x.re))
+    (x.re === undefined || isNum(x.re)) &&
+    (x.shake === undefined || isNum(x.shake))
   )
 }
 
@@ -280,7 +281,8 @@ function soundRun(x: unknown): x is Run {
     isNum(x.topSpeed) &&
     (x.failure === undefined || soundFailure(x.failure) !== null) &&
     (x.tunnel === undefined || x.tunnel === 'own') &&
-    (x.powered === undefined || x.powered === true)
+    (x.powered === undefined || x.powered === true) &&
+    (x.wing === undefined || x.wing === true)
   )
 }
 
@@ -304,7 +306,7 @@ function soundOrder(x: unknown): ModelOrder | null {
   // Orders from before PR 7e were all the outside shop's.
   const maker = x.maker === undefined ? 'shop' : x.maker
   if (!oneOf(maker, MAKER_IDS)) return null
-  const order: ModelOrder = { scale: scale as ModelOrder['scale'], finish, grade, trips, taps: taps === true, ...(x.board === true ? { board: true } : {}), ...(x.powered === true ? { powered: true } : {}), ...(maker === 'shop' ? {} : { maker }) }
+  const order: ModelOrder = { scale: scale as ModelOrder['scale'], finish, grade, trips, taps: taps === true, ...(x.board === true ? { board: true } : {}), ...(x.powered === true ? { powered: true } : {}), ...(x.wing === true ? { wing: true } : {}), ...(maker === 'shop' ? {} : { maker }) }
   return canMake(order) ? order : null
 }
 

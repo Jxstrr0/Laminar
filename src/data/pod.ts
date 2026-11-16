@@ -152,7 +152,7 @@ export const POD_AERO = {
  */
 export const POD_BUFFET = {
   wake: 1.25,
-  near: 1.4,
+  near: 1.5,
   clear: 0.4,
   /** The ministry's limit on the buffet index. */
   limit: 1,
@@ -195,6 +195,21 @@ export const POD_BODY = {
   pylonThick: 0.07,
   /** The pod's axis above the drawing's floor, m. */
   axis: 0.6,
+}
+
+/**
+ * The sensor pod in the tunnel (PR 10aa). The pod sits on a sting on the
+ * balance at 1:2.4 or 1:1.8 (POD_SCALES in model.ts). Kelbo's trap (16
+ * November 2026): on its own, the pod reads only its own drag, and the firm
+ * adds the pylon from the handbook; the squeezed air between pod and wing
+ * never shows, nor the shake it adds. A pod model under a stretch of wing
+ * fixed to the walls (MODEL_SHOP.wing), its pylon with it, reads both.
+ */
+export const POD_TUNNEL = {
+  /** The stretch of wing's span at full size, m, for the blockage (its edge-on front with its chord and thickness, POD_BODY). */
+  wingSpan: 2.6,
+  /** How much a buffet reading scatters from one sample to the next (the shaking is never steady). */
+  shakeNoise: 0.06,
 }
 
 /** The desk's guess at a pod (PR 10z): how far off its drag can be, shared by a job and per design. */
