@@ -28,6 +28,7 @@ import { DEG } from './num'
 import { dragAtLift, gustLimit, gustTurn, planeRange, siteDensity, staticMargin } from './plane'
 import { blockageFactor, type MountKind } from './quirks'
 import { Rng } from './rng'
+import type { Run } from './run'
 import { REFERENCE_TT, type EventSpec, type ModelSpec, type TunnelSpec } from './views'
 
 /** A built plane model: its build errors and whether its wing carries trip strips, ready to read many times a second. */
@@ -223,3 +224,15 @@ export function forecastPlane(readings: readonly Omit<PlaneReading, 'dragN'>[], 
 export function planeEvent(site: SurveySite): EventSpec {
   return { ...REFERENCE_TT, temperature: site.temperature, altitude: site.altitude, riderSpeed: T.matchSpeed, windSpeed: 0 }
 }
+
+/** A plane run's settled readings (PR 10l): fan and sting at rest, with the lift and moment recorded. */
+export function planeReadings(runs: readonly Pick<Run, 'samples'>[]): Omit<PlaneReading, 'dragN'>[] {
+  const out: Omit<PlaneReading, 'dragN'>[] = []
+  for (const run of runs)
+    for (const s of run.samples)
+      if (s.steady && s.cl !== undefined && s.cm !== undefined && s.re !== undefined) out.push({ pitchDeg: s.yawDeg, cdA: s.cdA, cl: s.cl, cm: s.cm, re: s.re })
+  return out
+}
+
+/** True if a run read a survey drone. */
+export const isPlaneRun = (run: Pick<Run, 'samples'>): boolean => run.samples.some((s) => s.cm !== undefined)

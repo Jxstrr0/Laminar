@@ -47,7 +47,7 @@ export function newLab(modelDesign: Design = DEFAULT_CYCLIST): LabState {
   return {
     runs: [],
     notes: {},
-    // A truck's starting model is a truck's size, on a ground board (PR 9d); a land-speed car's is a truck's size too (PR 9s); a quad's is full size (PR 10d).
+    // A truck's starting model is a truck's size, on a ground board (PR 9d); a land-speed car's is a truck's size too (PR 9s); a quad's is full size (PR 10d); a survey drone's is the small plane model (PR 10l).
     order:
       modelDesign.sport === 'truck'
         ? { ...STANDARD_ORDER, scale: 8, board: true }
@@ -55,7 +55,9 @@ export function newLab(modelDesign: Design = DEFAULT_CYCLIST): LabState {
           ? { ...STANDARD_ORDER, scale: 8 }
           : modelDesign.sport === 'drone'
             ? { ...STANDARD_ORDER, scale: 1 }
-            : { ...STANDARD_ORDER },
+            : modelDesign.sport === 'plane'
+              ? { ...STANDARD_ORDER, scale: 2.5 }
+              : { ...STANDARD_ORDER },
     modelDesign: structuredClone(modelDesign),
     build: 0,
     crank: SKELETON.crankDeg[0]!,

@@ -30,6 +30,11 @@ export interface RunSample {
   /** A racing quad only (PR 10d): the twist on its pod over the dynamic pressure, m³ (positive: nose down; yawDeg holds the tilt, nose-down), and with its props spinning, the share of thrust the downwash takes. */
   twist?: number
   downwash?: number
+  /** A survey drone only (PR 10l): the lift coefficient and pitching moment coefficient (yawDeg holds the wing's angle of attack). */
+  cl?: number
+  cm?: number
+  /** And the model wing's Reynolds number. */
+  re?: number
   /** The model's drag as the balance felt it, N. */
   dragN: number
   /** Fan and turntable were at rest on their settings: a clean data point. */

@@ -102,10 +102,12 @@ export interface ShopContext {
   record?: boolean
   /** The model is a racing quad: full size only (PR 10d). */
   drone?: boolean
+  /** The model is a survey drone: a plane's scales, trip strips on the wing (PR 10l). */
+  plane?: boolean
 }
 
 /** Which scale list the model takes: a truck's for a truck or a land-speed car, full size for a quad, else a rider's. */
-const familyOf = (ctx: ShopContext) => (ctx.truck === true || ctx.record === true ? 'truck' : ctx.drone === true ? 'drone' : 'rider')
+const familyOf = (ctx: ShopContext) => (ctx.truck === true || ctx.record === true ? 'truck' : ctx.drone === true ? 'drone' : ctx.plane === true ? 'plane' : 'rider')
 
 interface Shop {
   sheet: Sheet
@@ -145,6 +147,9 @@ function buildShop(): Shop {
     taps.set(order.taps ? 'on' : 'off')
     // A quad's pod is too small for trip strips or taps to tell you anything (the air's own instruments come later).
     trips.box.hidden = taps.box.hidden = family === 'drone'
+    // A plane's trip strips go on its wing (PR 10l); its taps would say nothing a tuft can't.
+    if (family === 'plane') taps.box.hidden = true
+    trips.note.textContent = t(family === 'plane' ? 'shop.tripsNotePlane' : 'shop.tripsNote')
     // A quad's model can have its motors wired up, so its props spin in the tunnel (PR 10e).
     props.box.hidden = family !== 'drone'
     props.set(order.powered ? 'spinning' : 'stopped')
@@ -264,6 +269,7 @@ function buildShop(): Shop {
       // A truck's model (or a land-speed car's) comes at a truck's scale, a quad's full size, and a rider's at a rider's.
       if (family === 'drone') order = { ...order, trips: false, taps: false }
       else delete order.powered
+      if (family === 'plane') order = { ...order, taps: false }
       if (scaleFamily(order.scale) !== family) order = forMaker({ ...order, scale: FAMILY_START[family] }, makerOf(order))
       context = ctx
       place = onOrder

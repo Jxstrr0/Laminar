@@ -2,11 +2,17 @@ import { describe, expect, it } from 'vitest'
 import { PLANE_CLASS, PLANE_TUNNEL, STOCK_PLANE, SURVEY_SITES, type PlaneDesign } from '../src/data/plane'
 import { MAKERS, MODEL_SHOP, PLANE_SCALES } from '../src/data/model'
 import { gustLimit, gustTurn, planeRange, staticMargin } from '../src/sim/plane'
-import { fieldReynolds, forecastPlane, liftAt, lowness, modelReynolds, planeEvent, preparePlane, readPlane, readStalled, wingAt } from '../src/sim/planeTunnel'
+import { fieldReynolds, forecastPlane, isPlaneRun, planeReadings, liftAt, lowness, modelReynolds, planeEvent, preparePlane, readPlane, readStalled, wingAt } from '../src/sim/planeTunnel'
 import { makerScales, matchedSpeed, scaleFamily } from '../src/sim/modelShop'
 import { DEG } from '../src/sim/num'
 import { Rng } from '../src/sim/rng'
 import type { ModelSpec, TunnelSpec } from '../src/sim/views'
+import { STANDARD_ORDER } from '../src/data/model'
+import { TUNNEL_UPGRADES, UNIVERSITY_TUNNEL } from '../src/data/tunnel'
+import { strains } from '../src/sim/failure'
+import { newLab } from '../src/sim/lab'
+import type { RunSample } from '../src/sim/run'
+import { soundLab } from '../src/persist/save'
 
 const site = SURVEY_SITES.ozimka
 const STOCK = STOCK_PLANE.survey
@@ -134,5 +140,52 @@ describe('plane models in the shop', () => {
     const v = matchedSpeed(1 / 2.5, planeEvent(site))
     expect(v).toBeGreaterThan(36)
     expect(v).toBeLessThan(44)
+  })
+})
+
+describe('a plane model on the Tunnel screen (PR 10l)', () => {
+  it('keeps the lift, the moment and the Reynolds number in run samples and reads them back for the forecast', () => {
+    const p = preparePlane(GOOD, model(2.5))
+    const rng = new Rng(4)
+    const samples: RunSample[] = SWEEP.map((pitchDeg, i) => {
+      const r = readPlane(p, IDEAL, { speed: 40, pitchDeg }, rng)
+      return { t: i, speed: 40, yawDeg: pitchDeg, cdA: r.cdA, cyA: 0, dragN: r.dragN, cl: r.cl, cm: r.cm, re: r.re, steady: true }
+    })
+    // A sample taken while the sting was still turning is left out.
+    samples.push({ ...samples[0]!, steady: false })
+    const run = { samples }
+    expect(isPlaneRun(run)).toBe(true)
+    expect(isPlaneRun({ samples: [{ ...samples[0]!, cm: undefined }] })).toBe(false)
+    const back = planeReadings([run])
+    expect(back).toHaveLength(SWEEP.length)
+    const direct = forecast(GOOD, 2.5, 40)
+    const f = forecastPlane(back, GOOD, STOCK, site)!
+    expect(f.range).toBeCloseTo(direct.range, 6)
+    expect(f.stalls).toBe(false)
+  })
+
+  it('a save keeps a plane run’s lift, moment and Reynolds number, and refuses a broken one', () => {
+    const lab = newLab(GOOD)
+    const sample: RunSample = { t: 0, speed: 40, yawDeg: 8, cdA: 0.05, cyA: 0, dragN: 7, cl: 0.7, cm: -0.08, re: 270_000, steady: true }
+    const run = { id: 1, model: 'rider', samples: [sample], duration: 10, energyKWh: 0.01, topSpeed: 40 }
+    const kept = soundLab(JSON.parse(JSON.stringify({ ...lab, runs: [run], nextRunId: 2 })), GOOD)!
+    expect(kept.runs[0]!.samples[0]!.cl).toBe(0.7)
+    expect(kept.runs[0]!.samples[0]!.cm).toBe(-0.08)
+    expect(kept.runs[0]!.samples[0]!.re).toBe(270_000)
+    expect(soundLab(JSON.parse(JSON.stringify({ ...lab, runs: [{ ...run, samples: [{ ...sample, cm: 'x' }] }], nextRunId: 2 })), GOOD)).toBeNull()
+  })
+
+  it('starts on the small model, matched within the university fan’s reach', () => {
+    expect(newLab(GOOD).order.scale).toBe(2.5)
+    expect(matchedSpeed(1 / 2.5, planeEvent(site))).toBeLessThanOrEqual(UNIVERSITY_TUNNEL.topSpeed + 0.5)
+  })
+
+  it('pitches on a sting that holds a stalled 1:1.5 model at its matched speed, but not in the big fan', () => {
+    const big = { order: { ...STANDARD_ORDER, scale: 1.5 as const }, design: GOOD }
+    const sting = (loadN: number) => strains(big, 30, loadN).find((s) => s.part === 'sting')!.level
+    const s2 = 1 / (1.5 * 1.5)
+    const load = (speed: number) => 0.5 * 1.225 * speed * speed * PLANE_CLASS.survey.wingArea * PLANE_CLASS.survey.clMax * s2
+    expect(sting(load(matchedSpeed(1 / 1.5, planeEvent(site))))).toBeLessThan(0.95)
+    expect(sting(load(TUNNEL_UPGRADES.fan.topSpeed))).toBeGreaterThan(1)
   })
 })

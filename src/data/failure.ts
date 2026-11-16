@@ -61,6 +61,12 @@ export const FAILURE = {
    * bigger fan, tipped as far, breaks it.
    */
   droneStingN: 45,
+  /**
+   * The sting a survey drone's model is pitched on (PR 10l), N: it takes the
+   * wing's lift as well as its drag. A 1:1.5 model past the stall at its
+   * matched speed loads it to about 140 N; the bigger fan breaks it.
+   */
+  planeStingN: 160,
   /** Printed models have their helmet glued on: it lets go past this air speed. */
   detachSpeed: 36,
   repair: {

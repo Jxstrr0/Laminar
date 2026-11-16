@@ -98,10 +98,16 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 10i | Survey drones in the sim: a two-metre electric mapping plane flying survey lines at the Ozimka fields. Range on a charge from the drag at survey speed (wing, lift, fuselage, camera pod, tail, winglets, trim); the static margin from the tail, nose and camera position; a gust on a banked turn lifts the wing, more on a plane held loosely in pitch, and past the wing's most lift it stalls. The makers' plane flies about 85 km; a sensible one over 100; a cut-down tail or a long nose stalls in the usual gust. Kelbo's survey-drone choices go in the plan | **Done** (v0.10.8.0) |
 | 10j | The survey drone on Shape (`?try=plane`): drawn on a stand with its nose, tail cone and tail in cobalt, a pusher motor and the camera pod under the belly. Body tab (nose length, tail cone taper, tail size) and Camera · tips tab (camera drop, fairing, slide, winglets). The sheet reads the desk's range on a charge against the client's plane, the pitch margin and weight, the strongest gust it rides out on a turn, and whether the camera sees past the belly. A gust stall, a gust near the limit, a loose margin and a camera too high are amber warnings with a "Change this". Saves and run reports know the plane. Glossary: range on a charge, winglets, gust stall | **Done** (v0.10.9.0) |
 | 10k | The survey drone in the tunnel, in the sim: a plane model (1:2.5 or 1:1.5, its own scales in the model shop) read on the sting with its wing pitched to an angle of attack: drag area, lift and pitching moment, through the blockage, the sting's tare and the balance's noise. A smaller, slower model's wing flies at a lower Reynolds number: it drags more and stalls sooner, so a 1:2.5 model at survey speed says the sorted plane stalls in the usual gust (Kelbo's "small-model wing stall" trap). Trip strips, the bigger model or a faster fan (about 40 m/s matches) get out of it. The forecast reads the range from the readings at survey-like lift, the margin from the moment against the lift, and the wing's most lift only from a reading past the stall; without both it can't judge a gust | **Done** (v0.10.10.0) |
-| 10l–14 | See the plan | Next: the survey drone on the Tunnel screen (10l). |
+| 10l | The survey drone on the Tunnel screen (`?try=plane`): the model on a sting, a wing-angle slider in place of yaw, readouts of air speed with the model's Reynolds number against the plane's, wing angle, drag area, lift (CL) and pitch moment, plus range. The Angle sweep tab plots lift against wing angle. A run's record gives the range on a charge against the client's plane, the pitch margin, the most lift and whether the usual gust on a turn stalls it, and warns when the model's wing flew at a much lower Reynolds number than the plane's. The model shop offers the plane's scales and trip strips, with no pressure taps | **Done** (v0.10.11.0) |
+| 10m–14 | See the plan | Next: survey jobs in the sim (10m). |
 
 ## Versions
 
+- **0.10.11.0** (PR 10l): the survey drone in the tunnel. Open
+  `laminar.longlight.games/?try=plane`, tap Tunnel, set the fan, then slide the
+  wing angle up past 12°: lift climbs, then falls away at the stall. Open Angle
+  sweep for the lift chart and Runs for the range and gust verdict. At 16 m/s
+  the small model stalls early; try 40 m/s or trip strips from the model shop.
 - **0.10.10.0** (PR 10k): the survey drone in the tunnel, in the sim only.
   Nothing new to see on a phone yet; the Tunnel screen shows it in 10l.
 - **0.10.9.0** (PR 10j): the survey drone on Shape. Open
