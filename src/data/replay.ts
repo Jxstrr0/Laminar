@@ -76,3 +76,51 @@ export const REPLAY_SCENE = {
     standKnee: 140,
   },
 }
+
+/**
+ * The jump replay (PR 8j): a side-on view of the hill, your jumper with the
+ * old setup as a see-through twin beside it. Every position comes from the
+ * day's flights; these numbers only set how they are shown.
+ */
+export const JUMP_REPLAY = {
+  /** Take-off to the later landing, plus the hold, plays in this many seconds (slow motion: flights last 3 to 5 s). */
+  seconds: 9,
+  /** The picture holds on the landing this long, in flight seconds. */
+  hold: 0.8,
+  /**
+   * A jump measured shorter than its flight (a wobbly landing, or the
+   * bail-out at the hill size) is drawn coming down over this many metres
+   * before the mark, so the skis touch where the distance was measured.
+   */
+  bend: 14,
+  /** The commentator speaks once the jumper has settled this long after take-off, s. */
+  settled: 1,
+}
+
+/** The jump replay's hill and camera, m. */
+export const JUMP_SCENE = {
+  /** Width of the landing slope, and the lanes: yours nearer the camera, the old setup beyond. */
+  width: 24,
+  laneMine: 2,
+  laneOld: -2,
+  /** The jumper's hips ride this far above the path, so the skis skim the snow on landing. */
+  hipsUp: 0.35,
+  /** The in-run behind the table: the table's length, then the steep run above it. */
+  table: 7,
+  inrun: { length: 50, deg: 35 },
+  /** The snow runs this far below the slope's lowest point, so the hill reads as solid from the side. */
+  base: 12,
+  /** Fir trees along the far side (the near side would block the camera): one every this many metres, this far out from the edge. */
+  treeEvery: 9,
+  treeOut: 4,
+  /**
+   * A side-on camera off to the right of the hill, a little above and ahead
+   * of the jumper. A portrait phone sees only about 6 m across at this
+   * distance, so it looks barely ahead.
+   */
+  camera: { side: 13, up: 2.5, ahead: 0.8, fov: 50 },
+  /** The old setup is a see-through slate twin, so it shows on the snow. */
+  ghostOpacity: 0.45,
+  /** Marks across the slope: thickness, m. */
+  mark: 0.35,
+}

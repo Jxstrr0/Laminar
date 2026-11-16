@@ -1051,3 +1051,9 @@ body[data-guide='deliver'] .guide-deliver {
 .legacy-kicker { margin: 0; color: var(--accent); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .legacy-firm { margin: 2px 0 0; font-size: 1.4rem; overflow-wrap: anywhere; }
 .legacy-best { margin: 12px 0 0; font-weight: 600; }
+
+/* The jump replay's strip: the K and hill-size ticks in the hill's own colours (PR 8j). */
+.replay-tick.is-k { background: var(--accent); }
+.replay-tick.is-hs { background: var(--sep); }
+.replay-strip.is-jump { margin-top: 22px; }
+.replay-tick-label { position: absolute; top: -20px; transform: translateX(-50%); font: 500 0.7rem var(--font-num); color: var(--muted); }

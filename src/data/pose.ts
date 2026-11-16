@@ -129,4 +129,11 @@ export const JUMPER_SKELETON = {
   tailGap: 0.03,
   /** Ski thickness, m. */
   skiThick: 0.02,
+  /**
+   * Landed (the jump replay, PR 8j): skis together flat on the snow, the
+   * trunk leaning this far forward of upright, degrees; the hips this share
+   * of the hip-to-boot length above the boots and this far behind them, m;
+   * the knees pushed this far forward, m.
+   */
+  landed: { trunkDeg: 35, hipsUp: 0.8, hipsBack: 0.12, kneesForward: 0.22 },
 }

@@ -152,6 +152,25 @@ export function hillSurface(hill: Hill): Surface {
   return { step, y, s }
 }
 
+/** The surface under x: its height, and the distance along it from the edge, m. */
+export function groundAt(surface: Surface, x: number): { y: number; s: number } {
+  return { y: sample(surface.y, surface.step, x), s: sample(surface.s, surface.step, x) }
+}
+
+/** Where on the hill (x, m) the surface is `s` metres from the edge. */
+export function xAtAlong(surface: Surface, s: number): number {
+  const along = surface.s
+  if (s <= 0) return 0
+  for (let i = 1; i < along.length; i++) {
+    const b = along[i] as number
+    if (b >= s) {
+      const a = along[i - 1] as number
+      return (i - 1 + (s - a) / (b - a)) * surface.step
+    }
+  }
+  return (along.length - 1) * surface.step
+}
+
 function sample(values: number[], step: number, x: number): number {
   const f = x / step
   const i = Math.max(0, Math.min(values.length - 2, Math.floor(f)))
