@@ -118,6 +118,19 @@ describe('the record forecast', () => {
     expect(f.speed!).toBeCloseTo(plain, 0)
     expect(forecastRecord([], GOOD, STOCK, flat)).toBeNull()
   })
+
+  it('says when it ran past the squeeze it can’t see: a jet car, not a streamliner', () => {
+    // A streamliner barely reaches the squeeze: the forecast stands.
+    expect(forecast(GOOD, 'rolling').squeezed).toBe(false)
+    // The team's jet car reads far faster than it runs: the forecast says so.
+    const jet = STOCK_RECORD.jet
+    const prepared = prepareRecord(jet, MODEL, 'rolling')
+    const rng = new Rng(3)
+    const f = forecastRecord(YAWS.map((yawDeg) => readRecord(prepared, IDEAL, { speed: 50, yawDeg }, rng)), jet, jet, flat)!
+    expect(f.squeezed).toBe(true)
+    expect(f.topMach).toBeGreaterThan(f.squeezeMach)
+    expect(f.speed!).toBeGreaterThan(twoWay(jet, flat, stillDay(flat)).mean! + 50 / 3.6)
+  })
 })
 
 describe('a record model on the Tunnel screen (PR 9s)', () => {

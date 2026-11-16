@@ -23,7 +23,7 @@ import { recordShape } from './geom/record'
 import { gaussian } from './noise'
 import { DEG } from './num'
 import { blockageFactor, type MountKind } from './quirks'
-import { crossHeldAt, flatDensity, frontKept, recordAero, recordLength, sideCentre, stillDay, twoWay, type RecordAbort } from './record'
+import { criticalMach, crossHeldAt, dragRise, flatDensity, frontKept, recordAero, recordLength, sideCentre, stillDay, twoWay, type RecordAbort } from './record'
 import { Rng } from './rng'
 import type { Run } from './run'
 import { REFERENCE_TT, type EventSpec, type ModelSpec, type TunnelSpec } from './views'
@@ -122,8 +122,17 @@ export interface RecordForecast {
   /** The record speed on the salt's usual day, m/s, and its gain on the team's car, m/s; null if the forecast run is aborted. */
   speed: number | null
   gain: number | null
-  /** The forecast's top speed, m/s. */
+  /**
+   * The forecast's top speed, m/s, its Mach number through the still air
+   * there, and the Mach number where the air starts to squeeze round this
+   * car (PR 9y). `squeezed` is true when the drag the tunnel can't see would
+   * be `squeezeWarn` or more at that top speed: then the forecast is too
+   * fast, by how much the tunnel can't say.
+   */
   top: number
+  topMach: number
+  squeezeMach: number
+  squeezed: boolean
   /** The share of the nose's weight kept at top speed with the desk's moderate headwind. */
   noseKept: number
   /** The steadiest crosswind the car holds straight in, m/s, or null if no reading was at enough yaw to place the side force. */
@@ -169,6 +178,9 @@ export function forecastRecord(readings: readonly Omit<RecordReading, 'dragN'>[]
     speed: attempt.mean,
     gain: attempt.mean !== null && theirs !== null ? attempt.mean - theirs : null,
     top: first.top,
+    topMach: first.topMach,
+    squeezeMach: criticalMach(design),
+    squeezed: dragRise(design, first.topMach) >= T.squeezeWarn,
     noseKept: frontKept(design, first.top + RECORD_DESK.headwind, flatDensity(flat), { drag: 1, lift: aero.liftFront / recordAero(design).liftFront }),
     crossHeld: margin === undefined ? null : crossHeldAt(margin),
     abort: first.abort,

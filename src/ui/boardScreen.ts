@@ -851,6 +851,8 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     if (forecast) {
       if (forecast.speed !== null && forecast.gain !== null) notes.push(el('p', 'shop-note', t('deliver.forecastRecord', { speed: kmh(forecast.speed), delta: delta(forecast.gain) })))
       else notes.push(el('p', 'save-due', t(forecast.abort === 'wander' ? 'deliver.forecastRecordWanders' : 'deliver.forecastRecordLight')))
+      // Past the squeeze (PR 9y): the tunnel's number is too fast, by how much it can't see.
+      if (forecast.squeezed) notes.push(el('p', 'save-due', t('deliver.forecastRecordSqueeze', { mach: fixed(forecast.mach, 2), from: fixed(forecast.squeezeMach, 2) })))
       if (forecast.floor !== 'rolling') notes.push(el('p', 'shop-note', t(forecast.floor === 'board' ? 'deliver.forecastRecordBoard' : 'deliver.forecastRecordFloor')))
       if (!forecast.swept) notes.push(el('p', 'shop-note', t('deliver.forecastRecordSweep')))
     } else if (desk.value !== null && desk.low !== null && desk.high !== null)

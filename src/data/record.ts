@@ -281,6 +281,8 @@ export const RECORD_TUNNEL = {
   straight: 1,
   /** The speed a model's Reynolds number is matched to in the model shop, m/s (about a record run's top speed, so no tunnel matches it). */
   matchSpeed: 170,
+  /** The forecast warns it's too fast when the squeeze it can't see would add this much drag or more at its top speed (PR 9y). */
+  squeezeWarn: 1.03,
 }
 
 /** A client's car as the team runs it now. */

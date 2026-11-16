@@ -19,6 +19,10 @@ export interface RecordForecastKept {
   floor: RecordFloor
   /** Whether the readings placed the side force (a yaw sweep was run). */
   swept: boolean
+  /** The forecast's top Mach number, where the air starts to squeeze round this car, and whether the forecast is well past it, so too fast (PR 9y). */
+  mach: number
+  squeezeMach: number
+  squeezed: boolean
 }
 
 let latest: { key: string; forecast: RecordForecastKept } | null = null
