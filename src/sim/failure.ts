@@ -7,6 +7,8 @@
  * break at the same moment.
  */
 import type { CyclistDesign } from '../data/cyclist'
+import { isCyclist, type Design } from './design'
+import type { SkaterDesign } from '../data/skater'
 import { FAILURE } from '../data/failure'
 import { MAKERS, MODEL_SHOP } from '../data/model'
 import { makerOf, quote, type MakerHand, type ModelOrder, type Quote } from './modelShop'
@@ -28,7 +30,7 @@ export interface Strain extends Failure {
 /** The model on the mount, as the failure checks need it. */
 export interface MountedModel {
   order: ModelOrder
-  design: CyclistDesign
+  design: Design
 }
 
 const key = (f: Failure) => `${f.mode}:${f.part}`
@@ -37,12 +39,14 @@ const key = (f: Failure) => `${f.mode}:${f.part}`
 export function flutterSpeed(model: MountedModel, part: 'tail' | 'disc'): number | null {
   const f = FAILURE.flutter
   const scaled = (v: number) => v * f.scale[model.order.scale] * f.finish[model.order.finish] * MAKERS[makerOf(model.order)].stiffness
+  const d = model.design
+  if (!isCyclist(d)) return null
   if (part === 'tail') {
-    const h = model.design.helmet
+    const h = d.helmet
     if (h.kind !== 'aero' || h.tail < f.tail.minTail) return null
     return scaled(f.tail.base - f.tail.perTail * h.tail)
   }
-  const w = model.design.wheels
+  const w = d.wheels
   return w.front === 'disc' || w.rear === 'disc' ? scaled(f.disc) : null
 }
 
@@ -59,7 +63,7 @@ export function strains(model: MountedModel, speed: number, loadN: number, mount
     if (v !== null) out.push({ mode: 'flutter', part, level: speed / v })
   }
   out.push({ mode: 'mount', part: 'posts', level: loadN / (FAILURE.mountN * mountStrength) })
-  if (model.order.finish === 'printed') out.push({ mode: 'detach', part: 'helmet', level: speed / FAILURE.detachSpeed })
+  if (model.order.finish === 'printed' && isCyclist(model.design)) out.push({ mode: 'detach', part: 'helmet', level: speed / FAILURE.detachSpeed })
   return out
 }
 
@@ -113,7 +117,7 @@ export function repairQuote(order: ModelOrder, failure: Failure, hand?: MakerHan
  * A part on the Shape screen a "change this" jump can go to: the helmet's
  * tail, the rear or front wheel, or one of the position's sliders.
  */
-export type FixTarget = 'helmet' | 'wheels' | 'front' | keyof CyclistDesign['posture']
+export type FixTarget = 'helmet' | 'wheels' | 'front' | keyof CyclistDesign['posture'] | keyof SkaterDesign['posture']
 
 /** Where the "change this" jump goes: the part on Shape, or the model shop for a stiffer, smaller or sanded model. */
 export function fixFor(failure: Failure): 'helmet' | 'wheels' | 'shop' {

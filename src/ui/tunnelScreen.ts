@@ -58,11 +58,11 @@ import {
   type WheelCheck,
 } from '../sim/calibration'
 import { describeShape, scaleShape } from '../sim/geom/body'
-import { cyclistShape, referenceWheel } from '../sim/geom/cyclist'
+import { referenceWheel } from '../sim/geom/cyclist'
 import { riderPose } from '../sim/geom/pose'
 import { sphere } from '../sim/geom/shapes'
 import { Rng } from '../sim/rng'
-import type { CyclistDesign } from '../data/cyclist'
+import { asCyclist, designShape, type Design } from '../sim/design'
 import type { LabState } from '../sim/lab'
 import { changedControls } from '../sim/designDiff'
 import { compareRuns, headlineCompare, headlineGroup, legCycle, poolRuns, yawGroups, type YawGroup } from '../sim/runStats'
@@ -738,7 +738,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     flowKey = key
     flowAge = 0
     const flow = { density: AIR.density, viscosity: AIR.viscosity, speed, turbulence: airTurbulence }
-    const field = modelFlowField(modelDesign, prepared.shape, flow, table.angle, { seed: DEMO_MODEL_SEED, crankDeg: crank })
+    const field = modelFlowField(asCyclist(modelDesign), prepared.shape, flow, table.angle, { seed: DEMO_MODEL_SEED, crankDeg: crank })
     view.setFlow(field, inst.tufts ? tuftsOf(field, { spacing: TUFT_VIZ.spacing }) : [])
     if (inst.taps) {
       const taps = reading ? tapLayout(field) : []
@@ -759,7 +759,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   /** Runs picked for comparison, by id: A first, then B. */
   let picks: number[] = []
   /** The design each rider run tested, by run id, so the report can say what changed. */
-  const designs = new Map<number, CyclistDesign>()
+  const designs = new Map<number, Design>()
   /** The crank angle of each rider run. */
   const cranks = new Map<number, number>()
   /** Which build of the model each rider run used. */
@@ -1098,14 +1098,14 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     }
     if (prepared) endRun()
     const design = modelDesign
-    prepared = prepareModel(cyclistShape(design, { crankDeg: crank, staticWheels: !spec.wheelDrive }), modelSpec)
+    prepared = prepareModel(designShape(design, { crankDeg: crank, staticWheels: !spec.wheelDrive }), modelSpec)
     refreshCal()
     // The CdA's note names the model's scale before any reading (it changes with a new order).
     if (!fixWords(fix)) setText(rCdA.sub, t('read.cdaRaw', { scale: fixed(1 / modelSpec.scale, 0) }))
     modelVersion++
     view.setFlow(null, [])
     view.setTaps([], [])
-    view.setModel({ kind: 'rider', state: { design, pose: riderPose(design, crank), broken: [], strained: [] }, scale: modelSpec.scale, tare })
+    view.setModel({ kind: 'rider', state: { design: asCyclist(design), pose: riderPose(asCyclist(design), crank), broken: [], strained: [] }, scale: modelSpec.scale, tare })
     // A model that broke before comes back with its part missing.
     if (broken && !tare) view.breakPart(broken.part, false)
     runsDirty = true

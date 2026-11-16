@@ -1,17 +1,24 @@
 /**
  * Keeping the model in step with the design (Kelbo, PR 5d): the model on
  * the mount is a solid thing built of one design. Bolt-on parts (helmet,
- * suit, bars, wheels, frame) can be swapped on it for a small fee and no
+ * suit, bars, wheels, frame; a skater's hood and suit) can be swapped on it for a small fee and no
  * days; a new position needs a new model from the shop.
  */
 import { MODEL_SHOP } from '../data/model'
-import type { CyclistDesign } from '../data/cyclist'
+import type { Design } from './design'
+import { isSkater } from './design'
 
-export type PartName = 'helmet' | 'suit' | 'bars' | 'frontWheel' | 'rearWheel' | 'frame'
+export type PartName = 'helmet' | 'suit' | 'bars' | 'frontWheel' | 'rearWheel' | 'frame' | 'hood'
 
 /** The bolt-on parts that differ between the model and the bench design. */
-export function partChanges(model: CyclistDesign, bench: CyclistDesign): PartName[] {
+export function partChanges(model: Design, bench: Design): PartName[] {
   const out: PartName[] = []
+  if (isSkater(model) || isSkater(bench)) {
+    if (!isSkater(model) || !isSkater(bench)) return out
+    if (model.hood !== bench.hood) out.push('hood')
+    if (model.suit.fabric !== bench.suit.fabric || model.suit.legTrips !== bench.suit.legTrips) out.push('suit')
+    return out
+  }
   const h = model.helmet
   const hb = bench.helmet
   if (h.kind !== hb.kind || h.tail !== hb.tail || h.vents !== hb.vents) out.push('helmet')
@@ -23,14 +30,22 @@ export function partChanges(model: CyclistDesign, bench: CyclistDesign): PartNam
   return out
 }
 
-/** Has the rider's position moved since the model was built? */
-export function postureChanged(model: CyclistDesign, bench: CyclistDesign): boolean {
-  return (Object.keys(model.posture) as (keyof CyclistDesign['posture'])[]).some((k) => model.posture[k] !== bench.posture[k])
+/**
+ * Has the athlete's position moved since the model was built? A skater's
+ * arms are part of the body; a design for another sport is a new model.
+ */
+export function postureChanged(model: Design, bench: Design): boolean {
+  if (isSkater(model) !== isSkater(bench)) return true
+  if (isSkater(model) && isSkater(bench) && model.arms !== bench.arms) return true
+  const a = model.posture as Record<string, number>
+  const b = bench.posture as Record<string, number>
+  return Object.keys(a).some((k) => a[k] !== b[k])
 }
 
-/** The model with the bench design's parts bolted on, its position unchanged. */
-export function swapParts(model: CyclistDesign, bench: CyclistDesign): CyclistDesign {
-  return structuredClone({ ...bench, posture: model.posture })
+/** The model with the bench design's parts bolted on, its position unchanged (same sport only). */
+export function swapParts(model: Design, bench: Design): Design {
+  if (isSkater(bench)) return isSkater(model) ? structuredClone({ ...bench, posture: model.posture, arms: model.arms }) : structuredClone(model)
+  return isSkater(model) ? structuredClone(model) : structuredClone({ ...bench, posture: model.posture })
 }
 
 /** What swapping these parts costs, ₽ (no days). */

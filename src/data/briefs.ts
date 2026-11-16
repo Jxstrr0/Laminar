@@ -5,6 +5,7 @@
  * Every name here is fictional and listed in docs/NAMES.md.
  */
 import type { CyclistDesign } from './cyclist'
+import type { Design } from './sport'
 import type { CourseSegment } from './field'
 
 /** How a career starts, and how the brief board works. */
@@ -92,7 +93,7 @@ export interface BriefTemplate {
   /** The rider's engine: power held for the event, W, and rider plus bike, kg. */
   rider: { power: number; mass: number }
   /** How they ride now: the design a new job starts from. */
-  setup: CyclistDesign
+  setup: Design
   /** The fee they'll pay, ₽ (the board picks one in this range). */
   fee: { min: number; max: number }
   /** Days from taking the job to the event. */

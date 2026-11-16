@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { asCyclist } from '../src/sim/design'
 import { DEFAULT_CYCLIST, POSTURE_RANGE, SIT_UP_CYCLIST } from '../src/data/cyclist'
 import { packSave, parseSave, SAVE_VERSION, soundDesign, type SaveFile } from '../src/persist/save'
 import { newLab, type LabState } from '../src/sim/lab'
@@ -60,7 +61,7 @@ describe('the save file', () => {
   it('pulls stray design numbers back inside the sliders, and rejects unknown parts', () => {
     const wild = structuredClone(DEFAULT_CYCLIST)
     wild.posture.torsoDeg = 400
-    expect(soundDesign(wild)!.posture.torsoDeg).toBe(POSTURE_RANGE.torsoDeg.max)
+    expect(asCyclist(soundDesign(wild)!).posture.torsoDeg).toBe(POSTURE_RANGE.torsoDeg.max)
     expect(soundDesign({ ...DEFAULT_CYCLIST, bars: 'triathlon' })).toBeNull()
     expect(soundDesign({ ...DEFAULT_CYCLIST, wheels: { front: 'disc' } })).toBeNull()
   })

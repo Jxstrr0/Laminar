@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import { asCyclist } from '../src/sim/design'
 import { acceptBrief, newCareer, type CareerState } from '../src/sim/career'
 import { afterDesign, afterOrder, afterRun, afterSwap, currentStep, GUIDE_STEPS, guideOn, hideGuide, stepDone } from '../src/sim/guide'
 import { briefTemplate } from '../src/sim/career'
 
 const start = () => acceptBrief(newCareer(7), 'selivan-regional')
-const setup = () => structuredClone(briefTemplate('selivan-regional')!.setup)
+const setup = () => structuredClone(asCyclist(briefTemplate('selivan-regional')!.setup))
 
 describe('the guided first job', () => {
   it('starts on the bid and moves on once the job is taken', () => {

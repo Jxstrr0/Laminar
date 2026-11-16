@@ -22,7 +22,7 @@ describe('keeping the model in step with the design', () => {
   })
 
   it('swaps the parts but keeps the old position', () => {
-    const swapped = swapParts(DEFAULT_CYCLIST, SIT_UP_CYCLIST)
+    const swapped = swapParts(DEFAULT_CYCLIST, SIT_UP_CYCLIST) as typeof SIT_UP_CYCLIST
     expect(swapped.posture).toEqual(DEFAULT_CYCLIST.posture)
     expect(swapped.helmet).toEqual(SIT_UP_CYCLIST.helmet)
     expect(swapped.bars).toBe(SIT_UP_CYCLIST.bars)

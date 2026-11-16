@@ -13,6 +13,8 @@ export type FrameKind = 'round' | 'kamm'
 export type FabricKind = 'smooth' | 'textured'
 
 export interface CyclistDesign {
+  /** Left out on every cyclist (saves from before PR 8 have no sport). */
+  sport?: 'cycling'
   posture: {
     /** Back angle above horizontal, degrees. */
     torsoDeg: number

@@ -20,11 +20,9 @@
  *   event and refreshes the board.
  */
 import { BID, BRIEFS, CAREER, PROMISE, type BriefTemplate } from '../data/briefs'
-import type { CyclistDesign } from '../data/cyclist'
 import { REFERENCE_RIDER } from '../data/field'
-import { comfort, riderEvent } from './cyclist'
+import { designComfort, designEvent, designShape, sportOf, sportRider, type Design } from './design'
 import type { FixTarget } from './failure'
-import { cyclistShape } from './geom/cyclist'
 import { hashString, Rng } from './rng'
 import type { Guide } from './guide'
 import { readOf, reputationOf, type Read } from './reputation'
@@ -273,7 +271,7 @@ export function eventOf(brief: Pick<Brief, 'id'>): EventSpec {
     riderSpeed: b.event.riderSpeed,
     windSpeed: b.event.windSpeed,
     course: b.event.course,
-    rider: { ...REFERENCE_RIDER, power: b.rider.power, mass: b.rider.mass },
+    rider: sportRider(sportOf(b.setup), { ...REFERENCE_RIDER, power: b.rider.power, mass: b.rider.mass }),
     refX: REFERENCE_TT.refX,
     spread: b.event.spread,
   }
@@ -518,20 +516,20 @@ export function daySeed(brief: Brief): number {
  * does their old setup in the same air, for the promise. The fee is paid,
  * less any penalty. Null if there's no job.
  */
-export function deliver(state: CareerState, design: CyclistDesign, predicted: number): Delivery | null {
+export function deliver(state: CareerState, design: Design, predicted: number): Delivery | null {
   const job = state.job
   if (!job) return null
   const b = template(job.brief.id)
   const event = eventOf(job.brief)
   const seed = daySeed(job.brief)
-  const shape = cyclistShape(design)
-  const result = fieldResult(shape, riderEvent(design, event), seed)
-  const baseline = fieldResult(cyclistShape(b.setup), riderEvent(b.setup, event), seed)
+  const shape = designShape(design)
+  const result = fieldResult(shape, designEvent(design, event), seed)
+  const baseline = fieldResult(designShape(b.setup), designEvent(b.setup, event), seed)
   const achieved = (1 - result.cdA / baseline.cdA) * 100
   const { shortfall, penalty } = penaltyFor(job.brief.fee, job.promise, achieved)
   const met = shortfall === 0
   // On a typical day, would the design have kept the promise? Then the miss was the day's.
-  const typical = (1 - truth(shape, event).windAveragedCdA / truth(cyclistShape(b.setup), event).windAveragedCdA) * 100
+  const typical = (1 - truth(shape, event).windAveragedCdA / truth(designShape(b.setup), event).windAveragedCdA) * 100
   const readError = (predicted - result.cdA) / result.cdA
   const debrief: Debrief = {
     promised: job.promise,
@@ -548,7 +546,7 @@ export function deliver(state: CareerState, design: CyclistDesign, predicted: nu
     cause: met ? null : typical >= job.promise - PROMISE.allowance ? 'day' : 'design',
     // A gust turns the bike by its front: the front wheel is the part to change.
     gusts: result.lostToGusts > 0 ? { lost: result.lostToGusts, fix: 'front' } : null,
-    fade: result.lostToFade > 0 ? { lost: result.lostToFade, fix: comfort(design).worst ?? 'torsoDeg' } : null,
+    fade: result.lostToFade > 0 ? { lost: result.lostToFade, fix: (designComfort(design).worst ?? (sportOf(design) === 'skating' ? 'trunkDeg' : 'torsoDeg')) as FixTarget } : null,
     reputation: {
       before: firmReputation(state),
       after: reputationOf([...state.history, { promised: job.promise, achieved, predicted, actual: result.cdA }], state.broke),

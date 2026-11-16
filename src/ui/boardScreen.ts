@@ -11,7 +11,7 @@ import { RIVALS, RIVAL_IDS } from '../data/rivals'
 import { OWN_BILLING, OWN_TUNNEL_BUILD, TUNNEL_UPGRADES, UPGRADE_IDS } from '../data/tunnel'
 import { buildBlock, machineBlock, ownReadyDay, upgradeBlock, upgradeReadyDay } from '../sim/facility'
 import { MACHINE_IDS, MACHINE_PRICE } from '../data/model'
-import type { CyclistDesign } from '../data/cyclist'
+import { asCyclist, designShape, type Design } from '../sim/design'
 import { t } from '../data/strings'
 import {
   bidScore,
@@ -44,7 +44,6 @@ import { DESK } from '../data/cyclist'
 import { correlationScore } from '../sim/reputation'
 import { rivalRecord } from '../sim/rivals'
 import type { FixTarget } from '../sim/failure'
-import { cyclistShape } from '../sim/geom/cyclist'
 import { careerStore } from './careerStore'
 import { designStore } from './designStore'
 import { careerDate, fixed, pct, raceTime, rubles, rublesShort, shortTime } from './format'
@@ -135,7 +134,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     deliverSheet ??= createSheet({ cls: 'deliver', title: t('deliver.title'), closeLabel: t('deliver.close') })
     const b = briefTemplate(job.brief.id)!
     const design = designStore.get()
-    const desk = deskEstimate(cyclistShape(design), eventOf(job.brief), job.brief.seed, JSON.stringify(design), crewEffects(career.crew).deskLevel)
+    const desk = deskEstimate(designShape(design), eventOf(job.brief), job.brief.seed, JSON.stringify(design), crewEffects(career.crew).deskLevel)
     const input = el('input', 'deliver-input')
     input.type = 'number'
     input.id = 'deliver-cda'
@@ -190,14 +189,14 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
   }
 
   /** The race-day replay for a delivery, then `after`. */
-  function replay(d: Delivery, design: CyclistDesign, after: () => void) {
+  function replay(d: Delivery, design: Design, after: () => void) {
     const b = briefTemplate(d.job.brief.id)!
     void playReplay({
       client: b.client,
       event: b.event.name,
       course: d.event.course,
-      design,
-      setup: b.setup,
+      design: asCyclist(design),
+      setup: asCyclist(b.setup),
       result: d.result,
       baseline: d.debrief.baseline,
       predicted: d.debrief.predicted,
@@ -206,7 +205,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     })
   }
 
-  function showDelivery(d: Delivery, design: CyclistDesign) {
+  function showDelivery(d: Delivery, design: Design) {
     result ??= createSheet({ cls: 'raceday', title: t('race.title'), closeLabel: t('race.close') })
     const b = briefTemplate(d.job.brief.id)!
     const r = d.result

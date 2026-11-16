@@ -7,7 +7,7 @@
  * can be hidden for good.
  */
 import { briefTemplate, type CareerState } from './career'
-import type { CyclistDesign } from '../data/cyclist'
+import type { Design } from '../data/sport'
 
 /** The first job, in order. */
 export const GUIDE_STEPS = ['bid', 'model', 'baseline', 'shape', 'remodel', 'test', 'deliver'] as const
@@ -64,7 +64,7 @@ export function afterRun(state: CareerState): CareerState {
 }
 
 /** The bench design changed: once it differs from how the client rides, you've shaped a position. */
-export function afterDesign(state: CareerState, design: CyclistDesign): CareerState {
+export function afterDesign(state: CareerState, design: Design): CareerState {
   if (!state.job) return state
   const setup = briefTemplate(state.job.brief.id)?.setup
   if (!setup || JSON.stringify(setup) === JSON.stringify(design)) return state
