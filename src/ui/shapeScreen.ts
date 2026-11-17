@@ -323,7 +323,10 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   const version = el('span', 'version', `v${__GAME_VERSION__} · ${__BUILD_SHA__} · ${__BUILD_DATE__}`)
   foot.append(reset, terms, credits, version)
 
-  sheet.append(grid, breaks, tabBar, panelBox, foot)
+  // Isobar (PR 13f): the readouts are cards of their own; the controls share one.
+  const controlCard = el('div', 'card shape-controls')
+  controlCard.append(tabBar, panelBox, foot)
+  sheet.append(grid, breaks, controlCard)
   host.append(header, sheet)
 
   // A one-line hint just above the sheet, over the 3D view.

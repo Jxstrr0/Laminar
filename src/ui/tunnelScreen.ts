@@ -691,7 +691,12 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   cfdChip.hidden = !spec.cfd
   const cfdPanel = createCfdPanel(() => (cfdOn() ? { state: riderState(), yawDeg: cfdYaw(), key: cfdKey() } : null))
 
-  sheet.append(mountRow, fanCtl.row, yawCtl.row, runLine, pivPanel.box, cfdPanel.box, viewBar, riderGrid, jumperGrid, carGrid, recGrid, droneGrid, planeGrid, aircraftGrid, podGrid, sphereGrid, wheelGrid, tareGrid, chartBox, calBox, runsBox, foot)
+  // Isobar (PR 13f): two cards on a clear sheet, the controls and then what the run reads.
+  const controlCard = el('div', 'card tunnel-controls')
+  controlCard.append(mountRow, fanCtl.row, yawCtl.row, runLine)
+  const dataCard = el('div', 'card tunnel-data')
+  dataCard.append(pivPanel.box, cfdPanel.box, viewBar, riderGrid, jumperGrid, carGrid, recGrid, droneGrid, planeGrid, aircraftGrid, podGrid, sphereGrid, wheelGrid, tareGrid, chartBox, calBox, runsBox, foot)
+  sheet.append(controlCard, dataCard)
   app.append(header, sheet, instBar, cpLegend.root, pivPanel.legend)
 
   // Keep the 3D model centred in the space above the sheet.

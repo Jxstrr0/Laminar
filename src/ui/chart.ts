@@ -152,11 +152,14 @@ export function createChart(caption: HTMLElement): { canvas: HTMLCanvasElement; 
     }
 
     // Faint series first, so the bold ones sit on top.
-    const accent = token('--accent')
+    // Isobar (PR 13f): data in the pressure colours, dots blue and rings coral, so
+    // A and B in a comparison differ by colour as well as by mark.
+    const dotColour = token('--cp-lo')
+    const ringColour = token('--cp-hi')
     const order = [...spec.series].sort((p, q) => Number(q.mark === 'faint') - Number(p.mark === 'faint'))
     for (const series of order) {
       const faint = series.mark === 'faint'
-      const colour = faint ? token('--muted') : accent
+      const colour = faint ? token('--muted') : series.mark === 'ring' ? ringColour : dotColour
       ctx.globalAlpha = faint ? 0.45 : 1
       ctx.strokeStyle = colour
       ctx.fillStyle = colour

@@ -203,7 +203,7 @@ Aero model and sim numbers, save format, new localStorage keys (stop and ask if 
 ## Checklist
 
 - [x] Brief's 13a → **PR 13e** (v0.14.4.0): Tokens, fonts, bottom dock, top chips
-- [ ] Brief's 13b → **PR 13f**: Cards, sheets, pills, chips, sliders, buttons, background isobars
+- [x] Brief's 13b → **PR 13f** (v0.14.5.0): Cards, sheets, pills, chips, sliders, buttons, background isobars
 - [ ] Brief's 13c → **PR 13g**: Fan and yaw dials
 - [ ] Brief's 13d → **PR 13h**: 3D scenes, theme module, model finish, handles, scene frame
 - [ ] Brief's 13e → **PR 13i**: Pressure colour on the model + legend
