@@ -6,7 +6,9 @@
  * rider the field model says eased off in the gusts rocks now and then;
  * one it says sat up is drawn sitting up. The velodrome is a Blender model
  * (PR 13k, art/velodrome/build.py), loaded the first time a 250 m track
- * race is shown; until then, or if it can't load, the boards are drawn here.
+ * race is shown, and so is the Stavren Ice Oval for a 400 m ice race (PR 13x,
+ * art/iceoval/build.py); until then, or if it can't load, the boards or the
+ * ice are drawn here.
  * A circuit's trackside (PR 13m, art/circuit/build.py) is a kit of Blender
  * pieces stood along whichever lap is raced, copied by instancing; so are the
  * salt flat's camp and course furniture (PR 13n, art/saltflat/build.py) and
@@ -14,7 +16,7 @@
  */
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { TRACK } from '../data/briefs'
+import { OVAL, TRACK } from '../data/briefs'
 import { FIELD_TROUBLE, type CourseSegment } from '../data/field'
 import { AIRCRAFT_REPLAY, AIRFIELD_KIT, AIRFIELD_SCENE, CAR_REPLAY, CIRCUIT_KIT, MEADOW_KIT, ROAD_KIT, SALT_KIT, SURVEY_KIT, DRONE_REPLAY, DRONE_SCENE, RECORD_SCENE, REPLAY_SCENE as S, SURVEY_SCENE } from '../data/replay'
 import { AIRCRAFT_BODY } from '../data/aircraft'
@@ -240,7 +242,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     ;(ringMine.material as THREE.MeshBasicMaterial).color.setHex(next.mine)
   })
   const ringOld = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: COLOURS.markOld, depthWrite: false }))
-  // Drawn after the riders and the velodrome's boards (PR 13k), a few centimetres up, so the boards never hide them.
+  // Drawn after the riders and the hall's boards or ice (PR 13k, 13x), a few centimetres up, so the boards never hide them.
   ringMine.renderOrder = ringOld.renderOrder = 1
   ringMine.position.y = ringOld.position.y = 0.05
   ringMine.visible = ringOld.visible = false
@@ -446,35 +448,36 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
   watcher.observe(host)
   resize()
 
-  // The velodrome (PR 13k): loaded on the first 250 m track race, then kept for the screen's life.
+  // An indoor hall: the velodrome (PR 13k) for a 250 m track race, the Stavren Ice Oval (PR 13x) for a 400 m ice race.
+  // Loaded with the first race that needs it, then kept for the screen's life (a screen shows one race).
   let disposed = false
-  let velodrome: THREE.Object3D | 'loading' | null = null
-  let wantVelodrome = false
-  /** The code-drawn boards and finish line, hidden while the velodrome model stands in for them. */
+  let hall: THREE.Object3D | 'loading' | null = null
+  let wantHall = false
+  /** The code-drawn boards or ice and finish line, hidden while the hall's model stands in for them. */
   const trackPieces: THREE.Object3D[] = []
-  function showVelodrome() {
-    const ready = velodrome instanceof THREE.Object3D
-    if (velodrome instanceof THREE.Object3D) velodrome.visible = wantVelodrome
-    for (const p of trackPieces) p.visible = !(ready && wantVelodrome)
+  function showHall() {
+    const ready = hall instanceof THREE.Object3D
+    if (hall instanceof THREE.Object3D) hall.visible = wantHall
+    for (const p of trackPieces) p.visible = !(ready && wantHall)
   }
-  function loadVelodrome() {
-    if (velodrome !== null) return
-    velodrome = 'loading'
+  function loadHall(file: string) {
+    if (hall !== null) return
+    hall = 'loading'
     new GLTFLoader().load(
-      `${import.meta.env.BASE_URL}models/velodrome.glb`,
+      `${import.meta.env.BASE_URL}models/${file}`,
       (gltf) => {
         if (disposed) {
           dropModel(gltf.scene)
           return
         }
-        velodrome = gltf.scene
+        hall = gltf.scene
         scene.add(gltf.scene)
-        showVelodrome()
+        showHall()
       },
       undefined,
       // Offline with an old cache, or missing: the code-drawn boards stay, and the race plays the same.
       () => {
-        velodrome = null
+        hall = null
       },
     )
   }
@@ -1048,15 +1051,16 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       boardsMat.color.setHex(opts.ice ? COLOURS.ice : COLOURS.boards)
       roadMat.color.setHex(salt ? COLOURS.saltCourse : meadow ? COLOURS.mown : opts.ice ? COLOURS.ice : COLOURS.road)
       ;(ground.material as THREE.MeshLambertMaterial).color.setHex(salt ? COLOURS.salt : fields ? COLOURS.wheat : opts.lap ? COLOURS.infield : opts.ice ? COLOURS.snow : COLOURS.ground)
-      // The cycling track's 250 m lap is the velodrome; the ice oval keeps its code-drawn ice.
-      wantVelodrome = opts.lap === TRACK.lap && !opts.ice
-      if (wantVelodrome) loadVelodrome()
+      // The cycling track's 250 m lap is the velodrome; the 400 m ice oval is the Stavren Ice Oval.
+      const hallFile = opts.lap === TRACK.lap && !opts.ice ? 'velodrome.glb' : opts.lap === OVAL.lap && opts.ice ? 'iceoval.glb' : null
+      wantHall = hallFile !== null
+      if (hallFile) loadHall(hallFile)
       if (opts.lap) {
         layTrack(segs, opts.lap)
-        showVelodrome()
+        showHall()
         return
       }
-      showVelodrome()
+      showHall()
       kitCourse = segs
       // An open road gets its roadside (PR 13t), asked for the first time it's needed.
       road = roadside
@@ -1219,7 +1223,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     },
     dispose() {
       disposed = true
-      if (velodrome instanceof THREE.Object3D) dropModel(velodrome)
+      if (hall instanceof THREE.Object3D) dropModel(hall)
       kitCourse = null
       placeKit()
       if (kit) dropModel(kit)
