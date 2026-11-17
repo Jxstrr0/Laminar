@@ -7,6 +7,8 @@
  */
 import { AIRCRAFT_JOBS, POD_JOBS, BID, CAREER, CAR_JOBS, DRONE_JOBS, PLANE_JOBS, PROMISE, RECORD_JOBS, SLED_JOBS, TRACK, type BriefTemplate } from '../data/briefs'
 import { BROKE, REPUTATION } from '../data/reputation'
+import { ring } from './ring'
+import { isobarLayer } from './isobars'
 import { CLEARANCE } from '../data/defence'
 import { FOREIGN_RIVAL_IDS, RIVALS, RIVAL_IDS } from '../data/rivals'
 import { OWN_BILLING, OWN_TUNNEL_BUILD, TUNNEL_UPGRADES, UPGRADE_IDS } from '../data/tunnel'
@@ -242,7 +244,8 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
   titleBlock.append(el('h1', 'wordmark', t('game.title')), el('p', 'place', t('board.place')))
   header.append(titleBlock)
   const page = el('main', 'board-page')
-  host.append(header, page)
+  // Faint contour lines behind everything (Isobar, PR 13f).
+  host.append(isobarLayer(), header, page)
 
   let active = false
   let dirty = true
@@ -2028,6 +2031,11 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     card.setAttribute('aria-labelledby', 'guide-title')
     const head = el('h2', 'board-heading', t('guide.title'))
     head.id = 'guide-title'
+    // Isobar (PR 13f): her initials beside her name, and her words in a speech bubble.
+    const who = el('div', 'guide-who')
+    const avatar = el('span', 'avatar', t('guide.initials'))
+    avatar.setAttribute('aria-hidden', 'true')
+    who.append(avatar, head)
     const list = el('ol', 'guide-steps')
     list.setAttribute('aria-label', t('guide.name'))
     for (const s of GUIDE_STEPS) {
@@ -2041,7 +2049,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     twoTap(hide, t('guide.hide'), t('guide.hideConfirm'), () => careerStore.set(hideGuide(careerStore.get())))
     const actions = el('div', 'job-actions')
     actions.append(hide)
-    card.append(head, el('p', 'guide-say', t(`guide.say.${step}`)), list, actions)
+    card.append(who, el('p', 'guide-say', t(`guide.say.${step}`)), list, actions)
     return card
   }
 
@@ -2536,8 +2544,12 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     // The firm's name: reputation and correlation score, both from the record of finished jobs.
     const corr = correlationScore(career.history)
     const name = el('div', 'firm-name')
+    const repFact = fact(glossaryTerm('reputation', t('board.reputation')), t('board.outOf', { n: firmReputation(career) }))
+    // The reputation ring beside the number (Isobar, PR 13f); the number stays as words.
+    repFact.classList.add('with-ring')
+    repFact.prepend(ring((firmReputation(career) - REPUTATION.min) / (REPUTATION.max - REPUTATION.min)))
     name.append(
-      fact(glossaryTerm('reputation', t('board.reputation')), t('board.outOf', { n: firmReputation(career) })),
+      repFact,
       fact(glossaryTerm('correlationScore', t('board.correlation')), corr === null ? t('board.noRecord') : t('board.outOf', { n: corr })),
     )
     firm.append(

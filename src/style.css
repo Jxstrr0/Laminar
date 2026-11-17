@@ -33,8 +33,9 @@
   /* Client and staff initials. */
   --avatar: #ffe1dc;
   --avatar-ink: #b3261e;
-  /* How strongly the background isobars show. */
+  /* How strongly the background isobars show, and their violet. */
   --iso: 0.13;
+  --iso-violet: #8c7bff;
   /* The pod sensor's grey picture (PR 10af): the same in both themes. */
   --sensor-bg: #3b4147;
   --sensor-field-a: #51585e;
@@ -46,6 +47,8 @@
   --shadow: 0 -6px 24px rgba(40, 50, 120, 0.1);
   --shadow-card: 0 12px 30px rgba(40, 50, 120, 0.12);
   --shadow-dock: 0 14px 34px rgba(40, 50, 120, 0.22);
+  /* The selected pill in a segmented control or tab bar. */
+  --shadow-pill: 0 2px 6px rgba(40, 50, 120, 0.14);
   /* In dark mode cards get a hairline so they hold their edges. */
   --card-border: 0 solid transparent;
   --r-card: 26px;
@@ -96,6 +99,7 @@
     --shadow: 0 -6px 24px rgba(0, 0, 0, 0.45);
     --shadow-card: 0 12px 30px rgba(0, 0, 0, 0.45);
     --shadow-dock: 0 14px 34px rgba(0, 0, 0, 0.55);
+    --shadow-pill: 0 2px 6px rgba(0, 0, 0, 0.4);
     --card-border: 1px solid var(--line);
   }
 }
@@ -162,17 +166,27 @@ html, body {
 .place { margin: 4px 0 0; font-size: 0.8rem; color: var(--muted); }
 
 /* --- Bottom sheet ------------------------------------------------------ */
+/* Isobar (PR 13f): no longer one white slab. The sheet is a clear column,
+   inset 12px, holding cards with a 12px gap; the bottom keeps clear of the dock. */
 .sheet {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  /* The bottom keeps clear of the dock. */
-  padding: 14px calc(16px + var(--safe-r)) calc(12px + var(--dock-h)) calc(16px + var(--safe-l));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 calc(12px + var(--safe-r)) calc(12px + var(--dock-h)) calc(12px + var(--safe-l));
+  pointer-events: none;
+}
+.sheet > * { pointer-events: auto; }
+/* A card: white, round, lifted. In dark mode it also gets a hairline. */
+.card {
+  padding: 14px 16px;
+  border: var(--card-border);
+  border-radius: var(--r-card);
   background: var(--panel);
-  border-top: 1px solid var(--line);
-  border-radius: 16px 16px 0 0;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-card);
 }
 
 .fan-row {
@@ -186,20 +200,24 @@ html, body {
 .mount-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
 .mount-row .segmented { flex: 1; margin-top: 0; }
 .mount-row .segment { min-height: 36px; }
-.mount-row .tare-chip { min-height: 36px; background: var(--panel); }
+.mount-row .tare-chip { min-height: 36px; padding: 0 14px; background: var(--panel-2); }
 .mount-row .tare-chip[aria-pressed='true'] { background: var(--accent); }
 .fan-row + .fan-row { margin-top: 10px; }
 /* Tunnel: the run's bill, the view tabs and the live chart. */
 .run-line { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; font-family: var(--font-num); font-size: 0.75rem; color: var(--muted); }
 .run-now { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .run-total { white-space: nowrap; color: var(--ink); }
-.view-tabs { margin-top: 6px; }
-.view-tabs .tab { min-height: 36px; font-size: 0.82rem; white-space: nowrap; padding: 0 2px; }
+/* The tunnel's five views scroll sideways, fading at the right edge, rather than squashing. */
+.view-tabs { margin-top: 0; overflow-x: auto; scrollbar-width: none; -webkit-mask-image: linear-gradient(90deg, var(--ink) calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, var(--ink) calc(100% - 28px), transparent); }
+.view-tabs::-webkit-scrollbar { display: none; }
+.view-tabs .tab { flex: none; min-height: 36px; font-size: 0.82rem; white-space: nowrap; padding: 0 14px; }
+.view-tabs .tab:last-child { margin-right: 24px; }
 .chart-box { margin-top: 12px; }
 .chart { display: block; width: 100%; height: 118px; }
 /* Short phones: tighten the tunnel sheet so the model keeps some room. */
 @media (max-height: 700px) {
-  .sheet:not(.shape-sheet) { padding-top: 10px; }
+  .sheet:not(.shape-sheet) { gap: 8px; }
+  .sheet:not(.shape-sheet) .card { padding: 10px 14px; }
   .sheet:not(.shape-sheet) .fan-row { row-gap: 2px; }
   .sheet:not(.shape-sheet) .fan-slider, .sheet:not(.shape-sheet) .fan-off { height: 36px; min-height: 36px; }
   .mount-row { margin-bottom: 6px; }
@@ -212,7 +230,7 @@ html, body {
 }
 /* Runs tab: A against B, then the session's runs. It scrolls inside itself. */
 .runs-box { margin-top: 8px; max-height: min(28vh, 230px); overflow-y: auto; overscroll-behavior: contain; }
-.compare { padding: 8px 10px; border-radius: 10px; background: var(--panel-2); margin-bottom: 8px; }
+.compare { padding: 8px 12px; border-radius: var(--r-small); background: var(--panel-2); margin-bottom: 8px; }
 .compare-verdict { margin: 0; font-weight: 600; font-size: 0.85rem; }
 .compare-detail { margin: 2px 0 0; font-family: var(--font-num); font-size: 0.72rem; color: var(--muted); }
 .compare .chart { height: 96px; margin-top: 6px; }
@@ -227,10 +245,10 @@ html, body {
 .run-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .run-item {
   display: flex; align-items: center; gap: 10px; width: 100%; min-height: var(--tap);
-  padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px;
-  background: var(--panel); color: var(--ink); font: inherit; text-align: left; cursor: pointer;
+  padding: 6px 12px; border: 0; border-radius: var(--r-small);
+  background: var(--panel-2); color: var(--ink); font: inherit; text-align: left; cursor: pointer;
 }
-.run-item[aria-pressed='true'] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.run-item[aria-pressed='true'] { box-shadow: inset 0 0 0 2px var(--accent); }
 .run-badge {
   flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
   border: 1.5px dashed var(--line); font-weight: 700; font-size: 0.8rem; color: var(--accent);
@@ -247,8 +265,8 @@ html, body {
 .crank-box { display: flex; align-items: center; gap: 6px; margin: 0 12px 0 auto; font-size: 0.85rem; color: var(--muted); }
 .crank-box[hidden] { display: none; }
 .crank-select {
-  min-height: 30px; padding: 0 6px; border: 1px solid var(--line); border-radius: 8px;
-  background: var(--panel); color: var(--ink); font-family: var(--font-num); font-size: 0.85rem;
+  min-height: 30px; padding: 0 8px; border: 0; border-radius: 10px;
+  background: var(--panel-2); color: var(--ink); font-family: var(--font-num); font-size: 0.85rem;
 }
 
 .fan-slider {
@@ -256,8 +274,6 @@ html, body {
   width: 100%;
   height: var(--tap);
   margin: 0;
-  accent-color: var(--accent);
-  background: transparent;
   cursor: pointer;
   touch-action: pan-y;
 }
@@ -265,13 +281,13 @@ html, body {
   grid-area: off;
   min-height: var(--tap);
   min-width: var(--tap);
-  padding: 0 14px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--r-pill);
   background: var(--panel-2);
   color: var(--ink);
   font: inherit;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.9rem;
   cursor: pointer;
 }
@@ -288,16 +304,18 @@ html, body {
   .sheet { left: 50%; right: auto; width: min(860px, 100%); transform: translateX(-50%); }
 }
 .readout {
-  padding: 8px 10px;
-  border-radius: 10px;
+  padding: 8px 12px;
+  border-radius: var(--r-small);
   background: var(--panel-2);
   min-width: 0;
 }
-.readout-label { font-size: 0.75rem; color: var(--muted); }
+/* On the Shape screen the readouts sit straight on the sheet's column, so each is a card. */
+.shape-sheet > .readouts .readout { background: var(--panel); border: var(--card-border); border-radius: 18px; box-shadow: var(--shadow-card); }
+.readout-label { font-size: 0.6875rem; font-weight: 600; color: var(--muted); }
 .readout-value {
   margin-top: 2px;
   font-family: var(--font-num);
-  font-weight: 500;
+  font-weight: 600;
   font-size: 1.1rem;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -375,6 +393,7 @@ html, body {
 /* --- Shape screen ------------------------------------------------------ */
 .shape-sheet { padding-top: 12px; }
 .shape-sheet .readouts { margin-top: 0; }
+.shape-sheet > .breaks { margin: 0; }
 .readout-value.over { color: var(--sep-text); }
 .readout-value.warn { color: var(--warn-text); }
 
@@ -421,14 +440,16 @@ html, body {
   border-color: var(--warn);
   background: color-mix(in srgb, var(--warn) 12%, var(--panel));
 }
-.break.warn .break-fix { background: var(--warn); color: #13202B; }
+.break.warn .break-fix { background: var(--warn); color: var(--btn); }
 
-.tabs { display: flex; gap: 4px; margin-top: 10px; border-bottom: 1px solid var(--line); }
+/* Tabs and segmented controls share one pill style: a pale track, and the
+   chosen item a white pill with teal text. */
+.tabs { display: flex; gap: 2px; margin-top: 10px; padding: 3px; border-radius: var(--r-pill); background: var(--panel-2); }
 .tab {
   flex: 1;
-  min-height: var(--tap);
+  min-height: 40px;
   border: 0;
-  border-bottom: 3px solid transparent;
+  border-radius: 19px;
   background: transparent;
   color: var(--muted);
   font: inherit;
@@ -436,7 +457,7 @@ html, body {
   font-size: 0.9rem;
   cursor: pointer;
 }
-.tab[aria-selected='true'] { color: var(--ink); border-bottom-color: var(--accent); }
+.tab[aria-selected='true'] { background: var(--panel); color: var(--accent); font-weight: 700; box-shadow: var(--shadow-pill); }
 
 .panel-box {
   max-height: min(26vh, 230px);
@@ -453,24 +474,51 @@ html, body {
   width: 100%;
   height: var(--tap);
   margin: 0;
-  accent-color: var(--accent);
-  background: transparent;
   cursor: pointer;
   touch-action: pan-y;
 }
-.segmented { display: flex; gap: 4px; margin-top: 6px; padding: 3px; border-radius: 10px; background: var(--panel-2); }
+/* Every slider (Isobar, PR 13f): a 10px track filled teal up to the thumb, and
+   a white thumb in a teal ring. src/ui/range.ts keeps --p (0 to 1) in step with
+   the value; Firefox draws the fill itself. */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: var(--tap);
+  background: transparent;
+  accent-color: var(--accent);
+}
+input[type='range']::-webkit-slider-runnable-track {
+  height: 10px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, var(--accent) calc(13px + (100% - 26px) * var(--p, 0)), var(--line) calc(13px + (100% - 26px) * var(--p, 0)));
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 26px;
+  height: 26px;
+  margin-top: -8px;
+  border: 4px solid var(--accent);
+  border-radius: 50%;
+  background: var(--panel);
+  box-shadow: var(--shadow-pill);
+}
+input[type='range']::-moz-range-track { height: 10px; border-radius: 5px; background: var(--line); }
+input[type='range']::-moz-range-progress { height: 10px; border-radius: 5px; background: var(--accent); }
+input[type='range']::-moz-range-thumb { box-sizing: border-box; width: 26px; height: 26px; border: 4px solid var(--accent); border-radius: 50%; background: var(--panel); box-shadow: var(--shadow-pill); }
+input[type='range']:disabled { opacity: 0.45; cursor: default; }
+.segmented { display: flex; gap: 2px; margin-top: 6px; padding: 3px; border-radius: var(--r-pill); background: var(--panel-2); }
 .segment {
   flex: 1;
   min-height: 40px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 19px;
   background: transparent;
   color: var(--ink);
   font: inherit;
   font-size: 0.85rem;
   cursor: pointer;
 }
-.segment[aria-checked='true'] { background: var(--panel); color: var(--accent); font-weight: 700; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
+.segment[aria-checked='true'] { background: var(--panel); color: var(--accent); font-weight: 700; box-shadow: var(--shadow-pill); }
 .segment:disabled { opacity: 0.4; cursor: not-allowed; }
 .control-toggle { display: flex; align-items: center; gap: 12px; min-height: var(--tap); cursor: pointer; }
 .toggle { width: 22px; height: 22px; margin: 0; accent-color: var(--accent); flex: none; }
@@ -487,7 +535,7 @@ html, body {
   background: transparent;
   color: var(--accent);
   font: inherit;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.8rem;
   cursor: pointer;
 }
@@ -504,17 +552,21 @@ html, body {
   bottom: calc(var(--sheet-h, 0px) + 8px);
   display: flex;
   gap: 6px;
+  /* Room for the chips' shadows inside the scroller. */
+  padding: 4px 2px 10px;
   overflow-x: auto;
   scrollbar-width: none;
 }
 .instruments[hidden] { display: none; }
+/* Chips: pills. Over the 3D view (and top right) they're 44px white pills with
+   a shadow; inside a card they sit on the pale track colour. On is a teal fill. */
 .chip {
   flex: none;
   min-height: 32px;
   padding: 0 12px;
-  border: 1px solid var(--line);
+  border: 0;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  background: var(--panel-2);
   color: var(--ink);
   font: inherit;
   font-size: 0.78rem;
@@ -522,6 +574,7 @@ html, body {
   white-space: nowrap;
   cursor: pointer;
 }
+.instruments .chip { min-height: var(--tap); padding: 0 16px; border: var(--card-border); background: var(--panel); box-shadow: var(--shadow-card); font-size: 0.82rem; }
 .chip[aria-pressed='true'] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 @media (min-width: 720px) {
   .instruments { left: 50%; right: auto; transform: translateX(-50%); width: min(860px, 100%); padding: 0 16px; }
@@ -572,10 +625,10 @@ html, body {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 6px 0 2px;
-  padding: 6px 10px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  margin: 0 0 8px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: var(--r-small);
   background: var(--panel-2);
   font-size: 0.8rem;
   line-height: 1.35;
@@ -589,10 +642,10 @@ html, body {
 .piv-change[hidden] { display: none; }
 /* The CFD Cluster's panel in the sheet (PR 12c). */
 .cfd-box {
-  margin: 6px 0 2px;
-  padding: 6px 10px 8px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  margin: 0 0 8px;
+  padding: 8px 12px 10px;
+  border: 0;
+  border-radius: var(--r-small);
   background: var(--panel-2);
   font-size: 0.85rem;
 }
@@ -601,7 +654,7 @@ html, body {
 .cfd-title { margin: 0; font-weight: 600; }
 .cfd-run { flex: none; min-height: 36px; padding: 0 14px; }
 .cfd-status, .cfd-delta, .cfd-stale, .cfd-bias, .cfd-caption { margin: 2px 0 0; color: var(--muted); }
-.cfd-stale { color: var(--warn); }
+.cfd-stale { color: var(--warn-text); }
 .cfd-stale[hidden], .cfd-meter[hidden], .cfd-figure[hidden] { display: none; }
 .cfd-reading { margin: 4px 0 0; font-family: var(--font-num); font-weight: 500; font-size: 1rem; }
 .cfd-reading:empty, .cfd-delta:empty { display: none; }
@@ -852,17 +905,24 @@ html, body {
 .shop-price { margin: 0; font-family: var(--font-num); font-size: 1.1rem; font-weight: 500; }
 .shop-order {
   width: 100%;
-  min-height: var(--tap);
+  min-height: 52px;
   margin-top: 12px;
   border: 0;
-  border-radius: 10px;
-  background: var(--accent);
-  color: var(--accent-ink);
+  border-radius: 26px;
+  background: var(--btn);
+  color: var(--btn-ink);
   font: inherit;
   font-weight: 700;
   cursor: pointer;
 }
 .shop-order:hover { filter: brightness(1.08); }
+/* A press feel on the buttons people tap most (none under reduced motion). */
+.save-btn, .shop-order, .fan-off, .chip, .segment, .tab, .nav-button, .text-button { transition: transform 120ms ease; }
+.save-btn:active:not(:disabled), .shop-order:active:not(:disabled), .fan-off:active:not(:disabled), .chip:active, .segment:active:not(:disabled), .tab:active, .nav-button:active { transform: scale(0.97); }
+@media (prefers-reduced-motion: reduce) {
+  .save-btn, .shop-order, .fan-off, .chip, .segment, .tab, .nav-button, .text-button { transition: none; }
+  .save-btn:active, .shop-order:active, .fan-off:active, .chip:active, .segment:active, .tab:active, .nav-button:active { transform: none; }
+}
 /* The tunnel's "Model 1:2" button in the fan row's head, beside the crank picker's style. */
 .shop-open {
   align-self: center;
@@ -905,24 +965,38 @@ html, body {
 
 /* --- Jobs screen -------------------------------------------------------- */
 .board-screen { overflow-y: auto; -webkit-overflow-scrolling: touch; background: var(--bg); }
+/* The background isobars: fixed behind the page, faint, never in the way. */
+.isobars { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; opacity: var(--iso); }
+.isobars path { fill: none; stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+.iso-lo { stroke: var(--cp-lo); }
+.iso-violet { stroke: var(--iso-violet); }
+.iso-hi { stroke: var(--cp-hi); }
 .board-page {
+  position: relative;
   max-width: 640px;
   margin: 0 auto;
   padding: calc(100px + var(--safe-t)) calc(16px + var(--safe-r)) calc(24px + var(--dock-h)) calc(16px + var(--safe-l));
 }
-.firm-strip { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.firm-strip { padding: 16px 18px; border: var(--card-border); border-radius: var(--r-card); background: var(--panel); box-shadow: var(--shadow-card); }
 .firm-money { margin: 0; font-family: var(--font-num); font-size: 1.6rem; font-weight: 500; }
 .firm-money.over { color: var(--sep-text); }
 .firm-date { margin: 2px 0 0; color: var(--muted); font-size: 0.85rem; }
 /* Reputation and correlation score under the money (PR 7a). */
 .firm-name { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+/* The reputation ring sits left of its label and number. */
+.job-fact.with-ring { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 10px; align-items: center; }
+.job-fact.with-ring .ring { grid-row: 1 / span 2; }
+.ring { display: block; }
+.ring circle { fill: none; stroke-width: 4; }
+.ring-track { stroke: var(--line); }
+.ring-arc { stroke: var(--accent); stroke-linecap: round; }
 .rival-row { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); margin-top: 8px; }
 .rival-name { margin: 0; font-weight: 700; }
 .rival-abroad { margin: 16px 0 4px; font-size: 0.95rem; font-weight: 700; color: var(--ink); }
 .bids-firm { margin: 14px 0 6px; font-size: 0.95rem; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .board-heading { margin: 18px 0 6px; font-size: 1rem; }
 .job-list { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
-.job-card { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.job-card { padding: 16px 18px; border: var(--card-border); border-radius: var(--r-card); background: var(--panel); box-shadow: var(--shadow-card); }
 .own-card { margin-top: 18px; }
 .own-card h2 { margin: 0; font-size: 1rem; }
 .staff-role { margin: 14px 0 0; font-size: 0.9rem; color: var(--muted); font-weight: 600; }
@@ -932,11 +1006,12 @@ html, body {
 .upgrade-name { margin: 0; font-weight: 600; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .upgrade-buy { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; }
 .upgrade-cost { font-family: var(--font-num); font-size: 0.85rem; }
-.job-card.is-active { margin-top: 12px; border-color: var(--accent); }
+/* The job in hand and Irina's card: a 2px teal ring rather than a tint. */
+.job-card.is-active { margin-top: 12px; box-shadow: 0 0 0 2px var(--accent), var(--shadow-card); }
 .job-card.is-active .board-heading { margin-top: 0; }
 .job-client { margin: 0; font-weight: 700; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .job-who { margin: 2px 0 0; color: var(--muted); font-size: 0.85rem; }
-.job-goal { margin: 8px 0 0; padding-left: 10px; border-left: 3px solid var(--line); font-size: 0.9rem; }
+.job-goal { margin: 10px 0 0; padding: 8px 12px; border-radius: 10px; background: var(--panel-2); font-size: 0.9rem; }
 .job-event { margin: 8px 0 0; font-weight: 600; font-size: 0.9rem; }
 .job-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; margin-top: 8px; }
 .job-fact { display: flex; flex-direction: column; min-width: 0; }
@@ -967,21 +1042,22 @@ html, body {
 .save-slot-tag { padding: 1px 8px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 0.7rem; }
 .save-slot-line { margin: 2px 0 0; font-size: 0.8rem; color: var(--muted); }
 .save-slot-actions { display: flex; gap: 8px; margin-top: 8px; }
+/* The primary button: a dark pill (light in dark mode), 52px. Quiet ones are teal words on the pale track. */
 .save-btn {
-  min-height: 36px;
-  padding: 0 14px;
-  border: 1px solid var(--accent);
-  border-radius: 10px;
-  background: var(--accent);
-  color: var(--accent-ink);
+  min-height: 52px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 26px;
+  background: var(--btn);
+  color: var(--btn-ink);
   font: inherit;
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: 0.9rem;
+  font-weight: 700;
   cursor: pointer;
 }
-.save-btn.quiet { background: transparent; color: var(--accent); border-color: var(--line); }
-.save-btn.is-armed { background: var(--sep); border-color: var(--sep); color: #fff; }
-.save-btn:disabled { background: var(--panel-2); border-color: var(--line); color: var(--muted); cursor: default; }
+.save-btn.quiet { min-height: var(--tap); background: var(--panel-2); color: var(--accent); }
+.save-btn.is-armed { background: var(--sep-text); color: var(--btn-ink); }
+.save-btn:disabled { background: var(--panel-2); color: var(--muted); cursor: default; }
 .shop-order:disabled { background: var(--panel-2); color: var(--muted); cursor: default; filter: none; }
 .save-code { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
 .save-code-title { margin: 0; font-size: 1rem; }
@@ -1109,22 +1185,24 @@ html, body {
 
 /* --- The guided first job (PR 5i): Irina's card on Jobs, and a glow on what to tap next. */
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.guide-card { margin-top: 12px; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--panel)); }
-.guide-card .board-heading { margin-top: 0; }
-.guide-say { margin: 6px 0 10px; line-height: 1.45; }
-.guide-steps { margin: 0 0 4px; padding: 0; list-style: none; counter-reset: guide; }
-.guide-step { counter-increment: guide; position: relative; padding: 5px 0 5px 32px; color: var(--muted); }
-.guide-step::before {
-  content: counter(guide);
-  position: absolute; left: 0; top: 3px;
-  width: 22px; height: 22px; border-radius: 50%;
-  border: 1.5px solid var(--line);
-  font: 500 0.78rem/19px var(--font-num); text-align: center;
+.guide-card { margin-top: 12px; box-shadow: 0 0 0 2px var(--accent), var(--shadow-card); }
+.guide-card .board-heading { margin: 0; }
+.guide-who { display: flex; align-items: center; gap: 10px; }
+/* Initials for a client or one of the staff. */
+.avatar {
+  flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%;
+  background: var(--avatar); color: var(--avatar-ink); font-weight: 800; font-size: 0.9rem; letter-spacing: 0.02em;
 }
+/* Her words, in a speech bubble from the avatar. */
+.guide-say { margin: 10px 0 12px; padding: 10px 14px; border-radius: 4px 18px 18px 18px; background: var(--panel-2); line-height: 1.45; }
+/* The steps, numbered 01 to 07; the one to do now is a teal pill. */
+.guide-steps { margin: 0 0 4px; padding: 0; list-style: none; counter-reset: guide; display: grid; gap: 2px; }
+.guide-step { counter-increment: guide; display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 4px 12px 4px 8px; border-radius: 18px; color: var(--muted); }
+.guide-step::before { content: counter(guide, decimal-leading-zero); flex: none; width: 24px; font: 600 0.8rem/1 var(--font-num); color: var(--muted); }
 .guide-step.is-done { text-decoration: line-through; text-decoration-color: var(--line); }
-.guide-step.is-done::before { content: '✓'; border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
-.guide-step.is-next { color: var(--ink); font-weight: 600; }
-.guide-step.is-next::before { border-color: var(--accent); color: var(--accent); }
+.guide-step.is-done::before { content: '✓'; color: var(--accent); text-align: center; }
+.guide-step.is-next { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.guide-step.is-next::before { color: var(--accent-ink); }
 @keyframes guide-glow {
   0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); }
   50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 0%, transparent); }

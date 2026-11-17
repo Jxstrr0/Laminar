@@ -11,6 +11,7 @@ import './style.css'
 import { t } from './data/strings'
 import { bindGlossary } from './ui/glossary'
 import { ICONS } from './ui/icons'
+import { fillRanges } from './ui/range'
 import { bindLoadingScreen } from './ui/loading'
 import { designStore } from './ui/designStore'
 import { newLab } from './sim/lab'
@@ -353,6 +354,8 @@ async function boot(): Promise<void> {
   }
   // Any element marked data-g on any screen opens its glossary entry.
   bindGlossary(app)
+  // Every slider's teal fill follows its value (Isobar, PR 13f); sheets add theirs to <body>.
+  fillRanges(document.body)
   const nav = buildNav((s) => show(s))
   app.append(nav.root)
   const show = (screen: Screen) => {

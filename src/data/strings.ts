@@ -627,6 +627,8 @@ export const STRINGS = {
   'fail.noDays': 'Too few days left to repair it. Order a quicker model, or deliver.',
   'fail.runTag': 'broke',
   'guide.title': 'Irina, your partner',
+  /** Irina Talova's initials, on her card's avatar. */
+  'guide.initials': 'IT',
   'guide.name': 'The first job, step by step',
   'guide.hide': 'Hide the guide',
   'guide.hideConfirm': 'Tap again: hide it for this career',
