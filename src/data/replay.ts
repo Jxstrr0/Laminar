@@ -460,3 +460,24 @@ export const POD_REPLAY = {
   roads: 4,
   farms: 9,
 }
+
+/**
+ * The circuit's trackside (PR 13m, art/circuit/build.py): Blender pieces the
+ * race-lap replay stands along whichever lap is raced. Distances are metres
+ * along the lap from the start line, and out from the road's centre line
+ * (left or right as you drive).
+ */
+export const CIRCUIT_KIT = {
+  /** The pit building on the left of the main straight, from `from` metres for its 150 m; its front stands `out` from the centre (its pit wall 8 m nearer). */
+  pits: { from: 30, length: 150, out: 16 },
+  /** The main grandstand on the right, from `from` metres for its 100 m, its front `out` from the centre. */
+  stand: { from: 40, out: 18 },
+  /** The footbridge over the main straight, this far from the line. */
+  bridgeAt: 400,
+  /** Steel barriers both sides of the whole lap, this far out, one panel every `every` metres. */
+  barrier: { out: 10, every: 4 },
+  /** Kerbs along the inside of every corner, their middle this far out, one every `every` metres. */
+  kerb: { out: 6.3, every: 2 },
+  /** A marshals' post on the left every `every` metres, this far out. */
+  marshal: { every: 600, out: 13 },
+}

@@ -7,18 +7,20 @@
  * one it says sat up is drawn sitting up. The velodrome is a Blender model
  * (PR 13k, art/velodrome/build.py), loaded the first time a 250 m track
  * race is shown; until then, or if it can't load, the boards are drawn here.
+ * A circuit's trackside (PR 13m, art/circuit/build.py) is a kit of Blender
+ * pieces stood along whichever lap is raced, copied by instancing.
  */
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { TRACK } from '../data/briefs'
 import { FIELD_TROUBLE, type CourseSegment } from '../data/field'
-import { AIRCRAFT_REPLAY, AIRFIELD_SCENE, CAR_REPLAY, DRONE_REPLAY, DRONE_SCENE, RECORD_SCENE, REPLAY_SCENE as S, SURVEY_SCENE } from '../data/replay'
+import { AIRCRAFT_REPLAY, AIRFIELD_SCENE, CAR_REPLAY, CIRCUIT_KIT, DRONE_REPLAY, DRONE_SCENE, RECORD_SCENE, REPLAY_SCENE as S, SURVEY_SCENE } from '../data/replay'
 import { AIRCRAFT_BODY } from '../data/aircraft'
 import { DRONE_BODY } from '../data/drone'
 import { designPose, type Design } from '../sim/design'
 import { recordAxis, recordLength } from '../sim/geom/record'
 import type { PlanePose } from '../sim/planeReplay'
-import type { TrackPoint } from '../sim/replay'
+import { turnAngle, type TrackPoint } from '../sim/replay'
 import { buildRider, disposeGroup } from './riderFigure'
 import { onThemeChange, sceneColours } from './theme'
 
@@ -472,6 +474,108 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     })
   }
 
+  // A venue's kit of Blender pieces (PR 13m: the circuit's), loaded with the view and stood along the course once both are in.
+  // Until it loads, or if it can't, the course is drawn as before.
+  const kitFile = circuit ? 'circuit.glb' : null
+  let kit: THREE.Object3D | null = null
+  const kitGroup = new THREE.Group()
+  scene.add(kitGroup)
+  let kitCourse: readonly CourseSegment[] | null = null
+  if (kitFile)
+    new GLTFLoader().load(
+      `${import.meta.env.BASE_URL}models/${kitFile}`,
+      (gltf) => {
+        if (disposed) return dropModel(gltf.scene)
+        kit = gltf.scene
+        kit.updateMatrixWorld(true)
+        placeKit()
+      },
+      undefined,
+      () => undefined,
+    )
+
+  /** Copies of one of the kit's pieces at each of these placements, one draw per material. */
+  function scatter(name: string, at: readonly THREE.Matrix4[]) {
+    const node = kit?.getObjectByName(name)
+    if (!node || at.length === 0) return
+    const inv = node.matrixWorld.clone().invert()
+    node.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return
+      const local = inv.clone().multiply(o.matrixWorld)
+      const copies = new THREE.InstancedMesh(o.geometry, o.material, at.length)
+      at.forEach((m, i) => copies.setMatrixAt(i, m.clone().multiply(local)))
+      copies.computeBoundingSphere()
+      kitGroup.add(copies)
+    })
+  }
+
+  /** A placement `along` metres round the course, `out` metres right of its centre line (left if negative), facing the way it runs. */
+  function placeAt(segs: readonly CourseSegment[], along: number, out: number): THREE.Matrix4 {
+    let x = 0
+    let z = 0
+    let d = along
+    let heading = segs[0]?.heading ?? 90
+    for (const seg of segs) {
+      heading = seg.heading
+      const { fx, fz } = axes(seg.heading)
+      if (d <= seg.length) {
+        x += fx * d
+        z += fz * d
+        break
+      }
+      x += fx * seg.length
+      z += fz * seg.length
+      d -= seg.length
+    }
+    const { rx, rz } = axes(heading)
+    // The pieces are built facing +x, like the riders: turn them to the heading.
+    return new THREE.Matrix4().compose(new THREE.Vector3(x + rx * out, 0, z + rz * out), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), (90 - heading) * DEG), new THREE.Vector3(1, 1, 1))
+  }
+
+  /** The circuit's trackside along this lap: the start, the pits and stand, a footbridge, barriers, kerbs through the corners and marshals' posts. */
+  function placeCircuit(segs: readonly CourseSegment[]) {
+    const K = CIRCUIT_KIT
+    const total = segs.reduce((sum, seg) => sum + seg.length, 0)
+    scatter('GridLine', [placeAt(segs, 0, 0)])
+    scatter('StartGantry', [placeAt(segs, 0, 0)])
+    scatter('PitBuilding', [placeAt(segs, K.pits.from, -K.pits.out)])
+    scatter('Grandstand', [placeAt(segs, K.stand.from, K.stand.out)])
+    scatter('Footbridge', [placeAt(segs, K.bridgeAt, 0)])
+    const inPits = (d: number) => d > K.pits.from - K.barrier.every && d < K.pits.from + K.pits.length
+    const barriers: THREE.Matrix4[] = []
+    for (let d = 0; d < total; d += K.barrier.every) {
+      barriers.push(placeAt(segs, d, K.barrier.out))
+      if (!inPits(d)) barriers.push(placeAt(segs, d, -K.barrier.out))
+    }
+    scatter('Barrier', barriers)
+    const marshals: THREE.Matrix4[] = []
+    for (let d = K.marshal.every; d < total - 100; d += K.marshal.every) if (!inPits(d)) marshals.push(placeAt(segs, d, -K.marshal.out))
+    scatter('MarshalPost', marshals)
+    // Kerbs on the inside of each corner: a piece turning from the one before and into the one after.
+    const kerbs: THREE.Matrix4[] = []
+    let along = 0
+    segs.forEach((seg, i) => {
+      const prev = segs[(i - 1 + segs.length) % segs.length]!
+      const next = segs[(i + 1) % segs.length]!
+      if (turnAngle(prev.heading, seg.heading) > 1e-6 && turnAngle(seg.heading, next.heading) > 1e-6) {
+        // Turning right (the heading grows) puts the inside on the right.
+        const right = ((next.heading - prev.heading + 540) % 360) - 180 > 0
+        for (let d = 0; d < seg.length; d += K.kerb.every) kerbs.push(placeAt(segs, along + d, right ? K.kerb.out : -K.kerb.out))
+      }
+      along += seg.length
+    })
+    scatter('Kerb', kerbs)
+  }
+
+  function placeKit() {
+    for (const child of [...kitGroup.children]) {
+      kitGroup.remove(child)
+      if (child instanceof THREE.InstancedMesh) child.dispose()
+    }
+    if (!kit || !kitCourse) return
+    if (circuit) placeCircuit(kitCourse)
+  }
+
   function clearCourse() {
     trackPieces.length = 0
     for (const child of [...course.children]) {
@@ -604,6 +708,8 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
         return
       }
       showVelodrome()
+      kitCourse = segs
+      placeKit()
       // Over the wheat there's no road to lay: the rows are the ground's own grid (PR 10o).
       if (fields) return
       const downwind = (90 - (opts.windFromDeg + 180)) * DEG
@@ -685,8 +791,8 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       const gMine = pose(mine, me, lay.laneMine, 0)
       // The old setup meets its gusts out of step with yours.
       const gOld = pose(old, them, lay.laneOld, S.trouble.every / 2)
-      ringMine.position.set(gMine.position.x, 0.01, gMine.position.z)
-      ringOld.position.set(gOld.position.x, 0.01, gOld.position.z)
+      ringMine.position.set(gMine.position.x, 0.05, gMine.position.z)
+      ringOld.position.set(gOld.position.x, 0.05, gOld.position.z)
       if (broadcast) {
         if (camera.fov !== S.track.camera.fov) {
           camera.fov = S.track.camera.fov
@@ -762,6 +868,9 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     dispose() {
       disposed = true
       if (velodrome instanceof THREE.Object3D) dropModel(velodrome)
+      kitCourse = null
+      placeKit()
+      if (kit) dropModel(kit)
       stopTheme()
       watcher.disconnect()
       clearCourse()
