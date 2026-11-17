@@ -3,7 +3,8 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { TRACK } from '../src/data/briefs'
-import { REPLAY_SCENE } from '../src/data/replay'
+import { HILLS } from '../src/data/hills'
+import { JUMP_SCENE, REPLAY_SCENE } from '../src/data/replay'
 
 const ROOT = join(__dirname, '..')
 
@@ -100,5 +101,32 @@ describe('the velodrome (PR 13k)', () => {
       expect(lane).toBeGreaterThan(-1.2)
       expect(lane).toBeLessThan(3.2)
     }
+  })
+})
+
+describe('the ski-jump hill’s buildings (PR 13l)', () => {
+  it('has every piece the jump scene places, and loads without a wait', () => {
+    const { size, json } = gltfOf('skijump.glb')
+    const names = json.nodes.map((n) => n.name)
+    for (const name of ['Inrun', 'Table', 'StartHouse', 'JudgesTower', 'CoachStand', 'LightMast', 'Grandstand', 'FencePanel']) expect(names).toContain(name)
+    expect(size).toBeLessThan(200 * 1024)
+  })
+
+  it('has a deck as long as the scene’s in-run and table, wide enough for both lanes', () => {
+    const { json } = gltfOf('skijump.glb')
+    const extent = (name: string) => {
+      const node = json.nodes.find((n) => n.name === name)!
+      const a = json.accessors[json.meshes[node.mesh!]!.primitives[0]!.attributes.POSITION]!
+      return { minX: a.min![0]!, maxX: a.max![0]!, minZ: a.min![2]!, maxZ: a.max![2]! }
+    }
+    expect(extent('Inrun').minX).toBeCloseTo(-JUMP_SCENE.inrun.length, 1)
+    expect(extent('Table').minX).toBeCloseTo(-JUMP_SCENE.table, 1)
+    for (const lane of [JUMP_SCENE.laneMine, JUMP_SCENE.laneOld]) {
+      expect(lane).toBeGreaterThan(extent('Table').minZ)
+      expect(lane).toBeLessThan(extent('Table').maxZ)
+    }
+    // Every hill's buildings stand off the slope's far edge, clear of the trees.
+    expect(JUMP_SCENE.buildings.coach.out).toBeGreaterThan(JUMP_SCENE.treeOut + 1)
+    for (const hill of Object.values(HILLS)) expect(hill.k - JUMP_SCENE.buildings.judges.beforeK).toBeGreaterThan(0)
   })
 })

@@ -150,6 +150,23 @@ export const JUMP_SCENE = {
   ghostOpacity: 0.45,
   /** Marks across the slope: thickness, m. */
   mark: 0.35,
+  /**
+   * The hill's buildings (PR 13l, art/skijump/build.py), all on the far side
+   * of the slope, each this far out from its edge, m: the judges' tower
+   * `beforeK` metres of slope above the K point (so the landing stays
+   * clear), the coaches' stand `along` metres down the slope, a floodlight
+   * mast every `every` metres of slope, the grandstand `fromEnd` metres back
+   * from the outrun's end, and the fence just off the edge.
+   */
+  buildings: {
+    judges: { beforeK: 20, out: 14 },
+    coach: { along: 18, out: 6 },
+    masts: { from: 10, every: 40, out: 16 },
+    stand: { fromEnd: 25, out: 8 },
+    fenceOut: 0.4,
+    /** One fence panel's length, m (FencePanel in the model). */
+    panel: 5,
+  },
 }
 
 /**

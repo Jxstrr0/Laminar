@@ -26,7 +26,9 @@ at https://longlight.games/press.html.
 The two wind tunnels' test sections (`public/models/tunnel-university.glb` and
 `public/models/tunnel-own.glb`) are built by Longlight Interactive's own script,
 `art/tunnel/build.py`, in Blender 4.5.15. The velodrome
-(`public/models/velodrome.glb`) is built the same way by `art/velodrome/build.py`.
+(`public/models/velodrome.glb`) and the ski-jump hill's buildings
+(`public/models/skijump.glb`) are built the same way by `art/velodrome/build.py`
+and `art/skijump/build.py`.
 Blender is GPL-licensed software; the models it outputs belong to the studio.
 
 ## Sound
