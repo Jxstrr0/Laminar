@@ -910,7 +910,11 @@ interface Attempt {
  * Defence jobs never set records.
  */
 export function firmRecords(state: Pick<CareerState, 'history'>): Holding[] {
-  return recordBoard(state.history.filter((j) => !j.secret).map((j) => ({ day: j.day, mark: j.mark, holder: briefTemplate(j.id)?.client ?? '' })))
+  const holderOf = (id: string) => {
+    const b = briefTemplate(id)
+    return b ? (b.recordHolder ?? b.client) : ''
+  }
+  return recordBoard(state.history.filter((j) => !j.secret).map((j) => ({ day: j.day, mark: j.mark, holder: holderOf(j.id) })))
 }
 
 /**

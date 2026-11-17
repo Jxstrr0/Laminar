@@ -76,7 +76,7 @@ describe('breaking records on the job', () => {
     expect(d.mark).toEqual({ record: 'truckFuel', value: measured('truckFuel', d.debrief.actual) })
     expect(d.state.history.at(-1)!.mark).toEqual(d.mark)
     const held = firmRecords(d.state).find((h) => h.id === 'truckFuel')!
-    expect(held).toMatchObject({ holder: b.client, ours: true, was: { holder: RECORDS.truckFuel.holder, value: RECORDS.truckFuel.value } })
+    expect(held).toMatchObject({ holder: 'Kovyl Haulage', ours: true, was: { holder: RECORDS.truckFuel.holder, value: RECORDS.truckFuel.value } })
     expect(legacyOf(d.state).records).toBe(1)
     // The same truck again only ties the firm's own mark: no new record.
     const again = deliverTruck(onJob(b.id, 9, d.state), goodTruck(b.setup as TruckDesign), 32)!
