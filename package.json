@@ -12,7 +12,8 @@
     "test": "vitest run",
     "lint": "eslint . && tsc --noEmit",
     "icons": "node scripts/make-icons.mjs",
-    "aero": "node scripts/aero.mjs"
+    "aero": "node scripts/aero.mjs",
+    "balance": "node scripts/balance.mjs"
   },
   "engines": {
     "node": ">=20.19"
