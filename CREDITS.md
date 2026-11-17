@@ -32,7 +32,8 @@ the salt flat's camp (`public/models/saltflat.glb`), Belyanka airfield's
 buildings (`public/models/airfield.glb`) and the sliding track's buildings
 (`public/models/bobsled.glb`) are built the same way by
 `art/velodrome/build.py`, `art/skijump/build.py`, `art/circuit/build.py`,
-`art/saltflat/build.py`, `art/airfield/build.py` and `art/bobsled/build.py`.
+`art/saltflat/build.py`, `art/airfield/build.py` and `art/bobsled/build.py`, and
+the people's smooth body parts (`public/models/body.glb`) by `art/body/build.py`.
 Blender is GPL-licensed software; the models it outputs belong to the studio.
 
 ## Sound

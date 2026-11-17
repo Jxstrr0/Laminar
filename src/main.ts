@@ -83,6 +83,9 @@ const PREVIEW_DESIGN = PREVIEWS[new URLSearchParams(location.search).get('try') 
 const CHALLENGE_CODE = new URLSearchParams(location.search).get('challenge')
 const PREVIEW = PREVIEW_DESIGN !== null || CHALLENGE_CODE !== null
 
+/** The longest the first screen waits for the body parts, ms: past it, figures start as capsules (and rebuild smooth on their next change). */
+const BODY_PARTS_WAIT_MS = 2500
+
 const loading = bindLoadingScreen()
 
 /** Can this browser draw WebGL at all? */
@@ -191,6 +194,8 @@ async function boot(): Promise<void> {
     careerStore.set(saved.career)
   } else careerStore.set(newCareer(freshSeed()))
   loading.progress(0.3)
+  // The people's smooth body parts (PR 13q) load alongside: the first figures wait for them a moment, never long.
+  const bodyParts = import('./render/bodyParts').then(({ loadBodyParts }) => Promise.race([loadBodyParts(), new Promise((r) => setTimeout(r, BODY_PARTS_WAIT_MS))]))
   // three.js and the scenes load as their own chunks.
   const [{ createTunnelView }, { startTunnelScreen }, { createShapeView }, { startShapeScreen }, { startBoardScreen }] = await Promise.all([
     import('./render/tunnelScene'),
@@ -199,6 +204,7 @@ async function boot(): Promise<void> {
     import('./ui/shapeScreen'),
     import('./ui/boardScreen'),
   ])
+  await bodyParts.catch(() => undefined)
   loading.progress(0.9)
   const boardHost = screenHost(app, 'board')
   const shapeHost = screenHost(app, 'shape')
