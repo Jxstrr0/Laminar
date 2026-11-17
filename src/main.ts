@@ -41,6 +41,7 @@ import { challengeLink, decodeChallenge } from './persist/designCode'
 import { challengeCareer, challengeTarget } from './sim/challenge'
 import { challengeStore } from './ui/challengeStore'
 import { startOffline } from './pwa/register'
+import { startMusic } from './audio/music'
 import { playAfterReplay, playSfx, preloadSfx } from './audio/sfx'
 import { say, sayAfterReplay, setVoiceCast } from './audio/voice'
 import { boldPromise, roadAgreed } from './audio/cues'
@@ -400,6 +401,8 @@ async function boot(): Promise<void> {
     if (!sfxAsked) {
       sfxAsked = true
       preloadSfx()
+      // And the music bed (PR 13s) starts, unless it's been turned off.
+      startMusic()
     }
   }
   document.addEventListener('pointerdown', wakeSound, { capture: true })

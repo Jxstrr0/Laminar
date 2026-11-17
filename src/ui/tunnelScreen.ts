@@ -122,7 +122,7 @@ import { partChanges, postureChanged, swapCost, swapParts } from '../sim/remodel
 import { createCpLegend } from './cpLegend'
 import { createPivPanel } from './pivPanel'
 import { createCfdPanel } from './cfdPanel'
-import { soundButton } from './soundButton'
+import { musicButton, soundButton } from './soundButton'
 import { tableCue, tableMoving } from '../audio/cues'
 import { clunk, setFan, setWhirr, snap } from '../audio/engine'
 import { playSfx, setTunnelAir } from '../audio/sfx'
@@ -672,7 +672,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   const foot = el('div', 'sheet-foot')
   const version = el('span', 'version', `v${__GAME_VERSION__} · ${__BUILD_SHA__} · ${__BUILD_DATE__}`)
   const footHint = el('span', 'hint', t('hint.orbit'))
-  foot.append(soundButton(), footHint, version)
+  foot.append(soundButton(), musicButton(), footHint, version)
 
   // Flow instruments: toggle chips over the 3D view, just above the sheet.
   type Inst = 'wand' | 'rake' | 'tufts' | 'taps' | 'piv' | 'cfd' | 'dark'
