@@ -205,7 +205,7 @@ export const OWN_BILLING = {
  * needs. Each is paid for in cash and fitted over some days while you keep
  * working; it takes effect the day it's done.
  */
-export type UpgradeId = 'screens' | 'turntable' | 'wheelDrive' | 'fan' | 'rollingRoad' | 'piv'
+export type UpgradeId = 'screens' | 'turntable' | 'wheelDrive' | 'fan' | 'rollingRoad' | 'piv' | 'cfd'
 
 export const TUNNEL_UPGRADES = {
   /** Fine mesh screens before the contraction: the test-section air's turbulence falls to this share. */
@@ -228,7 +228,13 @@ export const TUNNEL_UPGRADES = {
    * how much the wake has lost, and which slider would cut it most.
    */
   piv: { price: 900_000, days: 21 },
+  /**
+   * The CFD Cluster (Kelbo, 17 November 2026, for PR 12b: a tunnel upgrade,
+   * free to run): a coarse simulated tunnel on the phone's GPU, with a flow
+   * slice and a second drag estimate. Needs a phone with WebGPU.
+   */
+  cfd: { price: 900_000, days: 21 },
 } as const satisfies Record<UpgradeId, { price: number; days: number; [k: string]: number }>
 
 /** The order they're shown in. */
-export const UPGRADE_IDS: readonly UpgradeId[] = ['screens', 'turntable', 'wheelDrive', 'fan', 'rollingRoad', 'piv']
+export const UPGRADE_IDS: readonly UpgradeId[] = ['screens', 'turntable', 'wheelDrive', 'fan', 'rollingRoad', 'piv', 'cfd']

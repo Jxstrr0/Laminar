@@ -108,6 +108,8 @@ export type TunnelBuild = Omit<typeof UNIVERSITY_TUNNEL, 'topSpeed' | 'wheelDriv
   wheelDrive: boolean
   rollingRoad: boolean
   piv: boolean
+  /** The CFD Cluster (PR 12b). */
+  cfd: boolean
   turntable: { min: number; max: number; step: number; rate: number }
 }
 
@@ -139,6 +141,7 @@ export function tunnelSetup(careerSeed: number, f: Facility, day: number, crew: 
     wheelDrive: has('wheelDrive'),
     rollingRoad: has('rollingRoad'),
     piv: has('piv'),
+    cfd: has('cfd'),
     turntable: { ...base.turntable, min: -yaw, max: yaw },
   }
   const raw = tunnelQuirks(id, careerSeed)
