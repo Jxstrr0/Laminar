@@ -3,7 +3,7 @@
  * the time trial, your design against the client's old setup ridden in the
  * same air, with a live readout (race clock, distance, speed, wind, the gap)
  * and a commentator's line at the moments that matter. At the finish it
- * shows your prediction next to what the road read, then hands over to the
+ * shows your prediction next to what the day read, then hands over to the
  * debrief. Every number comes from the field result; nothing is re-run.
  */
 import type { Design } from '../sim/design'
