@@ -96,3 +96,10 @@ describe('export countries (PR 11f)', () => {
     for (const s of [1, 2, 3, 4, 5, 6]) expect(deliverJump(onJob('horakova-hill', s), DEFAULT_JUMPER, 125)!.mark).toBeNull()
   })
 })
+
+describe('export on screen (PR 11g)', () => {
+  it('every rulebook a job can be ridden under has a name for the rule-break lines', async () => {
+    const { STRINGS } = await import('../src/data/strings')
+    for (const rules of [TCF_TIME_TRIAL, ...COUNTRY_IDS.map((c) => COUNTRIES[c].rules)]) expect(STRINGS).toHaveProperty(`book.${rules.id}`)
+  })
+})

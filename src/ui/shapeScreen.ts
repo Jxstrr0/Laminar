@@ -31,7 +31,7 @@ import { checkTruckRules, roofMismatch, skirtGap, truckParts, type TruckRuleBrea
 import { truckLength } from '../sim/geom/truck'
 import { checkSledRules, sightMargin, type SledRuleBreak } from '../sim/bobsled'
 import { sledLength } from '../sim/geom/bobsled'
-import { TCF_TIME_TRIAL } from '../data/rules'
+import { bookName } from './export'
 import { t, type StringKey } from '../data/strings'
 import type { RuleBreak } from '../sim/cyclist'
 import type { FixTarget } from '../sim/failure'
@@ -41,7 +41,7 @@ import type { ControlId } from '../sim/designDiff'
 import { designPose, designReadouts, designShape, isAircraft, isBobsled, isCar, isCyclist, isDrone, isJumper, isPlane, isPod, isRecord, isSkater, isTruck, type Design } from '../sim/design'
 import { availableHandles, dragHandle, handleDef, handlePoint } from '../sim/geom/handles'
 import { ruleVolumes } from '../sim/geom/ruleBox'
-import { briefTemplate, firmEffects, currentAircraftRun, currentPodRun, currentCarRun, currentDroneRun, currentPlaneRun, currentRecordRun, currentEvent, currentJumpEvent, currentTruckEvent, currentTruckRun } from '../sim/career'
+import { briefTemplate, firmEffects, rulesFor, currentAircraftRun, currentPodRun, currentCarRun, currentDroneRun, currentPlaneRun, currentRecordRun, currentEvent, currentJumpEvent, currentTruckEvent, currentTruckRun } from '../sim/career'
 import { cracksOnGravel, roadLegal } from '../sim/truckJob'
 import type { Highlight, ShapeView } from '../render/shapeScene'
 import type { GlossaryId } from '../data/glossary'
@@ -674,7 +674,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     if (!riding && currentTab === 'bike') selectTab('position')
     tailRow.hidden = cyc().helmet.kind !== 'aero'
     hint.textContent = t(podding ? 'hint.shapePod' : piloting ? 'hint.shapeAircraft' : surveying ? 'hint.shapePlane' : flying ? 'hint.shapeDrone' : recording ? (rec('jet') === design ? 'hint.shapeRecordJet' : 'hint.shapeRecord') : racing ? 'hint.shapeCar' : trucking ? 'hint.shapeTruck' : jumping ? 'hint.shapeJumper' : sliding ? 'hint.shapeBobsled' : skating ? 'hint.shapeSkater' : 'hint.shape')
-    if (riding || skating) rulesR.sub.textContent = t(skating ? 'book.skating' : 'book.tcf-tt')
+    if (riding || skating) rulesR.sub.textContent = skating ? t('book.skating') : bookName(rulesFor(careerStore.get().job?.brief.id))
   }
   syncAll()
   // A new job puts the client's setup on the bench: take it up.
@@ -841,7 +841,9 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
       showPod(design)
       return
     }
-    const r = designReadouts(design, TCF_TIME_TRIAL)
+    // The job's own rulebook: the TCF's at home, the country's federation abroad (PR 11g).
+    const rules = rulesFor(careerStore.get().job?.brief.id)
+    const r = designReadouts(design, rules)
     const shape = designShape(design)
     // The desk estimate is for the job's event, with the job's own bias.
     const career = careerStore.get()
@@ -869,7 +871,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
       ...r.breaks.map((b) => {
         const li = el('li', 'break')
         const show = (v: number | string) => (typeof v === 'number' ? fixed(v, 2) : v)
-        li.append(el('span', 'break-text', t(`rule.${b.rule}`, { value: show(b.value), limit: show(b.limit), book: t('book.tcf-tt') })))
+        li.append(el('span', 'break-text', t(`rule.${b.rule}`, { value: show(b.value), limit: show(b.limit), book: bookName(rules) })))
         const fix = el('button', 'break-fix', t('rule.fix'))
         fix.type = 'button'
         fix.addEventListener('click', () => jumpTo(b.part))
@@ -890,7 +892,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
       // Handles and rule boxes are the cyclist's: skaters set the crouch with the sliders and have no kit rules.
       handles: bike ? availableHandles(bike).map((id) => ({ id, point: handlePoint(bike, id, pose) })) : [],
       selected,
-      volumes: bike ? ruleVolumes(bike, pose, TCF_TIME_TRIAL) : [],
+      volumes: bike ? ruleVolumes(bike, pose, rules) : [],
     })
   }
 

@@ -8,7 +8,7 @@
 import { AIRCRAFT_JOBS, POD_JOBS, BID, CAREER, CAR_JOBS, DRONE_JOBS, PLANE_JOBS, PROMISE, RECORD_JOBS, SLED_JOBS, TRACK, type BriefTemplate } from '../data/briefs'
 import { BROKE, REPUTATION } from '../data/reputation'
 import { CLEARANCE } from '../data/defence'
-import { RIVALS, RIVAL_IDS } from '../data/rivals'
+import { FOREIGN_RIVAL_IDS, RIVALS, RIVAL_IDS } from '../data/rivals'
 import { OWN_BILLING, OWN_TUNNEL_BUILD, TUNNEL_UPGRADES, UPGRADE_IDS } from '../data/tunnel'
 import { buildBlock, machineBlock, ownReadyDay, upgradeBlock, upgradeReadyDay } from '../sim/facility'
 import { MACHINE_IDS, MACHINE_PRICE } from '../data/model'
@@ -135,6 +135,8 @@ import { createSheet, type Sheet } from './sheet'
 import { twoTap } from './twoTap'
 import { bestText, shareLegacy } from './legacyPicture'
 import { attemptNote, recordParts, recordsCard } from './records'
+import { countryNote, countryTag } from './export'
+import { COUNTRIES, COUNTRY_IDS } from '../data/export'
 import { researchCard } from './research'
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
@@ -2305,6 +2307,8 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     )
     const attempt = attemptNote(b, career)
     if (attempt) card.append(attempt)
+    const abroad = countryNote(b)
+    if (abroad) card.append(abroad)
     card.append(actions)
     return card
   }
@@ -2316,6 +2320,8 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     if (b.tutorial) top.append(' ', el('span', 'save-slot-tag', t('board.first')))
     if (b.small) top.append(' ', el('span', 'save-slot-tag quiet', t('board.small')))
     if (b.attempt) top.append(' ', el('span', 'save-slot-tag', t('trec.attemptTag')))
+    const tag = countryTag(b)
+    if (tag) top.append(' ', tag)
     const facts = el('div', 'job-facts')
     // A ski jump shows its hill and the jumper's weight, a bobsled its track, crew and ice, where a race shows its course and power.
     // A truck shows its route and the trailer's height.
@@ -2393,6 +2399,8 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     card.append(top, el('p', 'job-who', b.who), el('blockquote', 'job-goal', b.goal), el('p', 'job-event', b.event.name), facts)
     const attempt = attemptNote(b, careerStore.get())
     if (attempt) card.append(attempt)
+    const abroad = countryNote(b)
+    if (abroad) card.append(abroad)
     const take = button('save-btn guide-bid', t('board.take'))
     if (busy) {
       take.disabled = true
@@ -2539,6 +2547,28 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       )
       row.append(el('p', 'rival-name', RIVALS[firm].name), el('p', 'job-who', RIVALS[firm].blurb), facts)
       rivals.append(row)
+    }
+    // Abroad (PR 11g): each country's firm shows once its clients call; until then, a line says when they will.
+    const myRep = firmReputation(career)
+    rivals.append(el('h3', 'rival-abroad', t('exp.abroad')))
+    for (const c of COUNTRY_IDS) {
+      const { name, minRep } = COUNTRIES[c]
+      if (myRep < minRep) {
+        rivals.append(el('p', 'shop-note', t('exp.locked', { country: name, need: minRep, have: myRep })))
+        continue
+      }
+      rivals.append(el('p', 'shop-note', t('exp.opened', { country: name })))
+      for (const firm of FOREIGN_RIVAL_IDS.filter((f) => RIVALS[f].country === c)) {
+        const rec = rivalRecord(career.seed, firm, career.day)
+        const row = el('div', 'rival-row')
+        const facts = el('div', 'firm-name')
+        facts.append(
+          fact(t('board.reputation'), t('board.outOf', { n: rec.reputation })),
+          fact(t('board.correlation'), t('board.outOf', { n: rec.correlation })),
+        )
+        row.append(el('p', 'rival-name', RIVALS[firm].name), el('p', 'job-who', RIVALS[firm].blurb), facts)
+        rivals.append(row)
+      }
     }
     const now = jobCard()
     const boardHead = el('h2', 'board-heading', t('board.title'))

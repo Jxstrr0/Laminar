@@ -804,6 +804,7 @@ html, body {
 .firm-name { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
 .rival-row { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); margin-top: 8px; }
 .rival-name { margin: 0; font-weight: 700; }
+.rival-abroad { margin: 16px 0 4px; font-size: 0.95rem; font-weight: 700; color: var(--ink); }
 .bids-firm { margin: 14px 0 6px; font-size: 0.95rem; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .board-heading { margin: 18px 0 6px; font-size: 1rem; }
 .job-list { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
