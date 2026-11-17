@@ -91,7 +91,7 @@ The pressure map becomes the look: a soft lilac-ice lab, cool blue for suction
 and coral for pressure, rounded white cards, numbers in a crisp mono, and one
 teal for actions. Light and dark modes, following the phone. Every colour is a
 CSS variable at the top of `src/style.css`. The full brief, with every token, is
-`docs/UI-ISOBAR-PLAN.md` (landing as PR 13e–13j).
+`docs/UI-ISOBAR-PLAN.md` (landed as PR 13e–13j, v0.14.4.0–v0.14.9.0).
 
 | Token | Light | Dark |
 | --- | --- | --- |
