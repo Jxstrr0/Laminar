@@ -514,6 +514,37 @@ html, body {
 .piv-hint:empty { display: none; }
 .piv-change { flex: none; min-height: 36px; padding: 0 12px; }
 .piv-change[hidden] { display: none; }
+/* The CFD Cluster's panel in the sheet (PR 12c). */
+.cfd-box {
+  margin: 6px 0 2px;
+  padding: 6px 10px 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-2);
+  font-size: 0.85rem;
+}
+.cfd-box[hidden] { display: none; }
+.cfd-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.cfd-title { margin: 0; font-weight: 600; }
+.cfd-run { flex: none; min-height: 36px; padding: 0 14px; }
+.cfd-status, .cfd-delta, .cfd-stale, .cfd-bias, .cfd-caption { margin: 2px 0 0; color: var(--muted); }
+.cfd-stale { color: var(--warn); }
+.cfd-stale[hidden], .cfd-meter[hidden], .cfd-figure[hidden] { display: none; }
+.cfd-reading { margin: 4px 0 0; font-family: var(--font-num); font-weight: 500; font-size: 1rem; }
+.cfd-reading:empty, .cfd-delta:empty { display: none; }
+.cfd-meter { display: block; width: 100%; height: 8px; margin-top: 4px; accent-color: var(--accent); }
+.cfd-figure { margin: 6px 0 0; }
+.cfd-slice {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 1;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  image-rendering: pixelated;
+}
+.cfd-scale { max-width: 200px; margin-top: 4px; }
+.cfd-caption { font-size: 0.75rem; }
+.cfd-bias { font-size: 0.75rem; }
 .shape-hint {
   position: absolute;
   left: 50%;

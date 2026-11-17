@@ -15,7 +15,7 @@ const f32 = (x: number) => (Number.isInteger(x) ? `${x}.0` : String(x))
 
 /** The shaders, with the lattice written in from d3q19.ts. */
 const SHADER = /* wgsl */ `
-struct Params { nx: u32, ny: u32, nz: u32, n: u32, inflow: f32, omega: f32, pad0: f32, pad1: f32 }
+struct Params { nx: u32, ny: u32, nz: u32, n: u32, inflow: f32, omega: f32, spongeCells: f32, spongeTau: f32 }
 @group(0) @binding(0) var<uniform> P: Params;
 @group(0) @binding(1) var<storage, read> solid: array<u32>;
 @group(0) @binding(2) var<storage, read> src: array<f32>;
@@ -48,6 +48,15 @@ fn coords(i: u32) -> vec3<i32> {
   return vec3<i32>(i32(i % P.nx), i32((i / P.nx) % P.ny), i32(i / (P.nx * P.ny)));
 }
 
+// The relaxation rate at column x, with the sponge at the far end (lbm.ts omegaAt).
+fn omegaAt(x: i32) -> f32 {
+  if (P.spongeCells <= 0.0) { return P.omega; }
+  let into = (f32(x) - (f32(P.nx) - P.spongeCells)) / P.spongeCells;
+  if (into <= 0.0) { return P.omega; }
+  let tau = 1.0 / P.omega;
+  return 1.0 / (tau + (P.spongeTau - tau) * into * into);
+}
+
 // One step: pull the populations streaming in, then relax towards equilibrium (lbm.ts lbmStep).
 @compute @workgroup_size(${GROUP})
 fn step(@builtin(global_invocation_id) gid: vec3<u32>) {
@@ -63,6 +72,17 @@ fn step(@builtin(global_invocation_id) gid: vec3<u32>) {
   let nz = i32(P.nz);
   let p = coords(i);
   var fin: array<f32, ${Q}>;
+  // The last column's own velocity, for the air coming back in from beyond the far end.
+  var own = vec3<f32>(0.0);
+  if (p.x == nx - 1) {
+    var orho = 0.0;
+    for (var q = 0u; q < ${Q}u; q++) {
+      let v = src[q * n + i];
+      orho += v;
+      own += v * cvec(q);
+    }
+    own = own / orho;
+  }
   var rho = 0.0;
   var m = vec3<f32>(0.0);
   for (var q = 0u; q < ${Q}u; q++) {
@@ -71,7 +91,7 @@ fn step(@builtin(global_invocation_id) gid: vec3<u32>) {
     if (sx < 0) {
       v = feq(q, 1.0, vec3<f32>(P.inflow, 0.0, 0.0));
     } else if (sx >= nx) {
-      v = src[q * n + i];
+      v = feq(q, 1.0, own);
     } else {
       let j = u32(sx + nx * (wrapi(p.y - CY[q], ny) + ny * wrapi(p.z - CZ[q], nz)));
       if (solid[j] != 0u) { v = src[OPP[q] * n + i]; } else { v = src[q * n + j]; }
@@ -81,8 +101,9 @@ fn step(@builtin(global_invocation_id) gid: vec3<u32>) {
     m += v * cvec(q);
   }
   let u = m / rho;
+  let omega = omegaAt(p.x);
   for (var q = 0u; q < ${Q}u; q++) {
-    dst[q * n + i] = fin[q] - P.omega * (fin[q] - feq(q, rho, u));
+    dst[q * n + i] = fin[q] - omega * (fin[q] - feq(q, rho, u));
   }
 }
 
@@ -174,7 +195,7 @@ export function createGpuLbm(device: GPUDevice, g: Grid, p: LbmParams): GpuLbm {
   const params = buffer(32, usage.UNIFORM | usage.COPY_DST, 'cfd params')
   const head = new ArrayBuffer(32)
   new Uint32Array(head, 0, 4).set([g.nx, g.ny, g.nz, n])
-  new Float32Array(head, 16, 2).set([p.inflow, 1 / p.tau])
+  new Float32Array(head, 16, 4).set([p.inflow, 1 / p.tau, p.sponge?.cells ?? 0, p.sponge?.tau ?? p.tau])
   device.queue.writeBuffer(params, 0, head)
 
   const solid = buffer(n * 4, usage.STORAGE | usage.COPY_DST, 'cfd solid')

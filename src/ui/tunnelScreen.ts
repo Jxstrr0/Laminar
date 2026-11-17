@@ -115,11 +115,13 @@ import { createSheet, type Sheet } from './sheet'
 import { modelSpecOf, quote, reynoldsRatio, type ModelOrder } from '../sim/modelShop'
 import { fixedDrag, prepareExact, prepareModel, readBalance, readTare, tunnelTurbulence, type EventSpec, type PreparedModel, type TunnelSpec } from '../sim/views'
 import type { TunnelView } from '../render/tunnelScene'
+import type { RiderState } from '../render/riderFigure'
 import { createChart, describeLast, type ChartPoint } from './chart'
 import { openModelShop, type ShopContext } from './modelShop'
 import { partChanges, postureChanged, swapCost, swapParts } from '../sim/remodel'
 import { createCpLegend } from './cpLegend'
 import { createPivPanel } from './pivPanel'
+import { createCfdPanel } from './cfdPanel'
 import { designStore } from './designStore'
 import { fixed, scientific } from './format'
 import { glossaryTerm } from './glossary'
@@ -652,13 +654,13 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   foot.append(footHint, version)
 
   // Flow instruments: toggle chips over the 3D view, just above the sheet.
-  type Inst = 'wand' | 'rake' | 'tufts' | 'taps' | 'piv' | 'dark'
-  const inst: Record<Inst, boolean> = { wand: false, rake: false, tufts: false, taps: false, piv: false, dark: false }
+  type Inst = 'wand' | 'rake' | 'tufts' | 'taps' | 'piv' | 'cfd' | 'dark'
+  const inst: Record<Inst, boolean> = { wand: false, rake: false, tufts: false, taps: false, piv: false, cfd: false, dark: false }
   const instChips = new Map<Inst, HTMLButtonElement>()
   const instBar = el('div', 'instruments')
   instBar.setAttribute('role', 'group')
   instBar.setAttribute('aria-label', t('inst.label'))
-  for (const id of ['wand', 'rake', 'tufts', 'taps', 'piv', 'dark'] as const) {
+  for (const id of ['wand', 'rake', 'tufts', 'taps', 'piv', 'cfd', 'dark'] as const) {
     const b = el('button', 'chip', t(`inst.${id}`))
     b.type = 'button'
     b.setAttribute('aria-pressed', 'false')
@@ -680,8 +682,12 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   const pivChip = instChips.get('piv')!
   pivChip.hidden = !spec.piv
   const pivPanel = createPivPanel((control) => hooks.goControl(control))
+  // The CFD chip only shows once the CFD Cluster is in your own tunnel (PR 12c).
+  const cfdChip = instChips.get('cfd')!
+  cfdChip.hidden = !spec.cfd
+  const cfdPanel = createCfdPanel(() => (cfdOn() ? { state: riderState(), yawDeg: cfdYaw(), key: cfdKey() } : null))
 
-  sheet.append(mountRow, fanCtl.row, yawCtl.row, runLine, pivPanel.box, viewBar, riderGrid, jumperGrid, carGrid, recGrid, droneGrid, planeGrid, aircraftGrid, podGrid, sphereGrid, wheelGrid, tareGrid, chartBox, calBox, runsBox, foot)
+  sheet.append(mountRow, fanCtl.row, yawCtl.row, runLine, pivPanel.box, cfdPanel.box, viewBar, riderGrid, jumperGrid, carGrid, recGrid, droneGrid, planeGrid, aircraftGrid, podGrid, sphereGrid, wheelGrid, tareGrid, chartBox, calBox, runsBox, foot)
   app.append(header, sheet, instBar, cpLegend.root, pivPanel.legend)
 
   // Keep the 3D model centred in the space above the sheet.
@@ -1026,6 +1032,30 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     pivPanel.show({ loss: reading.loss, hint: pivHintFor.hint })
   }
 
+  /** The figure on the mount as the scene draws it (and the CFD fills it into cells). */
+  function riderState(): RiderState {
+    const design = modelDesign
+    const extra = droneModel
+      ? { props: droneModel.props === 'powered' ? ('spinning' as const) : ('stopped' as const) }
+      : aircraftModel
+        ? { props: aircraftModel.powered ? ('spinning' as const) : ('stopped' as const) }
+        : podModel && !podModel.wing
+          ? { noWing: true }
+          : {}
+    return { design, pose: designPose(design, crank), broken: [], strained: [], ...extra }
+  }
+
+  // --- CFD Cluster (PR 12c): the panel runs it; the screen says what's on the mount.
+  /** The yaw the CFD turns the model to: the turntable's, like the PIV's sheet. */
+  const cfdYaw = () => (yawOpen() && !jumper && !racing && !quad && !flyer ? Math.round(table.angle) : 0)
+  const cfdKey = () => `${modelVersion}|${cfdYaw()}`
+  const cfdOn = () => inst.cfd && spec.cfd && mount === 'rider' && !tare && !broken
+  function updateCfd() {
+    const on = cfdOn()
+    cfdPanel.setShown(on)
+    if (on) cfdPanel.setKey(cfdKey())
+  }
+
   // --- Runs: the recorder, the session's finished runs and the bill.
   let rec: Recorder = { ...newRecorder(), nextId: saved.nextRunId }
   const runs: Run[] = [...saved.runs]
@@ -1092,7 +1122,13 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       inst.piv = false
       pivChip.setAttribute('aria-pressed', 'false')
     }
-    if (yawOpen() && (jumper || racing || recordCar || quad || flyer)) instBar.hidden = !spec.piv
+    // The CFD Cluster too.
+    cfdChip.hidden = !spec.cfd
+    if (!spec.cfd && inst.cfd) {
+      inst.cfd = false
+      cfdChip.setAttribute('aria-pressed', 'false')
+    }
+    if (yawOpen() && (jumper || racing || recordCar || quad || flyer)) instBar.hidden = !spec.piv && !spec.cfd
     tunnel = { ...spec, quirks: next.quirks }
     airTurbulence = tunnelTurbulence(tunnel)
     place.textContent = t(current === 'own' ? 'tunnel.placeOwn' : 'tunnel.place')
@@ -1684,7 +1720,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     view.setTaps([], [])
     view.setModel({
       kind: 'rider',
-      state: { design, pose: designPose(design, crank), broken: [], strained: [], ...(droneModel ? { props: droneModel.props === 'powered' ? ('spinning' as const) : ('stopped' as const) } : aircraftModel ? { props: aircraftModel.powered ? ('spinning' as const) : ('stopped' as const) } : podModel && !podModel.wing ? { noWing: true } : {}) },
+      state: riderState(),
       scale: modelSpec.scale,
       tare,
       board: order.board === true,
@@ -2510,7 +2546,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       }
     }
     if (smokeOff) applyInstruments()
-    instBar.hidden = !yawOpen() || (!smokeOk && !spec.piv)
+    instBar.hidden = !yawOpen() || (!smokeOk && !spec.piv && !spec.cfd)
     showStale()
     showBroken()
     selectView(view_)
@@ -2821,6 +2857,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     } else if (mount === 'wheel') updateWheel(dt)
     else updateSphere(dt)
     updatePiv(dt)
+    updateCfd()
     showRun()
     drawChart()
     updateSledForecast(dt)
@@ -2846,6 +2883,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
         raf = requestAnimationFrame(loop)
       } else {
         cancelAnimationFrame(raf)
+        // Leaving the tunnel stops a CFD run; its panel comes back with the next frame.
+        cfdPanel.setShown(false)
         // Leaving the tunnel: the Deliver sheet gets the latest run time.
         updateSledForecast(0, true)
       }
