@@ -16,6 +16,7 @@ import type { TestFlight } from '../sim/aircraftJob'
 import { aircraftClips, aircraftFrames, aircraftNotes, aircraftPlayTime, aircraftShow, checkAirspeed, stopwatch, type AircraftNote } from '../sim/aircraftReplay'
 import { clipClock } from '../sim/planeReplay'
 import { fixed } from './format'
+import { commentate } from '../audio/voice'
 
 export interface AircraftReplayInput {
   client: string
@@ -202,6 +203,8 @@ export async function playAircraftReplay(input: AircraftReplayInput): Promise<vo
     if (idx !== shown && idx >= 0) {
       shown = idx
       said.textContent = noteText(notes[idx]!, input)
+      // The commentator says it too (PR 14b).
+      commentate('aircraft', notes[idx]!.kind)
     }
   }
 

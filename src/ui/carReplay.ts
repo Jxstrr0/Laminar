@@ -15,6 +15,7 @@ import type { Lap } from '../sim/car'
 import { carDuration, carNotes, carRide, type CarNote } from '../sim/carReplay'
 import { timeAt, trackAt } from '../sim/replay'
 import { fixed } from './format'
+import { commentate, finishGain } from '../audio/voice'
 
 export interface CarReplayInput {
   client: string
@@ -150,6 +151,8 @@ export async function playCarReplay(input: CarReplayInput): Promise<void> {
     if (idx !== shown && idx >= 0) {
       shown = idx
       said.textContent = noteText(notes[idx]!, input)
+      // The commentator says it too (PR 14b).
+      commentate('car', notes[idx]!.kind, finishGain(notes[idx]!))
     }
   }
 

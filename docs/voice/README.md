@@ -1,6 +1,6 @@
 # Laminar voice pack v1 (ElevenLabs)
 
-Status: **generated, takes not yet picked.** Kelbo approved the quote on 17 November 2026; 4,972 credits were used (2 takes of each line). The files stay on ElevenLabs until the picked takes are added to the game.
+Status: **in the game (PR 14b, v0.15.1.0).** Kelbo approved the quote on 17 November 2026; 4,972 credits were used (2 takes of each line). Kelbo picked **take 2 of every line**. Each one is in `public/voice/` under its `file_name`, and the script sheet's `generation_id` names it.
 
 - Script sheet: `lam-voice-pack-v1.csv` (60 lines, game code `LAM`). Line IDs never change once shipped.
 - Flow on ElevenLabs: "LAM — Laminar voice pack v1" (one node per line, labelled with its line ID).
@@ -25,7 +25,11 @@ The six staff and client voices speak English with a light Eastern European acce
 Tarnovia. The commentator is a British broadcast voice: the first pick, a Slavic-accented
 voice called Roman, isn't available to this workspace.
 
-## When they're generated
+## In the game
 
-Save each picked take under its `file_name`, load voice per screen (never in the first load),
-and add one line per voice to `CREDITS.md`.
+- `src/data/voice.ts`: every line, each cue's line per speaker, and the client voice for each brief.
+- `src/audio/voice.ts` plays them one at a time through the game's sound, so the mute chip
+  silences them too. A caption names who's speaking. A file loads the first time its line plays
+  (never in the first load), and the offline worker keeps it in `laminar-voice-1`.
+- The tech and the analyst only speak once they're on the staff. The client speaks as a job
+  starts, on the day, and at the debrief. The commentator speaks over every replay.

@@ -1,61 +1,61 @@
 line_id,game,category,character,trigger,text,model,voice_id,takes,file_name,chars,est_credits,status,generation_id
-LAM-BASOV-0001,LAM,bark,basov,fan starts,Fan's coming up. Stand clear of the section.,eleven_v4,YmVg4ttFt2KSPXVlxpRw,2,lam_basov_lam-basov-0001.mp3,44,94,generated,
-LAM-BASOV-0002,LAM,bark,basov,"at speed, readings steady",Speed's steady. Balance is reading.,eleven_v4,YmVg4ttFt2KSPXVlxpRw,2,lam_basov_lam-basov-0002.mp3,35,74,generated,
-LAM-BASOV-0003,LAM,bark,basov,yaw sweep finished,Sweep's done. The numbers are on your screen.,eleven_v4,YmVg4ttFt2KSPXVlxpRw,2,lam_basov_lam-basov-0003.mp3,45,96,generated,
-LAM-BASOV-0004,LAM,bark,basov,tare run finished,Tare's in. The mount is out of the numbers now.,eleven_v4,YmVg4ttFt2KSPXVlxpRw,2,lam_basov_lam-basov-0004.mp3,47,100,generated,
-LAM-BASOV-0005,LAM,bark,basov,sphere calibration finished,Sphere's run. The tunnel is calibrated.,eleven_v4,YmVg4ttFt2KSPXVlxpRw,2,lam_basov_lam-basov-0005.mp3,39,83,generated,
-LAM-BASOV-0006,LAM,bark,basov,mount strain warning,The mount is working hard. I'd ease off the speed.,eleven_v4,YmVg4ttFt2KSPXVlxpRw,2,lam_basov_lam-basov-0006.mp3,50,106,generated,
-LAM-BASOV-0007,LAM,bark,basov,flutter starts,Something's fluttering. Watch it.,eleven_v4,YmVg4ttFt2KSPXVlxpRw,2,lam_basov_lam-basov-0007.mp3,33,70,generated,
-LAM-BASOV-0008,LAM,bark,basov,model breaks,[sighs] And it's gone. Model's off the mount. Fan's down.,eleven_v4,YmVg4ttFt2KSPXVlxpRw,2,lam_basov_lam-basov-0008.mp3,49,104,generated,
-LAM-BASOV-0009,LAM,bark,basov,smoke wand on,Smoke's on.,eleven_v4,YmVg4ttFt2KSPXVlxpRw,2,lam_basov_lam-basov-0009.mp3,11,23,generated,
-LAM-BASOV-0010,LAM,bark,basov,fan stops,Fan's down. Safe to go in.,eleven_v4,YmVg4ttFt2KSPXVlxpRw,2,lam_basov_lam-basov-0010.mp3,26,55,generated,
-LAM-KRASNA-0001,LAM,bark,krasna,fan starts,"Spinning up. Doors shut, hands in.",eleven_v4,rl5Q2u6U81iTG1BKztyX,2,lam_krasna_lam-krasna-0001.mp3,34,72,generated,
-LAM-KRASNA-0002,LAM,bark,krasna,"at speed, readings steady",We're at speed. Reading clean.,eleven_v4,rl5Q2u6U81iTG1BKztyX,2,lam_krasna_lam-krasna-0002.mp3,30,64,generated,
-LAM-KRASNA-0003,LAM,bark,krasna,yaw sweep finished,Sweep finished. Have a look.,eleven_v4,rl5Q2u6U81iTG1BKztyX,2,lam_krasna_lam-krasna-0003.mp3,28,60,generated,
-LAM-KRASNA-0004,LAM,bark,krasna,tare run finished,Tare done. That's the mount taken out.,eleven_v4,rl5Q2u6U81iTG1BKztyX,2,lam_krasna_lam-krasna-0004.mp3,38,81,generated,
-LAM-KRASNA-0005,LAM,bark,krasna,sphere calibration finished,Calibration done. The sphere agrees with the book.,eleven_v4,rl5Q2u6U81iTG1BKztyX,2,lam_krasna_lam-krasna-0005.mp3,50,106,generated,
-LAM-KRASNA-0006,LAM,bark,krasna,mount strain warning,That's a lot of load on the sting. Your call.,eleven_v4,rl5Q2u6U81iTG1BKztyX,2,lam_krasna_lam-krasna-0006.mp3,45,96,generated,
-LAM-KRASNA-0007,LAM,bark,krasna,flutter starts,It's buzzing. Not a good buzz.,eleven_v4,rl5Q2u6U81iTG1BKztyX,2,lam_krasna_lam-krasna-0007.mp3,30,64,generated,
-LAM-KRASNA-0008,LAM,bark,krasna,model breaks,That's a break. I'll sweep up the bits.,eleven_v4,rl5Q2u6U81iTG1BKztyX,2,lam_krasna_lam-krasna-0008.mp3,39,83,generated,
-LAM-KRASNA-0009,LAM,bark,krasna,smoke wand on,Smoke's running.,eleven_v4,rl5Q2u6U81iTG1BKztyX,2,lam_krasna_lam-krasna-0009.mp3,16,34,generated,
-LAM-KRASNA-0010,LAM,bark,krasna,fan stops,Fan off. All quiet.,eleven_v4,rl5Q2u6U81iTG1BKztyX,2,lam_krasna_lam-krasna-0010.mp3,19,40,generated,
-LAM-ZHELIN-0001,LAM,dialogue,zhelin,sweep matches the prediction,The tunnel and your sketch agree. That's rare. Enjoy it.,eleven_v4,XaEUesE01wKIKaa0xI0h,2,lam_zhelin_lam-zhelin-0001.mp3,56,119,generated,
-LAM-ZHELIN-0002,LAM,dialogue,zhelin,separation moves forward,Separation's moved forward. The tail is doing nothing for you.,eleven_v4,XaEUesE01wKIKaa0xI0h,2,lam_zhelin_lam-zhelin-0002.mp3,62,132,generated,
-LAM-ZHELIN-0003,LAM,dialogue,zhelin,change within the noise,That's inside the noise. Run it again before you believe it.,eleven_v4,XaEUesE01wKIKaa0xI0h,2,lam_zhelin_lam-zhelin-0003.mp3,60,128,generated,
-LAM-ZHELIN-0004,LAM,dialogue,zhelin,promise looks safe,"Your promise is safe, if the wind behaves.",eleven_v4,XaEUesE01wKIKaa0xI0h,2,lam_zhelin_lam-zhelin-0004.mp3,42,89,generated,
-LAM-ZHELIN-0005,LAM,dialogue,zhelin,promise looks too bold / worse result,That promise is too bold. The tunnel won't back it.,eleven_v4,XaEUesE01wKIKaa0xI0h,2,lam_zhelin_lam-zhelin-0005.mp3,51,109,generated,
-LAM-ZHELIN-0006,LAM,dialogue,zhelin,debrief: road agreed with tunnel,The road read close to the tunnel. Good work.,eleven_v4,XaEUesE01wKIKaa0xI0h,2,lam_zhelin_lam-zhelin-0006.mp3,45,96,generated,
-LAM-ZHELIN-0007,LAM,dialogue,zhelin,debrief: road disagreed,The road and the tunnel disagree. Let's find out why.,eleven_v4,XaEUesE01wKIKaa0xI0h,2,lam_zhelin_lam-zhelin-0007.mp3,53,113,generated,
-LAM-SOROKOVA-0001,LAM,dialogue,sorokova,sweep matches the prediction,"Oh, that's better! I think. Let me check the repeats.",eleven_v4,u4vKLcnECLknah2Kl9fU,2,lam_sorokova_lam-sorokova-0001.mp3,53,113,generated,
-LAM-SOROKOVA-0002,LAM,dialogue,sorokova,separation moves forward,The flow lets go early there. See the tufts?,eleven_v4,u4vKLcnECLknah2Kl9fU,2,lam_sorokova_lam-sorokova-0002.mp3,44,94,generated,
-LAM-SOROKOVA-0003,LAM,dialogue,sorokova,change within the noise,Small change. Maybe too small to trust yet.,eleven_v4,u4vKLcnECLknah2Kl9fU,2,lam_sorokova_lam-sorokova-0003.mp3,43,91,generated,
-LAM-SOROKOVA-0004,LAM,dialogue,sorokova,promise looks safe,That looks like a winner to me.,eleven_v4,u4vKLcnECLknah2Kl9fU,2,lam_sorokova_lam-sorokova-0004.mp3,31,66,generated,
-LAM-SOROKOVA-0005,LAM,dialogue,sorokova,promise looks too bold / worse result,"[nervous] Um, that's worse. Sorry.",eleven_v4,u4vKLcnECLknah2Kl9fU,2,lam_sorokova_lam-sorokova-0005.mp3,24,51,generated,
-LAM-SOROKOVA-0006,LAM,dialogue,sorokova,debrief: road agreed with tunnel,The road agreed with us! I knew it.,eleven_v4,u4vKLcnECLknah2Kl9fU,2,lam_sorokova_lam-sorokova-0006.mp3,35,74,generated,
-LAM-SOROKOVA-0007,LAM,dialogue,sorokova,debrief: road disagreed,That's not what the tunnel said. I'll look at the quirks.,eleven_v4,u4vKLcnECLknah2Kl9fU,2,lam_sorokova_lam-sorokova-0007.mp3,57,121,generated,
-LAM-CLIENT-0001,LAM,dialogue,boss,brief opens,We're losing seconds in the air. Find them for us.,eleven_v4,IGRoDkfYV2Frq7Ly0PRu,2,lam_boss_lam-client-0001.mp3,50,106,generated,
-LAM-CLIENT-0002,LAM,dialogue,boss,"brief opens, tight budget",The budget is tight. Don't spend it all on the fan.,eleven_v4,IGRoDkfYV2Frq7Ly0PRu,2,lam_boss_lam-client-0002.mp3,51,109,generated,
-LAM-CLIENT-0003,LAM,dialogue,boss,event day starts,You promised. Let's see the road agree.,eleven_v4,IGRoDkfYV2Frq7Ly0PRu,2,lam_boss_lam-client-0003.mp3,39,83,generated,
-LAM-CLIENT-0004,LAM,dialogue,boss,debrief: promise kept,That's what you called. Good. We'll be back.,eleven_v4,IGRoDkfYV2Frq7Ly0PRu,2,lam_boss_lam-client-0004.mp3,44,94,generated,
-LAM-CLIENT-0005,LAM,dialogue,boss,debrief: promise missed,That wasn't the number you gave us.,eleven_v4,IGRoDkfYV2Frq7Ly0PRu,2,lam_boss_lam-client-0005.mp3,35,74,generated,
-LAM-CLIENT-0006,LAM,dialogue,engineer,brief opens,Our numbers say there's drag to lose. Show me where.,eleven_v4,xVQH621DS3eyBYrseRt5,2,lam_engineer_lam-client-0006.mp3,52,111,generated,
-LAM-CLIENT-0007,LAM,dialogue,engineer,"brief opens, tight budget","I need it by race day, not a day after.",eleven_v4,xVQH621DS3eyBYrseRt5,2,lam_engineer_lam-client-0007.mp3,39,83,generated,
-LAM-CLIENT-0008,LAM,dialogue,engineer,event day starts,The data's in. Let's see if your tunnel told the truth.,eleven_v4,xVQH621DS3eyBYrseRt5,2,lam_engineer_lam-client-0008.mp3,55,117,generated,
-LAM-CLIENT-0009,LAM,dialogue,engineer,debrief: promise kept,Better than promised. You've earned the next job.,eleven_v4,xVQH621DS3eyBYrseRt5,2,lam_engineer_lam-client-0009.mp3,49,104,generated,
-LAM-CLIENT-0010,LAM,dialogue,engineer,debrief: promise missed,"Close, but not what we paid for.",eleven_v4,xVQH621DS3eyBYrseRt5,2,lam_engineer_lam-client-0010.mp3,32,68,generated,
-LAM-COMM-0001,LAM,host,comm,replay start (any race),[excited] And they're off!,eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0001.mp3,16,34,generated,
-LAM-COMM-0002,LAM,host,comm,gust hits,A gust! That's a real test of the setup.,eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0002.mp3,40,85,generated,
-LAM-COMM-0003,LAM,host,comm,"halfway, ahead","Halfway, and the new setup is ahead.",eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0003.mp3,36,77,generated,
-LAM-COMM-0004,LAM,host,comm,"halfway, behind","Halfway, and it's behind the old setup.",eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0004.mp3,39,83,generated,
-LAM-COMM-0005,LAM,host,comm,velodrome bell,[excited] The bell! One lap to go!,eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0005.mp3,24,51,generated,
-LAM-COMM-0006,LAM,host,comm,finish line,Across the line! Let's see the time.,eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0006.mp3,36,77,generated,
-LAM-COMM-0007,LAM,host,comm,ski jump take-off,Off the table and into the V.,eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0007.mp3,29,62,generated,
-LAM-COMM-0008,LAM,host,comm,ski jump pitch warning,"[tense] The nose is dropping! Hold it, hold it…",eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0008.mp3,39,83,generated,
-LAM-COMM-0009,LAM,host,comm,ski jump long landing,[excited] Down! And that's a long one.,eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0009.mp3,28,60,generated,
-LAM-COMM-0010,LAM,host,comm,bobsled push,They're pushing off… and in!,eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0010.mp3,28,60,generated,
-LAM-COMM-0011,LAM,host,comm,bobsled horseshoe,Into the horseshoe now.,eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0011.mp3,23,49,generated,
-LAM-COMM-0012,LAM,host,comm,car replay start,"Two cars, one flying lap. Here we go.",eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0012.mp3,37,79,generated,
-LAM-COMM-0013,LAM,host,comm,truck replay start,"Two trucks, one road, the same load. Let's see who drinks less.",eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0013.mp3,63,134,generated,
-LAM-COMM-0014,LAM,host,comm,quad replay start,"Into the gates, and they're flying.",eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0014.mp3,35,74,generated,
-LAM-COMM-0015,LAM,host,comm,wind picks up,The wind's picking up. This changes things.,eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0015.mp3,43,91,generated,
-LAM-COMM-0016,LAM,host,comm,big win at the finish,[excited] What a run!,eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0016.mp3,11,23,generated,
+LAM-BASOV-0001,LAM,bark,basov,fan starts,Fan's coming up. Stand clear of the section.,eleven_v4,YmVg4ttFt2KSPXVlxpRw,2,lam_basov_lam-basov-0001.mp3,44,94,picked,sAvvGB3gus14YskwnU9W
+LAM-BASOV-0002,LAM,bark,basov,"at speed, readings steady",Speed's steady. Balance is reading.,eleven_v4,YmVg4ttFt2KSPXVlxpRw,2,lam_basov_lam-basov-0002.mp3,35,74,picked,oPJQUUoM93Yo9oftGivm
+LAM-BASOV-0003,LAM,bark,basov,yaw sweep finished,Sweep's done. The numbers are on your screen.,eleven_v4,YmVg4ttFt2KSPXVlxpRw,2,lam_basov_lam-basov-0003.mp3,45,96,picked,g10Q7PxDmyHHDvP4ym7L
+LAM-BASOV-0004,LAM,bark,basov,tare run finished,Tare's in. The mount is out of the numbers now.,eleven_v4,YmVg4ttFt2KSPXVlxpRw,2,lam_basov_lam-basov-0004.mp3,47,100,picked,EV6ghKoZ7glJka7nopB1
+LAM-BASOV-0005,LAM,bark,basov,sphere calibration finished,Sphere's run. The tunnel is calibrated.,eleven_v4,YmVg4ttFt2KSPXVlxpRw,2,lam_basov_lam-basov-0005.mp3,39,83,picked,WESjScbMAiebshzdQO0h
+LAM-BASOV-0006,LAM,bark,basov,mount strain warning,The mount is working hard. I'd ease off the speed.,eleven_v4,YmVg4ttFt2KSPXVlxpRw,2,lam_basov_lam-basov-0006.mp3,50,106,picked,NM7z68MBhyUdcq5VoY64
+LAM-BASOV-0007,LAM,bark,basov,flutter starts,Something's fluttering. Watch it.,eleven_v4,YmVg4ttFt2KSPXVlxpRw,2,lam_basov_lam-basov-0007.mp3,33,70,picked,aRxTd2XikyWbprnoQtxI
+LAM-BASOV-0008,LAM,bark,basov,model breaks,[sighs] And it's gone. Model's off the mount. Fan's down.,eleven_v4,YmVg4ttFt2KSPXVlxpRw,2,lam_basov_lam-basov-0008.mp3,49,104,picked,IwztBzAH3GvS0mWDo874
+LAM-BASOV-0009,LAM,bark,basov,smoke wand on,Smoke's on.,eleven_v4,YmVg4ttFt2KSPXVlxpRw,2,lam_basov_lam-basov-0009.mp3,11,23,picked,yTqIoqcaQOxUdh1syNwS
+LAM-BASOV-0010,LAM,bark,basov,fan stops,Fan's down. Safe to go in.,eleven_v4,YmVg4ttFt2KSPXVlxpRw,2,lam_basov_lam-basov-0010.mp3,26,55,picked,NHul20yWe0pWtqbPQjoQ
+LAM-KRASNA-0001,LAM,bark,krasna,fan starts,"Spinning up. Doors shut, hands in.",eleven_v4,rl5Q2u6U81iTG1BKztyX,2,lam_krasna_lam-krasna-0001.mp3,34,72,picked,kAjc9fygxQeRcNvCuw8U
+LAM-KRASNA-0002,LAM,bark,krasna,"at speed, readings steady",We're at speed. Reading clean.,eleven_v4,rl5Q2u6U81iTG1BKztyX,2,lam_krasna_lam-krasna-0002.mp3,30,64,picked,kBlPXDbgTg5hYAGvM7lb
+LAM-KRASNA-0003,LAM,bark,krasna,yaw sweep finished,Sweep finished. Have a look.,eleven_v4,rl5Q2u6U81iTG1BKztyX,2,lam_krasna_lam-krasna-0003.mp3,28,60,picked,nut0C2S6yzvX6wm4ahaC
+LAM-KRASNA-0004,LAM,bark,krasna,tare run finished,Tare done. That's the mount taken out.,eleven_v4,rl5Q2u6U81iTG1BKztyX,2,lam_krasna_lam-krasna-0004.mp3,38,81,picked,Wgohw38yMSjOPhpAO8Zr
+LAM-KRASNA-0005,LAM,bark,krasna,sphere calibration finished,Calibration done. The sphere agrees with the book.,eleven_v4,rl5Q2u6U81iTG1BKztyX,2,lam_krasna_lam-krasna-0005.mp3,50,106,picked,AteANJj2L0spfJNWLcyM
+LAM-KRASNA-0006,LAM,bark,krasna,mount strain warning,That's a lot of load on the sting. Your call.,eleven_v4,rl5Q2u6U81iTG1BKztyX,2,lam_krasna_lam-krasna-0006.mp3,45,96,picked,Y4yegEZPbchdcOYb9h5D
+LAM-KRASNA-0007,LAM,bark,krasna,flutter starts,It's buzzing. Not a good buzz.,eleven_v4,rl5Q2u6U81iTG1BKztyX,2,lam_krasna_lam-krasna-0007.mp3,30,64,picked,MqcsKeKcrSe0YMhLfZFI
+LAM-KRASNA-0008,LAM,bark,krasna,model breaks,That's a break. I'll sweep up the bits.,eleven_v4,rl5Q2u6U81iTG1BKztyX,2,lam_krasna_lam-krasna-0008.mp3,39,83,picked,JBPvw0T9EquY1AEYJ7rz
+LAM-KRASNA-0009,LAM,bark,krasna,smoke wand on,Smoke's running.,eleven_v4,rl5Q2u6U81iTG1BKztyX,2,lam_krasna_lam-krasna-0009.mp3,16,34,picked,DoL4YWOYzEJFS6hdyjo7
+LAM-KRASNA-0010,LAM,bark,krasna,fan stops,Fan off. All quiet.,eleven_v4,rl5Q2u6U81iTG1BKztyX,2,lam_krasna_lam-krasna-0010.mp3,19,40,picked,r2EmQeTowT0NRGId9Kg8
+LAM-ZHELIN-0001,LAM,dialogue,zhelin,sweep matches the prediction,The tunnel and your sketch agree. That's rare. Enjoy it.,eleven_v4,XaEUesE01wKIKaa0xI0h,2,lam_zhelin_lam-zhelin-0001.mp3,56,119,picked,8dEDwdWA3QHVBqL6LiGz
+LAM-ZHELIN-0002,LAM,dialogue,zhelin,separation moves forward,Separation's moved forward. The tail is doing nothing for you.,eleven_v4,XaEUesE01wKIKaa0xI0h,2,lam_zhelin_lam-zhelin-0002.mp3,62,132,picked,W3s0ZEYzMoe5TROMxrlz
+LAM-ZHELIN-0003,LAM,dialogue,zhelin,change within the noise,That's inside the noise. Run it again before you believe it.,eleven_v4,XaEUesE01wKIKaa0xI0h,2,lam_zhelin_lam-zhelin-0003.mp3,60,128,picked,wp76iD2MXqDDPl4zDjDC
+LAM-ZHELIN-0004,LAM,dialogue,zhelin,promise looks safe,"Your promise is safe, if the wind behaves.",eleven_v4,XaEUesE01wKIKaa0xI0h,2,lam_zhelin_lam-zhelin-0004.mp3,42,89,picked,E5wxym3swuN2NvC0QviX
+LAM-ZHELIN-0005,LAM,dialogue,zhelin,promise looks too bold / worse result,That promise is too bold. The tunnel won't back it.,eleven_v4,XaEUesE01wKIKaa0xI0h,2,lam_zhelin_lam-zhelin-0005.mp3,51,109,picked,cueORRk7Rq9PfYBFiH8L
+LAM-ZHELIN-0006,LAM,dialogue,zhelin,debrief: road agreed with tunnel,The road read close to the tunnel. Good work.,eleven_v4,XaEUesE01wKIKaa0xI0h,2,lam_zhelin_lam-zhelin-0006.mp3,45,96,picked,wAjCIFTErQt50rnWJZn4
+LAM-ZHELIN-0007,LAM,dialogue,zhelin,debrief: road disagreed,The road and the tunnel disagree. Let's find out why.,eleven_v4,XaEUesE01wKIKaa0xI0h,2,lam_zhelin_lam-zhelin-0007.mp3,53,113,picked,KXaMOigSMWDAwJ14OUPX
+LAM-SOROKOVA-0001,LAM,dialogue,sorokova,sweep matches the prediction,"Oh, that's better! I think. Let me check the repeats.",eleven_v4,u4vKLcnECLknah2Kl9fU,2,lam_sorokova_lam-sorokova-0001.mp3,53,113,picked,XIy4sXyAwlRA5HtwgS3u
+LAM-SOROKOVA-0002,LAM,dialogue,sorokova,separation moves forward,The flow lets go early there. See the tufts?,eleven_v4,u4vKLcnECLknah2Kl9fU,2,lam_sorokova_lam-sorokova-0002.mp3,44,94,picked,HLb6sP2nASAgMcx5taEO
+LAM-SOROKOVA-0003,LAM,dialogue,sorokova,change within the noise,Small change. Maybe too small to trust yet.,eleven_v4,u4vKLcnECLknah2Kl9fU,2,lam_sorokova_lam-sorokova-0003.mp3,43,91,picked,z8ocqFhXwDlR9avpnIc3
+LAM-SOROKOVA-0004,LAM,dialogue,sorokova,promise looks safe,That looks like a winner to me.,eleven_v4,u4vKLcnECLknah2Kl9fU,2,lam_sorokova_lam-sorokova-0004.mp3,31,66,picked,XTJJZ5XfJzN8KUrsXI2L
+LAM-SOROKOVA-0005,LAM,dialogue,sorokova,promise looks too bold / worse result,"[nervous] Um, that's worse. Sorry.",eleven_v4,u4vKLcnECLknah2Kl9fU,2,lam_sorokova_lam-sorokova-0005.mp3,24,51,picked,fTieVZL1w5O1VeRovzF0
+LAM-SOROKOVA-0006,LAM,dialogue,sorokova,debrief: road agreed with tunnel,The road agreed with us! I knew it.,eleven_v4,u4vKLcnECLknah2Kl9fU,2,lam_sorokova_lam-sorokova-0006.mp3,35,74,picked,umCwcbeIVxkhkfhmsb5C
+LAM-SOROKOVA-0007,LAM,dialogue,sorokova,debrief: road disagreed,That's not what the tunnel said. I'll look at the quirks.,eleven_v4,u4vKLcnECLknah2Kl9fU,2,lam_sorokova_lam-sorokova-0007.mp3,57,121,picked,KPyKuJapo6En0gQbagYh
+LAM-CLIENT-0001,LAM,dialogue,boss,brief opens,We're losing seconds in the air. Find them for us.,eleven_v4,IGRoDkfYV2Frq7Ly0PRu,2,lam_boss_lam-client-0001.mp3,50,106,picked,GnHNjpRbVUacZ1PFmHLW
+LAM-CLIENT-0002,LAM,dialogue,boss,"brief opens, tight budget",The budget is tight. Don't spend it all on the fan.,eleven_v4,IGRoDkfYV2Frq7Ly0PRu,2,lam_boss_lam-client-0002.mp3,51,109,picked,GditKF1iTHhyppCJa6tP
+LAM-CLIENT-0003,LAM,dialogue,boss,event day starts,You promised. Let's see the road agree.,eleven_v4,IGRoDkfYV2Frq7Ly0PRu,2,lam_boss_lam-client-0003.mp3,39,83,picked,1avBeXjR4L8mQAO5P0K0
+LAM-CLIENT-0004,LAM,dialogue,boss,debrief: promise kept,That's what you called. Good. We'll be back.,eleven_v4,IGRoDkfYV2Frq7Ly0PRu,2,lam_boss_lam-client-0004.mp3,44,94,picked,q1pXtxlN6qf8iGfwMtoV
+LAM-CLIENT-0005,LAM,dialogue,boss,debrief: promise missed,That wasn't the number you gave us.,eleven_v4,IGRoDkfYV2Frq7Ly0PRu,2,lam_boss_lam-client-0005.mp3,35,74,picked,XCKaewW3RdWj5qRVqOJN
+LAM-CLIENT-0006,LAM,dialogue,engineer,brief opens,Our numbers say there's drag to lose. Show me where.,eleven_v4,xVQH621DS3eyBYrseRt5,2,lam_engineer_lam-client-0006.mp3,52,111,picked,U89XdbCiF6WJ2bnrNxiP
+LAM-CLIENT-0007,LAM,dialogue,engineer,"brief opens, tight budget","I need it by race day, not a day after.",eleven_v4,xVQH621DS3eyBYrseRt5,2,lam_engineer_lam-client-0007.mp3,39,83,picked,VR9e39eqqPTnK7wYlJa0
+LAM-CLIENT-0008,LAM,dialogue,engineer,event day starts,The data's in. Let's see if your tunnel told the truth.,eleven_v4,xVQH621DS3eyBYrseRt5,2,lam_engineer_lam-client-0008.mp3,55,117,picked,u0aF0srh4aE9V7HOr6XL
+LAM-CLIENT-0009,LAM,dialogue,engineer,debrief: promise kept,Better than promised. You've earned the next job.,eleven_v4,xVQH621DS3eyBYrseRt5,2,lam_engineer_lam-client-0009.mp3,49,104,picked,essr383nPLdttMRUeD3X
+LAM-CLIENT-0010,LAM,dialogue,engineer,debrief: promise missed,"Close, but not what we paid for.",eleven_v4,xVQH621DS3eyBYrseRt5,2,lam_engineer_lam-client-0010.mp3,32,68,picked,H7Y5nHtHMY0mjkMfVWxu
+LAM-COMM-0001,LAM,host,comm,replay start (any race),[excited] And they're off!,eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0001.mp3,16,34,picked,uxZRGFaL5Xr11dxaAl3y
+LAM-COMM-0002,LAM,host,comm,gust hits,A gust! That's a real test of the setup.,eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0002.mp3,40,85,picked,OQuZy3CG1lZLfPzk98vo
+LAM-COMM-0003,LAM,host,comm,"halfway, ahead","Halfway, and the new setup is ahead.",eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0003.mp3,36,77,picked,07R7l88WE9Hxe3m6Lj3W
+LAM-COMM-0004,LAM,host,comm,"halfway, behind","Halfway, and it's behind the old setup.",eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0004.mp3,39,83,picked,eewiN55GhJoLO1ZVikG4
+LAM-COMM-0005,LAM,host,comm,velodrome bell,[excited] The bell! One lap to go!,eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0005.mp3,24,51,picked,H8XfKg9NStilriGKEdZ3
+LAM-COMM-0006,LAM,host,comm,finish line,Across the line! Let's see the time.,eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0006.mp3,36,77,picked,lDTI9RAVIXuPO7IandWW
+LAM-COMM-0007,LAM,host,comm,ski jump take-off,Off the table and into the V.,eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0007.mp3,29,62,picked,mjQXCimkmbiZyFY5SDD5
+LAM-COMM-0008,LAM,host,comm,ski jump pitch warning,"[tense] The nose is dropping! Hold it, hold it…",eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0008.mp3,39,83,picked,yiw3pVa9eHP0FKe4kSMQ
+LAM-COMM-0009,LAM,host,comm,ski jump long landing,[excited] Down! And that's a long one.,eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0009.mp3,28,60,picked,A5uzma2f8izk8oeVLuFM
+LAM-COMM-0010,LAM,host,comm,bobsled push,They're pushing off… and in!,eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0010.mp3,28,60,picked,lmr4lkIhvabyjgGSnaUD
+LAM-COMM-0011,LAM,host,comm,bobsled horseshoe,Into the horseshoe now.,eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0011.mp3,23,49,picked,HaQ3Jc1T0ecab1Qxu0lO
+LAM-COMM-0012,LAM,host,comm,car replay start,"Two cars, one flying lap. Here we go.",eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0012.mp3,37,79,picked,nkDA0cbjP23oAksw3IzB
+LAM-COMM-0013,LAM,host,comm,truck replay start,"Two trucks, one road, the same load. Let's see who drinks less.",eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0013.mp3,63,134,picked,0BdNPT0Tnnc2ONgyLcM0
+LAM-COMM-0014,LAM,host,comm,quad replay start,"Into the gates, and they're flying.",eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0014.mp3,35,74,picked,U0zGmYvgT1GYu3VOAOQE
+LAM-COMM-0015,LAM,host,comm,wind picks up,The wind's picking up. This changes things.,eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0015.mp3,43,91,picked,kWBNZcAM9Z9ZyoA1ZhP4
+LAM-COMM-0016,LAM,host,comm,big win at the finish,[excited] What a run!,eleven_v4,9rR45HW0vcBmpCbkc4m9,2,lam_comm_lam-comm-0016.mp3,11,23,picked,IFEx1iSfCVoqdWOI6uyh

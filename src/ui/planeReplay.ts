@@ -16,6 +16,7 @@ import type { SurveyDay, SurveyFlight } from '../sim/planeJob'
 import { clipClock, clipsPlayTime, planePose, planeRide, surveyClips, surveyNotes, type SurveyNote } from '../sim/planeReplay'
 import { trackAt } from '../sim/replay'
 import { fixed } from './format'
+import { commentate } from '../audio/voice'
 
 export interface PlaneReplayInput {
   client: string
@@ -185,6 +186,8 @@ export async function playPlaneReplay(input: PlaneReplayInput): Promise<void> {
     if (idx !== shown && idx >= 0) {
       shown = idx
       said.textContent = noteText(notes[idx]!, input)
+      // The commentator says it too (PR 14b).
+      commentate('plane', notes[idx]!.kind)
     }
   }
 

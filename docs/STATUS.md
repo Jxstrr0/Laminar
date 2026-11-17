@@ -144,7 +144,8 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 13i | Pressure colour on the model (the brief's 13e, `src/render/cpSurface.ts`): while the Cp taps are on, the model's skin wears the latest scan, each vertex blending its four nearest taps and fading back to matte away from them, with thin isobar lines at each legend tick (skipped on four-core phones). Recoloured only when a new scan arrives. The Cp scale moves to the look's blue and coral (checked under three colour-blind simulations), and the legend becomes a white pill with an 8px bar and numbered ticks, top right | **Done** (v0.14.8.0) |
 | 13j | Isobar's last pass (the brief's 13f): a new app icon (Kelbo picked the navy tile with a Cp-shaded ball), the manifest's theme colour, the PIV and CFD slices retinted deep indigo to pale teal (lightness still carries the speed), the replay's title and panel as Isobar pills and cards, the boom flash as a token, and the 3D screens' backdrop in `--scene`. Every other sheet already wore the new tokens. Screenshots of both themes in `docs/screenshots/` | **Done** (v0.14.9.0) |
 | 14a | Offline play: a service worker keeps every built file in a `laminar-` cache named after a hash of the build, so the game opens with no signal; voice lines are cached on first play (`laminar-voice-1`). A new version waits for the player: a bar above the dock says it's ready, and Reload saves the career, then swaps. It only ever deletes `laminar-` caches. `?nosw` removes the worker and its caches. The Credits sheet says whether this copy works offline | **Done** (v0.15.0.0) |
-| Next | | 14b the balance bot, then the studio site listing; the picked voice takes whenever Kelbo's picks arrive. |
+| 14b | The voices: Kelbo's picks (take 2 of all 60 lines) in `public/voice/`, played one at a time through the game's sound with a caption. The tech (Basov or Krasna) calls the fan, the sweeps, the tare, the sphere, strain, flutter, breaks and smoke; the analyst (Zhelin or Sorokova) weighs compared runs, early separation on the tufts, the promise and the road's read; each is heard only once hired. The client speaks as a job starts, on the day and at the debrief; the commentator over every replay. Files load on first play, never in the first load; mute silences them | **Done** (v0.15.1.0) |
+| Next | | 14c the balance bot, then the studio site listing. |
 
 ## Versions
 
@@ -165,6 +166,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 - **0.14.8.0** (PR 13i): pressure colour on the model, the new Cp scale and legend.
 - **0.14.9.0** (PR 13j): the new app icon, the slices retinted, the last screens; Isobar is done.
 - **0.15.0.0** (PR 14a): the game works offline, and asks before updating.
+- **0.15.1.0** (PR 14b): the voices: tunnel techs, analysts, clients and the commentator.
 - **0.14.0.0** (PR 13a): lab sounds made in code, with a mute button.
 - **0.13.2.0** (PR 12c): the CFD panel in the tunnel: run it, read its drag and see the flow.
 - **0.13.1.0** (PR 12b): the CFD Cluster upgrade, and the model as cells for its grid.

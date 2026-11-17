@@ -169,6 +169,11 @@ export function snap(): void {
 
 export const isMuted = () => muted
 
+/** The sound's context and master volume, for the voice player (null before the first tap). */
+export function audioOut(): { ctx: AudioContext; master: GainNode } | null {
+  return voices ? { ctx: voices.ctx, master: voices.master } : null
+}
+
 /** Mute or unmute, remembered for next time. */
 export function setMuted(on: boolean): void {
   muted = on
