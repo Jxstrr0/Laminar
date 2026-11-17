@@ -21,4 +21,15 @@ Laminar is made by Kelbo / Longlight Interactive. © 2026.
 The Longlight Interactive logo is the studio's own, copied from the press kit
 at https://longlight.games/press.html.
 
-No third-party models, textures or sounds yet.
+## 3D models
+
+The wind tunnel's test section (`public/models/tunnel-university.glb`) is built
+by Longlight Interactive's own script, `art/tunnel/build.py`, in Blender 4.5.15.
+Blender is GPL-licensed software; the models it outputs belong to the studio.
+
+## Sound
+
+The lab sounds are synthesised in code with the Web Audio API (`src/audio/`).
+No recordings.
+
+No third-party models, textures or sounds.

@@ -316,8 +316,12 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   const terms = el('button', 'text-button', t('shape.glossary'))
   terms.type = 'button'
   terms.addEventListener('click', () => openGlossaryIndex())
+  // The credits load only when asked for.
+  const credits = el('button', 'text-button', t('shape.credits'))
+  credits.type = 'button'
+  credits.addEventListener('click', () => void import('./creditsSheet').then((m) => m.openCredits()))
   const version = el('span', 'version', `v${__GAME_VERSION__} · ${__BUILD_SHA__} · ${__BUILD_DATE__}`)
-  foot.append(reset, terms, version)
+  foot.append(reset, terms, credits, version)
 
   sheet.append(grid, breaks, tabBar, panelBox, foot)
   host.append(header, sheet)
