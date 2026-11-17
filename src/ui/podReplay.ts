@@ -12,6 +12,7 @@ import { t } from '../data/strings'
 import type { PodFlight } from '../sim/podJob'
 import { podClocks, podNotes, podShow, steppe, type PodNote } from '../sim/podReplay'
 import { fixed } from './format'
+import { commentate } from '../audio/voice'
 
 export interface PodReplayInput {
   client: string
@@ -210,6 +211,8 @@ export function playPodReplay(input: PodReplayInput): void {
     if (idx !== shown && idx >= 0) {
       shown = idx
       said.textContent = noteText(notes[idx]!, input)
+      // The commentator says it too (PR 14b).
+      commentate('pod', notes[idx]!.kind)
     }
   }
 

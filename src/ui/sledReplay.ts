@@ -14,6 +14,7 @@ import { t } from '../data/strings'
 import type { BobRun } from '../sim/bobsled'
 import { frameAt, sledDuration, sledNotes, sledPath, timeAt, trackLine, type SledNote } from '../sim/sledReplay'
 import { fixed } from './format'
+import { commentate } from '../audio/voice'
 
 export interface SledReplayInput {
   client: string
@@ -150,6 +151,8 @@ export async function playSledReplay(input: SledReplayInput): Promise<void> {
     if (idx !== shown && idx >= 0) {
       shown = idx
       said.textContent = noteText(notes[idx]!, input)
+      // The commentator says it too (PR 14b).
+      commentate('sled', notes[idx]!.kind)
     }
   }
 

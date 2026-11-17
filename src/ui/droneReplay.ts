@@ -16,6 +16,7 @@ import type { DroneRace } from '../sim/drone'
 import { droneClock, droneDuration, droneGates, dronePlayTime, droneLap, droneNotes, droneRide, lapAt, leanAt, type DroneNote, type DroneRide } from '../sim/droneReplay'
 import { rideTime, timeAt, trackAt } from '../sim/replay'
 import { fixed } from './format'
+import { commentate, finishGain } from '../audio/voice'
 
 export interface DroneReplayInput {
   client: string
@@ -182,6 +183,8 @@ export async function playDroneReplay(input: DroneReplayInput): Promise<void> {
     if (idx !== shown && idx >= 0) {
       shown = idx
       said.textContent = noteText(notes[idx]!, input)
+      // The commentator says it too (PR 14b).
+      commentate('drone', notes[idx]!.kind, finishGain(notes[idx]!))
     }
   }
 

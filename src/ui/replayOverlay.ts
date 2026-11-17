@@ -13,6 +13,7 @@ import { t } from '../data/strings'
 import { gapAt, replayNotes, rideTime, trackAt, windFeel, type ReplayNote, type Ride, type WindFeel } from '../sim/replay'
 import type { FieldResult } from '../sim/views'
 import { fixed, raceTime } from './format'
+import { commentate, voiceGap } from '../audio/voice'
 
 export interface ReplayInput {
   client: string
@@ -177,6 +178,8 @@ export async function playReplay(input: ReplayInput): Promise<void> {
     if (idx !== shown && idx >= 0) {
       shown = idx
       line.textContent = noteText(notes[idx]!, input)
+      // The commentator says it too (PR 14b).
+      commentate('ride', notes[idx]!.kind, voiceGap(notes[idx]!, input.baseline.time))
     }
   }
 

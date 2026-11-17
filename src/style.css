@@ -1463,3 +1463,28 @@ body[data-guide='deliver'] .guide-deliver {
 .update-later { margin-left: auto; background: var(--panel-2); color: var(--ink); }
 .update-go { background: var(--accent); color: var(--accent-ink); }
 .update-go:disabled { opacity: 0.6; }
+
+/* --- Voice caption (PR 14b) -------------------------------------------- */
+/* Who's speaking and what they say, above the dock while a line plays. */
+.voice-caption {
+  position: fixed;
+  /* Over the sheets (400), so the debrief's lines show above the race-day sheet; a replay is 500. */
+  z-index: 450;
+  left: 50%;
+  bottom: calc(var(--dock-h) + 8px);
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(440px, calc(100% - 24px - var(--safe-l) - var(--safe-r)));
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 16px;
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 0.85rem;
+  line-height: 1.35;
+  text-align: center;
+  pointer-events: none;
+}
+.voice-caption[hidden] { display: none; }
+/* In a replay the panel fills the foot, so the caption sits under the title. */
+.replay .voice-caption { top: calc(64px + var(--safe-t)); bottom: auto; }

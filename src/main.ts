@@ -41,6 +41,9 @@ import { challengeLink, decodeChallenge } from './persist/designCode'
 import { challengeCareer, challengeTarget } from './sim/challenge'
 import { challengeStore } from './ui/challengeStore'
 import { startOffline } from './pwa/register'
+import { say, sayAfterReplay, setVoiceCast } from './audio/voice'
+import { boldPromise, roadAgreed } from './audio/cues'
+import { VOICE } from './data/voice'
 
 
 /** The career slot in play: the one used last visit. */
@@ -283,6 +286,32 @@ async function boot(): Promise<void> {
   }
   markGuide()
   careerStore.subscribe(markGuide)
+  // Voices (PR 14b): who's on hand, and the client's and analyst's lines as a job starts and ends.
+  let lastBrief: string | null = careerStore.get().job?.brief.id ?? null
+  setVoiceCast(() => {
+    const c = careerStore.get()
+    return { tech: c.crew.tech ?? null, analyst: c.crew.analyst ?? null, brief: c.job?.brief.id ?? lastBrief }
+  })
+  let voiceWas = careerStore.get()
+  careerStore.subscribe(() => {
+    const was = voiceWas
+    const now = careerStore.get()
+    voiceWas = now
+    if (!was.job && now.job) {
+      // A job begins: the client sets it out, and the analyst weighs the promise.
+      lastBrief = now.job.brief.id
+      say(now.job.brief.days <= VOICE.tightDays ? 'briefTight' : 'brief')
+      const asked = briefTemplate(now.job.brief.id)?.target
+      if (asked !== undefined) say(boldPromise(now.job.promise, asked) ? 'bad' : 'safe')
+    } else if (now.history.length > was.history.length) {
+      // Delivered: the client on the day, then, once the replay closes, the verdict.
+      const done = now.history[now.history.length - 1]!
+      lastBrief = done.id
+      say('eventDay')
+      sayAfterReplay(done.paid >= done.fee ? 'kept' : 'missed')
+      if (done.actual !== 0) sayAfterReplay(roadAgreed((done.predicted - done.actual) / done.actual) ? 'agreed' : 'disagreed')
+    }
+  })
   const current = (): SaveFile => ({
     v: SAVE_VERSION,
     savedAt: Date.now(),

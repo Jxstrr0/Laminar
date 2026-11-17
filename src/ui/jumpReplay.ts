@@ -13,6 +13,7 @@ import { t } from '../data/strings'
 import type { JumpResult } from '../sim/jumper'
 import { frameAt, jumpDuration, jumpNotes, jumpPath, type JumpNote } from '../sim/jumpReplay'
 import { fixed } from './format'
+import { commentate } from '../audio/voice'
 
 export interface JumpReplayInput {
   client: string
@@ -158,6 +159,8 @@ export async function playJumpReplay(input: JumpReplayInput): Promise<void> {
     if (idx !== shown && idx >= 0) {
       shown = idx
       line.textContent = noteText(notes[idx]!, input)
+      // The commentator says it too (PR 14b).
+      commentate('jump', notes[idx]!.kind)
     }
   }
 

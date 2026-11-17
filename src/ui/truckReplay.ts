@@ -15,6 +15,7 @@ import { timeAt, trackAt, windFeel } from '../sim/replay'
 import type { FuelRun, RouteDay } from '../sim/truck'
 import { litresAt, truckDuration, truckNotes, truckRide, type TruckNote } from '../sim/truckReplay'
 import { fixed } from './format'
+import { commentate } from '../audio/voice'
 
 export interface TruckReplayInput {
   client: string
@@ -151,6 +152,8 @@ export async function playTruckReplay(input: TruckReplayInput): Promise<void> {
     if (idx !== shown && idx >= 0) {
       shown = idx
       said.textContent = noteText(notes[idx]!, input)
+      // The commentator says it too (PR 14b).
+      commentate('truck', notes[idx]!.kind)
     }
   }
 

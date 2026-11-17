@@ -125,6 +125,8 @@ import { createCfdPanel } from './cfdPanel'
 import { soundButton } from './soundButton'
 import { tableCue, tableMoving } from '../audio/cues'
 import { clunk, setFan, setWhirr, snap } from '../audio/engine'
+import { say } from '../audio/voice'
+import { VOICE } from '../data/voice'
 import { designStore } from './designStore'
 import { fixed, scientific } from './format'
 import { glossaryTerm } from './glossary'
@@ -617,6 +619,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   runsBox.setAttribute('aria-labelledby', 'view-runs')
   const compareBox = el('div', 'compare')
   const verdict = el('p', 'compare-verdict')
+  /** The pair of runs the analyst last spoke about (null until the first compare, which stays quiet). */
+  let comparedPair: string | null = null
   verdict.setAttribute('aria-live', 'polite')
   const detail = el('p', 'compare-detail')
   const changed = el('p', 'compare-detail')
@@ -685,6 +689,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     b.addEventListener('click', () => {
       inst[id] = !inst[id]
       b.setAttribute('aria-pressed', String(inst[id]))
+      if (inst[id] && (id === 'wand' || id === 'rake')) say('smokeOn')
       applyInstruments()
     })
     instChips.set(id, b)
@@ -742,10 +747,13 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   }
   fanCtl.input.addEventListener('input', () => {
     if (locked()) fanCtl.input.value = '0'
+    const wasOff = fan.target === 0
     fan = setFanTarget(fan, Number(fanCtl.input.value), spec)
+    if (wasOff && fan.target > 0) say('fanStart')
     showTargets()
   })
   offBtn.addEventListener('click', () => {
+    if (fan.target > 0) say('fanStop')
     fan = setFanTarget(fan, 0, spec)
     fanCtl.input.value = '0'
     showTargets()
@@ -893,6 +901,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     warnShown = part
     warnBox.hidden = !part
     if (part) setText(warnBox, t(`fail.warn.${part}` as StringKey))
+    if (warn) say(warn.mode === 'flutter' ? 'flutter' : 'strain')
   }
   const locked = () => !!broken && mount === 'rider' && !tare
   const brokenBox = el('div', 'model-note is-broken')
@@ -974,6 +983,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     showWarn()
     view.breakPart(f.part, true)
     snap()
+    say('break')
     view.setFlow(null, [])
     if (rec.run) rec = { ...rec, run: { ...rec.run, failure: f } }
     endRun()
@@ -1002,6 +1012,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     flowAge = Infinity
   }
   /** Rebuild the field when the setting has moved on, no more than four times a second. */
+  let sepSeen: { version: number; share: number } | null = null
   function updateFlow(dt: number) {
     flowAge += dt
     const mapping = inst.taps && mount === 'rider' && !tare && !!prepared
@@ -1018,7 +1029,14 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     flowAge = 0
     const flow = { density: AIR.density, viscosity: AIR.viscosity, speed, turbulence: airTurbulence }
     const field = modelFlowField(modelDesign, prepared.shape, flow, table.angle, { seed: DEMO_MODEL_SEED, crankDeg: crank })
-    view.setFlow(field, inst.tufts ? tuftsOf(field, { spacing: TUFT_VIZ.spacing }) : [])
+    const tufts = inst.tufts ? tuftsOf(field, { spacing: TUFT_VIZ.spacing }) : []
+    view.setFlow(field, tufts)
+    // The analyst spots the flow letting go earlier on a new model (more tufts flailing than the last one had).
+    if (tufts.length > 0 && reading) {
+      const share = tufts.filter((x) => x.separated).length / tufts.length
+      if (sepSeen && sepSeen.version !== modelVersion && share > sepSeen.share + VOICE.sepRise) say('sepForward')
+      sepSeen = { version: modelVersion, share }
+    }
     if (inst.taps) {
       const taps = reading ? tapLayout(field) : []
       const cps = readTaps(field, taps, tapsRng)
@@ -1201,11 +1219,20 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     y: { label: t('axis.cda'), unit: 'm²', digits: 3 },
   }
 
+  /** The tech's word on a finished run: the tare's in, the sphere's run, or a yaw sweep is done. */
+  function voiceRun(run: Run) {
+    if (run.failure) return
+    if (run.model === tareModel(mountKind())) return say('tareDone')
+    if (run.model === 'sphere') return say('sphereDone')
+    if (new Set(run.samples.map((x) => Math.round(x.yawDeg))).size >= 3) say('sweepDone')
+  }
+
   /** End the run in progress (the model is being swapped) and stop the fan. */
   function endRun() {
     if (rec.run) {
       runs.push(rec.run)
       hooks.onRun(rec.run)
+      voiceRun(rec.run)
       rec = { ...rec, run: null }
       runsDirty = true
       refreshCal()
@@ -1479,6 +1506,12 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       else {
         const slots = { delta: fixed(Math.abs(head.delta), 4), band: fixed(head.band, 4), yaw: fixed(head.yawDeg, 0) }
         setText(verdict, t(head.verdict === 'lower' ? 'runs.lower' : head.verdict === 'higher' ? 'runs.higher' : head.verdict === 'noise' ? 'runs.noise' : 'runs.tooFew', slots))
+        // The analyst on a fresh pair of runs: better, worse, or inside the noise.
+        const pair = `${a.id}-${b.id}`
+        if (pair !== comparedPair) {
+          if (comparedPair !== null) say(head.verdict === 'lower' ? 'match' : head.verdict === 'higher' ? 'bad' : 'noise')
+          comparedPair = pair
+        }
         setText(detail, t('runs.detail', { a: fixed(head.a.mean, 4), bandA: fixed(head.a.band, 4), b: fixed(head.b.mean, 4), bandB: fixed(head.b.band, 4) }))
       }
       detail.hidden = !head
@@ -2847,6 +2880,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   let carry = 0
   let active = false
   let raf = 0
+  let wasReading = false
   const loop = (now: number) => {
     const dt = Math.min((now - last) / 1000, 0.25)
     last = now
@@ -2854,6 +2888,10 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     syncTunnel()
     while (carry >= STEP) {
       fan = stepFan(fan, STEP, spec)
+      // The tech calls it once the air is fast enough to read.
+      const nowReading = fan.speed >= spec.readFrom && !broken
+      if (nowReading && !wasReading) say('atSpeed')
+      wasReading = nowReading
       // The fan's dial marks how fast it's really going while it ramps.
       showActual()
       table = stepTurntable(table, STEP, dial())
@@ -2872,6 +2910,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
       if (step.finished) {
         runs.push(step.finished)
         hooks.onRun(step.finished)
+        voiceRun(step.finished)
         refreshCal()
         onChange()
         chartDirty = true

@@ -5,7 +5,9 @@
  * build when dist/ grows past the plan's 15 MiB first-load budget (Lombard's
  * cap, plan section 13). For now the whole of dist/ loads up front, so the
  * check simply adds up every file. When venues and later sectors load on
- * demand, this check should count only what the first screen needs.
+ * demand, this check should count only what the first screen needs. The voice
+ * lines (public/voice/, PR 14b) already load only when a line first plays,
+ * so they're left out.
  * Sizes are on disk, uncompressed (GitHub Pages gzips JS and CSS).
  */
 import { readdir, stat } from 'node:fs/promises'
@@ -15,10 +17,14 @@ const DIST = 'dist'
 const LIMIT_MIB = 15
 const LIMIT = LIMIT_MIB * 1024 * 1024
 
+/** Folders that load on demand, not on the first screen. */
+const ON_DEMAND = new Set([path.join(DIST, 'voice')])
+
 async function walk(dir) {
   let total = 0
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const p = path.join(dir, entry.name)
+    if (ON_DEMAND.has(p)) continue
     total += entry.isDirectory() ? await walk(p) : (await stat(p)).size
   }
   return total
