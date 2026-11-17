@@ -354,7 +354,7 @@ export function soundLab(x: unknown, modelFallback: Design): LabState | null {
 
 const isSeed = (x: unknown): x is number => isCount(x) && x <= 0xffffffff
 
-function soundBrief(x: unknown): Brief | null {
+export function soundBrief(x: unknown): Brief | null {
   if (!isObj(x) || typeof x.id !== 'string' || !briefTemplate(x.id)) return null
   if (!isCount(x.fee) || !isCount(x.days) || x.days === 0 || !isSeed(x.seed)) return null
   return { id: x.id, fee: x.fee, days: x.days, seed: x.seed }
