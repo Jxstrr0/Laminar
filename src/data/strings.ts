@@ -147,6 +147,8 @@ export const STRINGS = {
   'piv.tidy': 'A tidy wake: no small change cuts much drag.',
   'piv.change': 'Change this',
   'inst.cfd': 'CFD',
+  'sound.onName': 'Sound on: tap to mute',
+  'sound.offName': 'Sound off: tap to turn it on',
   'inst.cfdName': 'CFD Cluster: a simulated slice of the flow and a second drag estimate',
   'cfd.run': 'Run CFD',
   'cfd.again': 'Run again',

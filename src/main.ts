@@ -1,3 +1,4 @@
+import { unlockAudio } from './audio/engine'
 import '@fontsource/space-grotesk/latin-500.css'
 import '@fontsource/space-grotesk/latin-700.css'
 import '@fontsource/instrument-sans/latin-400.css'
@@ -36,6 +37,7 @@ import { askToKeepStorage, backupDue, noteFirstSeen, readMarks } from './persist
 import { challengeLink, decodeChallenge } from './persist/designCode'
 import { challengeCareer, challengeTarget } from './sim/challenge'
 import { challengeStore } from './ui/challengeStore'
+
 
 /** The career slot in play: the one used last visit. */
 const SLOT = lastSlot()
@@ -316,6 +318,10 @@ async function boot(): Promise<void> {
   showJob()
   careerStore.subscribe(showJob)
   jobChip.addEventListener('click', () => show('board'))
+  // Sound (PR 13a) can only start inside a tap; the tunnel sheet has its mute button.
+  const wakeSound = () => unlockAudio()
+  document.addEventListener('pointerdown', wakeSound, { capture: true })
+  document.addEventListener('keydown', wakeSound, { capture: true })
   const chips = document.createElement('div')
   chips.className = 'top-chips'
   chips.append(jobChip, savesBtn)

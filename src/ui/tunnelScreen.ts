@@ -122,6 +122,9 @@ import { partChanges, postureChanged, swapCost, swapParts } from '../sim/remodel
 import { createCpLegend } from './cpLegend'
 import { createPivPanel } from './pivPanel'
 import { createCfdPanel } from './cfdPanel'
+import { soundButton } from './soundButton'
+import { tableCue, tableMoving } from '../audio/cues'
+import { clunk, setFan, setWhirr, snap } from '../audio/engine'
 import { designStore } from './designStore'
 import { fixed, scientific } from './format'
 import { glossaryTerm } from './glossary'
@@ -651,7 +654,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   const foot = el('div', 'sheet-foot')
   const version = el('span', 'version', `v${__GAME_VERSION__} · ${__BUILD_SHA__} · ${__BUILD_DATE__}`)
   const footHint = el('span', 'hint', t('hint.orbit'))
-  foot.append(footHint, version)
+  foot.append(soundButton(), footHint, version)
 
   // Flow instruments: toggle chips over the 3D view, just above the sheet.
   type Inst = 'wand' | 'rake' | 'tufts' | 'taps' | 'piv' | 'cfd' | 'dark'
@@ -941,6 +944,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     strainClock = {}
     showWarn()
     view.breakPart(f.part, true)
+    snap()
     view.setFlow(null, [])
     if (rec.run) rec = { ...rec, run: { ...rec.run, failure: f } }
     endRun()
@@ -2867,9 +2871,17 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     // The scene tips a quad nose-down by the tilt; a jumper's pitch and a plane's angle of attack are nose-up.
     if (jumper || quad || flyer) view.setPitch(table.angle)
     if (racing) view.setDrop(table.angle / 1000)
+    // The lab's sounds follow the fan and the turntable (PR 13a).
+    setFan(fan.speed, spec.topSpeed)
+    const turning = tableMoving(table.angle, table.target)
+    setWhirr(turning)
+    if (tableCue(tableTurning, turning) === 'clunk') clunk()
+    tableTurning = turning
     view.frame(fan.speed, dt)
     raf = requestAnimationFrame(loop)
   }
+  /** Was the turntable turning last frame? Its knock comes as it stops. */
+  let tableTurning = false
   setMount('rider')
   applyInstruments()
   return {
@@ -2885,6 +2897,9 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
         cancelAnimationFrame(raf)
         // Leaving the tunnel stops a CFD run; its panel comes back with the next frame.
         cfdPanel.setShown(false)
+        // And quietens the lab.
+        setFan(0, spec.topSpeed)
+        setWhirr(false)
         // Leaving the tunnel: the Deliver sheet gets the latest run time.
         updateSledForecast(0, true)
       }

@@ -46,7 +46,7 @@ src/sim/      pure aero model, fan, field models, career rules
 src/data/     every tuning number and all player-facing text
 src/render/   three.js scenes (tunnel, shape, field replay)
 src/ui/       DOM screens, sheets, charts
-src/audio/    cues (pure) and engine            (from a later PR)
+src/audio/    cues (pure) and engine            (PR 13a; mute in `laminar.muted`)
 src/persist/  saves, save code, safety          (PR 5)
 src/cfd/      the CFD Cluster's solver: CPU reference and WebGPU (PR 12)
 scripts/      bundle check, icons, release title

@@ -162,6 +162,11 @@ quirks you have to learn.
 | Quad tunnel trap | **Props stopped**: a quad model goes in with its props still, so the tunnel can't see the downwash on the arms and the arm fairings read less useful than they are. A powered model with spinning props catches it, at more ₽ per run. *(16 Nov 2026, for PR 10c)* |
 | Record rules | **Two-way mean, chutes out**: a run each way within an hour, and the mean speed counts, so the wind mostly cancels. If the nose lifts or the car wanders, the driver aborts with the parachutes: nobody's hurt, but the run doesn't count. *(16 Nov 2026, for PR 9)* |
 | Firm name | **Asked at career start**, with a ready-made name to keep; renamable. *(16 Nov 2026, for PR 7)* |
+| CFD Cluster access | **A tunnel upgrade**, bought like the PIV (₽900,000 and 21 days to fit) once the firm owns its tunnel. *(17 Nov 2026, for PR 12)* |
+| CFD run cost | **Free to run**: the phone does the work. *(17 Nov 2026, for PR 12)* |
+| Lab sounds | **Made in code** (Web Audio), with ElevenLabs effects perhaps added later, after a quote. *(17 Nov 2026, for PR 13)* |
+| Voices | **Quote first**: a script sheet, voices to audition and a credit quote in CAD before anything is generated. *(17 Nov 2026, for PR 13)* |
+| Art pass | **Blender via Actions**: hero models scripted and built headless in GitHub Actions, like Lombard. *(17 Nov 2026, for PR 13)* |
 
 ---
 
