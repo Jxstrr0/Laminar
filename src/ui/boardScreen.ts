@@ -135,6 +135,7 @@ import { createSheet, type Sheet } from './sheet'
 import { twoTap } from './twoTap'
 import { bestText, shareLegacy } from './legacyPicture'
 import { attemptNote, recordParts, recordsCard } from './records'
+import { researchCard } from './research'
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag)
@@ -2563,6 +2564,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       staffCard(),
       workshopCard(),
       ownTunnelCard(),
+      researchCard(career, (next) => careerStore.set(next)),
       clearanceCard(),
       recordsCard(career),
       rivals,
