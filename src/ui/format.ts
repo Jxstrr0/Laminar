@@ -28,13 +28,21 @@ export function rubles(value: number): string {
   return `${r < 0 ? '−' : ''}₽\u00a0${fixed(Math.abs(r), 0)}`
 }
 
-/** Money in a few characters for a chip: "₽98.5k", "₽120k", "₽850". */
+/** Money in a few characters for a chip: "₽850", "₽98.5k", "₽120k", "₽1.25M", "₽12.3M".
+ *  Millions get an M so a rich firm's chip stays narrow on a phone (not "₽12,345k"). */
 export function rublesShort(value: number): string {
   const a = Math.abs(value)
   const sign = value < 0 ? '−' : ''
   if (a < 1000) return `${sign}₽${fixed(a, 0)}`
-  const k = a / 1000
-  return `${sign}₽${fixed(k, k < 100 ? 1 : 0).replace(/\.0$/, '')}k`
+  // 999,500 and up would round to "₽1,000k": show it as millions instead.
+  if (a < 999_500) {
+    const k = a / 1000
+    return `${sign}₽${fixed(k, k < 100 ? 1 : 0).replace(/\.0$/, '')}k`
+  }
+  const m = a / 1_000_000
+  // Three significant figures at most, without trailing zeros: 1.25M, 1.2M, 12.3M, 123M.
+  const digits = m < 9.995 ? 2 : m < 99.95 ? 1 : 0
+  return `${sign}₽${fixed(m, digits).replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '')}M`
 }
 
 /** A career day as a date: 0 → "Mar 1, 2010". */
