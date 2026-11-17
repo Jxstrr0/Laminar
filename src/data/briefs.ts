@@ -23,6 +23,7 @@ import { STOCK_AIRCRAFT, type AircraftDesign, type Airfield } from './aircraft'
 import { STOCK_POD, type PodDesign, type TestRange } from './pod'
 import type { SaltFlat } from './saltFlats'
 import type { RecordId } from './records'
+import { COUNTRIES, type CountryId } from './export'
 
 /** How a career starts, and how the brief board works. */
 export const CAREER = {
@@ -194,7 +195,12 @@ export interface BriefTemplate {
    * the client is out to break this Tarnovian record, and pays RECORD_RULES.bonus
    * on top of the fee if the day's result does.
    */
-  attempt?: RecordId
+  attempt?: RecordId  /**
+   * A client from abroad (PR 11f): only a firm with that country's
+   * reputation gate sees the brief, its federation's rulebook applies, its
+   * own aero firm bids against you, and the result sets no Tarnovian record.
+   */
+  country?: CountryId
 }
 
 /**
@@ -1368,5 +1374,99 @@ export const BRIEFS: readonly BriefTemplate[] = [
     defence: true,
     // 22 minutes over their pod on paper: a tail cone, and the pod slid back.
     target: 22,
+  },
+  // --- Export (PR 11f): clients from Gornova and Zelenia.
+  {
+    id: 'kostka-altitude',
+    client: 'Radim Kostka',
+    who: 'Gornovan time-trial champion, training at altitude',
+    goal: 'Up on the pass the air is thin and everyone goes fast. I need to go faster, inside our union’s rules, not yours.',
+    event: {
+      name: 'Gornovan Altitude Time Trial',
+      place: 'Sedlo pass road, Gornova (1,800 m)',
+      temperature: 11,
+      altitude: 1800,
+      windSpeed: 4,
+      riderSpeed: 13.4,
+      spread: { temperature: 4, wind: 1.5, power: 0.02 },
+      course: outAndBack(40, 160),
+    },
+    rider: { power: 340, mass: 69 },
+    setup: setup({ torsoDeg: 22, headDrop: 0.35, armWidth: 0.34, handReach: 0.68, handHeight: 0.04 }, { helmet: { kind: 'aero', tail: 0.4, vents: 0.2 }, wheels: { front: 'deep', rear: 'disc' } }),
+    fee: { min: 220000, max: 300000 },
+    days: 30,
+    minRep: COUNTRIES.gornova.minRep,
+    target: 4,
+    country: 'gornova',
+  },
+  {
+    id: 'horakova-hill',
+    client: 'Lenka Horáková',
+    who: 'Gornovan ski jumper on the big hill',
+    goal: 'Our hill sits high, so the air is thin and the jumps are long. Everyone else is already flying further. Make my suit and my V count.',
+    event: {
+      name: 'Gornovan Large Hill Cup',
+      place: 'Vrhovo large hill, Gornova (HS 134)',
+      temperature: -6,
+      altitude: 1250,
+      windSpeed: 0.3,
+      riderSpeed: 27,
+      spread: { temperature: 4, wind: 1.3, power: 0 },
+      course: [],
+      jump: { hill: 'large', mass: 58, speedSpread: 0.35 },
+    },
+    rider: { power: 0, mass: 58 },
+    setup: jumper(16, 30, 0.4),
+    fee: { min: 200000, max: 260000 },
+    days: 26,
+    minRep: COUNTRIES.gornova.minRep,
+    target: 8,
+    country: 'gornova',
+  },
+  {
+    id: 'lisac-coast',
+    client: 'Teodor Lisac',
+    who: 'Zelenian road captain, strong in the heat',
+    goal: 'The coast race is hot and the sea wind never stops. Our league keeps the hands low, so your usual tricks may not be legal here.',
+    event: {
+      name: 'Zelenian Coast Time Trial',
+      place: 'Lazurna coast road, Zelenia',
+      temperature: 31,
+      altitude: 10,
+      windSpeed: 6.5,
+      riderSpeed: 12.6,
+      spread: { temperature: 3, wind: 2, power: 0.02 },
+      course: outAndBack(44, 100),
+    },
+    rider: { power: 320, mass: 72 },
+    setup: setup({ torsoDeg: 24, headDrop: 0.3, armWidth: 0.36, handReach: 0.7, handHeight: 0.04 }, { helmet: { kind: 'aero', tail: 0.3, vents: 0.25 }, wheels: { front: 'deep', rear: 'disc' } }),
+    fee: { min: 260000, max: 340000 },
+    days: 32,
+    minRep: COUNTRIES.zelenia.minRep,
+    target: 4,
+    country: 'zelenia',
+  },
+  {
+    id: 'marovic-crosswind',
+    client: 'Ines Marović',
+    who: 'Zelenian national champion, light and brave in the wind',
+    goal: 'I weigh nothing and the coast wind hits me side-on for an hour. I need a setup I can hold straight, not just a fast one.',
+    event: {
+      name: 'Zelenian National Time Trial',
+      place: 'Cape Svetlo headland loop, Zelenia',
+      temperature: 28,
+      altitude: 40,
+      windSpeed: 8,
+      riderSpeed: 12.1,
+      spread: { temperature: 3, wind: 2.5, power: 0.02 },
+      course: outAndBack(40, 10),
+    },
+    rider: { power: 270, mass: 56 },
+    setup: setup({ torsoDeg: 22, headDrop: 0.35, armWidth: 0.33, handReach: 0.72, handHeight: 0.03 }, { helmet: { kind: 'aero', tail: 0.3, vents: 0.2 }, wheels: { front: 'deep', rear: 'disc' } }),
+    fee: { min: 280000, max: 360000 },
+    days: 30,
+    minRep: COUNTRIES.zelenia.minRep + 5,
+    target: 3,
+    country: 'zelenia',
   },
 ]

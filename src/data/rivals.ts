@@ -3,7 +3,9 @@
  * Both put in sealed bids against you. Their reputation and correlation
  * scores are public, like yours, and drift a little from week to week.
  */
-export type RivalId = 'bystro' | 'vysota'
+import type { CountryId } from './export'
+
+export type RivalId = 'bystro' | 'vysota' | 'vershina' | 'bereg'
 
 export interface RivalTemplate {
   name: string
@@ -20,6 +22,8 @@ export interface RivalTemplate {
   readError: { min: number; max: number }
   /** It only bids for briefs whose top fee is at least this, ₽. */
   minFee: number
+  /** A foreign firm (PR 11f): it bids only for its own country's briefs, and only they. */
+  country?: CountryId
 }
 
 export const RIVALS: Record<RivalId, RivalTemplate> = {
@@ -43,9 +47,35 @@ export const RIVALS: Record<RivalId, RivalTemplate> = {
     readError: { min: 0.004, max: 0.025 },
     minFee: 120000,
   },
+  // Export (PR 11f): each country's own firm, at home in its air.
+  vershina: {
+    name: 'Vershina Aero',
+    blurb: 'Gornova’s firm: a tunnel up in the mountains and careful, steady numbers.',
+    reputation: 58,
+    drift: 3,
+    promise: { min: -0.5, max: 1 },
+    price: { min: 0.55, max: 0.9 },
+    readError: { min: 0.01, max: 0.035 },
+    minFee: 0,
+    country: 'gornova',
+  },
+  bereg: {
+    name: 'Bereg Windworks',
+    blurb: 'Zelenia’s firm: a seaside tunnel, quick work and bold promises.',
+    reputation: 54,
+    drift: 5,
+    promise: { min: 0.5, max: 2.5 },
+    price: { min: 0.4, max: 0.8 },
+    readError: { min: 0.02, max: 0.07 },
+    minFee: 0,
+    country: 'zelenia',
+  },
 }
 
-export const RIVAL_IDS = Object.keys(RIVALS) as RivalId[]
+/** The Tarnovian firms, who bid for home briefs. */
+export const RIVAL_IDS = (Object.keys(RIVALS) as RivalId[]).filter((id) => !RIVALS[id].country)
+/** The foreign firms (PR 11f), one for each export country. */
+export const FOREIGN_RIVAL_IDS = (Object.keys(RIVALS) as RivalId[]).filter((id) => RIVALS[id].country)
 
 /** Rivals' public records move once a week. */
 export const RIVAL_WEEK_DAYS = 7

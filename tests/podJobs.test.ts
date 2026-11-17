@@ -64,7 +64,8 @@ describe('sensor-pod briefs (PR 10ac)', () => {
     }
     const seen = (cleared: boolean) => {
       const ids = new Set<string>()
-      for (let round = 1; round < 80; round++) for (const b of boardFor(3, round, false, 100, cleared)) ids.add(b.id)
+      // The pool grew with export (PR 11f): look over more boards.
+      for (let round = 1; round < 200; round++) for (const b of boardFor(3, round, false, 100, cleared)) ids.add(b.id)
       return ids
     }
     for (const b of podBriefs) {

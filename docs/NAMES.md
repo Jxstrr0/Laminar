@@ -157,6 +157,25 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Dubrova Transport | Truck fleet holding the fuel-figure record (2009). |
 | Elena Shubina | Former pursuit champion; commissions the hour-record attempt (PR 11c). |
 
+## Export countries (PR 11f)
+
+| Name | What it is |
+| --- | --- |
+| Gornova | Mountain country beside Tarnovia; its clients call once the firm's reputation reaches 60. |
+| Zelenia | Warm country down the coast from Tarnovia; its clients call at reputation 70. |
+| Gornovan Cycling Union | Gornova's cycling body (GCU); allows a front disc wheel. |
+| Zelenian Cycling League | Zelenia's cycling body (ZCL); short helmets, low hands. |
+| Vershina Aero | Gornovan aero firm that bids for Gornovan jobs. |
+| Bereg Windworks | Zelenian aero firm that bids for Zelenian jobs. |
+| Radim Kostka | Gornovan time triallist (Sedlo pass road). |
+| Lenka Horáková | Gornovan ski jumper (Vrhovo large hill). |
+| Teodor Lisac | Zelenian time triallist (Lazurna coast road). |
+| Ines Marović | Zelenian time triallist (Cape Svetlo headland loop). |
+| Sedlo pass | Gornovan mountain road at 1,800 m. |
+| Vrhovo large hill | Gornovan ski jump at 1,250 m. |
+| Lazurna coast road | Hot, flat Zelenian coast road. |
+| Cape Svetlo | Windy Zelenian headland with a time-trial loop. |
+
 ## Still to name (later PRs)
 
-The university and its tunnel, the outside model shop, other sport federations, more venues and export countries.
+The university and its tunnel, the outside model shop, other sport federations, more venues.
