@@ -130,7 +130,8 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 11g | Export on screen: a brief from abroad carries its country's tag and a note (what the country is like, which federation's rules a rider is checked against, that results there don't count for Tarnovian records); the rival strip gains an Abroad section showing each country's firm once its clients call, or the reputation still needed; the shaping screen checks a rider against the job's own rulebook (GCU or ZCL abroad) | **Done** (v0.12.6.0) |
 | 11h | Challenge codes in the sim: a `LAMD1:` design code carries a delivered rider's or skater's design, its brief (with the seed, so the day's air is the same), the career's seed and day, and the firm's name, nothing else. It opens a practice copy of that one job outside the career, from the client's own setup; the CdA to beat is worked out from the design on the day, never taken from the code. Save codes and design codes share one wrapper. Not on screen until 11i | **Done** (v0.12.7.0) |
 | 11i | Challenges on screen: after a rider's or skater's job, "Challenge a friend" copies a link to it. The link (or its code pasted under Saves → Challenges) opens a practice copy that writes nowhere: a "Challenge · not saved" chip, a card with the CdA to beat, the client's setup on the bench, and in the debrief whether you beat the sender's CdA on the day (with both numbers), Try again and Back to your game. PR 11 is done | **Done** (v0.12.8.0) |
-| 12–14 | See the plan | Next: PR 12, the CFD cluster. |
+| 12a | The CFD Cluster's solver, not yet in the game: a lattice Boltzmann grid (D3Q19, BGK) with the body as solid cells, bounce-back walls, inflow upstream, free outflow, and the force by momentum exchange. A CPU reference (`src/cfd/lbm.ts`, tested on small grids: uniform flow stays uniform, a sphere drags only downstream and slows its wake, thinner air lowers Cd) and the same scheme in WebGPU (`src/cfd/gpu.ts`). In a browser the two agree to 0.004 % on the force; the full 96 × 48 × 48 grid fits | **Done** (v0.13.0.0) |
+| 12b–14 | See the plan | Next: voxelizing the shape, and the CFD Cluster upgrade. |
 
 ## Versions
 
@@ -141,6 +142,8 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 - **0.10.30.0** (PR 10ae): defence clearance opens.
 - **0.10.31.0** (PR 10af): the sensor pod's range day from its sensor.
 - **0.10.32.0** (PR 10ag): PIV's wake slices, speed loss and hint, in the sim only.
+- **0.13.0.0** (PR 12a): the CFD solver (CPU reference and WebGPU), not yet
+  in the game.
 - **0.12.8.0** (PR 11i): challenges on screen: share a link after a job, open
   one from a friend as a practice copy, and see whether you beat their CdA.
 - **0.12.7.0** (PR 11h): challenge codes (`LAMD1:`) and the practice copy, in

@@ -48,6 +48,7 @@ src/render/   three.js scenes (tunnel, shape, field replay)
 src/ui/       DOM screens, sheets, charts
 src/audio/    cues (pure) and engine            (from a later PR)
 src/persist/  saves, save code, safety          (PR 5)
+src/cfd/      the CFD Cluster's solver: CPU reference and WebGPU (PR 12)
 scripts/      bundle check, icons, release title
 docs/         the plan, NAMES.md, STATUS.md
 ```
