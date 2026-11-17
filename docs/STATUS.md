@@ -128,7 +128,8 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 11e | The R&D card on the Jobs screen: the four areas and their projects, each with what it changes (with its number), price and days, a Start button that asks for a second tap, which project is under way and when it's done, and what a second-tier project needs first | **Done** (v0.12.4.0) |
 | 11f | Export countries in the sim: Gornova (reputation 60) and Zelenia (reputation 70) send clients once the firm's name is good enough. Each has its own cycling rulebook (Gornova allows a front disc; Zelenia wants the hands lower), its own firm bidding against you (Vershina Aero, Bereg Windworks) and two briefs: a mountain pass at 1,800 m, a large hill at 1,250 m, a hot coast road and a crosswind headland. Rides abroad never count for a Tarnovian record. Not on screen until 11g | **Done** (v0.12.5.0) |
 | 11g | Export on screen: a brief from abroad carries its country's tag and a note (what the country is like, which federation's rules a rider is checked against, that results there don't count for Tarnovian records); the rival strip gains an Abroad section showing each country's firm once its clients call, or the reputation still needed; the shaping screen checks a rider against the job's own rulebook (GCU or ZCL abroad) | **Done** (v0.12.6.0) |
-| 11h–14 | See the plan | Next: challenge codes. |
+| 11h | Challenge codes in the sim: a `LAMD1:` design code carries a delivered rider's or skater's design, its brief (with the seed, so the day's air is the same), the career's seed and day, and the firm's name, nothing else. It opens a practice copy of that one job outside the career, from the client's own setup; the CdA to beat is worked out from the design on the day, never taken from the code. Save codes and design codes share one wrapper. Not on screen until 11i | **Done** (v0.12.7.0) |
+| 11i–14 | See the plan | Next: challenges on screen. |
 
 ## Versions
 
@@ -139,6 +140,8 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 - **0.10.30.0** (PR 10ae): defence clearance opens.
 - **0.10.31.0** (PR 10af): the sensor pod's range day from its sensor.
 - **0.10.32.0** (PR 10ag): PIV's wake slices, speed loss and hint, in the sim only.
+- **0.12.7.0** (PR 11h): challenge codes (`LAMD1:`) and the practice copy, in
+  the sim only.
 - **0.12.6.0** (PR 11g): export on screen: country tags and notes on briefs,
   the Abroad rivals, and each country's rulebook on the shaping screen.
 - **0.12.5.0** (PR 11f): export countries in the sim (Gornova and Zelenia,

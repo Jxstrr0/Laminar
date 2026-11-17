@@ -859,6 +859,15 @@ export function daySeed(brief: Brief): number {
 }
 
 /**
+ * The CdA a rider's or skater's design really has on a brief's event day,
+ * in that day's air: what deliver() reads as `actual`. A challenge (PR 11h)
+ * works its target out from this, never from a number someone typed.
+ */
+export function dayCdA(brief: Brief, design: Design): number {
+  return fieldResult(designShape(design), designEvent(design, eventOf(brief)), daySeed(brief)).cdA
+}
+
+/**
  * Deliver the design with a declared CdA: the calendar jumps to the event,
  * the rider races it (with whatever power the position costs them), and so
  * does their old setup in the same air, for the promise. The fee is paid,

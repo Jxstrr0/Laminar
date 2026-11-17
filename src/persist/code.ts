@@ -41,32 +41,50 @@ function fromBase64Url(text: string): Uint8Array {
 
 const check = (text: string) => hashString(text).toString(36)
 
-export async function encodeSave(save: SaveFile): Promise<string> {
-  const bytes = new TextEncoder().encode(packSave(save))
+/** Why a code couldn't be read. */
+export type WrapError = 'prefix' | 'check' | 'damaged'
+
+/**
+ * Wrap text as a code: `<prefix><flag><body>.<check>`, the body deflated
+ * where the browser can. Save codes and design codes (PR 11h) both use it.
+ */
+export async function wrapText(prefix: string, text: string): Promise<string> {
+  const bytes = new TextEncoder().encode(text)
   const squeeze = canSqueeze()
   const body = squeeze ? await through(bytes, new CompressionStream('deflate-raw')) : bytes
-  const head = `${CODE_PREFIX}${squeeze ? 'z' : 'p'}${toBase64Url(body)}`
+  const head = `${prefix}${squeeze ? 'z' : 'p'}${toBase64Url(body)}`
   return `${head}.${check(head)}`
 }
 
-export async function decodeSave(input: string): Promise<Decoded> {
+/** The text inside a code, or why it can't be read. */
+export async function unwrapText(prefix: string, input: string): Promise<{ ok: true; text: string } | { ok: false; error: WrapError }> {
   // Phones and chat apps add line breaks and spaces when a long code is pasted.
   const code = input.replace(/\s+/g, '')
-  if (!code.startsWith(CODE_PREFIX)) return { ok: false, error: 'prefix' }
+  if (!code.startsWith(prefix)) return { ok: false, error: 'prefix' }
   const dot = code.lastIndexOf('.')
   if (dot < 0 || check(code.slice(0, dot)) !== code.slice(dot + 1)) return { ok: false, error: 'check' }
-  const flag = code[CODE_PREFIX.length]
-  let text: string
+  const flag = code[prefix.length]
   try {
-    const bytes = fromBase64Url(code.slice(CODE_PREFIX.length + 1, dot))
+    const bytes = fromBase64Url(code.slice(prefix.length + 1, dot))
     if (flag === 'z') {
       if (!canSqueeze()) return { ok: false, error: 'damaged' }
-      text = new TextDecoder().decode(await through(bytes, new DecompressionStream('deflate-raw')))
-    } else if (flag === 'p') text = new TextDecoder().decode(bytes)
-    else return { ok: false, error: 'damaged' }
+      return { ok: true, text: new TextDecoder().decode(await through(bytes, new DecompressionStream('deflate-raw'))) }
+    }
+    if (flag === 'p') return { ok: true, text: new TextDecoder().decode(bytes) }
+    return { ok: false, error: 'damaged' }
   } catch {
     return { ok: false, error: 'damaged' }
   }
+}
+
+export async function encodeSave(save: SaveFile): Promise<string> {
+  return wrapText(CODE_PREFIX, packSave(save))
+}
+
+export async function decodeSave(input: string): Promise<Decoded> {
+  const open = await unwrapText(CODE_PREFIX, input)
+  if (!open.ok) return open
+  const text = open.text
   const save = parseSave(text)
   if (save) return { ok: true, save }
   // A later Laminar's save: say so rather than calling it damaged.
