@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { TRACK } from '../src/data/briefs'
+import { OVAL, TRACK } from '../src/data/briefs'
 import { HILLS } from '../src/data/hills'
 import { SKELETON } from '../src/data/pose'
 import { CIRCUITS, segmentLength } from '../src/data/circuits'
@@ -106,6 +106,44 @@ describe('the velodrome (PR 13k)', () => {
     for (const lane of [REPLAY_SCENE.laneMine, REPLAY_SCENE.laneOld]) {
       expect(lane).toBeGreaterThan(-1.2)
       expect(lane).toBeLessThan(3.2)
+    }
+  })
+})
+
+describe('the Stavren Ice Oval (PR 13x)', () => {
+  it('has the ice, the lane blocks, the pads, the stands and the infield, and loads without a wait', () => {
+    const { size, json } = gltfOf('iceoval.glb')
+    expect(json.nodes.map((n) => n.name)).toEqual(expect.arrayContaining(['Ice', 'Blocks', 'Pads', 'Stands', 'HallWall', 'InfieldKit']))
+    expect(size).toBeLessThan(400 * 1024)
+  })
+
+  it('lies on the replay’s lap, both skaters in the inner lane', () => {
+    const { json } = gltfOf('iceoval.glb')
+    const ice = json.nodes.find((n) => n.name === 'Ice')!
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity
+    for (const p of json.meshes[ice.mesh!]!.primitives) {
+      const a = json.accessors[p.attributes.POSITION]!
+      minX = Math.min(minX, a.min![0]!)
+      maxX = Math.max(maxX, a.max![0]!)
+      minZ = Math.min(minZ, a.min![2]!)
+      maxZ = Math.max(maxZ, a.max![2]!)
+    }
+    const straight = OVAL.lap * OVAL.straight
+    const piece = (OVAL.lap * (1 - 2 * OVAL.straight)) / 2 / OVAL.bendPieces
+    const radius = piece / (2 * Math.sin(Math.PI / (2 * OVAL.bendPieces)))
+    // The outer lane's edge is 7 m out from the course's centre line (OUTER in art/iceoval/build.py).
+    const outer = 7
+    expect(maxZ).toBeCloseTo(outer, 1)
+    expect(minZ).toBeCloseTo(-(2 * radius + outer), 1)
+    expect(maxX).toBeCloseTo(straight + radius + outer, 0)
+    expect(minX).toBeCloseTo(-(radius + outer), 0)
+    // Both skaters' lines lie in the inner lane: from INNER (-1 m) to the lane line (3 m).
+    const script = readFileSync(join(ROOT, 'art/iceoval/build.py'), 'utf8')
+    expect(script).toContain(`LAP = ${OVAL.lap.toFixed(1)}`)
+    expect(script).toContain(`STRAIGHT = LAP * ${OVAL.straight}`)
+    for (const lane of [REPLAY_SCENE.laneMine, REPLAY_SCENE.laneOld]) {
+      expect(lane).toBeGreaterThan(-1)
+      expect(lane).toBeLessThan(3)
     }
   })
 })
