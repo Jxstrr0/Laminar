@@ -317,10 +317,9 @@ async function boot(): Promise<void> {
       const asked = briefTemplate(now.job.brief.id)?.target
       if (asked !== undefined) say(boldPromise(now.job.promise, asked) ? 'bad' : 'safe')
     } else if (now.history.length > was.history.length) {
-      // Delivered: the client on the day, then, once the replay closes, the verdict.
+      // Delivered: once the replay closes, the fee and the verdict (the client's line on the day plays as the Deliver sheet opens).
       const done = now.history[now.history.length - 1]!
       lastBrief = done.id
-      say('eventDay')
       if (done.paid > 0) playAfterReplay('pay')
       sayAfterReplay(done.paid >= done.fee ? 'kept' : 'missed')
       if (done.actual !== 0) sayAfterReplay(roadAgreed((done.predicted - done.actual) / done.actual) ? 'agreed' : 'disagreed')

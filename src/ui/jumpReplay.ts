@@ -157,10 +157,11 @@ export async function playJumpReplay(input: JumpReplayInput): Promise<void> {
     let idx = -1
     for (let i = 0; i < notes.length; i++) if (notes[i]!.t <= time) idx = i
     if (idx !== shown && idx >= 0) {
+      // Each moment passed since the last frame gets its sound and the commentator's call, in order, so two
+      // landing in one frame both play (PR 13u); at most the last two, so a long pause doesn't fire a pile at once.
+      for (let k = Math.max(shown + 1, idx - 1); k <= idx; k++) commentate('jump', notes[k]!.kind)
       shown = idx
       line.textContent = noteText(notes[idx]!, input)
-      // The commentator says it too (PR 14b).
-      commentate('jump', notes[idx]!.kind)
     }
   }
 

@@ -30,7 +30,7 @@ export const MUSIC_TUNING = {
   overlap: 3,
   /** Switching between the lab and a replay: the old track fades out and the new one in, over this. */
   switchFade: 1.2,
-  /** How often the music checks whether a replay is open, ms. */
+  /** How often the music queues its next pass, ms (a replay opening or closing switches it at once). */
   watchMs: 500,
   /** The next pass is queued this long before it's due, s. */
   lookAhead: 1,

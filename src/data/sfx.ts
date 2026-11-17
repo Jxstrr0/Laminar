@@ -68,8 +68,6 @@ export const SFX_TUNING = {
   loopTrim: 0.05,
   /** A loop's fade in and out, s (a time constant). */
   fade: 0.25,
-  /** How often a replay's sounds check that the replay is still open, ms. */
-  watchMs: 400,
   /** How long the fee's chime waits for the event's replay to open before playing anyway, ms. */
   replayWaitMs: 4000,
 } as const

@@ -15,9 +15,10 @@ export const CACHE_PREFIX = 'laminar-'
 /**
  * Voice lines, sound effects (PR 13r) and music (PR 13s) are cached the
  * first time they play, not up front, and kept across deploys (their file names never change). Bump the number to drop
- * them all if a take is ever replaced under the same name.
+ * them all if a take is ever replaced under the same name (2, PR 13u: the voice
+ * lines were levelled, same names).
  */
-export const VOICE_CACHE = `${CACHE_PREFIX}voice-1`
+export const VOICE_CACHE = `${CACHE_PREFIX}voice-2`
 
 /** The cache for one build: `laminar-` plus the first 10 characters of its hash. */
 export function cacheName(hash: string): string {

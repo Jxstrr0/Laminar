@@ -5,6 +5,8 @@
  * how it is shown.
  */
 export const REPLAY = {
+  /** A gap under this many seconds reads "level" (and the commentator lets halfway pass rather than call it ahead or behind). */
+  levelWithin: 0.05,
   /** The whole race (to the slower rider's finish) plays in this many seconds; on the track, `trackSeconds`. */
   seconds: 22,
   trackSeconds: 30,

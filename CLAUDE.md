@@ -130,7 +130,7 @@ CSS variable at the top of `src/style.css`. The full brief, with every token, is
 - localStorage keys start `laminar.`; IndexedDB database `laminar`; cache
   names start `laminar-`; save code `LAM1:`; design codes `LAMD1:`.
 - Never clear or delete anything outside those prefixes. No `localStorage.clear()`.
-- Saves since PR 5a/5b: three slots in IndexedDB `laminar` (store `slots`), falling back to `laminar.slot.<n>`; the slot in play is `laminar.lastSlot`. Offline since PR 14a: `src/pwa/sw.js`, written to `dist/sw.js` by the build with a `laminar-<hash>` cache; voice in `laminar-voice-1`; `?nosw` turns it off.
+- Saves since PR 5a/5b: three slots in IndexedDB `laminar` (store `slots`), falling back to `laminar.slot.<n>`; the slot in play is `laminar.lastSlot`. Offline since PR 14a: `src/pwa/sw.js`, written to `dist/sw.js` by the build with a `laminar-<hash>` cache; voice, effects and music in `laminar-voice-2`; `?nosw` turns it off.
 
 ## Branding
 
