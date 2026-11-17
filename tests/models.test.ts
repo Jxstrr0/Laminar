@@ -6,7 +6,7 @@ import { OVAL, TRACK } from '../src/data/briefs'
 import { HILLS } from '../src/data/hills'
 import { SKELETON } from '../src/data/pose'
 import { CIRCUITS, segmentLength } from '../src/data/circuits'
-import { AIRFIELD_KIT, AIRFIELD_SCENE, CIRCUIT_KIT, DRONE_SCENE, JUMP_SCENE, MEADOW_KIT, RECORD_SCENE, REPLAY_SCENE, ROAD_KIT, SALT_KIT, SLED_KIT, SLED_SCENE, SURVEY_KIT, SURVEY_SCENE } from '../src/data/replay'
+import { AIRFIELD_KIT, AIRFIELD_SCENE, CIRCUIT_KIT, DRONE_SCENE, JUMP_SCENE, MEADOW_KIT, LAKE_KIT, RECORD_SCENE, REPLAY_SCENE, ROAD_KIT, SALT_KIT, SLED_KIT, SLED_SCENE, SURVEY_KIT, SURVEY_SCENE } from '../src/data/replay'
 import { turnRadius } from '../src/sim/planeJob'
 import { TRACKS } from '../src/data/tracks'
 import { pointAt, trackLine } from '../src/sim/sledReplay'
@@ -279,6 +279,32 @@ describe('the Ozimka fields’ kit (PR 13w)', () => {
     expect(SURVEY_KIT.power.out).toBeGreaterThan(SURVEY_KIT.track + 5)
     expect(SURVEY_KIT.poplars.out).toBeGreaterThan(5)
     expect(SURVEY_KIT.farm.out).toBeGreaterThan(5)
+  })
+})
+
+describe('Lake Dolgo’s kit (PR 13y)', () => {
+  it('has every piece the ice-marathon replay stands round the loop, and loads without a wait', () => {
+    const { size, json } = gltfOf('lake.glb')
+    const names = json.nodes.map((n) => n.name)
+    for (const name of ['Snowbank', 'Broom', 'StartBanner', 'WarmingHut', 'Plough', 'Crowd', 'Shacks', 'ShorePines']) expect(names).toContain(name)
+    expect(size).toBeLessThan(200 * 1024)
+  })
+
+  it('is built for the loop the scene draws, its banks as long as the scene steps them', () => {
+    const script = readFileSync(join(ROOT, 'art/lake/build.py'), 'utf8')
+    expect(Number(/^ROAD = ([0-9.]+)/m.exec(script)?.[1])).toBe(REPLAY_SCENE.roadWidth)
+    expect(script).toContain('x = 1.7 + k * 3.3') // six lumps, the last ending at 20 m
+    expect(LAKE_KIT.bank.every).toBe(20)
+    expect(script).toContain(`m.roof(0, ${LAKE_KIT.shore.piece}, 0, 14, 0, 1.4, "Snow2")`)
+  })
+
+  it('keeps the banks clear of the skaters and of the corners, and everything else beyond the banks', () => {
+    // The old setup skates furthest out; the banks start beyond the ice's edge.
+    expect(REPLAY_SCENE.roadWidth / 2 + LAKE_KIT.bank.out).toBeGreaterThan(REPLAY_SCENE.laneOld + 1)
+    // Stopping short of a corner by more than the ice's half-width and a bank's depth (2.5 m), no bank cuts across the next side.
+    expect(LAKE_KIT.corner).toBeGreaterThan(REPLAY_SCENE.roadWidth / 2 + LAKE_KIT.bank.out + 2.5)
+    for (const out of [LAKE_KIT.hut.out, LAKE_KIT.plough.out, LAKE_KIT.crowd.out]) expect(out).toBeGreaterThan(LAKE_KIT.bank.out)
+    expect(LAKE_KIT.shacks.from).toBeGreaterThan(LAKE_KIT.plough.out + 20)
   })
 })
 
