@@ -481,3 +481,26 @@ export const CIRCUIT_KIT = {
   /** A marshals' post on the left every `every` metres, this far out. */
   marshal: { every: 600, out: 13 },
 }
+
+/**
+ * The salt flat's camp and course furniture (PR 13n, art/saltflat/build.py):
+ * Blender pieces the record replay stands along each run's course. Distances
+ * are metres along the run from its start, and out from the course's black
+ * line, right of it as the car runs (left if negative).
+ */
+export const SALT_KIT = {
+  /** The team's camp beside the course a little way past the start, where the chase camera's narrow view finds it. */
+  camp: { along: 150, out: -30 },
+  /** The timekeepers' trailer just before the start of the timed kilometre. */
+  hut: { before: 40, out: -16 },
+  /** The timing lights' posts both sides of the course at each end of the timed kilometre. */
+  posts: { out: 10 },
+  /** A kilometre board every `every` metres on the left. */
+  boards: { every: 1000, out: -14 },
+  /** Orange posts along both edges of the 16 m course, one every `every` metres. */
+  markers: { every: 100, out: 8.6 },
+  /** Where people watch, level with the middle of the timed kilometre. */
+  viewing: { out: -55 },
+  /** The recovery truck, waiting on the right this far past the timed kilometre. */
+  recovery: { afterTimed: 1500, out: 30 },
+}
