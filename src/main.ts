@@ -421,6 +421,11 @@ async function boot(): Promise<void> {
     savesBtn.replaceWith(previewChip)
   }
   app.append(chips)
+  // The title card keeps clear of the chips, whose width changes with the
+  // money and days on them (the CSS reads --chips-w for its right edge).
+  new ResizeObserver(() => {
+    document.documentElement.style.setProperty('--chips-w', `${Math.ceil(chips.offsetWidth)}px`)
+  }).observe(chips)
   const screens: Record<Screen, { host: HTMLElement; control: { setActive(on: boolean): void } }> = {
     board: { host: boardHost, control: startBoardScreen(boardHost, (s) => show(s)) },
     shape: { host: shapeHost, control: startShapeScreen(shapeHost, shapeView) },
