@@ -7,6 +7,8 @@
  */
 
 const done = new WeakSet<HTMLInputElement>()
+/** Anything else that draws a range (the tunnel's dials) and wants to hear of every change. */
+const watchers = new WeakMap<HTMLInputElement, Set<() => void>>()
 const VALUE = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')
 const AS_NUMBER = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'valueAsNumber')
 
@@ -16,6 +18,19 @@ function update(input: HTMLInputElement): void {
   const v = Number(VALUE?.get?.call(input) ?? input.value)
   const p = max > min ? Math.min(1, Math.max(0, (v - min) / (max - min))) : 0
   input.style.setProperty('--p', p.toFixed(4))
+  for (const cb of watchers.get(input) ?? []) cb()
+}
+
+/**
+ * Call `cb` whenever the range's value, limits or disabled state change, by
+ * the player or by code. Used by the dials, which draw a hidden range.
+ */
+export function watchRange(input: HTMLInputElement, cb: () => void): void {
+  trackFill(input)
+  let set = watchers.get(input)
+  if (!set) watchers.set(input, (set = new Set()))
+  set.add(cb)
+  cb()
 }
 
 /** Start keeping one range's fill up to date. Safe to call twice. */
@@ -46,7 +61,7 @@ export function trackFill(input: HTMLInputElement): void {
     })
   }
   // A new min, max or step moves where the value sits on the track.
-  new MutationObserver(() => update(input)).observe(input, { attributes: true, attributeFilter: ['min', 'max', 'step', 'value'] })
+  new MutationObserver(() => update(input)).observe(input, { attributes: true, attributeFilter: ['min', 'max', 'step', 'value', 'disabled'] })
   update(input)
 }
 
