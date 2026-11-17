@@ -167,6 +167,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 13ab | Four voice lines said "road" but play at every venue (the velodrome, the ski jump, the airfield…). Re-recorded on ElevenLabs with the same voices (Kelbo approved the quote: 398 credits, about CA$0.10), levelled to -20 LUFS like the rest: Zhelin's two debrief lines ("On the day, it read close to the tunnel. Good work." / "On the day, it didn't match the tunnel. Let's find out why."), Sorokova's ("It held up on the day! I knew it.") and the manager's race-day line ("You promised. Let's see if it holds up out there."). Take 2 of each; new file names (`_t4`) so phones that saved the old lines offline fetch the new ones. The commentator's truck line keeps its road: trucks run on one. | **Done** (v0.15.19.0) |
 | 13ac | Phone pass on the late-career board (staff, workshop, your own tunnel, R&D, defence, records, rivals) and the Saves sheet, light and dark, at 360 px. One fix: a percentage or a ruble amount could wrap away from its number ("the desk estimate is 60" / "% narrower"), so every game text now keeps "60 %" and "₽ 600" together. Three more bits of shared text that said "road" at every venue now don't: the debrief's "Road CdA" reads "CdA on the day", Bystro Aero's blurb and the mesh screens upgrade. | **Done** (v0.15.19.1) |
 | 13ad | Phone pass on a fresh career's screens (board, bid, Shape, Tunnel) and on the end of a job at each venue (Deliver, replay, debrief), light and dark, at 360 px. Fixes: the small grey line under a reading ("±0.039 · wind-averaged CdA", "Full size · 1:2 · uncorrected") was cut off with "…" and now wraps; your own tunnel's power cost keeps "no run fee" on one line. | **Done** (v0.15.19.2) |
+| 13ae | The coloured stripe down the left edge of six boxes (race-day trouble, going broke, a new record, your row on the records board, the challenge card and result, the backup reminder) becomes a thin border all the way round with a faint tint, like the "Promise kept" box: the Isobar look has no left-stripe cards. The "Challenge a friend" box on the debrief was red like trouble; it's teal now. | **Done** (v0.15.19.3) |
 | Next | | Kelbo's call: every venue now has its Blender kit. |
 
 ## Versions
@@ -190,6 +191,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 - **0.15.0.0** (PR 14a): the game works offline, and asks before updating.
 - **0.15.1.0** (PR 14b): the voices: tunnel techs, analysts, clients and the commentator.
 - **0.15.2.0** (PR 14c): the balance bot, for checking the economy (nothing changes in play).
+- **0.15.19.3** (PR 13ae): left-stripe boxes get a full thin border and tint; the challenge box is teal, not red.
 - **0.15.19.2** (PR 13ad): phone pass: the small line under a reading wraps instead of being cut off; "no run fee" stays on one line.
 - **0.15.19.1** (PR 13ac): phone pass: a percentage or ruble amount no longer wraps away from its number; three more "road"-only phrases fixed.
 - **0.15.19.0** (PR 13ab): four voice lines re-recorded so they no longer say "road" at venues that aren't one.
