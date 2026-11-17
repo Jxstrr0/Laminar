@@ -28,10 +28,11 @@ The two wind tunnels' test sections (`public/models/tunnel-university.glb` and
 `art/tunnel/build.py`, in Blender 4.5.15. The velodrome
 (`public/models/velodrome.glb`), the ski-jump hill's buildings
 (`public/models/skijump.glb`), the circuits' trackside (`public/models/circuit.glb`),
-the salt flat's camp (`public/models/saltflat.glb`) and Belyanka airfield's
-buildings (`public/models/airfield.glb`) are built the same way by
+the salt flat's camp (`public/models/saltflat.glb`), Belyanka airfield's
+buildings (`public/models/airfield.glb`) and the sliding track's buildings
+(`public/models/bobsled.glb`) are built the same way by
 `art/velodrome/build.py`, `art/skijump/build.py`, `art/circuit/build.py`,
-`art/saltflat/build.py` and `art/airfield/build.py`.
+`art/saltflat/build.py`, `art/airfield/build.py` and `art/bobsled/build.py`.
 Blender is GPL-licensed software; the models it outputs belong to the studio.
 
 ## Sound

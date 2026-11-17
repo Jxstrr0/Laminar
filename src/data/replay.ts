@@ -212,6 +212,25 @@ export const SLED_SCENE = {
 }
 
 /**
+ * The Belogor sliding track's buildings (PR 13p, art/bobsled/build.py):
+ * Blender pieces the sled scene stands along the code-drawn channel, each
+ * at a point on its centre line (metres from the start). Every clearance
+ * from the channel is built into the pieces; these only say where.
+ */
+export const SLED_KIT = {
+  /** A timing arch over the channel at each split, m from the start (on straights: a test checks). The start's arch is at the end of the push. */
+  splits: [395, 670, 990],
+  /** The sun roof over the long horseshoe: bays from here to here, one every `every` metres. */
+  shade: { from: 524, to: 636, every: 8 },
+  /** A spectator terrace on the outside of every curve, at its middle; trees and masts keep this far along from it, m. */
+  terraceClear: 12,
+  /** Floodlight masts, alternating sides, from here one every `every` metres. */
+  masts: { from: 25, every: 45 },
+  /** Trees stop this far before the finish line: the finish area has its own ground. */
+  treesEndBefore: 70,
+}
+
+/**
  * The fuel-run replay (PR 9h): both trucks down the client's route on the
  * trial day, fast-forwarded. Every speed, yaw angle and litre comes from
  * the day's fuel runs; these numbers only set how they are shown.

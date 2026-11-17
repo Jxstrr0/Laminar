@@ -5,7 +5,9 @@ import { describe, expect, it } from 'vitest'
 import { TRACK } from '../src/data/briefs'
 import { HILLS } from '../src/data/hills'
 import { CIRCUITS, segmentLength } from '../src/data/circuits'
-import { AIRFIELD_KIT, AIRFIELD_SCENE, CIRCUIT_KIT, JUMP_SCENE, RECORD_SCENE, REPLAY_SCENE, SALT_KIT } from '../src/data/replay'
+import { AIRFIELD_KIT, AIRFIELD_SCENE, CIRCUIT_KIT, JUMP_SCENE, RECORD_SCENE, REPLAY_SCENE, SALT_KIT, SLED_KIT, SLED_SCENE } from '../src/data/replay'
+import { TRACKS } from '../src/data/tracks'
+import { pointAt, trackLine } from '../src/sim/sledReplay'
 import { RECORD_RUN as RUN } from '../src/data/record'
 
 const ROOT = join(__dirname, '..')
@@ -188,5 +190,33 @@ describe('Belyanka airfield’s buildings and runway furniture (PR 13o)', () => 
     expect(AIRFIELD_KIT.buildings.out).toBeGreaterThan(AIRFIELD_SCENE.mast.out + 5)
     expect(Math.abs(AIRFIELD_KIT.windsock.out)).toBeGreaterThan(AIRFIELD_SCENE.mast.out)
     expect(AIRFIELD_KIT.buildings.from).toBeGreaterThan(AIRFIELD_SCENE.runway.from)
+  })
+})
+
+describe('the Belogor sliding track’s buildings (PR 13p)', () => {
+  it('has every piece the sled scene stands along the channel, and loads without a wait', () => {
+    const { size, json } = gltfOf('bobsled.glb')
+    const names = json.nodes.map((n) => n.name)
+    for (const name of ['StartHouse', 'TimingArch', 'FinishArch', 'Shade', 'Terrace', 'LightMast', 'FinishArea']) expect(names).toContain(name)
+    expect(size).toBeLessThan(300 * 1024)
+  })
+
+  it('is built round the same channel the scene sweeps', () => {
+    const script = readFileSync(join(ROOT, 'art/bobsled/build.py'), 'utf8')
+    const num = (name: string) => Number(new RegExp(`^${name} = ([0-9.]+)`, 'm').exec(script)?.[1])
+    expect(num('TROUGH')).toBe(SLED_SCENE.trough)
+    expect(num('WALL_DEG')).toBe(SLED_SCENE.wallDeg)
+    expect(num('BANK')).toBe(SLED_SCENE.bank)
+    const track = TRACKS.belogor
+    expect(num('FINISH_GRADE')).toBeCloseTo(track.stretches[track.stretches.length - 1]!.grade / 100, 6)
+  })
+
+  it('puts the split arches on straights and the sun roof inside the long horseshoe', () => {
+    const line = trackLine(TRACKS.belogor)
+    for (const s of SLED_KIT.splits) {
+      expect(s).toBeGreaterThan(TRACKS.belogor.push.length)
+      for (const d of [-6, 0, 6]) expect(pointAt(line, s + d).curve).toBe(0)
+    }
+    for (const s of [SLED_KIT.shade.from, SLED_KIT.shade.to]) expect(pointAt(line, s).curve).not.toBe(0)
   })
 })
