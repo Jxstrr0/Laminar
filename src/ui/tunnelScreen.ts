@@ -280,6 +280,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   // The tunnel as the balance reads it, hidden quirks and all (each career's tunnels have their own).
   // It changes once, when your own tunnel opens (syncTunnel).
   let current: TunnelId = setup.id
+  view.setTunnel(current)
   let tunnel: TunnelSpec = { ...spec, quirks: setup.quirks }
   let airTurbulence = tunnelTurbulence(tunnel)
   /** Runs made in the tunnel in use: only they say anything about its quirks. */
@@ -1120,6 +1121,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     setup = next
     spec = next.build
     current = next.id
+    view.setTunnel(current)
     // The PIV goes with the tunnel it's fitted to.
     pivChip.hidden = !spec.piv
     if (!spec.piv && inst.piv) {

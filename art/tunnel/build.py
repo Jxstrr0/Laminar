@@ -1,13 +1,20 @@
 """
-The university tunnel's test section, built headless in Blender (PR 13b).
-Nobody opens the Blender UI: this script makes every piece from numbers.
+The two tunnels' test sections, built headless in Blender: the university's
+(PR 13b) and your own (PR 13d). Nobody opens the Blender UI: this script
+makes every piece from numbers.
 
     ~/blender/blender --background --factory-startup --python art/tunnel/build.py -- [--preview]
 
-Writes public/models/tunnel-university.glb and public/models/models.json
-(the hash of every art script, so a test can tell the model is out of date),
-and with --preview also art/tunnel/preview.jpg (committed, so the look can be
-checked on GitHub). The art workflow (.github/workflows/art.yml) runs this
+Writes public/models/tunnel-university.glb, public/models/tunnel-own.glb and
+public/models/models.json (the hash of every art script, so a test can tell
+the models are out of date), and with --preview also art/tunnel/preview.jpg
+and art/tunnel/preview-own.jpg (committed, so the look can be checked on
+GitHub).
+
+Both sections are the same size, because the sim gives your tunnel the
+university's section and fan (src/data/tunnel.ts). Your own is newer and
+brighter: one long panoramic window, light panels across the ceiling, a
+cobalt trim line, yaw marks round the turntable and a nine-blade fan. The art workflow (.github/workflows/art.yml) runs this
 in GitHub Actions, so a change to the script can be made from a phone.
 
 The game's axes (three.js): the air flows along +x, y is up, z across; the
@@ -34,8 +41,6 @@ import bpy
 from mathutils import Matrix, Vector
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT = ROOT / "public" / "models" / "tunnel-university.glb"
-PREVIEW = ROOT / "art" / "tunnel" / "preview.jpg"
 MANIFEST = ROOT / "public" / "models" / "models.json"
 # Pinned on purpose (the same as Lombard's), and the same in .github/workflows/art.yml.
 BLENDER = "4.5.15"
@@ -68,6 +73,36 @@ COLOURS = {
     "Turntable": "B3BCC4",
 }
 
+# The two tunnels: what differs between them. Everything else is shared.
+VARIANTS = {
+    "university": {
+        "out": ROOT / "public" / "models" / "tunnel-university.glb",
+        "preview": ROOT / "art" / "tunnel" / "preview.jpg",
+        "colours": {},
+        # Three framed windows, each (centre along the flow, width), with a mullion each.
+        "windows": [(-1.6, 1.3), (0.0, 1.3), (1.6, 1.3)],
+        "window_height": 0.85,
+        "lights": "troughs",
+        "trim": False,
+        "blades": 7,
+    },
+    "own": {
+        "out": ROOT / "public" / "models" / "tunnel-own.glb",
+        "preview": ROOT / "art" / "tunnel" / "preview-own.jpg",
+        # Whiter walls, a cooler floor, and the lab's cobalt (--accent in src/style.css) on the trim and the fan ring.
+        "colours": {"Wall": "F8F9FB", "Floor": "C3CCD4", "Frame": "6B7680", "FanRing": "2456E8", "Trim": "2456E8"},
+        # One long panoramic window, split by slim mullions.
+        "windows": [(0.0, 5.2)],
+        "window_height": 0.72,
+        "lights": "panels",
+        "trim": True,
+        "blades": 9,
+    },
+}
+
+# The colours in use: the shared set with the current tunnel's changes on top (set in build()).
+PALETTE: dict[str, str] = dict(COLOURS)
+
 
 def srgb(hex_: str) -> tuple[float, float, float, float]:
     """An sRGB hex colour as Blender's linear RGBA."""
@@ -82,11 +117,11 @@ def material(name: str, rough: float, metal: float = 0.0, emit: float = 0.0, one
     mat = bpy.data.materials.new(name)
     mat.use_nodes = True
     bsdf = mat.node_tree.nodes["Principled BSDF"]
-    bsdf.inputs["Base Color"].default_value = srgb(COLOURS[name])
+    bsdf.inputs["Base Color"].default_value = srgb(PALETTE[name])
     bsdf.inputs["Roughness"].default_value = rough
     bsdf.inputs["Metallic"].default_value = metal
     if emit > 0:
-        bsdf.inputs["Emission Color"].default_value = srgb(COLOURS[name])
+        bsdf.inputs["Emission Color"].default_value = srgb(PALETTE[name])
         bsdf.inputs["Emission Strength"].default_value = emit
     # One-sided: exported as doubleSided false, so the shell is a cutaway.
     mat.use_backface_culling = one_sided
@@ -168,21 +203,23 @@ def build_seams(seam: bpy.types.Material) -> None:
     mesh_object("Seams", bm, [seam])
 
 
-def build_windows(frame: bpy.types.Material, glass: bpy.types.Material) -> None:
-    """Three observation windows in the far wall: a frame proud of the wall and the glass just behind it."""
+def build_windows(frame: bpy.types.Material, glass: bpy.types.Material, windows: list[tuple[float, float]], hgt: float) -> None:
+    """Observation windows in the far wall: a frame proud of the wall, mullions about every 1.3 m, and the glass just behind."""
     bm = bmesh.new()
     gm = bmesh.new()
     y = WIDTH / 2
-    for x in (-1.6, 0.0, 1.6):
-        wdt, hgt, bar, depth = 1.3, 0.85, 0.05, 0.03
+    for x, wdt in windows:
+        bar, depth = 0.05, 0.03
         zc = 0.05
         # Four bars round the glass.
         box(bm, (x, y - depth / 2, zc + hgt / 2 - bar / 2), (wdt, depth, bar))
         box(bm, (x, y - depth / 2, zc - hgt / 2 + bar / 2), (wdt, depth, bar))
         box(bm, (x - wdt / 2 + bar / 2, y - depth / 2, zc), (bar, depth, hgt))
         box(bm, (x + wdt / 2 - bar / 2, y - depth / 2, zc), (bar, depth, hgt))
-        # A mullion down the middle.
-        box(bm, (x, y - depth / 2, zc), (0.025, depth * 0.8, hgt - 2 * bar))
+        # Mullions: one down the middle of a short window, more along a long one.
+        panes = max(2, round(wdt / 1.3))
+        for k in range(1, panes):
+            box(bm, (x - wdt / 2 + wdt * k / panes, y - depth / 2, zc), (0.025, depth * 0.8, hgt - 2 * bar))
         g = [(x - wdt / 2 + bar, y - 0.004, zc - hgt / 2 + bar), (x + wdt / 2 - bar, y - 0.004, zc - hgt / 2 + bar), (x + wdt / 2 - bar, y - 0.004, zc + hgt / 2 - bar), (x - wdt / 2 + bar, y - 0.004, zc + hgt / 2 - bar)]
         f = gm.faces.new([gm.verts.new(p) for p in g])
         f.normal_update()
@@ -192,20 +229,81 @@ def build_windows(frame: bpy.types.Material, glass: bpy.types.Material) -> None:
     mesh_object("WindowGlass", gm, [glass])
 
 
-def build_lights(light: bpy.types.Material, frame: bpy.types.Material) -> None:
-    """Two light troughs in the ceiling: a housing and a bright diffuser facing down."""
+def build_lights(light: bpy.types.Material, frame: bpy.types.Material, kind: str) -> None:
+    """The ceiling lights: two long troughs along the flow (the university), or short panels across it (your own)."""
     bm = bmesh.new()
     lm = bmesh.new()
     h = HEIGHT / 2
-    for y in (-WIDTH / 4, WIDTH / 4):
-        box(bm, (0, y, h - 0.012), (LENGTH * 0.82, 0.17, 0.024))
-        q = [(-LENGTH * 0.4, y - 0.06, h - 0.0245), (-LENGTH * 0.4, y + 0.06, h - 0.0245), (LENGTH * 0.4, y + 0.06, h - 0.0245), (LENGTH * 0.4, y - 0.06, h - 0.0245)]
+
+    def diffuser(x0: float, x1: float, y0: float, y1: float) -> None:
+        q = [(x0, y0, h - 0.0245), (x0, y1, h - 0.0245), (x1, y1, h - 0.0245), (x1, y0, h - 0.0245)]
         f = lm.faces.new([lm.verts.new(p) for p in q])
         f.normal_update()
         if f.normal.z > 0:
             f.normal_flip()
+
+    if kind == "troughs":
+        for y in (-WIDTH / 4, WIDTH / 4):
+            box(bm, (0, y, h - 0.012), (LENGTH * 0.82, 0.17, 0.024))
+            diffuser(-LENGTH * 0.4, LENGTH * 0.4, y - 0.06, y + 0.06)
+    else:
+        # Seven panels across the ceiling, a metre apart, clear of the chamfers.
+        span = WIDTH - 2 * CHAMFER - 0.2
+        for k in range(-3, 4):
+            x = k * 1.0
+            box(bm, (x, 0, h - 0.012), (0.26, span, 0.024))
+            diffuser(x - 0.1, x + 0.1, -span / 2 + 0.04, span / 2 - 0.04)
     mesh_object("LightHousings", bm, [frame])
     mesh_object("LightPanels", lm, [light])
+
+
+def build_trim(trim: bpy.types.Material) -> None:
+    """Your own tunnel's cobalt: a line along the far wall under the window, and one round the inlet's mouth."""
+    bm = bmesh.new()
+    w, h = WIDTH / 2, HEIGHT / 2
+    off = 0.003
+    z0, z1 = -0.42, -0.36
+    q = [(-LENGTH / 2, w - off, z0), (-LENGTH / 2, w - off, z1), (LENGTH / 2, w - off, z1), (LENGTH / 2, w - off, z0)]
+    f = bm.faces.new([bm.verts.new(p) for p in q])
+    f.normal_update()
+    if f.normal.y > 0:
+        f.normal_flip()
+    # A band round the inside of the section, just downstream of the inlet.
+    prof = section_profile(off)
+    x0, x1 = -LENGTH / 2 + 0.2, -LENGTH / 2 + 0.28
+    a = [bm.verts.new((x0, y, z)) for (y, z) in prof]
+    b = [bm.verts.new((x1, y, z)) for (y, z) in prof]
+    band = []
+    for i in range(len(prof)):
+        j = (i + 1) % len(prof)
+        band.append(bm.faces.new((a[i], a[j], b[j], b[i])))
+    for f in band:
+        f.normal_update()
+        # Face in, towards the section's axis.
+        centre = f.calc_center_median()
+        if f.normal.dot(Vector((0, -centre.y, -centre.z))) < 0:
+            f.normal_flip()
+    mesh_object("Trim", bm, [trim])
+
+
+def build_yaw_marks(seam: bpy.types.Material) -> None:
+    """Your own tunnel's yaw scale: a tick every 5° round the turntable ring, a longer one every 15°."""
+    bm = bmesh.new()
+    zf = -HEIGHT / 2 + 0.0025
+    r0 = 0.61
+    for deg in range(0, 360, 5):
+        long = deg % 15 == 0
+        r1 = r0 + (0.07 if long else 0.035)
+        a = math.radians(deg)
+        half = 0.006 if long else 0.004
+        ca, sa = math.cos(a), math.sin(a)
+        # A thin quad from r0 to r1, half wide each side of the ray.
+        pts = [(r0 * ca - half * sa, r0 * sa + half * ca), (r1 * ca - half * sa, r1 * sa + half * ca), (r1 * ca + half * sa, r1 * sa - half * ca), (r0 * ca + half * sa, r0 * sa - half * ca)]
+        f = bm.faces.new([bm.verts.new((x, y, zf)) for (x, y) in pts])
+        f.normal_update()
+        if f.normal.z < 0:
+            f.normal_flip()
+    mesh_object("YawMarks", bm, [seam])
 
 
 def build_inlet(screen: bpy.types.Material, frame: bpy.types.Material) -> None:
@@ -245,7 +343,7 @@ def build_inlet(screen: bpy.types.Material, frame: bpy.types.Material) -> None:
     mesh_object("Screen", sm, [screen])
 
 
-def build_fan(ring_mat: bpy.types.Material, blade: bpy.types.Material, steel: bpy.types.Material) -> None:
+def build_fan(ring_mat: bpy.types.Material, blade: bpy.types.Material, steel: bpy.types.Material, blades: int) -> None:
     """The fan at the downstream end: a ring, a nacelle on stator vanes, and the rotor (spun by the game)."""
     x = LENGTH / 2 - 0.05
     radius = min(WIDTH, HEIGHT) * 0.45
@@ -273,7 +371,6 @@ def build_fan(ring_mat: bpy.types.Material, blade: bpy.types.Material, steel: bp
     rm = bmesh.new()
     hub = bmesh.ops.create_uvsphere(rm, u_segments=24, v_segments=12, radius=0.12)["verts"]
     bmesh.ops.scale(rm, vec=Vector((0.9, 1, 1)), verts=hub)
-    blades = 7
     for i in range(blades):
         span = radius * 0.86
         chord = 0.16
@@ -316,7 +413,7 @@ def shade_smooth_by_angle() -> None:
                 p.use_smooth = obj.name in ("FanRing", "FanNacelle", "FanRotor")
 
 
-def preview() -> None:
+def preview(path: Path) -> None:
     """A quick Eevee render from the game's starting view, for review."""
     scene = bpy.context.scene
     scene.render.engine = "CYCLES"
@@ -325,7 +422,7 @@ def preview() -> None:
     scene.render.resolution_x = 960
     scene.render.resolution_y = 600
     scene.render.image_settings.file_format = "JPEG"
-    scene.render.filepath = str(PREVIEW)
+    scene.render.filepath = str(path)
     world = bpy.data.worlds.new("World")
     world.use_nodes = True
     world.node_tree.nodes["Background"].inputs["Color"].default_value = srgb("E9EDF0")
@@ -349,9 +446,11 @@ def preview() -> None:
     bpy.ops.render.render(write_still=True)
 
 
-def main() -> None:
-    argv = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else []
+def build(name: str, v: dict, with_preview: bool) -> None:
+    """Build one tunnel from an empty scene, export it, and render its preview if asked."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
+    PALETTE.clear()
+    PALETTE.update(COLOURS, **v["colours"])
     mats = {n: material(n, 0.85) for n in ("Wall", "Floor")}
     mats["Floor"].node_tree.nodes["Principled BSDF"].inputs["Roughness"].default_value = 0.9
     mats["Seam"] = material("Seam", 0.8)
@@ -366,16 +465,20 @@ def main() -> None:
 
     build_shell(mats["Wall"], mats["Floor"])
     build_seams(mats["Seam"])
-    build_windows(mats["Frame"], mats["Glass"])
-    build_lights(mats["Light"], mats["Frame"])
+    build_windows(mats["Frame"], mats["Glass"], v["windows"], v["window_height"])
+    build_lights(mats["Light"], mats["Frame"], v["lights"])
     build_inlet(mats["Screen"], mats["Frame"])
-    build_fan(mats["FanRing"], mats["FanBlade"], mats["Steel"])
+    build_fan(mats["FanRing"], mats["FanBlade"], mats["Steel"], v["blades"])
     build_floor_ring(mats["Turntable"])
+    if v["trim"]:
+        build_trim(material("Trim", 0.45, 0.1))
+        build_yaw_marks(mats["Seam"])
     shade_smooth_by_angle()
 
-    OUT.parent.mkdir(parents=True, exist_ok=True)
+    out: Path = v["out"]
+    out.parent.mkdir(parents=True, exist_ok=True)
     bpy.ops.export_scene.gltf(
-        filepath=str(OUT),
+        filepath=str(out),
         export_format="GLB",
         use_selection=False,
         export_extras=False,
@@ -390,12 +493,18 @@ def main() -> None:
         export_apply=True,
         export_draco_mesh_compression_enable=False,
     )
-    print(f"wrote {OUT} ({OUT.stat().st_size} bytes)")
+    print(f"wrote {out} ({out.stat().st_size} bytes)")
+    if with_preview:
+        preview(v["preview"])
+        print(f"wrote {v['preview']}")
+
+
+def main() -> None:
+    argv = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else []
+    for name, v in VARIANTS.items():
+        build(name, v, "--preview" in argv)
     MANIFEST.write_text(json.dumps({"inputHash": input_hash(), "blender": BLENDER}, indent=2) + "\n")
     print(f"wrote {MANIFEST}")
-    if "--preview" in argv:
-        preview()
-        print(f"wrote {PREVIEW}")
 
 
 main()

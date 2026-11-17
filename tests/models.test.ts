@@ -26,17 +26,29 @@ describe('the Blender models (PR 13b)', () => {
     expect(manifest.inputHash).toBe(h.digest('hex').slice(0, 16))
   })
 
-  it('the tunnel has the pieces the game moves and recolours', () => {
-    const glb = readFileSync(join(ROOT, 'public/models/tunnel-university.glb'))
-    const length = glb.readUInt32LE(12)
-    const json = JSON.parse(glb.subarray(20, 20 + length).toString('utf8')) as { nodes: { name: string }[]; materials: { name: string; doubleSided?: boolean }[] }
-    const nodes = json.nodes.map((n) => n.name)
-    expect(nodes).toContain('FanRotor')
-    expect(nodes).toContain('Shell')
-    const mats = new Map(json.materials.map((m) => [m.name, m]))
-    expect(mats.has('Wall')).toBe(true)
-    expect(mats.has('Floor')).toBe(true)
-    // One-sided, so the near wall vanishes from outside (the cutaway).
-    expect(mats.get('Wall')!.doubleSided ?? false).toBe(false)
+  for (const id of ['university', 'own']) {
+    it(`the ${id} tunnel has the pieces the game moves and recolours`, () => {
+      const glb = readFileSync(join(ROOT, `public/models/tunnel-${id}.glb`))
+      const length = glb.readUInt32LE(12)
+      const json = JSON.parse(glb.subarray(20, 20 + length).toString('utf8')) as { nodes: { name: string }[]; materials: { name: string; doubleSided?: boolean }[] }
+      const nodes = json.nodes.map((n) => n.name)
+      expect(nodes).toContain('FanRotor')
+      expect(nodes).toContain('Shell')
+      const mats = new Map(json.materials.map((m) => [m.name, m]))
+      for (const name of ['Wall', 'Floor', 'Seam']) expect(mats.has(name)).toBe(true)
+      // One-sided, so the near wall vanishes from outside (the cutaway).
+      expect(mats.get('Wall')!.doubleSided ?? false).toBe(false)
+      // Small enough to load on the tunnel screen without a wait (PR 13d).
+      expect(glb.length).toBeLessThan(400 * 1024)
+    })
+  }
+
+  it('your own tunnel looks different from the university\'s (PR 13d)', () => {
+    const names = (id: string) => {
+      const glb = readFileSync(join(ROOT, `public/models/tunnel-${id}.glb`))
+      return (JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString('utf8')) as { nodes: { name: string }[] }).nodes.map((n) => n.name)
+    }
+    expect(names('own')).toEqual(expect.arrayContaining(['Trim', 'YawMarks']))
+    expect(names('university')).not.toContain('Trim')
   })
 })

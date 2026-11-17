@@ -23,8 +23,9 @@ at https://longlight.games/press.html.
 
 ## 3D models
 
-The wind tunnel's test section (`public/models/tunnel-university.glb`) is built
-by Longlight Interactive's own script, `art/tunnel/build.py`, in Blender 4.5.15.
+The two wind tunnels' test sections (`public/models/tunnel-university.glb` and
+`public/models/tunnel-own.glb`) are built by Longlight Interactive's own script,
+`art/tunnel/build.py`, in Blender 4.5.15.
 Blender is GPL-licensed software; the models it outputs belong to the studio.
 
 ## Sound
