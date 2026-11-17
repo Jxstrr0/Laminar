@@ -1,14 +1,16 @@
 import { unlockAudio } from './audio/engine'
 import '@fontsource/space-grotesk/latin-500.css'
 import '@fontsource/space-grotesk/latin-700.css'
-import '@fontsource/instrument-sans/latin-400.css'
-import '@fontsource/instrument-sans/latin-600.css'
-import '@fontsource/instrument-sans/latin-700.css'
-import '@fontsource/spline-sans-mono/latin-400.css'
-import '@fontsource/spline-sans-mono/latin-500.css'
+import '@fontsource/bricolage-grotesque/latin-400.css'
+import '@fontsource/bricolage-grotesque/latin-600.css'
+import '@fontsource/bricolage-grotesque/latin-700.css'
+import '@fontsource/bricolage-grotesque/latin-800.css'
+import '@fontsource/geist-mono/latin-400.css'
+import '@fontsource/geist-mono/latin-600.css'
 import './style.css'
 import { t } from './data/strings'
 import { bindGlossary } from './ui/glossary'
+import { ICONS } from './ui/icons'
 import { bindLoadingScreen } from './ui/loading'
 import { designStore } from './ui/designStore'
 import { newLab } from './sim/lab'
@@ -116,7 +118,14 @@ function buildNav(go: (s: Screen) => void): { root: HTMLElement; mark(s: Screen)
     b.type = 'button'
     b.className = 'nav-button'
     b.dataset.screen = s
-    b.textContent = t(`nav.${s}`)
+    // The icon always shows; the label only on the screen in use (CSS), but
+    // it's always the button's name, for screen readers and the guide.
+    b.innerHTML = ICONS[s]
+    const label = document.createElement('span')
+    label.className = 'nav-label'
+    label.textContent = t(`nav.${s}`)
+    b.append(label)
+    b.setAttribute('aria-label', t(`nav.${s}`))
     b.addEventListener('click', () => go(s))
     root.append(b)
     return b

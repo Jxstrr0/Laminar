@@ -18,8 +18,8 @@ export interface Credit {
 }
 
 export const FONTS: readonly Credit[] = [
-  { name: 'Instrument Sans', by: 'The Instrument Sans Project Authors', licence: 'SIL Open Font License 1.1' },
-  { name: 'Spline Sans Mono', by: 'The Spline Sans Mono Project Authors', licence: 'SIL Open Font License 1.1' },
+  { name: 'Bricolage Grotesque', by: 'The Bricolage Grotesque Project Authors', licence: 'SIL Open Font License 1.1' },
+  { name: 'Geist Mono', by: 'The Geist Project Authors', licence: 'SIL Open Font License 1.1' },
   { name: 'Space Grotesk (studio pieces)', by: 'The Space Grotesk Project Authors', licence: 'SIL Open Font License 1.1' },
 ]
 
