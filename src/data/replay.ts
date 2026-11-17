@@ -527,6 +527,32 @@ export const SALT_KIT = {
 }
 
 /**
+ * The Lugovoy meadow's kit (PR 13v, art/meadow/build.py): the drone club's
+ * field round the quads' mown line. Distances along the lap and beyond the
+ * line's edge, m; on the left when it says so (the course runs clockwise,
+ * so the left is the outside).
+ */
+export const MEADOW_KIT = {
+  /** The pilots' gazebo on the left a little past the start, its open side to the line (close enough to be in a portrait phone's view). */
+  tent: { along: 14, out: 3 },
+  /** The timing tower on the right, by the start. */
+  tower: { along: 8, out: 2 },
+  /** Spectators along the start straight's left. */
+  crowd: { along: 30, out: 3 },
+  /** The club hut and the members' cars, well back on the left. */
+  hut: { along: 10, out: 26 },
+  /** Round bales on the outside of every turn, one every this many metres along it, set back so they don't fill the view through the turn. */
+  bales: { every: 7, out: 4.5 },
+  /** 12 m runs of bunting on the left of straights at least `min` long, `margin` in from each end. */
+  bunting: { min: 25, margin: 4, every: 15, out: 2 },
+  /** Trees in a ring this far past the course's far corners, spread up to `spread` more. */
+  trees: { count: 70, out: 25, spread: 30 },
+  treeScale: 0.25,
+  /** Nothing else stands within this many metres of a placed piece. */
+  clear: 6,
+}
+
+/**
  * The open road's roadside (PR 13t, art/road/build.py): Blender pieces the
  * time-trial and truck replays stand along the road. Distances are along the
  * course, m; `out` is beyond the road's edge (it's wider for the trucks), on

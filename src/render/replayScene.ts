@@ -16,7 +16,7 @@ import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { TRACK } from '../data/briefs'
 import { FIELD_TROUBLE, type CourseSegment } from '../data/field'
-import { AIRCRAFT_REPLAY, AIRFIELD_KIT, AIRFIELD_SCENE, CAR_REPLAY, CIRCUIT_KIT, ROAD_KIT, SALT_KIT, DRONE_REPLAY, DRONE_SCENE, RECORD_SCENE, REPLAY_SCENE as S, SURVEY_SCENE } from '../data/replay'
+import { AIRCRAFT_REPLAY, AIRFIELD_KIT, AIRFIELD_SCENE, CAR_REPLAY, CIRCUIT_KIT, MEADOW_KIT, ROAD_KIT, SALT_KIT, DRONE_REPLAY, DRONE_SCENE, RECORD_SCENE, REPLAY_SCENE as S, SURVEY_SCENE } from '../data/replay'
 import { AIRCRAFT_BODY } from '../data/aircraft'
 import { DRONE_BODY } from '../data/drone'
 import { designPose, type Design } from '../sim/design'
@@ -485,10 +485,10 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     })
   }
 
-  // A venue's kit of Blender pieces (PR 13m: the circuit's; 13n: the salt flat's; 13o: the airfield's), loaded with the view and stood along the course once both are in.
+  // A venue's kit of Blender pieces (PR 13m: the circuit's; 13n: the salt flat's; 13o: the airfield's; 13v: the drone meadow's), loaded with the view and stood along the course once both are in.
   // The open road's (PR 13t) is asked for by setCourse, since a track's lap has none.
   // Until it loads, or if it can't, the course is drawn as before.
-  const kitFile = circuit ? 'circuit.glb' : salt ? 'saltflat.glb' : airfield ? 'airfield.glb' : null
+  const kitFile = circuit ? 'circuit.glb' : salt ? 'saltflat.glb' : airfield ? 'airfield.glb' : meadow ? 'meadow.glb' : null
   /** Time trials and truck runs: an open road, unless the course is a track's lap. */
   const roadside = !circuit && !salt && !meadow && !fields && !airfield
   let road = false
@@ -621,11 +621,16 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
    * doubles back, or within ROAD_KIT.clear of a building. The trees vary by
    * a fixed hash of their place, so a course looks the same every time.
    */
-  function placeRoad(segs: readonly CourseSegment[]) {
-    const K = ROAD_KIT
+  /**
+   * Helpers for standing a kit round a course (PR 13t, shared with 13v): its
+   * length, the line's half-width, how far a spot is from any leg (so nothing
+   * stands on the line where the course passes again), and a list of claimed
+   * spots to keep pieces apart.
+   */
+  function courseTools(segs: readonly CourseSegment[]) {
     const total = segs.reduce((sum, seg) => sum + seg.length, 0)
     const edge = lay.roadWidth / 2
-    // Every leg's ends on the ground, to keep things off the road where the course passes again.
+    // Every leg's ends on the ground.
     const legs: [number, number, number, number][] = []
     let lx = 0
     let lz = 0
@@ -653,8 +658,14 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       return taken.every((q) => q.distanceTo(at) > r)
     }
     const claim = (m: THREE.Matrix4) => taken.push(new THREE.Vector3().setFromMatrixPosition(m))
-    /** A piece facing the road from its left (out < 0), or turned round to face it from the right; out is beyond the edge. */
+    /** A piece facing the line from its left (out < 0), or turned round to face it from the right; out is beyond the edge. */
     const side = (along: number, out: number) => placeAt(segs, along, Math.sign(out) * (edge + Math.abs(out)), out > 0)
+    return { total, edge, legs, fromRoad, clear, claim, side }
+  }
+
+  function placeRoad(segs: readonly CourseSegment[]) {
+    const K = ROAD_KIT
+    const { total, edge, fromRoad, clear, claim, side } = courseTools(segs)
     if (opts.truck) {
       const depot = side(K.depot.along, -K.depot.out)
       const shed = side(Math.max(0, total - K.warehouse.before), -K.warehouse.out)
@@ -748,6 +759,84 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     scatter('Windsock', [at(K.windsock.at, -K.windsock.out)])
   }
 
+  /**
+   * The Lugovoy meadow (PR 13v): the pilots' tent and timing tower at the
+   * start, launch pads on the line, spectators and the club hut on the left,
+   * hay bales round the outside of every turn, bunting along the long
+   * straights and a ring of trees round the field. The line and gates stay
+   * in code.
+   */
+  function placeMeadow(segs: readonly CourseSegment[]) {
+    const K = MEADOW_KIT
+    const { edge, legs, fromRoad, clear, claim, side } = courseTools(segs)
+    scatter('StartPads', [placeAt(segs, 0, 0)])
+    const stand = (name: string, m: THREE.Matrix4) => {
+      scatter(name, [m])
+      claim(m)
+    }
+    stand('PilotTent', side(K.tent.along, -K.tent.out))
+    stand('TimingTower', side(K.tower.along, K.tower.out))
+    stand('Spectators', side(K.crowd.along, -K.crowd.out))
+    stand('ClubHut', side(K.hut.along, -K.hut.out))
+    // Bales on the outside of each turn, and bunting along the long straights' left. A corner's pieces each
+    // turn the same way from both neighbours; a straight's don't (a short one between two opposite turns turns both ways).
+    const bales: THREE.Matrix4[] = []
+    const flags: THREE.Matrix4[] = []
+    const turnOf = (a: number, b: number) => ((((b - a) % 360) + 540) % 360) - 180
+    let along = 0
+    segs.forEach((seg, i) => {
+      const into = turnOf(segs[(i + segs.length - 1) % segs.length]!.heading, seg.heading)
+      const out = turnOf(seg.heading, segs[(i + 1) % segs.length]!.heading)
+      const turn = Math.sign(into) === Math.sign(out) && Math.abs(into) > 0.5 && Math.abs(out) > 0.5 ? into : 0
+      if (turn !== 0) {
+        // A right turn's outside is on the left (out < 0), and the other way round.
+        const sign = turn > 0 ? -1 : 1
+        for (let d = along; d < along + seg.length; d += K.bales.every) {
+          const m = side(d, sign * K.bales.out)
+          if (fromRoad(m) > edge + K.bales.out - 0.5 && clear(m, K.clear)) bales.push(m)
+        }
+      } else if (seg.length >= K.bunting.min) {
+        for (let d = along + K.bunting.margin; d + 12 <= along + seg.length - K.bunting.margin; d += K.bunting.every) {
+          const m = side(d, -K.bunting.out)
+          if (fromRoad(m) > edge + K.bunting.out - 0.5 && clear(m, K.clear)) flags.push(m)
+        }
+      }
+      along += seg.length
+    })
+    scatter('HayBale', bales)
+    scatter('Bunting', flags)
+    // The trees: a ring round the course's middle, beyond its far corners, each turned, sized and chosen by a hash of its place.
+    let minX = Infinity
+    let maxX = -Infinity
+    let minZ = Infinity
+    let maxZ = -Infinity
+    for (const [x0, z0, x1, z1] of legs) {
+      minX = Math.min(minX, x0, x1)
+      maxX = Math.max(maxX, x0, x1)
+      minZ = Math.min(minZ, z0, z1)
+      maxZ = Math.max(maxZ, z0, z1)
+    }
+    const cx = (minX + maxX) / 2
+    const cz = (minZ + maxZ) / 2
+    const reach = Math.hypot(maxX - minX, maxZ - minZ) / 2 + K.trees.out
+    const kinds: THREE.Matrix4[][] = [[], [], []]
+    const up = new THREE.Vector3(0, 1, 0)
+    for (let k = 0; k < K.trees.count; k++) {
+      const a = ((k + hash01(k * 11 + 1) * 0.6) / K.trees.count) * Math.PI * 2
+      const r = reach + hash01(k * 13 + 5) * K.trees.spread
+      const size = 1 + hash01(k * 17 + 2) * K.treeScale
+      const m = new THREE.Matrix4().compose(
+        new THREE.Vector3(cx + Math.cos(a) * r, 0, cz + Math.sin(a) * r),
+        new THREE.Quaternion().setFromAxisAngle(up, hash01(k * 19 + 7) * Math.PI * 2),
+        new THREE.Vector3(size, size, size),
+      )
+      kinds[Math.floor(hash01(k * 23 + 3) * 3)]!.push(m)
+    }
+    scatter('TreeRound', kinds[0]!)
+    scatter('TreePine', kinds[1]!)
+    scatter('TreeBirch', kinds[2]!)
+  }
+
   function placeKit() {
     for (const child of [...kitGroup.children]) {
       kitGroup.remove(child)
@@ -760,6 +849,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     if (circuit) placeCircuit(kitCourse)
     if (salt) placeSalt(kitCourse)
     if (road) placeRoad(kitCourse)
+    if (meadow) placeMeadow(kitCourse)
   }
 
   function clearCourse() {
