@@ -5,8 +5,8 @@
  */
 export const STRINGS = {
   'game.title': 'Laminar',
-  'tunnel.place': 'University tunnel · test section',
-  'tunnel.placeOwn': 'Your tunnel · test section',
+  'tunnel.place': 'Tunnel · university',
+  'tunnel.placeOwn': 'Tunnel · your own',
   'tunnel.sheet': 'Tunnel controls and balance readouts',
   'mount.label': 'Model',
   'mount.rider': 'Your rider',
