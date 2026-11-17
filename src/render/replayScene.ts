@@ -8,13 +8,14 @@
  * (PR 13k, art/velodrome/build.py), loaded the first time a 250 m track
  * race is shown; until then, or if it can't load, the boards are drawn here.
  * A circuit's trackside (PR 13m, art/circuit/build.py) is a kit of Blender
- * pieces stood along whichever lap is raced, copied by instancing.
+ * pieces stood along whichever lap is raced, copied by instancing; so are the
+ * salt flat's camp and course furniture (PR 13n, art/saltflat/build.py).
  */
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { TRACK } from '../data/briefs'
 import { FIELD_TROUBLE, type CourseSegment } from '../data/field'
-import { AIRCRAFT_REPLAY, AIRFIELD_SCENE, CAR_REPLAY, CIRCUIT_KIT, DRONE_REPLAY, DRONE_SCENE, RECORD_SCENE, REPLAY_SCENE as S, SURVEY_SCENE } from '../data/replay'
+import { AIRCRAFT_REPLAY, AIRFIELD_SCENE, CAR_REPLAY, CIRCUIT_KIT, SALT_KIT, DRONE_REPLAY, DRONE_SCENE, RECORD_SCENE, REPLAY_SCENE as S, SURVEY_SCENE } from '../data/replay'
 import { AIRCRAFT_BODY } from '../data/aircraft'
 import { DRONE_BODY } from '../data/drone'
 import { designPose, type Design } from '../sim/design'
@@ -474,9 +475,9 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     })
   }
 
-  // A venue's kit of Blender pieces (PR 13m: the circuit's), loaded with the view and stood along the course once both are in.
+  // A venue's kit of Blender pieces (PR 13m: the circuit's; PR 13n: the salt flat's), loaded with the view and stood along the course once both are in.
   // Until it loads, or if it can't, the course is drawn as before.
-  const kitFile = circuit ? 'circuit.glb' : null
+  const kitFile = circuit ? 'circuit.glb' : salt ? 'saltflat.glb' : null
   let kit: THREE.Object3D | null = null
   const kitGroup = new THREE.Group()
   scene.add(kitGroup)
@@ -509,8 +510,8 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     })
   }
 
-  /** A placement `along` metres round the course, `out` metres right of its centre line (left if negative), facing the way it runs. */
-  function placeAt(segs: readonly CourseSegment[], along: number, out: number): THREE.Matrix4 {
+  /** A placement `along` metres round the course, `out` metres right of its centre line (left if negative), facing the way it runs (or turned round). */
+  function placeAt(segs: readonly CourseSegment[], along: number, out: number, turned = false): THREE.Matrix4 {
     let x = 0
     let z = 0
     let d = along
@@ -529,7 +530,8 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     }
     const { rx, rz } = axes(heading)
     // The pieces are built facing +x, like the riders: turn them to the heading.
-    return new THREE.Matrix4().compose(new THREE.Vector3(x + rx * out, 0, z + rz * out), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), (90 - heading) * DEG), new THREE.Vector3(1, 1, 1))
+    const turn = (90 - heading) * DEG + (turned ? Math.PI : 0)
+    return new THREE.Matrix4().compose(new THREE.Vector3(x + rx * out, 0, z + rz * out), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), turn), new THREE.Vector3(1, 1, 1))
   }
 
   /** The circuit's trackside along this lap: the start, the pits and stand, a footbridge, barriers, kerbs through the corners and marshals' posts. */
@@ -567,6 +569,31 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     scatter('Kerb', kerbs)
   }
 
+  /**
+   * The salt flat along this run: the camp at the start, the timing hut and
+   * lights at the timed kilometre, boards every kilometre, the course's edge
+   * posts, the watchers and the recovery truck. The pieces are built facing
+   * the course from its left; those on the right are turned round.
+   */
+  function placeSalt(segs: readonly CourseSegment[]) {
+    const K = SALT_KIT
+    const total = segs.reduce((sum, seg) => sum + seg.length, 0)
+    const timedFrom = segs[0]?.length ?? 0
+    const timedTo = timedFrom + (segs[1]?.length ?? 0)
+    const side = (along: number, out: number) => placeAt(segs, along, out, out > 0)
+    scatter('TeamCamp', [side(K.camp.along, K.camp.out)])
+    scatter('TimingHut', [side(timedFrom - K.hut.before, K.hut.out)])
+    scatter('TimingPost', [timedFrom, timedTo].flatMap((d) => [side(d, K.posts.out), side(d, -K.posts.out)]))
+    const boards: THREE.Matrix4[] = []
+    for (let d = K.boards.every; d < total; d += K.boards.every) boards.push(placeAt(segs, d, K.boards.out))
+    scatter('KmBoard', boards)
+    const markers: THREE.Matrix4[] = []
+    for (let d = K.markers.every; d < total; d += K.markers.every) markers.push(placeAt(segs, d, K.markers.out), placeAt(segs, d, -K.markers.out))
+    scatter('Marker', markers)
+    scatter('ViewingArea', [side((timedFrom + timedTo) / 2, K.viewing.out)])
+    scatter('RecoveryTruck', [side(Math.min(total - 50, timedTo + K.recovery.afterTimed), K.recovery.out)])
+  }
+
   function placeKit() {
     for (const child of [...kitGroup.children]) {
       kitGroup.remove(child)
@@ -574,6 +601,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     }
     if (!kit || !kitCourse) return
     if (circuit) placeCircuit(kitCourse)
+    if (salt) placeSalt(kitCourse)
   }
 
   function clearCourse() {
