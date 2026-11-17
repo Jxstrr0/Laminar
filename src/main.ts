@@ -41,6 +41,7 @@ import { challengeLink, decodeChallenge } from './persist/designCode'
 import { challengeCareer, challengeTarget } from './sim/challenge'
 import { challengeStore } from './ui/challengeStore'
 import { startOffline } from './pwa/register'
+import { playAfterReplay, playSfx, preloadSfx } from './audio/sfx'
 import { say, sayAfterReplay, setVoiceCast } from './audio/voice'
 import { boldPromise, roadAgreed } from './audio/cues'
 import { VOICE } from './data/voice'
@@ -251,12 +252,16 @@ async function boot(): Promise<void> {
         hand: firmEffects(career),
       }
     },
-    onOrder: (price, days) => careerStore.set(afterOrder(orderModel(careerStore.get(), price, days))),
+    onOrder: (price, days) => {
+      careerStore.set(afterOrder(orderModel(careerStore.get(), price, days)))
+      playSfx('mill')
+    },
     onSwap: (price) => careerStore.set(afterSwap(charge(careerStore.get(), price))),
     onRepair: (price, days) => {
       const before = careerStore.get()
       if (orderBlock(before, days) === 'noDays') return false
       careerStore.set(repairModel(before, price, days))
+      playSfx('mill')
       return true
     },
     goFix: (where) => {
@@ -306,6 +311,7 @@ async function boot(): Promise<void> {
     if (!was.job && now.job) {
       // A job begins: the client sets it out, and the analyst weighs the promise.
       lastBrief = now.job.brief.id
+      playSfx('brief')
       say(now.job.brief.days <= VOICE.tightDays ? 'briefTight' : 'brief')
       const asked = briefTemplate(now.job.brief.id)?.target
       if (asked !== undefined) say(boldPromise(now.job.promise, asked) ? 'bad' : 'safe')
@@ -314,6 +320,7 @@ async function boot(): Promise<void> {
       const done = now.history[now.history.length - 1]!
       lastBrief = done.id
       say('eventDay')
+      if (done.paid > 0) playAfterReplay('pay')
       sayAfterReplay(done.paid >= done.fee ? 'kept' : 'missed')
       if (done.actual !== 0) sayAfterReplay(roadAgreed((done.predicted - done.actual) / done.actual) ? 'agreed' : 'disagreed')
     }
@@ -386,7 +393,15 @@ async function boot(): Promise<void> {
   careerStore.subscribe(showJob)
   jobChip.addEventListener('click', () => show('board'))
   // Sound (PR 13a) can only start inside a tap; the tunnel sheet has its mute button.
-  const wakeSound = () => unlockAudio()
+  // The sound-effects pack (PR 13r) is fetched once the sound can start.
+  let sfxAsked = false
+  const wakeSound = () => {
+    unlockAudio()
+    if (!sfxAsked) {
+      sfxAsked = true
+      preloadSfx()
+    }
+  }
   document.addEventListener('pointerdown', wakeSound, { capture: true })
   document.addEventListener('keydown', wakeSound, { capture: true })
   const chips = document.createElement('div')

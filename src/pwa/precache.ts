@@ -13,8 +13,8 @@
 export const CACHE_PREFIX = 'laminar-'
 
 /**
- * Voice lines are cached the first time they play, not up front, and kept
- * across deploys (their file names never change). Bump the number to drop
+ * Voice lines and sound effects (PR 13r) are cached the first time they
+ * play, not up front, and kept across deploys (their file names never change). Bump the number to drop
  * them all if a take is ever replaced under the same name.
  */
 export const VOICE_CACHE = `${CACHE_PREFIX}voice-1`
@@ -28,13 +28,13 @@ export function cacheName(hash: string): string {
  * The files to fetch when the worker installs, from every path in dist/
  * (forward slashes, relative). Left out: the worker itself, the CNAME file,
  * source maps, the older `.woff` fonts (every phone that runs the game reads
- * `.woff2`) and the voice folder (cached on first play instead).
+ * `.woff2`) and the voice and sound-effect folders (cached on first play instead).
  */
 export function precacheList(paths: readonly string[]): string[] {
   return paths
     .filter((p) => p !== 'sw.js' && p !== 'CNAME')
     .filter((p) => !p.endsWith('.map') && !p.endsWith('.woff'))
-    .filter((p) => !p.startsWith('voice/'))
+    .filter((p) => !p.startsWith('voice/') && !p.startsWith('sfx/'))
     .slice()
     .sort()
 }

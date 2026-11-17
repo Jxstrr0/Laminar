@@ -216,7 +216,7 @@ export async function playRecordReplay(input: RecordReplayInput): Promise<void> 
       const note = r.notes[idx]!
       said.textContent = noteText(note)
       // The commentator says it too (PR 14b).
-      commentate('record', note.kind)
+      commentate('record', note.kind, { jet })
       // The boom: a white flash over the salt, unless motion is turned down (the line says it anyway).
       if (note.kind === 'barrier' && !reduce && dt < 1) {
         root.classList.remove('is-boom')
