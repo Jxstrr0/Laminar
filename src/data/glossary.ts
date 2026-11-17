@@ -484,7 +484,14 @@ export const GLOSSARY = defineGlossary({
     short: 'Particle image velocimetry: a laser sheet and a camera that measure the air’s speed.',
     long: 'Fine seeding drifts through the tunnel, a laser lights a thin slice of it, and a camera times how far each speck moves between two flashes. That gives the air’s speed all over the slice: fast, clean air round the model and slow air in its wake. Behind a body, the speed the wake has lost adds up to half its drag area, so the speed loss is a second way to read drag, apart from the balance. Laminar’s is an upgrade for your own tunnel.',
     aliases: ['particle image velocimetry', 'laser sheet', 'speed loss', 'wake survey'],
-    seeAlso: ['wake', 'separation', 'cda'],
+    seeAlso: ['wake', 'separation', 'cda', 'cfd'],
+  },
+  cfd: {
+    term: 'CFD',
+    short: 'Computational fluid dynamics: solving the air’s flow round a shape on a computer.',
+    long: 'Instead of blowing real air, the computer splits the space round the model into small cells and works out, step by step, how the air moves through them. Laminar’s CFD Cluster is a coarse lattice Boltzmann grid, 96 × 48 × 48 cells, run on the phone’s graphics chip. Its cells are big, so its air behaves thicker than real air and thin parts come out thick: good for comparing two designs, while the tunnel gives the number you promise a client. It’s an upgrade for your own tunnel, and needs a phone with WebGPU.',
+    aliases: ['computational fluid dynamics', 'cfd cluster', 'lattice boltzmann', 'simulation'],
+    seeAlso: ['piv', 'cda', 'wake'],
   },
   aeroMap: {
     term: 'Aero map',

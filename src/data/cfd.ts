@@ -11,6 +11,12 @@ export const CFD = {
   inflow: 0.06,
   /** BGK relaxation time; 0.5 is inviscid and unstable, so the grid's air is thick. */
   tau: 0.56,
+  /**
+   * The sponge at the far end (PR 12c): over its last this-many cells the
+   * relaxation time rises to `tau`, so the wake's eddies fade before the
+   * edge instead of bouncing back and blowing the run up.
+   */
+  sponge: { cells: 16, tau: 1.0 },
   /** Steps per run: about two flow-throughs of the grid. */
   steps: 3200,
   /** The last steps whose force is averaged into the reading (the wake sheds). */
@@ -24,4 +30,18 @@ export const CFD = {
    * (a tyre, a disc wheel) is drawn as a shell instead of filled.
    */
   fit: { length: 0.36, across: 0.6, noseAt: 0.2, thinCells: 1.5 },
+  /**
+   * A run that would take longer than this, in seconds, judged from its first
+   * batch, stops with a "too slow" note (PR 12c).
+   */
+  budgetSeconds: 120,
+  /**
+   * The grid's calibration (PR 12c), as a tunnel calibrates on a sphere: a
+   * sphere fitted to the grid the way a model is reads drag coefficient
+   * `grid` (measured with the CPU reference, runCpu, at these settings),
+   * where a real sphere at a rider's Reynolds number reads `real`. Every CFD
+   * drag area is scaled by real / grid. It takes out the grid's average bias
+   * (thick air, tight walls), not the bias that depends on the shape.
+   */
+  sphere: { grid: 2.58, real: 0.47 },
 } as const

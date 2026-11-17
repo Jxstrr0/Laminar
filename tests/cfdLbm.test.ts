@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { C, OPP, Q, W, equilibrium } from '../src/cfd/d3q19'
-import { bodyForce, cellFlow, cellIndex, dragCoefficient, fluidMass, frontalCells, initialPopulations, lbmStep, runCpu, sphereGrid, type Grid } from '../src/cfd/lbm'
+import { bodyForce, cellFlow, cellIndex, dragCoefficient, fluidMass, frontalCells, initialPopulations, lbmStep, omegaAt, runCpu, sphereGrid, type Grid } from '../src/cfd/lbm'
 
 const P = { inflow: 0.06, tau: 0.56 }
 
@@ -70,4 +70,15 @@ describe('the CPU solver (PR 12a)', () => {
     const thin = dragCoefficient(runCpu(g, { inflow: 0.06, tau: 0.53 }, 300, 60).force, g, P)
     expect(thin).toBeLessThan(thick)
   }, 30000)
+})
+
+describe('the sponge at the far end (PR 12c)', () => {
+  it('thickens the air only in its last cells, smoothly up to its own tau', () => {
+    const p = { inflow: 0.06, tau: 0.56, sponge: { cells: 10, tau: 1 } }
+    expect(omegaAt(p, 0, 100)).toBeCloseTo(1 / 0.56, 9)
+    expect(omegaAt(p, 90, 100)).toBeCloseTo(1 / 0.56, 9)
+    expect(omegaAt(p, 95, 100)).toBeCloseTo(1 / (0.56 + 0.44 * 0.25), 9)
+    expect(omegaAt(p, 100, 100)).toBeCloseTo(1, 9)
+    expect(omegaAt({ inflow: 0.06, tau: 0.56 }, 99, 100)).toBeCloseTo(1 / 0.56, 9)
+  })
 })

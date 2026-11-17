@@ -9,8 +9,13 @@
  * - from a solid neighbour, the cell's own outgoing population comes back
  *   (bounce-back: the body's surface is a no-slip wall);
  * - from upstream of the grid, still air at the inflow speed comes in;
- * - from downstream of it, the cell's own population (the flow leaves freely);
+ * - from downstream of it, still air at rest density moving with the cell's
+ *   own velocity (the flow leaves freely, and the far end holds the pressure
+ *   steady, PR 12c);
  * - across the sides and top, the grid wraps round (a wide, open tunnel).
+ * Near the far end a sponge thickens the air (a longer relaxation time), so
+ * the wake's eddies die down before they reach the edge, where they would
+ * bounce back and make the grid blow up.
  *
  * Buffers hold populations after collision, laid out one direction at a
  * time (all cells' q = 0, then all cells' q = 1, …), as the GPU wants.
@@ -38,6 +43,17 @@ export interface LbmParams {
   inflow: number
   /** Relaxation time (0.5 < tau). */
   tau: number
+  /** The sponge at the far end: this many cells, the relaxation time rising to `tau` at the edge. */
+  sponge?: { cells: number; tau: number }
+}
+
+/** The relaxation rate (1 / tau) at column x: the sponge's grows smoothly towards the far edge. */
+export function omegaAt(p: LbmParams, x: number, nx: number): number {
+  const sp = p.sponge
+  if (!sp || sp.cells <= 0) return 1 / p.tau
+  const into = (x - (nx - sp.cells)) / sp.cells
+  if (into <= 0) return 1 / p.tau
+  return 1 / (p.tau + (sp.tau - p.tau) * into * into)
 }
 
 export interface Vec3 {
@@ -62,17 +78,34 @@ export function initialPopulations(g: Grid, p: LbmParams): Float32Array {
 export function lbmStep(g: Grid, p: LbmParams, src: Float32Array, dst: Float32Array): void {
   const { nx, ny, nz, solid } = g
   const n = nx * ny * nz
-  const omega = 1 / p.tau
   const fin = new Float64Array(Q)
   const inflow = new Float64Array(Q)
   for (let q = 0; q < Q; q++) inflow[q] = equilibrium(q, 1, p.inflow, 0, 0)
   for (let z = 0; z < nz; z++) {
     for (let y = 0; y < ny; y++) {
       for (let x = 0; x < nx; x++) {
+        const omega = omegaAt(p, x, nx)
         const i = x + nx * (y + ny * z)
         if (solid[i]) {
           for (let q = 0; q < Q; q++) dst[q * n + i] = src[q * n + i]!
           continue
+        }
+        // The last column's own velocity, for the air coming back in from beyond the far end.
+        let ox = 0
+        let oy = 0
+        let oz = 0
+        if (x === nx - 1) {
+          let orho = 0
+          for (let q = 0; q < Q; q++) {
+            const v = src[q * n + i]!
+            orho += v
+            ox += v * CX[q]!
+            oy += v * CY[q]!
+            oz += v * CZ[q]!
+          }
+          ox /= orho
+          oy /= orho
+          oz /= orho
         }
         let rho = 0
         let ux = 0
@@ -85,7 +118,7 @@ export function lbmStep(g: Grid, p: LbmParams, src: Float32Array, dst: Float32Ar
           const sx = x - cx
           let v: number
           if (sx < 0) v = inflow[q]!
-          else if (sx >= nx) v = src[q * n + i]!
+          else if (sx >= nx) v = equilibrium(q, 1, ox, oy, oz)
           else {
             const j = sx + nx * (wrap(y - cy, ny) + ny * wrap(z - cz, nz))
             v = solid[j] ? src[OPPQ[q]! * n + i]! : src[q * n + j]!

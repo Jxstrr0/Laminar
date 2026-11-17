@@ -132,7 +132,8 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 11i | Challenges on screen: after a rider's or skater's job, "Challenge a friend" copies a link to it. The link (or its code pasted under Saves → Challenges) opens a practice copy that writes nowhere: a "Challenge · not saved" chip, a card with the CdA to beat, the client's setup on the bench, and in the debrief whether you beat the sender's CdA on the day (with both numbers), Try again and Back to your game. PR 11 is done | **Done** (v0.12.8.0) |
 | 12a | The CFD Cluster's solver, not yet in the game: a lattice Boltzmann grid (D3Q19, BGK) with the body as solid cells, bounce-back walls, inflow upstream, free outflow, and the force by momentum exchange. A CPU reference (`src/cfd/lbm.ts`, tested on small grids: uniform flow stays uniform, a sphere drags only downstream and slows its wake, thinner air lowers Cd) and the same scheme in WebGPU (`src/cfd/gpu.ts`). In a browser the two agree to 0.004 % on the force; the full 96 × 48 × 48 grid fits | **Done** (v0.13.0.0) |
 | 12b | The CFD Cluster as a tunnel upgrade (Kelbo: ₽900,000 and 21 days to fit, free to run), offered only on a phone with WebGPU; elsewhere the card says the phone can't run it and the rest of the game doesn't need it. The model's surface for the grid: the tunnel's own figure for any sport, turned to the yaw, filled by rays along all three axes (two votes of three), so open-ended lofts still fill and overlapping parts add up; parts thinner than 1.5 cells (tyres, disc wheels, tubes) become one-cell shells | **Done** (v0.13.1.0) |
-| 12c–14 | See the plan | Next: the CFD panel in the tunnel. |
+| 12c | The CFD panel in the tunnel: a CFD chip once the Cluster is fitted, a free Run button, progress, the CFD drag area (scaled by the grid's own sphere calibration) and the change on the last CFD run this visit, a side-on slice of the air's speed with a numbered scale, and a stale note when the model or yaw moves on. The first batch is timed and a run that would take over two minutes stops with an estimate. Never saved or scored | **Done** (v0.13.2.0) |
+| 12d–14 | See the plan | Next: CFD polish. |
 
 ## Versions
 
@@ -143,6 +144,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 - **0.10.30.0** (PR 10ae): defence clearance opens.
 - **0.10.31.0** (PR 10af): the sensor pod's range day from its sensor.
 - **0.10.32.0** (PR 10ag): PIV's wake slices, speed loss and hint, in the sim only.
+- **0.13.2.0** (PR 12c): the CFD panel in the tunnel: run it, read its drag and see the flow.
 - **0.13.1.0** (PR 12b): the CFD Cluster upgrade, and the model as cells for its grid.
 - **0.13.0.0** (PR 12a): the CFD solver (CPU reference and WebGPU), not yet
   in the game.
