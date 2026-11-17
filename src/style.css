@@ -178,7 +178,14 @@ html, body {
   gap: 12px;
   padding: 0 calc(12px + var(--safe-r)) calc(12px + var(--dock-h)) calc(12px + var(--safe-l));
   pointer-events: none;
+  /* The 3D view always keeps the top of the screen (PR 13g): on a shorter
+     phone the cards scroll inside the sheet rather than covering the model. */
+  max-height: calc(100% - 290px - var(--safe-t));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
 }
+.sheet::-webkit-scrollbar { display: none; }
 .sheet > * { pointer-events: auto; }
 /* A card: white, round, lifted. In dark mode it also gets a hairline. */
 .card {
@@ -189,24 +196,66 @@ html, body {
   box-shadow: var(--shadow-card);
 }
 
-.fan-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-areas: 'head head' 'slider off';
-  gap: 6px 12px;
-  align-items: center;
+/* --- The fan and yaw dials (Isobar, PR 13g) -------------------------- */
+/* Side by side in the controls card with a hairline between; stacked below 360px. */
+.dials { display: flex; gap: 12px; }
+.dial-block { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.dial-block + .dial-block { padding-left: 12px; border-left: 1px solid var(--line); }
+@media (max-height: 820px) {
+  .dial-face { max-width: 140px; }
+  .tunnel-controls .mount-row { margin-bottom: 6px; }
 }
+@media (max-width: 359px) {
+  .dials { flex-direction: column; }
+  .dial-block + .dial-block { padding: 10px 0 0; border-left: 0; border-top: 1px solid var(--line); }
+}
+.dial { position: relative; }
+.dial-face { position: relative; width: 100%; max-width: 172px; margin: 4px auto 0; }
+.dial-svg { display: block; width: 100%; height: auto; touch-action: none; cursor: pointer; }
+.dial-track, .dial-fill { fill: none; stroke-width: 12; stroke-linecap: round; }
+.dial-track { stroke: var(--line); }
+.dial-fill { stroke: var(--accent); }
+.dial-tick { stroke: var(--muted); stroke-width: 1.5; stroke-linecap: round; opacity: 0.6; }
+.dial-needle { stroke: var(--ink); stroke-width: 3; stroke-linecap: round; }
+.dial-knob { fill: var(--panel); stroke: var(--accent); stroke-width: 4; }
+/* The fan's actual speed while it ramps: a thin ink mark across the track. */
+.dial-actual { stroke: var(--ink); stroke-width: 2.5; stroke-linecap: round; }
+/* The value, in the middle of the arc. */
+.dial-value {
+  position: absolute; left: 50%; bottom: 0; transform: translateX(-50%);
+  font-family: var(--font-num); font-weight: 600; font-size: 1.05rem; color: var(--ink);
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.dial-block-yaw .dial-value { cursor: pointer; }
+.dial.is-disabled .dial-svg { opacity: 0.45; cursor: default; }
+.dial.has-focus .dial-face { outline: 3px solid var(--accent); outline-offset: 4px; border-radius: 14px; }
+/* The range itself is hidden but still takes focus and arrow keys. */
+.dial-input { position: absolute; width: 1px; height: 1px; margin: 0; padding: 0; opacity: 0; overflow: hidden; clip: rect(0 0 0 0); pointer-events: none; }
+.dial-steppers { display: flex; align-items: center; gap: 4px; margin-top: 6px; }
+.dial-actions { flex: 1; min-width: 0; display: flex; justify-content: center; }
+.dial-step {
+  flex: none; display: grid; place-items: center; width: var(--tap); height: var(--tap);
+  border: 0; border-radius: 50%; background: var(--panel-2); color: var(--ink);
+  font: inherit; font-size: 1.3rem; font-weight: 600; line-height: 1; cursor: pointer;
+  touch-action: manipulation; user-select: none; -webkit-user-select: none;
+}
+.dial-step:disabled { color: var(--muted); opacity: 0.5; cursor: default; }
+/* Fan off: a coral-outlined stop button. */
+.fan-off.fan-stop { min-height: 36px; padding: 0 10px; border: 2px solid var(--sep); background: transparent; color: var(--sep-text); font-size: 0.78rem; white-space: nowrap; }
+.fan-off.fan-stop:disabled { border-color: var(--line); color: var(--muted); }
+.dial-home { padding: 0 2px; font-size: 0.75rem; line-height: 1.1; white-space: normal; text-align: center; }
+.dial-home:disabled { color: var(--muted); cursor: default; }
 /* Tunnel: the model switch above the fan, and the yaw row under it. */
 .mount-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
 .mount-row .segmented { flex: 1; margin-top: 0; }
 .mount-row .segment { min-height: 36px; }
 .mount-row .tare-chip { min-height: 36px; padding: 0 14px; background: var(--panel-2); }
 .mount-row .tare-chip[aria-pressed='true'] { background: var(--accent); }
-.fan-row + .fan-row { margin-top: 10px; }
 /* Tunnel: the run's bill, the view tabs and the live chart. */
 .run-line { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; font-family: var(--font-num); font-size: 0.75rem; color: var(--muted); }
 .run-now { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .run-total { white-space: nowrap; color: var(--ink); }
+.tabs.view-tabs { margin-top: 0; }
 /* The tunnel's five views scroll sideways, fading at the right edge, rather than squashing. */
 .view-tabs { margin-top: 0; overflow-x: auto; scrollbar-width: none; -webkit-mask-image: linear-gradient(90deg, var(--ink) calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, var(--ink) calc(100% - 28px), transparent); }
 .view-tabs::-webkit-scrollbar { display: none; }
@@ -218,11 +267,9 @@ html, body {
 @media (max-height: 700px) {
   .sheet:not(.shape-sheet) { gap: 8px; }
   .sheet:not(.shape-sheet) .card { padding: 10px 14px; }
-  .sheet:not(.shape-sheet) .fan-row { row-gap: 2px; }
-  .sheet:not(.shape-sheet) .fan-slider, .sheet:not(.shape-sheet) .fan-off { height: 36px; min-height: 36px; }
+  .dial-face { max-width: 128px; }
   .mount-row { margin-bottom: 6px; }
   .mount-row .segment, .mount-row .tare-chip { min-height: 32px; }
-  .fan-row + .fan-row { margin-top: 6px; }
   .view-tabs .tab { min-height: 32px; }
   .chart-box, .sheet:not(.shape-sheet) .readouts { margin-top: 8px; }
   .chart { height: 96px; }
@@ -258,27 +305,18 @@ html, body {
 .run-title { font-size: 0.82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .run-sub { font-family: var(--font-num); font-size: 0.7rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chart-caption { margin: 4px 0 0; font-family: var(--font-num); font-size: 0.7rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fan-head { grid-area: head; display: flex; justify-content: space-between; align-items: baseline; }
+.fan-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 30px; }
 .fan-label { font-weight: 600; font-size: 1rem; }
 .fan-target { font-family: var(--font-num); font-size: 0.85rem; color: var(--muted); }
 /* The crank picker sits in the yaw row's head, beside the yaw setting. */
-.crank-box { display: flex; align-items: center; gap: 6px; margin: 0 12px 0 auto; font-size: 0.85rem; color: var(--muted); }
+.crank-box { display: flex; align-items: center; gap: 6px; margin-left: auto; font-size: 0.8rem; color: var(--muted); }
 .crank-box[hidden] { display: none; }
 .crank-select {
   min-height: 30px; padding: 0 8px; border: 0; border-radius: 10px;
   background: var(--panel-2); color: var(--ink); font-family: var(--font-num); font-size: 0.85rem;
 }
 
-.fan-slider {
-  grid-area: slider;
-  width: 100%;
-  height: var(--tap);
-  margin: 0;
-  cursor: pointer;
-  touch-action: pan-y;
-}
 .fan-off {
-  grid-area: off;
   min-height: var(--tap);
   min-width: var(--tap);
   padding: 0 16px;
@@ -927,11 +965,11 @@ input[type='range']:disabled { opacity: 0.45; cursor: default; }
 .shop-open {
   align-self: center;
   min-height: 28px;
-  margin: 0 auto 0 10px;
+  margin: 0;
   padding: 0 10px;
-  border: 1px solid var(--line);
+  border: 0;
   border-radius: 999px;
-  background: var(--panel);
+  background: var(--accent-soft);
   color: var(--accent);
   font: inherit;
   font-size: 0.78rem;
@@ -1213,14 +1251,14 @@ body[data-guide='model'] .nav-button[data-screen='tunnel']:not([aria-current='pa
 body[data-guide='model'] .shop-open,
 body[data-guide='model'] .guide-new,
 body[data-guide='baseline'] .nav-button[data-screen='tunnel']:not([aria-current='page']),
-body[data-guide='baseline'] .fan-slider#fan-slider,
+body[data-guide='baseline'] .dial-block-fan .dial-face,
 body[data-guide='shape'] .nav-button[data-screen='shape']:not([aria-current='page']),
 body[data-guide='shape'] .guide-shape,
 body[data-guide='remodel'] .nav-button[data-screen='tunnel']:not([aria-current='page']),
 body[data-guide='remodel'] .guide-remodel,
 body[data-guide='remodel'] .shop-open,
 body[data-guide='test'] .nav-button[data-screen='tunnel']:not([aria-current='page']),
-body[data-guide='test'] .fan-slider#fan-slider,
+body[data-guide='test'] .dial-block-fan .dial-face,
 body[data-guide='deliver'] .nav-button[data-screen='board']:not([aria-current='page']),
 body[data-guide='deliver'] .guide-deliver {
   outline: 2px solid var(--accent);
@@ -1228,7 +1266,7 @@ body[data-guide='deliver'] .guide-deliver {
   animation: guide-glow 1.6s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-  body[data-guide] .nav-button, body[data-guide] .save-btn, body[data-guide] .shop-open, body[data-guide] .fan-slider { animation: none; }
+  body[data-guide] .nav-button, body[data-guide] .save-btn, body[data-guide] .shop-open, body[data-guide] .dial-face { animation: none; }
 }
 
 /* Tunnel failures (PR 6b): the warning bar over the tunnel, the broken model's note, the break sheet. */

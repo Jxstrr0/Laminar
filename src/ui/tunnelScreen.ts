@@ -128,6 +128,7 @@ import { clunk, setFan, setWhirr, snap } from '../audio/engine'
 import { designStore } from './designStore'
 import { fixed, scientific } from './format'
 import { glossaryTerm } from './glossary'
+import { createDial } from './dial'
 
 /** The glossary entry for each drag regime word. */
 const REGIME_TERM: Record<Regime, GlossaryId> = { laminar: 'laminar', mixed: 'dragCrisis', turbulent: 'turbulent' }
@@ -199,9 +200,13 @@ function readout(label: string, term: GlossaryId): { box: HTMLElement; value: HT
   return { box, value, sub }
 }
 
-/** A labelled range slider with its "Set …" readout, like the fan's. */
-function rangeRow(id: string, label: string, range: { min: number; max: number; step: number }) {
-  const row = el('div', 'fan-row')
+/**
+ * A labelled dial (Isobar, PR 13g) over a hidden range slider: the label and
+ * its extras in the head, the dial with its value in the middle, − / +
+ * steppers, and a slot between them for the action button.
+ */
+function rangeRow(id: string, label: string, range: { min: number; max: number; step: number }, kind: 'fill' | 'needle') {
+  const row = el('div', `dial-block dial-block-${kind === 'fill' ? 'fan' : 'yaw'}`)
   const lab = el('label', 'fan-label', label)
   lab.htmlFor = id
   const target = el('span', 'fan-target')
@@ -213,9 +218,10 @@ function rangeRow(id: string, label: string, range: { min: number; max: number; 
   input.step = String(range.step)
   input.value = '0'
   const head = el('div', 'fan-head')
-  head.append(lab, target)
-  row.append(head, input)
-  return { row, input, target }
+  head.append(lab)
+  const dial = createDial(input, target, kind, { less: t('dial.less', { name: label }), more: t('dial.more', { name: label }) })
+  row.append(head, dial.root)
+  return { row, input, target, head, actions: dial.actions, dial, label: lab }
 }
 
 /** What the tunnel needs from the rest of the game. */
@@ -420,23 +426,29 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   mountRow.append(mountLabel, mountGroup, tareBtn)
 
   // Fan.
-  const fanCtl = rangeRow('fan-slider', t('fan.label'), { min: 0, max: spec.topSpeed, step: spec.sliderStep })
+  const fanCtl = rangeRow('fan-slider', t('fan.label'), { min: 0, max: spec.topSpeed, step: spec.sliderStep }, 'fill')
   // The model shop opens from the fan row's head, for the rider model.
   const shopBtn = el('button', 'shop-open')
   shopBtn.type = 'button'
   shopBtn.title = t('shop.openName')
   shopBtn.setAttribute('aria-haspopup', 'dialog')
-  fanCtl.target.before(shopBtn)
-  const offBtn = el('button', 'fan-off', t('fan.off'))
+  fanCtl.head.append(shopBtn)
+  // Fan off: a coral-outlined stop button between the steppers.
+  const offBtn = el('button', 'fan-off fan-stop', t('fan.off'))
   offBtn.type = 'button'
-  fanCtl.row.append(offBtn)
+  offBtn.setAttribute('aria-label', t('fan.offName'))
+  fanCtl.actions.append(offBtn)
 
   // Yaw turntable.
-  const yawCtl = rangeRow('yaw-slider', t('yaw.label'), spec.turntable)
-  const yawLabel = yawCtl.row.querySelector('label')!
-  const squareBtn = el('button', 'fan-off', t('yaw.square'))
+  const yawCtl = rangeRow('yaw-slider', t('yaw.label'), spec.turntable, 'needle')
+  const yawLabel = yawCtl.label
+  // Square on: a small text button between the steppers, and a tap on the dial's value does the same.
+  const squareBtn = el('button', 'text-button dial-home', t('yaw.square'))
   squareBtn.type = 'button'
-  yawCtl.row.append(squareBtn)
+  yawCtl.actions.append(squareBtn)
+  yawCtl.target.addEventListener('click', () => {
+    if (!squareBtn.disabled) squareBtn.click()
+  })
 
   // The crank angle of the rider model's fixed legs, picked from a list in the yaw row's head.
   let crank: number = saved.crank
@@ -454,7 +466,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   crankSel.value = String(crank)
   crankSel.addEventListener('change', () => setCrank(Number(crankSel.value)))
   crankBox.append(crankLabel, crankSel)
-  yawCtl.target.before(crankBox)
+  yawCtl.head.append(crankBox)
 
   // Readouts for the rider model.
   const riderGrid = el('div', 'readouts')
@@ -693,7 +705,10 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
 
   // Isobar (PR 13f): two cards on a clear sheet, the controls and then what the run reads.
   const controlCard = el('div', 'card tunnel-controls')
-  controlCard.append(mountRow, fanCtl.row, yawCtl.row, runLine)
+  // The two dials side by side, a hairline between (stacked on the narrowest phones).
+  const dials = el('div', 'dials')
+  dials.append(fanCtl.row, yawCtl.row)
+  controlCard.append(mountRow, dials, runLine)
   const dataCard = el('div', 'card tunnel-data')
   dataCard.append(pivPanel.box, cfdPanel.box, viewBar, riderGrid, jumperGrid, carGrid, recGrid, droneGrid, planeGrid, aircraftGrid, podGrid, sphereGrid, wheelGrid, tareGrid, chartBox, calBox, runsBox, foot)
   sheet.append(controlCard, dataCard)
@@ -708,6 +723,14 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
   view.setSheetHeight(sheet.offsetHeight)
 
   // --- Controls
+  /** The actual-speed mark on the fan's dial, moved only when the speed has moved. */
+  let shownActual = NaN
+  const showActual = () => {
+    const v = fan.speed < 0.05 ? 0 : Math.round(fan.speed * 10) / 10
+    if (v === shownActual) return
+    shownActual = v
+    fanCtl.dial.setActual(v === 0 ? null : v)
+  }
   const showTargets = () => {
     setText(fanCtl.target, t('fan.target', { target: `${fixed(fan.target, 1)} m/s` }))
     fanCtl.input.setAttribute('aria-valuetext', `${fixed(fan.target, 1)} metres per second`)
@@ -1766,7 +1789,9 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     yawCtl.input.max = String(d.max)
     yawCtl.input.step = String(d.step)
     yawCtl.input.value = String(table.target)
-    setText(yawLabel, t(jumper ? 'pitch.label' : racing ? 'drop.label' : quad ? 'tilt.label' : flyer ? 'aoa.label' : 'yaw.label'))
+    const dialName = t(jumper ? 'pitch.label' : racing ? 'drop.label' : quad ? 'tilt.label' : flyer ? 'aoa.label' : 'yaw.label')
+    setText(yawLabel, dialName)
+    yawCtl.dial.setLabels({ less: t('dial.less', { name: dialName }), more: t('dial.more', { name: dialName }) })
     setText(squareBtn, t(jumper ? 'pitch.hold' : racing ? 'drop.home' : quad ? 'tilt.level' : flyer ? 'aoa.level' : 'yaw.square'))
     showTargets()
     applyInstruments()
@@ -2829,6 +2854,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     syncTunnel()
     while (carry >= STEP) {
       fan = stepFan(fan, STEP, spec)
+      // The fan's dial marks how fast it's really going while it ramps.
+      showActual()
       table = stepTurntable(table, STEP, dial())
       // The model's weak points, checked every fixed step (the tunnel always warns first).
       // A jumper's model hangs on a sting, which takes its lift as well as its drag.
