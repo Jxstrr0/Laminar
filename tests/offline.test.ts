@@ -9,7 +9,7 @@ describe('offline cache', () => {
     expect(VOICE_CACHE.startsWith(CACHE_PREFIX)).toBe(true)
   })
 
-  it('keeps the game and leaves out the worker, CNAME, maps, old fonts and voice', () => {
+  it('keeps the game and leaves out the worker, CNAME, maps, old fonts, voice and sound effects', () => {
     const list = precacheList([
       'index.html',
       'sw.js',
@@ -20,6 +20,7 @@ describe('offline cache', () => {
       'assets/font-400.woff2',
       'models/tunnel.glb',
       'voice/lam_basov_lam-basov-0001.mp3',
+      'sfx/lam_sfx_0001_tunnel.mp3',
     ])
     expect(list).toEqual(['assets/font-400.woff2', 'assets/index-abc.js', 'index.html', 'models/tunnel.glb'])
   })

@@ -7,7 +7,7 @@
  * check simply adds up every file. When venues and later sectors load on
  * demand, this check should count only what the first screen needs. The voice
  * lines (public/voice/, PR 14b) already load only when a line first plays,
- * so they're left out.
+ * so they're left out, and so are the sound effects (public/sfx/, PR 13r).
  * Sizes are on disk, uncompressed (GitHub Pages gzips JS and CSS).
  */
 import { readdir, stat } from 'node:fs/promises'
@@ -18,7 +18,7 @@ const LIMIT_MIB = 15
 const LIMIT = LIMIT_MIB * 1024 * 1024
 
 /** Folders that load on demand, not on the first screen. */
-const ON_DEMAND = new Set([path.join(DIST, 'voice')])
+const ON_DEMAND = new Set([path.join(DIST, 'voice'), path.join(DIST, 'sfx')])
 
 async function walk(dir) {
   let total = 0

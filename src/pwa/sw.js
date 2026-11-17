@@ -64,7 +64,8 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  if (new URL(req.url).pathname.includes('/voice/')) {
+  // Voice lines and sound effects (PR 13r): cached the first time they play.
+  if (/\/(voice|sfx)\//.test(new URL(req.url).pathname)) {
     event.respondWith(
       caches.open(VOICE).then((cache) =>
         cache.match(req, MATCH).then(

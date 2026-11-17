@@ -15,6 +15,7 @@
 import { SPEAKER_NAMES, VOICE, VOICE_LINES, type ReplayKind, type VoiceCue } from '../data/voice'
 import { commLineFor, lineForCue, type VoiceCast } from './cues'
 import { audioOut, isMuted } from './engine'
+import { replaySfx } from './sfx'
 
 interface Pending {
   id: string
@@ -45,7 +46,9 @@ export function sayAfterReplay(cue: VoiceCue): void {
   enqueue(cue, lineForCue(cue, castOf()), true)
 }
 
-export function commentate(replay: ReplayKind, kind: string, extra: { ahead?: boolean; gain?: number } = {}): void {
+export function commentate(replay: ReplayKind, kind: string, extra: { ahead?: boolean; gain?: number; jet?: boolean } = {}): void {
+  // The moment's sound effect (PR 13r), if it has one; a jet car's record run has its own.
+  replaySfx(replay === 'record' && extra.jet ? 'recordJet' : replay, kind)
   const id = commLineFor(replay, kind, extra)
   // The commentator never waits: a late line would talk over the next moment.
   if (id) enqueue(`${replay}:${kind}`, id, false, 0)

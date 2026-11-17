@@ -125,6 +125,7 @@ import { createCfdPanel } from './cfdPanel'
 import { soundButton } from './soundButton'
 import { tableCue, tableMoving } from '../audio/cues'
 import { clunk, setFan, setWhirr, snap } from '../audio/engine'
+import { playSfx, setTunnelAir } from '../audio/sfx'
 import { say } from '../audio/voice'
 import { VOICE } from '../data/voice'
 import { designStore } from './designStore'
@@ -689,7 +690,10 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     b.addEventListener('click', () => {
       inst[id] = !inst[id]
       b.setAttribute('aria-pressed', String(inst[id]))
-      if (inst[id] && (id === 'wand' || id === 'rake')) say('smokeOn')
+      if (inst[id] && (id === 'wand' || id === 'rake')) {
+        playSfx('smoke')
+        say('smokeOn')
+      }
       applyInstruments()
     })
     instChips.set(id, b)
@@ -749,7 +753,10 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     if (locked()) fanCtl.input.value = '0'
     const wasOff = fan.target === 0
     fan = setFanTarget(fan, Number(fanCtl.input.value), spec)
-    if (wasOff && fan.target > 0) say('fanStart')
+    if (wasOff && fan.target > 0) {
+      playSfx('spinup')
+      say('fanStart')
+    }
     showTargets()
   })
   offBtn.addEventListener('click', () => {
@@ -982,7 +989,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     strainClock = {}
     showWarn()
     view.breakPart(f.part, true)
-    snap()
+    // The recorded crack (PR 13r), or the code-made one until it has loaded.
+    playSfx('snap', snap)
     say('break')
     view.setFlow(null, [])
     if (rec.run) rec = { ...rec, run: { ...rec.run, failure: f } }
@@ -2946,9 +2954,10 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
     if (racing) view.setDrop(table.angle / 1000)
     // The lab's sounds follow the fan and the turntable (PR 13a).
     setFan(fan.speed, spec.topSpeed)
+    setTunnelAir(fan.speed, spec.topSpeed)
     const turning = tableMoving(table.angle, table.target)
     setWhirr(turning)
-    if (tableCue(tableTurning, turning) === 'clunk') clunk()
+    if (tableCue(tableTurning, turning) === 'clunk') playSfx('clunk', clunk)
     tableTurning = turning
     view.frame(fan.speed, dt)
     raf = requestAnimationFrame(loop)
@@ -2972,6 +2981,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
         cfdPanel.setShown(false)
         // And quietens the lab.
         setFan(0, spec.topSpeed)
+        setTunnelAir(0, spec.topSpeed)
         setWhirr(false)
         // Leaving the tunnel: the Deliver sheet gets the latest run time.
         updateSledForecast(0, true)
