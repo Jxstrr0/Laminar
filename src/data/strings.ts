@@ -357,6 +357,12 @@ export const STRINGS = {
   'trec.newBody': '{record}: {value} for {holder}. It beats {was} set by {wasHolder}. Your firm’s name goes on the records board.',
   'trec.held': 'Records held',
   'trec.attemptTag': 'Record attempt',
+  // Export (PR 11g): clients abroad.
+  'exp.ridden': 'Ridden under the rules of the {federation} ({short}).',
+  'exp.noRecords': 'Results abroad don’t count for Tarnovian records.',
+  'exp.abroad': 'Abroad',
+  'exp.locked': '{country}’s clients call once your reputation reaches {need}. It’s {have} now.',
+  'exp.opened': '{country}’s clients call you now.',
   'trec.attempt': 'Out to break the Tarnovian record for {record}: {value} ({holder}). If it falls, they add a bonus of {pct} % of the fee.',
   'trec.bonus': 'The client adds a record bonus of {bonus}, counted in what they paid.',
   'trec.standsTitle': 'The record stands',
@@ -1863,6 +1869,8 @@ export const STRINGS = {
   'rule.frontWheel': 'A {value} front wheel is not allowed; the {book} allows {limit}.',
   'rule.tubeAspect': 'Frame tubes are {value} times longer than wide; the {book} allows {limit}.',
   'book.tcf-tt': 'TCF time-trial rules',
+  'book.gcu-tt': 'GCU time-trial rules',
+  'book.zcl-tt': 'ZCL time-trial rules',
   'studio.credit': '© 2026 Kelbo / Longlight Interactive',
 } as const
 
