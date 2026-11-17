@@ -125,7 +125,8 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 11b | The records board on screen: a Tarnovian records card on the Jobs screen (each record, its mark, who holds it and since when, and what it beat once the firm breaks it, marked "Your firm" in words), a "new Tarnovian record" box in the debrief, records held on the legacy card and its picture; a truck fleet's record goes under the fleet's name | **Done** (v0.12.1.0) |
 | 11c | Record attempts: clients out to break a Tarnovian record pay a bonus (40 % of the fee) when it falls. Elena Shubina's hour attempt on the Stavren boards (52 km of laps, the distance in the hour counts; reputation 55), and the Proryv Project is now out for the land-speed record. Brief and job cards say so; the debrief shows the new record and the bonus, or that the record stands | **Done** (v0.12.2.0) |
 | 11d | The R&D tree in the sim: eight projects in four areas (analysis, instruments, materials, techniques), two tiers each, paid up front and done some days later while the firm works on, one at a time. A finished project changes the firm for good through the same levers as staff traits (a narrower desk estimate, a quieter balance, cheaper or quicker models, stronger mounts), stacking with them. Saves keep it. Not on screen until 11e | **Done** (v0.12.3.0) |
-| 11e–14 | See the plan | Next: the R&D card on the Jobs screen. |
+| 11e | The R&D card on the Jobs screen: the four areas and their projects, each with what it changes (with its number), price and days, a Start button that asks for a second tap, which project is under way and when it's done, and what a second-tier project needs first | **Done** (v0.12.4.0) |
+| 11f–14 | See the plan | Next: export countries. |
 
 ## Versions
 
@@ -136,6 +137,9 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 - **0.10.30.0** (PR 10ae): defence clearance opens.
 - **0.10.31.0** (PR 10af): the sensor pod's range day from its sensor.
 - **0.10.32.0** (PR 10ag): PIV's wake slices, speed loss and hint, in the sim only.
+- **0.12.4.0** (PR 11e): the R&D card on the Jobs screen. Start a project
+  with two taps; the card says what it changes and when it's done.
+
 - **0.12.3.0** (PR 11d): the R&D tree in the sim. Eight projects, paid in
   money and days, one at a time; a finished one works like a staff trait
   and stacks with the staff's. Nothing on screen yet.
