@@ -5,6 +5,7 @@
  * Adapted from Quench src/ui/creditsSheet.ts (17 Nov 2026).
  */
 import { FONTS, LIBRARIES, STUDIO_LOGO, STUDIO_URL, type Credit } from '../data/credits'
+import { offlineState } from '../pwa/register'
 import { t } from '../data/strings'
 import { createSheet, type Sheet } from './sheet'
 
@@ -57,6 +58,7 @@ export function openCredits(): void {
       note('credits.soundNote'),
       head('credits.setting'),
       note('credits.settingNote'),
+      el('p', 'credits-note', t(`offline.${offlineState()}`)),
       el('p', 'credits-note version', `v${__GAME_VERSION__} · ${__BUILD_SHA__} · ${__BUILD_DATE__}`),
     )
   }

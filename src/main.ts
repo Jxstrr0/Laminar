@@ -40,6 +40,7 @@ import { askToKeepStorage, backupDue, noteFirstSeen, readMarks } from './persist
 import { challengeLink, decodeChallenge } from './persist/designCode'
 import { challengeCareer, challengeTarget } from './sim/challenge'
 import { challengeStore } from './ui/challengeStore'
+import { startOffline } from './pwa/register'
 
 
 /** The career slot in play: the one used last visit. */
@@ -264,6 +265,8 @@ async function boot(): Promise<void> {
     (text) => (PREVIEW ? Promise.resolve(true) : writeSlot(SLOT, text)),
   )
   touch = () => autosave.touch()
+  // Offline play (PR 14a): keep the game's files; a new version asks before it reloads, after a save.
+  startOffline(() => autosave.flush())
   designStore.subscribe(() => {
     touch()
     // Shaping a new position ticks the first-job guide.
