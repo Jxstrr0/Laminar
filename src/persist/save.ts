@@ -21,6 +21,7 @@ import { CRANK_DIAL, DEMO_TUNNEL_SEED } from '../data/tunnel'
 import { briefTemplate, newCareer, tidyFirmName, type Brief, type CareerState, type Ending, type Job, type JobRecord } from '../sim/career'
 import { NO_CLEARANCE, type Clearance } from '../sim/clearance'
 import { RECORD_IDS, type RecordId } from '../data/records'
+import { NO_RESEARCH, soundResearch } from '../sim/research'
 import { GUIDE_STEPS, type GuideStep } from '../sim/guide'
 import { NO_FACILITY, type Facility } from '../sim/facility'
 import { NO_CREW, soundCrew } from '../sim/staff'
@@ -456,6 +457,9 @@ export function soundCareer(x: unknown): CareerState | null {
   // Careers from before PR 10x never applied for defence clearance.
   const clearance = soundClearance(x.clearance === undefined ? NO_CLEARANCE : x.clearance)
   if (!clearance) return null
+  // Careers from before PR 11d have no R&D; a project can't have started after today.
+  const research = soundResearch(x.research === undefined ? NO_RESEARCH : x.research)
+  if (!research || Object.values(research).some((d) => d > (x.day as number))) return null
   return {
     seed: x.seed,
     money: x.money,
@@ -473,6 +477,7 @@ export function soundCareer(x: unknown): CareerState | null {
     firm,
     ended: ended as Ending | null,
     clearance,
+    research,
   }
 }
 

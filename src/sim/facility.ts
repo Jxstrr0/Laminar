@@ -9,6 +9,8 @@ import { MACHINE_PRICE, MAKER_IDS, type MachineId, type MakerId } from '../data/
 import { rollQuirks, type QuirkRanges, type TunnelQuirks } from './quirks'
 import { hashString } from './rng'
 import { crewEffects, NO_CREW, type Crew } from './staff'
+import { combineEffects, researchEffects } from './research'
+import type { ResearchId } from '../data/research'
 
 export type TunnelId = 'university' | 'own'
 
@@ -122,13 +124,14 @@ export interface TunnelSetup {
 }
 
 /** The tunnel the firm tests in on this day, with whatever upgrades are fitted and whoever's on staff. */
-export function tunnelSetup(careerSeed: number, f: Facility, day: number, crew: Crew = NO_CREW): TunnelSetup {
+export function tunnelSetup(careerSeed: number, f: Facility, day: number, crew: Crew = NO_CREW, research: readonly ResearchId[] = []): TunnelSetup {
   const id = activeTunnel(f, day)
   const fitted = id === 'own' ? fittedUpgrades(f, day) : []
   const has = (u: UpgradeId) => fitted.includes(u)
   const base = UNIVERSITY_TUNNEL
   const yaw = has('turntable') ? TUNNEL_UPGRADES.turntable.yawRange : base.turntable.max
-  const hands = crewEffects(crew)
+  // The staff's hands and the firm's finished R&D (PR 11d) together.
+  const hands = combineEffects(crewEffects(crew), researchEffects(research))
   const build: TunnelBuild = {
     ...base,
     balanceNoise: base.balanceNoise * hands.balanceNoise,
@@ -141,5 +144,5 @@ export function tunnelSetup(careerSeed: number, f: Facility, day: number, crew: 
   const raw = tunnelQuirks(id, careerSeed)
   const quirks = has('screens') ? { ...raw, turbulence: raw.turbulence * TUNNEL_UPGRADES.screens.turbulenceShare } : raw
   const tech = crew.tech ? [crew.tech] : []
-  return { id, build, quirks, fitted, mountStrength: hands.mountStrength, key: [id, ...fitted, ...tech].join(':') }
+  return { id, build, quirks, fitted, mountStrength: hands.mountStrength, key: [id, ...fitted, ...tech, ...research].join(':') }
 }
