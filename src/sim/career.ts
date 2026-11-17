@@ -59,7 +59,9 @@ import { hashString, Rng } from './rng'
 import type { Guide } from './guide'
 import { correlationScore, readOf, reputationOf, type Read } from './reputation'
 import { REPUTATION } from '../data/reputation'
-import { RIVALS, RIVAL_IDS, type RivalId } from '../data/rivals'
+import { FOREIGN_RIVAL_IDS, RIVALS, RIVAL_IDS, type RivalId } from '../data/rivals'
+import { COUNTRIES } from '../data/export'
+import { TCF_TIME_TRIAL, type CyclingRules } from '../data/rules'
 import { rivalRecord } from './rivals'
 import { buildBlock, machineBlock, NO_FACILITY, upgradeBlock, upkeepDays, type Facility } from './facility'
 import { MACHINE_PRICE, type MachineId } from '../data/model'
@@ -186,6 +188,8 @@ export function openTo(b: BriefTemplate, reputation: number, cleared = false): b
   if (b.event.plane && !PLANE_JOBS.open) return false
   if (b.event.aircraft && !AIRCRAFT_JOBS.open) return false
   if (b.event.pod && !POD_JOBS.open) return false
+  // Clients abroad call only a firm with a good enough name (PR 11f; Kelbo: "Reputation gate").
+  if (b.country && reputation < COUNTRIES[b.country].minRep) return false
   return (b.minRep ?? 0) <= reputation
 }
 
@@ -452,6 +456,12 @@ export function firmEffects(state: Pick<CareerState, 'crew' | 'research' | 'day'
   return combineEffects(crewEffects(state.crew), researchEffects(finishedResearch(state.research, state.day)))
 }
 
+/** The cycling rulebook a brief is ridden under: its country's federation abroad, the TCF's at home (PR 11f). */
+export function rulesFor(id: string | undefined): CyclingRules {
+  const country = id === undefined ? undefined : briefTemplate(id)?.country
+  return country ? COUNTRIES[country].rules : TCF_TIME_TRIAL
+}
+
 /** The event a brief is for, ready for the field model. */
 export function eventOf(brief: Pick<Brief, 'id'>): EventSpec {
   const b = template(brief.id)
@@ -682,6 +692,8 @@ export function clampBid(id: string, bid: Bid): Bid {
 export function biddersFor(id: string): RivalId[] {
   const b = template(id)
   if (b.tutorial) return []
+  // A brief from abroad: that country's own firm bids, not the Tarnovian ones (PR 11f).
+  if (b.country) return FOREIGN_RIVAL_IDS.filter((firm) => RIVALS[firm].country === b.country)
   return RIVAL_IDS.filter((firm) => b.fee.max >= RIVALS[firm].minFee)
 }
 
@@ -945,8 +957,8 @@ export function firmRecords(state: Pick<CareerState, 'history'>): Holding[] {
  */
 function closeJob(state: CareerState, job: Job, penalty: number, result: Pick<JobRecord, 'achieved' | 'predicted' | 'actual'>, attempt: Attempt | null = null): Closed {
   const b = template(job.brief.id)
-  // A result that beats a Tarnovian record goes on the board (PR 11a); a secret one never does.
-  const mark = attempt && !b.defence ? claim(firmRecords(state), attempt.record, attempt.value) : null
+  // A result that beats a Tarnovian record goes on the board (PR 11a); a secret one never does, nor one abroad (PR 11f).
+  const mark = attempt && !b.defence && !b.country ? claim(firmRecords(state), attempt.record, attempt.value) : null
   // A client out for that record pays a bonus when it falls (PR 11c).
   const bonus = mark && b.attempt === mark.record ? recordBonus(job.brief.fee) : 0
   const paid = job.brief.fee - penalty + bonus

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { BRIEFS } from '../src/data/briefs'
-import { RIVALS, RIVAL_IDS, RIVAL_WEEK_DAYS } from '../src/data/rivals'
+import { FOREIGN_RIVAL_IDS, RIVALS, RIVAL_IDS, RIVAL_WEEK_DAYS } from '../src/data/rivals'
 import { bidScore, biddersFor, boardFor, newCareer, placeBid, rivalBid, rivalBids, type CareerState } from '../src/sim/career'
 import { rivalRecord } from '../src/sim/rivals'
 
@@ -9,6 +9,8 @@ describe('the rival firms', () => {
     for (const b of BRIEFS) {
       const firms = biddersFor(b.id)
       if (b.tutorial) expect(firms).toEqual([])
+      // A brief from abroad gets only that country's own firm (PR 11f).
+      else if (b.country) expect(firms).toEqual(FOREIGN_RIVAL_IDS.filter((f) => RIVALS[f].country === b.country))
       else {
         expect(firms).toContain('bystro')
         expect(firms.includes('vysota')).toBe(b.fee.max >= RIVALS.vysota.minFee)
