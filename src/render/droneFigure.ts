@@ -2,7 +2,7 @@
  * The racing quad as a three.js group (PR 10b), drawn from the design at
  * full size. The pod is lofted from the very cross-sections its outline
  * gives the drag model (src/sim/geom/drone.ts) and tipped up on the frame by
- * its rake. The parts the firm shapes are drawn in the instruments' cobalt
+ * its rake. The parts the firm shapes are drawn in the model shop's teal
  * so they read at a glance: the pod and the arm fairings; the vents are dark
  * slots down the pod's sides, more of them the more are open.
  *
@@ -13,6 +13,7 @@
  * twist, closed vents) glows amber.
  */
 import * as THREE from 'three'
+import { MODEL } from './theme'
 import { DRONE_AERO, DRONE_BODY, type DroneDesign } from '../data/drone'
 import { podEnds, podHeight, podStation } from '../sim/geom/drone'
 import type { Highlight } from './riderFigure'
@@ -22,9 +23,9 @@ const COLOURS = {
   motor: 0x8c97a1,
   prop: 0x5a6875,
   lens: 0x13202b,
-  part: 0x2456e8,
-  broken: 0xd2462b,
-  strain: 0xe08a00,
+  part: MODEL.panel,
+  broken: MODEL.broken,
+  strain: MODEL.strain,
 }
 
 const mat = (color: number, roughness = 0.6, metalness = 0) => new THREE.MeshStandardMaterial({ color, roughness, metalness, side: THREE.DoubleSide })

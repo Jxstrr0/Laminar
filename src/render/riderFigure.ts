@@ -9,6 +9,7 @@
  * amber.
  */
 import * as THREE from 'three'
+import { MODEL } from './theme'
 import { BIKE, HELMET, type CyclistDesign } from '../data/cyclist'
 import { BOB_SKELETON, FRAME, JUMPER_SKELETON, SKATER_SKELETON, SKELETON } from '../data/pose'
 import type { SkaterDesign } from '../data/skater'
@@ -31,13 +32,13 @@ import { buildAircraft } from './aircraftFigure'
 import { buildPod } from './podFigure'
 
 const COLOURS = {
-  suit: 0x2b3a4a,
-  suitPanel: 0x2456e8,
+  suit: MODEL.suit,
+  suitPanel: MODEL.panel,
   skin: 0xc99a7a,
-  helmet: 0xf5f7f9,
+  helmet: MODEL.helmet,
   visor: 0x3c4650,
-  frame: 0x3c4650,
-  tyre: 0x1d242b,
+  frame: MODEL.frame,
+  tyre: MODEL.tyre,
   rim: 0x8c97a1,
   disc: 0x5d6873,
   bars: 0x5d6873,
@@ -45,10 +46,10 @@ const COLOURS = {
   blade: 0xb8c2cb,
   cap: 0x5d6873,
   ski: 0xe6ebef,
-  skiStripe: 0x2456e8,
-  sled: 0x2456e8,
-  broken: 0xd2462b,
-  strain: 0xe08a00,
+  skiStripe: MODEL.panel,
+  sled: MODEL.panel,
+  broken: MODEL.broken,
+  strain: MODEL.strain,
 }
 
 /** Which drawn groups a rule break or a strained posture lights up. */
@@ -387,7 +388,7 @@ function buildJumper(design: JumperDesign, state: RiderState): THREE.Group {
   const suit = M.suit
   const along = new THREE.Vector3(1, 0, 0)
 
-  // Skis: long thin boards from tail to tip, a cobalt stripe down the middle, tips turned up.
+  // Skis: long thin boards from tail to tip, a teal stripe down the middle, tips turned up.
   for (const ski of pose.skis) {
     const tail = v3(ski.tail)
     const tip = v3(ski.tip)

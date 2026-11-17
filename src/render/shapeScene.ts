@@ -5,7 +5,7 @@
  * screen is a longer tail in the sim. Parts that break the rules glow red;
  * the part of the posture that strains the rider most glows amber.
  *
- * Drag handles are cobalt dots drawn on top of everything. A press near one
+ * Drag handles are white dots in a teal ring, drawn on top of everything (Isobar, PR 13h). A press near one
  * grabs it (the camera stays put), and the screen turns the pull into new
  * design numbers; a press anywhere else turns the camera as before. The rule
  * box is drawn as see-through volumes that go red when a part breaks out.
@@ -16,19 +16,13 @@ import { HANDLE_TOUCH, type HandleId } from '../data/handles'
 import type { Project, ScreenPoint } from '../sim/geom/handles'
 import type { Point } from '../sim/geom/pose'
 import type { RuleVolume } from '../sim/geom/ruleBox'
+import { onThemeChange, sceneColours, type SceneColours } from './theme'
 import { ball, buildRider, disposeGroup, v3, type Highlight, type RiderState } from './riderFigure'
 
 export type { Highlight } from './riderFigure'
 
-const COLOURS = {
-  background: 0xe9edf0,
-  floor: 0xd6dce1,
-  grid: 0x9aa5ae,
-  broken: 0xd2462b,
-  handle: 0x2456e8,
-  handleRing: 0xffffff,
-  rules: 0x2456e8,
-}
+/** The handle's white core; everything else comes from the theme (src/render/theme.ts). */
+const HANDLE_CORE = 0xffffff
 
 /** Vertical field of view above the sheet, degrees, at least. */
 const PORTRAIT_FOV = 40
@@ -119,8 +113,9 @@ export function createShapeView(host: HTMLElement): ShapeView {
   renderer.domElement.setAttribute('aria-label', 'The rider and bike you are shaping')
   host.prepend(renderer.domElement)
 
+  let theme = sceneColours()
   const scene = new THREE.Scene()
-  scene.background = new THREE.Color(COLOURS.background)
+  scene.background = new THREE.Color(theme.background)
   const camera = new THREE.PerspectiveCamera(PORTRAIT_FOV, 1, 0.05, 30)
   camera.position.set(VIEWS.usual.camera.x, VIEWS.usual.camera.y, VIEWS.usual.camera.z)
   const controls = new OrbitControls(camera, renderer.domElement)
@@ -133,15 +128,17 @@ export function createShapeView(host: HTMLElement): ShapeView {
   controls.maxPolarAngle = Math.PI / 2 - 0.03
   controls.update()
 
-  scene.add(new THREE.HemisphereLight(0xffffff, 0xb8c2cb, 1.7))
-  const key = new THREE.DirectionalLight(0xffffff, 1.5)
+  const hemi = new THREE.HemisphereLight(theme.hemiSky, theme.hemiGround, 1.7)
+  scene.add(hemi)
+  const key = new THREE.DirectionalLight(theme.key, 1.5)
   key.position.set(1.5, 3, 2.5)
   scene.add(key)
 
-  const floor = new THREE.Mesh(new THREE.CircleGeometry(2.6, 64), new THREE.MeshStandardMaterial({ color: COLOURS.floor, roughness: 0.95 }))
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(2.6, 64), new THREE.MeshStandardMaterial({ color: theme.floor, roughness: 0.95 }))
   floor.rotation.x = -Math.PI / 2
   scene.add(floor)
-  const grid = new THREE.GridHelper(5, 20, COLOURS.grid, COLOURS.grid)
+  const grid = new THREE.GridHelper(5, 20, 0xffffff, 0xffffff)
+  ;(grid.material as THREE.LineBasicMaterial).color.setHex(theme.grid)
   ;(grid.material as THREE.Material).transparent = true
   ;(grid.material as THREE.Material).opacity = 0.3
   grid.position.y = 0.002
@@ -150,13 +147,30 @@ export function createShapeView(host: HTMLElement): ShapeView {
   // --- Materials, shared and reused across rebuilds.
   const M = {
     // Handles and the rule box draw on top, unlit, so they read from any angle.
-    handle: new THREE.MeshBasicMaterial({ color: COLOURS.handle, depthTest: false, transparent: true }),
-    handleRing: new THREE.MeshBasicMaterial({ color: COLOURS.handleRing, depthTest: false, transparent: true }),
-    rules: new THREE.MeshBasicMaterial({ color: COLOURS.rules, transparent: true, opacity: 0.07, depthWrite: false, side: THREE.DoubleSide }),
-    rulesEdge: new THREE.LineBasicMaterial({ color: COLOURS.rules, transparent: true, opacity: 0.45 }),
-    rulesBroken: new THREE.MeshBasicMaterial({ color: COLOURS.broken, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide }),
-    rulesBrokenEdge: new THREE.LineBasicMaterial({ color: COLOURS.broken, transparent: true, opacity: 0.8 }),
+    handle: new THREE.MeshBasicMaterial({ color: HANDLE_CORE, depthTest: false, transparent: true }),
+    handleRing: new THREE.MeshBasicMaterial({ color: theme.accent, depthTest: false, transparent: true }),
+    rules: new THREE.MeshBasicMaterial({ color: theme.accent, transparent: true, opacity: 0.07, depthWrite: false, side: THREE.DoubleSide }),
+    rulesEdge: new THREE.LineBasicMaterial({ color: theme.accent, transparent: true, opacity: 0.5 }),
+    rulesBroken: new THREE.MeshBasicMaterial({ color: theme.sep, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide }),
+    rulesBrokenEdge: new THREE.LineBasicMaterial({ color: theme.sep, transparent: true, opacity: 0.85 }),
   }
+
+  /** The phone switched between light and dark: recolour the bench, nothing else. */
+  function paint(next: SceneColours) {
+    theme = next
+    ;(scene.background as THREE.Color).setHex(next.background)
+    hemi.color.setHex(next.hemiSky)
+    hemi.groundColor.setHex(next.hemiGround)
+    key.color.setHex(next.key)
+    ;(floor.material as THREE.MeshStandardMaterial).color.setHex(next.floor)
+    ;(grid.material as THREE.LineBasicMaterial).color.setHex(next.grid)
+    M.handleRing.color.setHex(next.accent)
+    M.rules.color.setHex(next.accent)
+    M.rulesEdge.color.setHex(next.accent)
+    M.rulesBroken.color.setHex(next.sep)
+    M.rulesBrokenEdge.color.setHex(next.sep)
+  }
+  const stopTheme = onThemeChange(paint)
 
   let figure = new THREE.Group()
   scene.add(figure)
@@ -188,7 +202,7 @@ export function createShapeView(host: HTMLElement): ShapeView {
       }
     }
 
-    // Drag handles: a cobalt dot in a white ring, on top of everything.
+    // Drag handles: a white dot in a teal ring, on top of everything.
     for (const h of state.handles) {
       const big = h.id === state.selected ? 1.35 : 1
       const ring = ball(v3(h.point), 0.034 * big, M.handleRing)
@@ -328,6 +342,7 @@ export function createShapeView(host: HTMLElement): ShapeView {
       listener = l
     },
     dispose() {
+      stopTheme()
       observer.disconnect()
       disposeGroup(figure)
       controls.dispose()

@@ -605,6 +605,10 @@ readout, not colour alone.
   section, observation windows, a coloured accent for instruments. Smoke in
   white (with a dark-backdrop option so it reads), tufts in a strong contrast
   colour, Cp map in a perceptual diverging palette.
+- **The lab follows the phone (Kelbo, 16 November 2026, Isobar PR 13h):** the
+  3D lab used to stay bright in both themes; now it goes navy in dark mode,
+  and the Dark wall goes near-black there so the chip still does something.
+  Scene colours live in `src/render/theme.ts`.
 - **Blender hero assets:** the tunnel (university and own, with upgrade
   variants), base bodies with morph targets, event venues for replays
   (velodrome, ski jump, highway, circuit, salt flat, airfield). Scripted and

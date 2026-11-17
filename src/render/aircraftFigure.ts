@@ -3,7 +3,7 @@
  * size, standing on its wheels. The fuselage and the client's pod are
  * lofted from the very cross-sections their outline gives the drag model
  * (src/sim/geom/aircraft.ts). The mods the firm shapes are drawn in the
- * instruments' cobalt so they read at a glance: the cowl, the wheel spats,
+ * model shop's teal so they read at a glance: the cowl, the wheel spats,
  * the wingtips, the strut fairings and the pod. The kit's own parts (cabin,
  * wing, tail, bare struts and wheels) are white and grey.
  *
@@ -12,6 +12,7 @@
  * certified one) glows amber.
  */
 import * as THREE from 'three'
+import { MODEL } from './theme'
 import { AIRCRAFT_BODY as B, AIRCRAFT_CLASS, type AircraftDesign } from '../data/aircraft'
 import { aircraftLength, aircraftX, cowlFront, fuselageStation, podFullness, podPlace } from '../sim/geom/aircraft'
 import { loft, surface } from './planeFigure'
@@ -21,12 +22,12 @@ const COLOURS = {
   white: 0xf3f5f7,
   grey: 0x8c97a1,
   dark: 0x2a3a47,
-  tyre: 0x1e252c,
+  tyre: MODEL.tyre,
   glass: 0x3b5266,
   prop: 0x5a6875,
-  part: 0x2456e8,
-  broken: 0xd2462b,
-  strain: 0xe08a00,
+  part: MODEL.panel,
+  broken: MODEL.broken,
+  strain: MODEL.strain,
 }
 
 const mat = (color: number, roughness = 0.6, metalness = 0) => new THREE.MeshStandardMaterial({ color, roughness, metalness, side: THREE.DoubleSide })
@@ -99,7 +100,7 @@ export function buildAircraft(design: AircraftDesign, look: AircraftLook): THREE
   const len = aircraftLength()
   const ax = B.axis
 
-  // The fuselage: the spinner, the cowl (shaped, cobalt), the cabin and the tail cone.
+  // The fuselage: the spinner, the cowl (shaped, teal), the cabin and the tail cone.
   const sections = (from: number, to: number) => {
     const n = Math.max(2, Math.ceil((to - from) * DRAW.perMetre))
     const out = []
@@ -163,7 +164,7 @@ export function buildAircraft(design: AircraftDesign, look: AircraftLook): THREE
     if (side < 0) w.scale.z = -1
     w.position.set(lead, wingY, 0)
     g.add(w)
-    // The tip: the kit's rounded cap, or squared off (cobalt, the mod).
+    // The tip: the kit's rounded cap, or squared off (teal, the mod).
     const square = design.wingtips
     const capLength = B.tipCap * (1 - square) + DRAW.squareTip * square
     const cap = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 10, 0, Math.PI), square > 0.05 ? tint('wingtips', M.part) : M.white)
@@ -173,7 +174,7 @@ export function buildAircraft(design: AircraftDesign, look: AircraftLook): THREE
     g.add(cap)
   }
 
-  // The struts, cabin to wing: the faired share from the root up (cobalt), toed into the swirl; the rest a bare tube.
+  // The struts, cabin to wing: the faired share from the root up (teal), toed into the swirl; the rest a bare tube.
   const S = B.strut
   const toe = (design.struts.toe * Math.PI) / 180
   for (const side of [1, -1]) {

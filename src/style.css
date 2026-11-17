@@ -123,6 +123,19 @@ html, body {
 #app { position: fixed; inset: 0; }
 #app .screen { position: absolute; inset: 0; }
 .screen > canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+/*
+ * The scene card (PR 13h): the page colour round a rounded window onto the
+ * full-screen canvas. The window is inset 12px with 28px corners; a huge
+ * spread shadow paints everything outside it. It takes no touches.
+ */
+.scene-frame { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.scene-frame::before {
+  content: '';
+  position: absolute;
+  inset: calc(12px + var(--safe-t)) calc(12px + var(--safe-r)) calc(12px + var(--safe-b)) calc(12px + var(--safe-l));
+  border-radius: 28px;
+  box-shadow: 0 0 0 100vmax var(--bg);
+}
 
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 

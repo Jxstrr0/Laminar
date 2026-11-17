@@ -3,7 +3,7 @@
  * design at full size. The body is lofted from the very cross-sections the
  * drag model reads (src/sim/geom/record.ts); the nose cone is drawn bent
  * down by its droop. The parts the firm shapes are drawn in the
- * instruments' cobalt so they read at a glance: the nose cone, the tail fin
+ * model shop's teal so they read at a glance: the nose cone, the tail fin
  * and the wheel fairings; the canopy is glass.
  *
  * Built nose along +x, wheels on y = 0, +z to the right, centred on the
@@ -11,6 +11,7 @@
  * warning (a light nose, a wander, a low canopy) glows amber.
  */
 import * as THREE from 'three'
+import { MODEL } from './theme'
 import { RECORD_BODY, RECORD_CLASS, RECORD_SIDE, type RecordDesign } from '../data/record'
 import { canopyAt, fullnessAt, recordAxis, recordLength, recordX } from '../sim/geom/record'
 import type { Highlight } from './riderFigure'
@@ -19,12 +20,12 @@ const COLOURS = {
   body: 0xf2f4f6,
   dark: 0x2a3a47,
   glass: 0x3a5168,
-  tyre: 0x1d242b,
+  tyre: MODEL.tyre,
   hub: 0x8c97a1,
-  part: 0x2456e8,
+  part: MODEL.panel,
   chute: 0xe08a00,
-  broken: 0xd2462b,
-  strain: 0xe08a00,
+  broken: MODEL.broken,
+  strain: MODEL.strain,
 }
 
 const mat = (color: number, roughness = 0.6, metalness = 0) => new THREE.MeshStandardMaterial({ color, roughness, metalness, side: THREE.DoubleSide })
@@ -110,7 +111,7 @@ export function buildRecord(design: RecordDesign, look: RecordLook): THREE.Group
   const slope = Math.tan((design.nose.droop * Math.PI) / 180)
   g.add(loft(design, 0, n, DRAW.noseSteps, (x) => slope * (n - x), tint('nose', M.part)))
   if (design.waist > 0) {
-    // A jet car's pinched waist, in the instruments' cobalt like the other shaped parts.
+    // A jet car's pinched waist, in the model shop's teal like the other shaped parts.
     const w0 = n + b.waistAt - b.waistSpan
     const w1 = n + b.waistAt + b.waistSpan
     g.add(loft(design, n, w0, DRAW.bodySteps / 3, () => 0, M.body))

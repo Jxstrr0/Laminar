@@ -2,7 +2,7 @@
  * The survey drone as a three.js group (PR 10j), drawn from the design at
  * full size. The fuselage and the camera pod are lofted from the very
  * cross-sections their outline gives the drag model (src/sim/geom/plane.ts).
- * The parts the firm shapes are drawn in the instruments' cobalt so they
+ * The parts the firm shapes are drawn in the model shop's teal so they
  * read at a glance: the nose, the tail cone, the tail, the camera pod and
  * the winglets. The wing, the fuselage's middle and the pusher motor are the
  * maker's, in white foam and grey.
@@ -13,6 +13,7 @@
  * sees the belly) glows amber.
  */
 import * as THREE from 'three'
+import { MODEL } from './theme'
 import { PLANE_BODY as B, PLANE_CLASS, type PlaneDesign } from '../data/plane'
 import { fuselageStation, planeLength, planeX, podFullness, podPlace, wingFrom } from '../sim/geom/plane'
 import { wingSpan } from '../sim/plane'
@@ -24,9 +25,9 @@ const COLOURS = {
   dark: 0x2a3a47,
   prop: 0x5a6875,
   lens: 0x13202b,
-  part: 0x2456e8,
-  broken: 0xd2462b,
-  strain: 0xe08a00,
+  part: MODEL.panel,
+  broken: MODEL.broken,
+  strain: MODEL.strain,
 }
 
 const mat = (color: number, roughness = 0.6, metalness = 0) => new THREE.MeshStandardMaterial({ color, roughness, metalness, side: THREE.DoubleSide })
@@ -156,7 +157,7 @@ export function buildPlane(design: PlaneDesign, look: PlaneLook): THREE.Group {
   const nose = design.fuselage.nose
   const conesFrom = nose + B.mid
 
-  // The fuselage in three lofts: the nose and the tail cone (shaped, cobalt) either side of the maker's middle.
+  // The fuselage in three lofts: the nose and the tail cone (shaped, teal) either side of the maker's middle.
   const sections = (from: number, to: number) => {
     const n = Math.max(2, Math.ceil((to - from) * DRAW.perMetre))
     const out = []
@@ -172,7 +173,7 @@ export function buildPlane(design: PlaneDesign, look: PlaneLook): THREE.Group {
   g.add(loft(sections(conesFrom, len), DRAW.squarePow, tint('boat-tail', M.part)))
 
   // The wing on top, each half from the fuselage's middle out to its tip, with a little dihedral.
-  // Span added past the maker's tips (PR 10w) is a shaped part, in cobalt.
+  // Span added past the maker's tips (PR 10w) is a shaped part, in teal.
   const wingLead = planeX(design, wingFrom(design))
   const makerHalf = c.span / 2
   const halfSpan = wingSpan(design) / 2

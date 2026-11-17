@@ -3,7 +3,7 @@
  * size: the pod on its pylon under a stretch of the patrol plane's left
  * wing. The pod is lofted from the very cross-sections its outline gives the
  * drag model (src/sim/geom/pod.ts). The parts the firm shapes are drawn in
- * the instruments' cobalt so they read at a glance: the nose fairing, the
+ * the model shop's teal so they read at a glance: the nose fairing, the
  * tail cone and the pylon. The sensor's middle and the wing are the
  * ministry's, white and grey, with the sensor's dark window underneath.
  *
@@ -12,6 +12,7 @@
  * glows amber.
  */
 import * as THREE from 'three'
+import { MODEL } from './theme'
 import { POD_BODY as B, type PodDesign } from '../data/pod'
 import { podMiddleX, podRadius, podX, wingBelow } from '../sim/geom/pod'
 import { podLengths, sensorDiameter } from '../sim/pod'
@@ -22,9 +23,9 @@ const COLOURS = {
   white: 0xf3f5f7,
   grey: 0x8c97a1,
   glass: 0x24323f,
-  part: 0x2456e8,
-  broken: 0xd2462b,
-  strain: 0xe08a00,
+  part: MODEL.panel,
+  broken: MODEL.broken,
+  strain: MODEL.strain,
 }
 
 const mat = (color: number, roughness = 0.6, metalness = 0) => new THREE.MeshStandardMaterial({ color, roughness, metalness, side: THREE.DoubleSide })
@@ -59,7 +60,7 @@ export function buildPod(design: PodDesign, look: PodLook): THREE.Group {
   const l = podLengths(design)
   const r = sensorDiameter(design) / 2
 
-  // The pod: the nose fairing and the tail cone (cobalt, shaped) either side of the sensor's middle.
+  // The pod: the nose fairing and the tail cone (teal, shaped) either side of the sensor's middle.
   const sections = (from: number, to: number) => {
     const n = Math.max(2, Math.ceil((to - from) * DRAW.perMetre))
     const out = []

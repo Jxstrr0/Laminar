@@ -109,6 +109,21 @@ function screenHost(app: HTMLElement, name: Screen): HTMLElement {
   return host
 }
 
+/**
+ * The scene card (Isobar, PR 13h): a rounded frame in the page colour laid
+ * over a 3D view, so the scene reads as a card inset from the edges. The canvas
+ * stays full-screen underneath and the frame takes no touches, so dragging and
+ * the camera's framing work as before.
+ */
+function frameScene(host: HTMLElement): void {
+  const frame = document.createElement('div')
+  frame.className = 'scene-frame'
+  frame.setAttribute('aria-hidden', 'true')
+  const canvas = host.querySelector(':scope > canvas')
+  if (canvas) canvas.after(frame)
+  else host.prepend(frame)
+}
+
 /** The Jobs / Shape / Tunnel switch, top right. */
 function buildNav(go: (s: Screen) => void): { root: HTMLElement; mark(s: Screen): void } {
   const root = document.createElement('nav')
@@ -186,7 +201,11 @@ async function boot(): Promise<void> {
   const tunnelHost = screenHost(app, 'tunnel')
   // The tunnel calls back when something worth keeping changes; so do the design and the career.
   let touch = () => {}
-  const tunnel = startTunnelScreen(tunnelHost, createTunnelView(tunnelHost), saved?.lab ?? newLab(startDesign), {
+  const tunnelView = createTunnelView(tunnelHost)
+  frameScene(tunnelHost)
+  const shapeView = createShapeView(shapeHost)
+  frameScene(shapeHost)
+  const tunnel = startTunnelScreen(tunnelHost, tunnelView, saved?.lab ?? newLab(startDesign), {
     onChange: () => touch(),
     onRun: (run) => careerStore.set(afterRun(charge(careerStore.get(), runCost(run)))),
     tunnelSeed: careerStore.get().seed,
@@ -349,7 +368,7 @@ async function boot(): Promise<void> {
   app.append(chips)
   const screens: Record<Screen, { host: HTMLElement; control: { setActive(on: boolean): void } }> = {
     board: { host: boardHost, control: startBoardScreen(boardHost, (s) => show(s)) },
-    shape: { host: shapeHost, control: startShapeScreen(shapeHost, createShapeView(shapeHost)) },
+    shape: { host: shapeHost, control: startShapeScreen(shapeHost, shapeView) },
     tunnel: { host: tunnelHost, control: tunnel },
   }
   // Any element marked data-g on any screen opens its glossary entry.
