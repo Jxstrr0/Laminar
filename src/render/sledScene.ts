@@ -10,8 +10,9 @@
  * tilts with how far up the curve wall it rides.
  */
 import * as THREE from 'three'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import type { BobsledDesign } from '../data/bobsled'
-import { SLED_SCENE as S } from '../data/replay'
+import { SLED_KIT as K, SLED_SCENE as S } from '../data/replay'
 import { bobsledPose } from '../sim/geom/bobsledPose'
 import { pointAt, type SledFrame, type TrackLine } from '../sim/sledReplay'
 import { buildRider, disposeGroup } from './riderFigure'
@@ -29,7 +30,8 @@ const DEG = Math.PI / 180
 const UP = new THREE.Vector3(0, 1, 0)
 
 export interface SledView {
-  setTrack(line: TrackLine): void
+  /** Lay the channel along the track; `push` is the push zone's length, m, where the start's timing arch stands. */
+  setTrack(line: TrackLine, push: number): void
   setSleds(mine: BobsledDesign, old: BobsledDesign): void
   /** Put both sleds where the run clock says, and the camera behind yours. */
   place(mine: SledFrame, old: SledFrame): void
@@ -56,6 +58,47 @@ function wallPoint(at: THREE.Vector3, right: THREE.Vector3, deg: number): THREE.
     .clone()
     .addScaledVector(right, S.trough * Math.sin(a))
     .addScaledVector(UP, S.trough * (1 - Math.cos(a)))
+}
+
+/** Where the track's buildings stand (PR 13p): metres from the start, and for those beside it, which side (−1 left, 1 right). */
+export interface SledSites {
+  arches: number[]
+  shades: number[]
+  terraces: { s: number; side: -1 | 1 }[]
+  masts: { s: number; side: -1 | 1 }[]
+}
+
+/**
+ * The buildings' places along a track: an arch at the end of the push and
+ * at each split, the sun roof's bays, a terrace on the outside of every
+ * curve at its middle, and floodlight masts that keep clear of the
+ * terraces, the start house and the finish area.
+ */
+export function sledSites(line: TrackLine, push: number): SledSites {
+  const terraces: SledSites['terraces'] = []
+  let from = -1
+  let sign = 0
+  for (let i = 1; i <= line.s.length; i++) {
+    const c = i < line.s.length ? Math.sign(line.curve[i]!) : 0
+    if (c !== sign) {
+      // A curve to the right (toward +z) has its outside on the left.
+      // None under the sun roof: its posts and roof would stand in the crowd.
+      const mid = (from + line.s[i - 1]!) / 2
+      const roofed = mid > K.shade.from - K.terraceClear && mid < K.shade.to + K.terraceClear
+      if (sign !== 0 && !roofed) terraces.push({ s: mid, side: sign > 0 ? -1 : 1 })
+      from = line.s[i - 1]!
+      sign = c
+    }
+  }
+  const shades: number[] = []
+  for (let s = K.shade.from; s <= K.shade.to + 1e-6; s += K.shade.every) shades.push(s)
+  const masts: SledSites['masts'] = []
+  let side: -1 | 1 = -1
+  for (let s = K.masts.from; s < line.length - K.treesEndBefore / 2; s += K.masts.every) {
+    if (!terraces.some((t) => t.side === side && Math.abs(t.s - s) < K.terraceClear)) masts.push({ s, side })
+    side = side === -1 ? 1 : -1
+  }
+  return { arches: [push, ...K.splits.filter((s) => s > push && s < line.length)], shades, terraces, masts }
 }
 
 export function createSledView(host: HTMLElement): SledView {
@@ -101,12 +144,14 @@ export function createSledView(host: HTMLElement): SledView {
     return new THREE.Mesh(geo, material)
   }
 
-  function setTrack(next: TrackLine) {
+  function setTrack(next: TrackLine, push: number) {
     for (const child of [...trackGroup.children]) {
       trackGroup.remove(child)
       disposeGroup(child)
     }
     line = next
+    sites = sledSites(next, push)
+    placeKit()
     const ice: THREE.Vector3[][] = []
     const lipL: THREE.Vector3[][] = []
     const lipR: THREE.Vector3[][] = []
@@ -148,13 +193,90 @@ export function createSledView(host: HTMLElement): SledView {
     treeGeo.translate(0, 3, 0)
     const treeMat = new THREE.MeshLambertMaterial({ color: COLOURS.tree })
     let side = 1
-    for (let s = S.treeEvery / 2; s < next.length; s += S.treeEvery) {
+    const terraces = sites.terraces
+    for (let s = S.treeEvery / 2; s < next.length - K.treesEndBefore; s += S.treeEvery) {
+      // No tree where a terrace stands on that side.
+      if (terraces.some((t) => t.side === side && Math.abs(t.s - s) < K.terraceClear)) {
+        side = -side
+        continue
+      }
       const { at, right } = frameOf(next, s)
       const tree = new THREE.Mesh(treeGeo, treeMat)
       tree.position.copy(at).addScaledVector(right, side * S.treeOut).addScaledVector(UP, -0.5)
       trackGroup.add(tree)
       side = -side
     }
+  }
+
+  /**
+   * The track's buildings (PR 13p): Blender pieces, each copied by
+   * instancing to every place `sledSites` gives. Until the model loads (or
+   * if it can't), the channel and its trees stand alone.
+   */
+  let sites: SledSites = { arches: [], shades: [], terraces: [], masts: [] }
+  let kit: THREE.Object3D | null = null
+  let disposed = false
+  const kitGroup = new THREE.Group()
+  scene.add(kitGroup)
+  new GLTFLoader().load(
+    `${import.meta.env.BASE_URL}models/bobsled.glb`,
+    (gltf) => {
+      if (disposed) return dropModel(gltf.scene)
+      kit = gltf.scene
+      kit.updateMatrixWorld(true)
+      placeKit()
+    },
+    undefined,
+    () => undefined,
+  )
+
+  function dropModel(root: THREE.Object3D) {
+    root.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return
+      o.geometry.dispose()
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) (m as THREE.Material).dispose()
+    })
+  }
+
+  /** Copies of one of the kit's pieces at each of these placements, one draw per material. */
+  function scatter(name: string, at: readonly THREE.Matrix4[]) {
+    const node = kit?.getObjectByName(name)
+    if (!node || at.length === 0) return
+    const inv = node.matrixWorld.clone().invert()
+    node.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return
+      const local = inv.clone().multiply(o.matrixWorld)
+      const copies = new THREE.InstancedMesh(o.geometry, o.material, at.length)
+      at.forEach((m, i) => copies.setMatrixAt(i, m.clone().multiply(local)))
+      copies.computeBoundingSphere()
+      kitGroup.add(copies)
+    })
+  }
+
+  /** A piece on the centre line s metres down, standing level and facing down the track (turned round for the right side); or tilted with the slope. */
+  function siteAt(track: TrackLine, s: number, turned = false, tilt = false): THREE.Matrix4 {
+    const { at, forward, right } = frameOf(track, s)
+    const along = tilt ? forward : new THREE.Vector3(forward.x, 0, forward.z).normalize()
+    const out = new THREE.Matrix4()
+    if (turned) out.makeBasis(along.clone().negate(), UP, right.clone().negate())
+    else out.makeBasis(along, tilt ? new THREE.Vector3().crossVectors(right, along) : UP, right)
+    return out.setPosition(at)
+  }
+
+  function placeKit() {
+    for (const child of [...kitGroup.children]) {
+      kitGroup.remove(child)
+      if (child instanceof THREE.InstancedMesh) child.dispose()
+    }
+    if (!kit || !line) return
+    const track = line
+    scatter('StartHouse', [siteAt(track, 0)])
+    scatter('TimingArch', sites.arches.map((s) => siteAt(track, s)))
+    scatter('Shade', sites.shades.map((s) => siteAt(track, s, false, true)))
+    scatter('Terrace', sites.terraces.map((t) => siteAt(track, t.s, t.side > 0)))
+    scatter('LightMast', sites.masts.map((m) => siteAt(track, m.s, m.side > 0)))
+    scatter('FinishArch', [siteAt(track, track.length)])
+    scatter('FinishArea', [siteAt(track, track.length)])
   }
 
   /** A sled as drawn: the figure on a pivot at its runners' middle. */
@@ -248,6 +370,9 @@ export function createSledView(host: HTMLElement): SledView {
       renderer.render(scene, camera)
     },
     dispose() {
+      disposed = true
+      for (const child of kitGroup.children) if (child instanceof THREE.InstancedMesh) child.dispose()
+      if (kit) dropModel(kit)
       watcher.disconnect()
       drop(mine)
       drop(old)

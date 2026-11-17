@@ -126,7 +126,7 @@ export async function playSledReplay(input: SledReplayInput): Promise<void> {
   const view = createSledView(stage)
   const panelWatch = new ResizeObserver(() => view.setInset(panel.offsetHeight))
   panelWatch.observe(panel)
-  view.setTrack(line)
+  view.setTrack(line, input.track.push.length)
   view.setSleds(input.design, input.setup)
 
   let raf = 0

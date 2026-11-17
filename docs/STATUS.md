@@ -152,7 +152,8 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 13m | The circuits' trackside is a kit of Blender pieces (`art/circuit/build.py`): the start gantry and its lights, the chequered line, 150 m of pit garages behind the pit wall, a 100 m grandstand, a footbridge, steel barriers both sides of the lap, red-and-white kerbs on the inside of every corner and marshals' posts. Each circuit's lap comes from its corners, so the race-lap replay stands the pieces along whichever lap is raced, copied by instancing (one draw per piece), with the numbers in `CIRCUIT_KIT` | **Done** (v0.15.6.0) |
 | 13n | The salt flat's camp and course furniture are Blender pieces (`art/saltflat/build.py`): the team's transporter, awning, motorhomes and fuel bowser by the start, the timekeepers' trailer and the timing-light posts at each end of the timed kilometre, kilometre boards, orange posts along both edges of the course, a viewing area by the middle of the kilometre and the recovery truck where the cars stop. The record replay stands them along each run (both directions), with the numbers in `SALT_KIT` | **Done** (v0.15.7.0) |
 | 13o | Belyanka airfield's buildings are Blender pieces (`art/airfield/build.py`): the apron and taxiway, three hangars, the flying club's clubhouse, the control tower, four parked light planes and a fuel truck, threshold bars at each end of the runway, edge lights down both sides and a windsock by the measured course. The kit-plane replay stands them round the runway, with the numbers in `AIRFIELD_KIT`; the field side is on the left, away from the check's side-on camera, so the passes' camera sees it as it looks back | **Done** (v0.15.8.0) |
-| Next | | The bobsled run, Blender body parts, then the sound-effects pack. |
+| 13p | The Belogor sliding track's buildings are Blender pieces (`art/bobsled/build.py`): the covered start house the crew push out of, timing arches with their clocks at the end of the push and at each split, a sun roof over the long horseshoe, a spectator terrace with its crowd on the outside of every curve not under the roof, floodlight masts, the chequered finish arch, and past the line the outrun, the finish house, its scoreboard and a small stand. The channel stays in code; the sled scene stands the pieces along it, with the numbers in `SLED_KIT`, and a test checks the pieces are built round the same channel | **Done** (v0.15.9.0) |
+| Next | | Blender body parts, then the sound-effects pack. |
 
 ## Versions
 
@@ -175,6 +176,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 - **0.15.0.0** (PR 14a): the game works offline, and asks before updating.
 - **0.15.1.0** (PR 14b): the voices: tunnel techs, analysts, clients and the commentator.
 - **0.15.2.0** (PR 14c): the balance bot, for checking the economy (nothing changes in play).
+- **0.15.9.0** (PR 13p): the bobsled run gets its start house, timing arches, crowds and finish.
 - **0.15.8.0** (PR 13o): Belyanka airfield gets its hangars, tower and runway lights.
 - **0.15.7.0** (PR 13n): the salt flat gets its camp and course furniture.
 - **0.15.6.0** (PR 13m): the circuits get their trackside.
