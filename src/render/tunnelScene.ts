@@ -36,6 +36,7 @@ import { podX, wingBelow } from '../sim/geom/pod'
 import { FRAME } from '../data/pose'
 import { UNIVERSITY_TUNNEL, REFERENCE_SPHERE, REFERENCE_WHEEL } from '../data/tunnel'
 import type { FailurePart } from '../sim/failure'
+import type { TunnelId } from '../sim/facility'
 import { sledLength } from '../sim/geom/bobsled'
 import { TRUCK_TUNNEL } from '../data/truck'
 import { doorsAt, truckLength } from '../sim/geom/truck'
@@ -236,6 +237,8 @@ export interface TunnelView {
   setPiv(grid: PivGrid | null): void
   /** Keep the sphere clear of the bottom sheet: pass its height in CSS pixels. */
   setSheetHeight(px: number): void
+  /** Which tunnel's section to draw (PR 13d): the university's or your own. */
+  setTunnel(id: TunnelId): void
   /** How hard the rider model buzzes: 0 still, 1 at a part's limit (plan section 8). */
   setStrain(level: number): void
   /** A part lets go: it flies off down the section (animate) or is simply gone (a model that broke earlier). */
@@ -406,42 +409,68 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   }
   fan.add(rotor)
   standIn.add(fan)
-  /** What spins with the fan: the stand-in's rotor, then the model's. */
+  /** What spins with the fan: the stand-in's rotor, then the shown model's. */
   let spinner: THREE.Object3D = rotor
-  /** The model's wall and floor, darkened with the backdrop like the stand-in's. */
-  let modelWall: THREE.MeshStandardMaterial | null = null
-  let modelFloor: THREE.MeshStandardMaterial | null = null
-  let modelSeam: THREE.MeshStandardMaterial | null = null
+  /**
+   * The Blender sections (art/tunnel/build.py), one per tunnel, loaded the
+   * first time each is wanted. Each keeps its wall, floor and seam materials
+   * with their own light colours, so the dark backdrop can darken them and
+   * put them back.
+   */
+  interface Section {
+    root: THREE.Object3D
+    rotor: THREE.Object3D | null
+    paint: { mat: THREE.MeshStandardMaterial; light: number; dark: number }[]
+  }
+  const sections = new Map<TunnelId, Section | 'loading'>()
+  let shownTunnel: TunnelId = 'university'
   let disposed = false
   const showBackdrop = () => {
-    const dark = instruments.dark
-    modelWall?.color.setHex(dark ? COLOURS.darkWall : COLOURS.wall)
-    modelFloor?.color.setHex(dark ? COLOURS.darkFloor : COLOURS.floor)
-    modelSeam?.color.setHex(dark ? COLOURS.darkSeam : COLOURS.seam)
+    for (const s of sections.values()) {
+      if (s === 'loading') continue
+      for (const p of s.paint) p.mat.color.setHex(instruments.dark ? p.dark : p.light)
+    }
   }
-  // The Blender section (art/tunnel/build.py): named pieces the game spins and recolours.
-  new GLTFLoader().load(
-    `${import.meta.env.BASE_URL}models/tunnel-university.glb`,
-    (gltf) => {
-      if (disposed) return
-      const section = gltf.scene
-      const fanRotor = section.getObjectByName('FanRotor')
-      section.traverse((obj) => {
-        if (!(obj instanceof THREE.Mesh)) return
-        const mat = obj.material as THREE.MeshStandardMaterial
-        if (mat.name === 'Wall') modelWall = mat
-        if (mat.name === 'Floor') modelFloor = mat
-        if (mat.name === 'Seam') modelSeam = mat
-      })
-      if (fanRotor) spinner = fanRotor
-      scene.add(section)
-      standIn.visible = false
-      showBackdrop()
-    },
-    undefined,
-    // Offline or missing: the stand-in stays, and the game plays the same.
-    () => undefined,
-  )
+  /** Show the shown tunnel's section if it has loaded; until then, the code-drawn box. */
+  const showSection = () => {
+    let shown: Section | null = null
+    for (const [id, s] of sections) {
+      if (s === 'loading') continue
+      s.root.visible = id === shownTunnel
+      if (id === shownTunnel) shown = s
+    }
+    standIn.visible = shown === null
+    spinner = shown?.rotor ?? rotor
+  }
+  const DARK_PAINT: Record<string, number> = { Wall: COLOURS.darkWall, Floor: COLOURS.darkFloor, Seam: COLOURS.darkSeam }
+  const loadSection = (id: TunnelId) => {
+    if (sections.has(id)) return
+    sections.set(id, 'loading')
+    new GLTFLoader().load(
+      `${import.meta.env.BASE_URL}models/tunnel-${id}.glb`,
+      (gltf) => {
+        if (disposed) return
+        const root = gltf.scene
+        const paint: Section['paint'] = []
+        root.traverse((obj) => {
+          if (!(obj instanceof THREE.Mesh)) return
+          const mat = obj.material as THREE.MeshStandardMaterial
+          const dark = DARK_PAINT[mat.name]
+          if (dark !== undefined && !paint.some((p) => p.mat === mat)) paint.push({ mat, light: mat.color.getHex(), dark })
+        })
+        sections.set(id, { root, rotor: root.getObjectByName('FanRotor') ?? null, paint })
+        scene.add(root)
+        showSection()
+        showBackdrop()
+      },
+      undefined,
+      // Offline or missing: the stand-in (or the other section) stays, and the game plays the same.
+      () => {
+        sections.delete(id)
+      },
+    )
+  }
+  // Nothing loads until the screen says which tunnel it's in (setTunnel).
 
   // --- Smoke rake: dashes of smoke that ride the flow around the sphere.
   // A stand-in for the proper smoke and tufts in PR 3, driven by the same speed.
@@ -1447,6 +1476,11 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     setSheetHeight(px) {
       sheetPx = px
       resize()
+    },
+    setTunnel(id) {
+      shownTunnel = id
+      loadSection(id)
+      showSection()
     },
     dispose() {
       disposed = true
