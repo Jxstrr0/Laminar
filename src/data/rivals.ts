@@ -29,7 +29,7 @@ export interface RivalTemplate {
 export const RIVALS: Record<RivalId, RivalTemplate> = {
   bystro: {
     name: 'Bystro Aero',
-    blurb: 'Cheap and quick. Promises big; the road doesn’t always agree.',
+    blurb: 'Cheap and quick. Promises big; the real day doesn’t always agree.',
     reputation: 26,
     drift: 4,
     // PR 14d (Kelbo): bolder rivals, so bidding is a contest (the balance bot beat most asks by 5 to 25 points).
