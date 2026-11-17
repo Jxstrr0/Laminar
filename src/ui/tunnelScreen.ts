@@ -2883,6 +2883,8 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
         raf = requestAnimationFrame(loop)
       } else {
         cancelAnimationFrame(raf)
+        // Leaving the tunnel stops a CFD run; its panel comes back with the next frame.
+        cfdPanel.setShown(false)
         // Leaving the tunnel: the Deliver sheet gets the latest run time.
         updateSledForecast(0, true)
       }
