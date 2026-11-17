@@ -51,18 +51,18 @@ export const VOICE_LINES: Record<string, VoiceLine> = {
   'LAM-ZHELIN-0003': { speaker: 'zhelin', file: 'lam_zhelin_lam-zhelin-0003.mp3', text: "That's inside the noise. Run it again before you believe it." },
   'LAM-ZHELIN-0004': { speaker: 'zhelin', file: 'lam_zhelin_lam-zhelin-0004.mp3', text: "Your promise is safe, if the wind behaves." },
   'LAM-ZHELIN-0005': { speaker: 'zhelin', file: 'lam_zhelin_lam-zhelin-0005.mp3', text: "That promise is too bold. The tunnel won't back it." },
-  'LAM-ZHELIN-0006': { speaker: 'zhelin', file: 'lam_zhelin_lam-zhelin-0006.mp3', text: "The road read close to the tunnel. Good work." },
-  'LAM-ZHELIN-0007': { speaker: 'zhelin', file: 'lam_zhelin_lam-zhelin-0007.mp3', text: "The road and the tunnel disagree. Let's find out why." },
+  'LAM-ZHELIN-0006': { speaker: 'zhelin', file: 'lam_zhelin_lam-zhelin-0006_t4.mp3', text: "On the day, it read close to the tunnel. Good work." },
+  'LAM-ZHELIN-0007': { speaker: 'zhelin', file: 'lam_zhelin_lam-zhelin-0007_t4.mp3', text: "On the day, it didn't match the tunnel. Let's find out why." },
   'LAM-SOROKOVA-0001': { speaker: 'sorokova', file: 'lam_sorokova_lam-sorokova-0001.mp3', text: "Oh, that's better! I think. Let me check the repeats." },
   'LAM-SOROKOVA-0002': { speaker: 'sorokova', file: 'lam_sorokova_lam-sorokova-0002.mp3', text: "The flow lets go early there. See the tufts?" },
   'LAM-SOROKOVA-0003': { speaker: 'sorokova', file: 'lam_sorokova_lam-sorokova-0003.mp3', text: "Small change. Maybe too small to trust yet." },
   'LAM-SOROKOVA-0004': { speaker: 'sorokova', file: 'lam_sorokova_lam-sorokova-0004.mp3', text: "That looks like a winner to me." },
   'LAM-SOROKOVA-0005': { speaker: 'sorokova', file: 'lam_sorokova_lam-sorokova-0005.mp3', text: "Um, that's worse. Sorry." },
-  'LAM-SOROKOVA-0006': { speaker: 'sorokova', file: 'lam_sorokova_lam-sorokova-0006.mp3', text: "The road agreed with us! I knew it." },
+  'LAM-SOROKOVA-0006': { speaker: 'sorokova', file: 'lam_sorokova_lam-sorokova-0006_t4.mp3', text: "It held up on the day! I knew it." },
   'LAM-SOROKOVA-0007': { speaker: 'sorokova', file: 'lam_sorokova_lam-sorokova-0007.mp3', text: "That's not what the tunnel said. I'll look at the quirks." },
   'LAM-CLIENT-0001': { speaker: 'boss', file: 'lam_boss_lam-client-0001.mp3', text: "We're losing seconds in the air. Find them for us." },
   'LAM-CLIENT-0002': { speaker: 'boss', file: 'lam_boss_lam-client-0002.mp3', text: "The budget is tight. Don't spend it all on the fan." },
-  'LAM-CLIENT-0003': { speaker: 'boss', file: 'lam_boss_lam-client-0003.mp3', text: "You promised. Let's see the road agree." },
+  'LAM-CLIENT-0003': { speaker: 'boss', file: 'lam_boss_lam-client-0003_t4.mp3', text: "You promised. Let's see if it holds up out there." },
   'LAM-CLIENT-0004': { speaker: 'boss', file: 'lam_boss_lam-client-0004.mp3', text: "That's what you called. Good. We'll be back." },
   'LAM-CLIENT-0005': { speaker: 'boss', file: 'lam_boss_lam-client-0005.mp3', text: "That wasn't the number you gave us." },
   'LAM-CLIENT-0006': { speaker: 'engineer', file: 'lam_engineer_lam-client-0006.mp3', text: "Our numbers say there's drag to lose. Show me where." },
@@ -242,7 +242,7 @@ export const VOICE = {
   tightDays: 14,
   /** A promise past the client's ask by this share of it is bold (0.15: 15% more than asked). */
   boldBy: 0.15,
-  /** The road agreed with the tunnel when the read was off by this share or less. */
+  /** The day agreed with the tunnel when the read was off by this share or less. */
   agreeWithin: 0.02,
   /** Separation moved forward: this much more of the tufts flailing than on the last model. */
   sepRise: 0.08,
