@@ -137,6 +137,7 @@ import { bestText, shareLegacy } from './legacyPicture'
 import { attemptNote, recordParts, recordsCard } from './records'
 import { countryNote, countryTag } from './export'
 import { challengeCard, challengeParts } from './challenge'
+import { cfdSupported } from '../cfd/support'
 import { COUNTRIES, COUNTRY_IDS } from '../data/export'
 import { researchCard } from './research'
 
@@ -2213,6 +2214,14 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     return card
   }
 
+  /** Whether this phone can run the CFD Cluster (PR 12b): null until the browser answers. */
+  let cfdOk: boolean | null = null
+  void cfdSupported().then((ok) => {
+    cfdOk = ok
+    dirty = true
+    if (active) render()
+  })
+
   /** Your tunnel's upgrades: what each does, its price and days, and whether it's fitted. */
   function upgradeList(): HTMLElement[] {
     const career = careerStore.get()
@@ -2230,8 +2239,11 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
         const line = el('div', 'upgrade-buy')
         const buy = button('save-btn', t('up.buy'))
         const block = upgradeBlock(career.facility, career.day, career.money, id)
-        buy.disabled = block !== null
-        if (!block) twoTap(buy, t('up.buy'), t('up.buyConfirm', { price: rubles(u.price) }), () => careerStore.set(orderUpgrade(careerStore.get(), id)))
+        // The CFD Cluster is no use on a phone without WebGPU: say so rather than sell it.
+        const noDevice = id === 'cfd' && cfdOk === false
+        buy.disabled = block !== null || noDevice
+        if (noDevice) row.append(el('p', 'shop-note', t('up.cfdNoDevice')))
+        if (!block && !noDevice) twoTap(buy, t('up.buy'), t('up.buyConfirm', { price: rubles(u.price) }), () => careerStore.set(orderUpgrade(careerStore.get(), id)))
         line.append(el('span', 'upgrade-cost', t('up.cost', { price: rubles(u.price), days: u.days })), buy)
         row.append(line)
       }

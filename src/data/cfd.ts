@@ -17,4 +17,11 @@ export const CFD = {
   averageOver: 800,
   /** Steps sent to the GPU per batch, so the page stays responsive. */
   batch: 100,
+  /**
+   * How the model sits in the grid (PR 12b): it fills at most this share of
+   * the grid's length and of its width and height, with its nose this far
+   * along, so the wake has room behind it. A part thinner than thinCells
+   * (a tyre, a disc wheel) is drawn as a shell instead of filled.
+   */
+  fit: { length: 0.36, across: 0.6, noseAt: 0.2, thinCells: 1.5 },
 } as const
