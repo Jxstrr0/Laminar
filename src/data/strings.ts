@@ -1948,7 +1948,7 @@ export const STRINGS = {
   'credits.fonts': 'Typefaces',
   'credits.code': 'Code',
   'credits.art': '3D models',
-  'credits.artNote': 'The wind tunnels, the velodrome, the ski-jump hill’s buildings, the circuits’ trackside, the salt flat’s camp, the airfield’s buildings, the sliding track’s buildings, the open road’s trees, farms and finish, the drone club’s meadow and the people’s bodies are built from scripts in Blender, run in GitHub Actions. Everything else in 3D is drawn in code.',
+  'credits.artNote': 'The wind tunnels, the velodrome, the ski-jump hill’s buildings, the circuits’ trackside, the salt flat’s camp, the airfield’s buildings, the sliding track’s buildings, the open road’s trees, farms and finish, the drone club’s meadow, the survey fields’ hedges and farm and the people’s bodies are built from scripts in Blender, run in GitHub Actions. Everything else in 3D is drawn in code.',
   'credits.sound': 'Sound',
   'credits.soundNote': 'The sound effects, from the tunnel’s air to the crowd at the finish, were made with ElevenLabs’ sound generator; until they load, the fan, the turntable and every snap and clunk are made in code as the game runs. The voices were made with ElevenLabs text to speech, from seven voices in its library, and the music with ElevenLabs Music.',
   'credits.setting': 'The setting',

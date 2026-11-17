@@ -6,7 +6,8 @@ import { TRACK } from '../src/data/briefs'
 import { HILLS } from '../src/data/hills'
 import { SKELETON } from '../src/data/pose'
 import { CIRCUITS, segmentLength } from '../src/data/circuits'
-import { AIRFIELD_KIT, AIRFIELD_SCENE, CIRCUIT_KIT, DRONE_SCENE, JUMP_SCENE, MEADOW_KIT, RECORD_SCENE, REPLAY_SCENE, ROAD_KIT, SALT_KIT, SLED_KIT, SLED_SCENE } from '../src/data/replay'
+import { AIRFIELD_KIT, AIRFIELD_SCENE, CIRCUIT_KIT, DRONE_SCENE, JUMP_SCENE, MEADOW_KIT, RECORD_SCENE, REPLAY_SCENE, ROAD_KIT, SALT_KIT, SLED_KIT, SLED_SCENE, SURVEY_KIT, SURVEY_SCENE } from '../src/data/replay'
+import { turnRadius } from '../src/sim/planeJob'
 import { TRACKS } from '../src/data/tracks'
 import { pointAt, trackLine } from '../src/sim/sledReplay'
 import { RECORD_RUN as RUN } from '../src/data/record'
@@ -212,6 +213,34 @@ describe('the Lugovoy meadow’s kit (PR 13v)', () => {
   it('keeps the bales and bunting off the line, outside the gates', () => {
     const gateHalf = DRONE_SCENE.gate.width / 2 + DRONE_SCENE.gate.bar
     for (const out of [MEADOW_KIT.bales.out, MEADOW_KIT.bunting.out, MEADOW_KIT.tower.out, MEADOW_KIT.tent.out]) expect(DRONE_SCENE.roadWidth / 2 + out).toBeGreaterThan(gateHalf)
+  })
+})
+
+describe('the Ozimka fields’ kit (PR 13w)', () => {
+  it('has every piece the survey replay stands round the field, and loads without a wait', () => {
+    const { size, json } = gltfOf('fields.glb')
+    const names = json.nodes.map((n) => n.name)
+    for (const name of ['Hedge', 'Oak', 'Poplars', 'PowerSpan', 'Track', 'Farmstead', 'Combine', 'BaleStack', 'HayShed']) expect(names).toContain(name)
+    expect(size).toBeLessThan(200 * 1024)
+  })
+
+  it('is built for the planes’ height, its hedge and track pieces as long as the scene steps them, and the yard the size the scene leaves room for', () => {
+    const script = readFileSync(join(ROOT, 'art/fields/build.py'), 'utf8')
+    expect(Number(/^FLY = ([0-9.]+)/m.exec(script)?.[1])).toBe(SURVEY_SCENE.flyHeight)
+    expect(script).toContain('x = 2.2 + k * 4.3') // seven lumps, the last ending at 30 m
+    expect(script).toContain(`m.flat(0, ${SURVEY_KIT.hedge}, -2.2, 2.2, 0.02, "Verge")`)
+    expect(script).toContain(`for x in range(0, ${SURVEY_KIT.power.span + 1}, 10)`)
+    const yard = /m\.flat\(0, (\d+), 0, (\d+), 0\.03, "Concrete"\)/.exec(script)
+    expect(Number(yard?.[1])).toBe(SURVEY_KIT.farm.length)
+    // Nothing in the next field east stands in the yard.
+    expect(SURVEY_KIT.next.from).toBeGreaterThan(SURVEY_KIT.farm.out + Number(yard?.[2]))
+  })
+
+  it('keeps the hedges clear of the planes’ turns, and the yard, poplars and power line beyond them', () => {
+    expect(SURVEY_KIT.headland).toBeGreaterThan(turnRadius('survey') + 5)
+    expect(SURVEY_KIT.power.out).toBeGreaterThan(SURVEY_KIT.track + 5)
+    expect(SURVEY_KIT.poplars.out).toBeGreaterThan(5)
+    expect(SURVEY_KIT.farm.out).toBeGreaterThan(5)
   })
 })
 

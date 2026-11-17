@@ -16,8 +16,9 @@ import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { TRACK } from '../data/briefs'
 import { FIELD_TROUBLE, type CourseSegment } from '../data/field'
-import { AIRCRAFT_REPLAY, AIRFIELD_KIT, AIRFIELD_SCENE, CAR_REPLAY, CIRCUIT_KIT, MEADOW_KIT, ROAD_KIT, SALT_KIT, DRONE_REPLAY, DRONE_SCENE, RECORD_SCENE, REPLAY_SCENE as S, SURVEY_SCENE } from '../data/replay'
+import { AIRCRAFT_REPLAY, AIRFIELD_KIT, AIRFIELD_SCENE, CAR_REPLAY, CIRCUIT_KIT, MEADOW_KIT, ROAD_KIT, SALT_KIT, SURVEY_KIT, DRONE_REPLAY, DRONE_SCENE, RECORD_SCENE, REPLAY_SCENE as S, SURVEY_SCENE } from '../data/replay'
 import { AIRCRAFT_BODY } from '../data/aircraft'
+import { SURVEY_PATTERN } from '../data/plane'
 import { DRONE_BODY } from '../data/drone'
 import { designPose, type Design } from '../sim/design'
 import { recordAxis, recordLength } from '../sim/geom/record'
@@ -485,10 +486,10 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     })
   }
 
-  // A venue's kit of Blender pieces (PR 13m: the circuit's; 13n: the salt flat's; 13o: the airfield's; 13v: the drone meadow's), loaded with the view and stood along the course once both are in.
+  // A venue's kit of Blender pieces (PR 13m: the circuit's; 13n: the salt flat's; 13o: the airfield's; 13v: the drone meadow's; 13w: the survey fields'), loaded with the view and stood along the course once both are in.
   // The open road's (PR 13t) is asked for by setCourse, since a track's lap has none.
   // Until it loads, or if it can't, the course is drawn as before.
-  const kitFile = circuit ? 'circuit.glb' : salt ? 'saltflat.glb' : airfield ? 'airfield.glb' : meadow ? 'meadow.glb' : null
+  const kitFile = circuit ? 'circuit.glb' : salt ? 'saltflat.glb' : airfield ? 'airfield.glb' : meadow ? 'meadow.glb' : fields ? 'fields.glb' : null
   /** Time trials and truck runs: an open road, unless the course is a track's lap. */
   const roadside = !circuit && !salt && !meadow && !fields && !airfield
   let road = false
@@ -837,6 +838,77 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     scatter('TreeBirch', kinds[2]!)
   }
 
+  /**
+   * The Ozimka fields (PR 13w): hedges round the field the planes survey,
+   * oaks standing in them, the farm track and power line beyond the west
+   * hedge, the co-operative's yard and poplars beyond the east one, and a combine, bales or a hay shed in the next fields now and then. The
+   * wheat and its rows stay in code.
+   */
+  function placeFields(segs: readonly CourseSegment[]) {
+    const K = SURVEY_KIT
+    const { legs } = courseTools(segs)
+    const up = new THREE.Vector3(0, 1, 0)
+    // A piece at (x, z) on the ground, built along +x and turned to run along this heading (90: east, 180: south).
+    const ground = (x: number, z: number, heading: number) =>
+      new THREE.Matrix4().compose(new THREE.Vector3(x, 0, z), new THREE.Quaternion().setFromAxisAngle(up, (90 - heading) * DEG), new THREE.Vector3(1, 1, 1))
+    // The lines run east from x = 0 and stack south (+z) at each turn.
+    const west = -K.headland
+    const east = SURVEY_PATTERN.line + K.headland
+    const north = -K.north
+    const south = legs.reduce((most, [, z0, , z1]) => Math.max(most, z0, z1), 0) + K.beyond
+    const hedges: THREE.Matrix4[] = []
+    const oaks: THREE.Matrix4[] = []
+    const hedge = (x: number, z: number, heading: number, k: number) => {
+      hedges.push(ground(x, z, heading))
+      const { fx, fz } = axes(heading)
+      if (hash01(k * 31 + 7) * K.oak < 1) oaks.push(ground(x + (fx * K.hedge) / 2, z + (fz * K.hedge) / 2, hash01(k * 37 + 3) * 360))
+    }
+    let k = 0
+    for (let x = west; x < east; x += K.hedge) hedge(x, north, 90, k++)
+    for (let z = north; z < south; z += K.hedge) {
+      hedge(west, z, 180, k++)
+      hedge(east, z, 180, k++)
+    }
+    scatter('Hedge', hedges)
+    scatter('Oak', oaks)
+    // The co-operative's yard beyond the east hedge, its open side to the field.
+    const farmFrom = north - K.farm.north
+    const farmTo = farmFrom + K.farm.length
+    scatter('Farmstead', [ground(east + K.farm.out, farmFrom, 180)])
+    // Beyond the west hedge: the track (and its spur along the north hedge into the yard), then the power line.
+    const track: THREE.Matrix4[] = []
+    const tx = west - K.track
+    const tz = north - K.track
+    for (let z = tz; z < south; z += K.hedge) track.push(ground(tx, z, 180))
+    for (let x = tx; x < east + K.farm.out + K.farm.gate; x += K.hedge) track.push(ground(x, tz, 90))
+    scatter('Track', track)
+    const power: THREE.Matrix4[] = []
+    for (let z = north - K.power.span; z < south; z += K.power.span) power.push(ground(west - K.power.out, z, 180))
+    scatter('PowerSpan', power)
+    // Beyond the east hedge: the poplars, with gaps, and none in front of the yard.
+    const poplars: THREE.Matrix4[] = []
+    for (let z = north, i = 0; z < south; z += K.hedge, i++) {
+      if (z + K.hedge > farmFrom - K.hedge && z < farmTo + K.hedge) continue
+      if (hash01(i * 41 + 9) >= K.poplars.gaps) poplars.push(ground(east + K.poplars.out, z, 180))
+    }
+    scatter('Poplars', poplars)
+    // The next fields, either side: a piece about every K.next.every metres, its kind and distance out by a hash of its place.
+    const kinds: Record<string, THREE.Matrix4[]> = { Combine: [], BaleStack: [], HayShed: [] }
+    const names = Object.keys(kinds)
+    for (let z = north, i = 0; z < south; z += K.next.every, i++) {
+      for (const sign of [-1, 1]) {
+        const j = i * 2 + (sign > 0 ? 1 : 0)
+        const out = K.next.from + hash01(j * 43 + 1) * (K.next.to - K.next.from)
+        const x = sign < 0 ? west - out : east + out
+        const along = z + hash01(j * 47 + 5) * K.next.every * 0.6
+        const name = names[Math.floor(hash01(j * 53 + 2) * names.length)]!
+        // A combine works up or down the field; the rest face the hedge (heading 0 faces east, 180 west).
+        kinds[name]!.push(ground(x, along, name === 'Combine' ? (hash01(j * 59) < 0.5 ? 0 : 180) : sign < 0 ? 0 : 180))
+      }
+    }
+    for (const name of names) scatter(name, kinds[name]!)
+  }
+
   function placeKit() {
     for (const child of [...kitGroup.children]) {
       kitGroup.remove(child)
@@ -850,6 +922,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     if (salt) placeSalt(kitCourse)
     if (road) placeRoad(kitCourse)
     if (meadow) placeMeadow(kitCourse)
+    if (fields) placeFields(kitCourse)
   }
 
   function clearCourse() {

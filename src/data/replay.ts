@@ -553,6 +553,37 @@ export const MEADOW_KIT = {
 }
 
 /**
+ * The Ozimka fields (PR 13w, art/fields/build.py): where the survey replay
+ * stands its pieces round the planes' lines, m. The lines run east from the
+ * start, `line` long (SURVEY_PATTERN.line), and stack south at each turn;
+ * west and east are their ends, north is the start's side.
+ */
+export const SURVEY_KIT = {
+  /** The hedges at the lines' ends stand this far beyond them, clear of the planes' turns. */
+  headland: 50,
+  /** The north hedge, this far north of the first line; the end hedges run on this far past the last line. */
+  north: 40,
+  beyond: 800,
+  /** A hedge piece is this long; about one in `oak` of them has an oak standing in it. */
+  hedge: 30,
+  oak: 3,
+  /** Beyond the west hedge: the farm track this far out, then the power line (its pieces each span this far). */
+  track: 8,
+  power: { out: 22, span: 60 },
+  /** Beyond the east hedge: the poplar shelterbelt, this far out, about this share of its pieces left out as gaps. */
+  poplars: { out: 30, gaps: 0.3 },
+  /**
+   * The co-operative's yard beyond the east hedge, straight ahead at the
+   * launch: this far out, starting this far north of the north hedge and
+   * running `length` south (its size in art/fields). The track along the
+   * north hedge runs this far into it.
+   */
+  farm: { out: 30, north: 12, length: 64, gate: 20 },
+  /** In the next fields: a combine at work, bales or a hay shed about this often down each side, between `from` and `to` beyond the hedge. */
+  next: { every: 450, from: 90, to: 320 },
+}
+
+/**
  * The open road's roadside (PR 13t, art/road/build.py): Blender pieces the
  * time-trial and truck replays stand along the road. Distances are along the
  * course, m; `out` is beyond the road's edge (it's wider for the trucks), on

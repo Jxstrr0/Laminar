@@ -212,32 +212,6 @@ def tree_birch() -> None:
     m.done("TreeBirch")
 
 
-# --- Trees: a few draws each, many copies, so kept to a few dozen faces.
-
-
-def tree_round() -> None:
-    m = Mesh()
-    m.cone(0, 0, 0, 3.2, 0.22, 0.16, 6, "Bark")
-    m.blob(0, 0, 4.6, 2.6, 2.6, 2.2, "Leaf")
-    m.blob(0.6, 0.3, 6.3, 1.7, 1.7, 1.5, "Leaf")
-    m.done("TreeRound")
-
-
-def tree_pine() -> None:
-    m = Mesh()
-    m.cone(0, 0, 0, 1.6, 0.2, 0.18, 5, "Bark")
-    for k, (z0, r) in enumerate(((1.4, 2.4), (3.4, 1.9), (5.2, 1.3))):
-        m.cone(0, 0, z0, z0 + 2.8 - 0.4 * k, r, 0.05, 7, "Pine")
-    m.done("TreePine")
-
-
-def tree_birch() -> None:
-    m = Mesh()
-    m.cone(0, 0, 0, 5.0, 0.14, 0.09, 5, "Birch")
-    m.blob(0, 0, 6.0, 1.3, 1.3, 2.4, "Leaf2")
-    m.done("TreeBirch")
-
-
 # --- Shapes the road kit didn't need.
 
 
