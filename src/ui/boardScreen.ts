@@ -133,7 +133,7 @@ import { playSledReplay } from './sledReplay'
 import { createSheet, type Sheet } from './sheet'
 import { twoTap } from './twoTap'
 import { bestText, shareLegacy } from './legacyPicture'
-import { recordBox, recordsCard } from './records'
+import { attemptNote, recordParts, recordsCard } from './records'
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag)
@@ -494,7 +494,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       parts.push(box)
     } else if (db.day.trouble === 'long') parts.push(el('p', 'shop-note', t('jd.long', { client: b.client, hs })))
     parts.push(el('p', 'shop-note', t('jd.readNote')))
-    if (d.mark) parts.push(recordBox(d.mark, d.state))
+    parts.push(...recordParts(d))
     if (d.sale) parts.push(brokeBox(d.sale, d.state.money))
     if (d.state.ended) parts.push(el('p', 'save-due', t('end.reached')))
     const again = button('save-btn quiet', t('race.replay'))
@@ -650,7 +650,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       parts.push(box)
     }
     parts.push(el('p', 'shop-note', t('sd.readNote')))
-    if (d.mark) parts.push(recordBox(d.mark, d.state))
+    parts.push(...recordParts(d))
     if (d.sale) parts.push(brokeBox(d.sale, d.state.money))
     if (d.state.ended) parts.push(el('p', 'save-due', t('end.reached')))
     const again = button('save-btn quiet', t('race.replay'))
@@ -811,7 +811,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       parts.push(troubleBox(t(tail ? 'td.cutTail' : 'td.cutSkirts', { value: fixed(cut.value, 2), limit: fixed(cut.limit, 2) }), t(tail ? 'td.fixTail' : 'td.fixSkirts'), tail ? 'boatTail' : 'skirts'))
     }
     parts.push(el('p', 'shop-note', t('td.readNote')))
-    if (d.mark) parts.push(recordBox(d.mark, d.state))
+    parts.push(...recordParts(d))
     if (d.sale) parts.push(brokeBox(d.sale, d.state.money))
     if (d.state.ended) parts.push(el('p', 'save-due', t('end.reached')))
     truckSheet.body.replaceChildren(...parts)
@@ -1030,7 +1030,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     // Record day can pull the chutes on a car that ran clean in still air: the wind found it out.
     if (db.attempt.mean === null && db.actual !== null) parts.push(el('p', 'shop-note', t('rd.dayChutes')))
     parts.push(el('p', 'shop-note', t('rd.readNote')))
-    if (d.mark) parts.push(recordBox(d.mark, d.state))
+    parts.push(...recordParts(d))
     if (d.sale) parts.push(brokeBox(d.sale, d.state.money))
     if (d.state.ended) parts.push(el('p', 'save-due', t('end.reached')))
     const again = button('save-btn quiet', t('race.replay'))
@@ -1130,7 +1130,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     }
     if (db.heat) parts.push(troubleBox(t('cd.heat', { s: fixed(db.heat.lost, 2), need: fixed(CAR_CLASS[(b.setup as CarDesign).class].coolNeed * 100, 0) }), t('cd.fixInlet'), db.heat.fix, sheet))
     parts.push(el('p', 'shop-note', t('cd.readNote')))
-    if (d.mark) parts.push(recordBox(d.mark, d.state))
+    parts.push(...recordParts(d))
     if (d.sale) parts.push(brokeBox(d.sale, d.state.money))
     if (d.state.ended) parts.push(el('p', 'save-due', t('end.reached')))
     const again = button('save-btn quiet', t('race.replay'))
@@ -1272,7 +1272,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     // Race day can tumble a quad that held on the usual day: a warmer day flies it faster into the corners.
     if (db.race.time === null && db.actual !== null) parts.push(el('p', 'shop-note', t('qd.dayTumble')))
     parts.push(el('p', 'shop-note', t('qd.readNote')))
-    if (d.mark) parts.push(recordBox(d.mark, d.state))
+    parts.push(...recordParts(d))
     if (d.sale) parts.push(brokeBox(d.sale, d.state.money))
     if (d.state.ended) parts.push(el('p', 'save-due', t('end.reached')))
     const again = button('save-btn quiet', t('race.replay'))
@@ -1446,7 +1446,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     // Survey day can spin in a plane that rides the usual gust out: a gustier day than most.
     if (db.flight.stall && db.actual !== null) parts.push(el('p', 'shop-note', t('sv.dayStall', { km: fixed(db.flight.flown, 1), gust: kmh(db.flight.stall.gust), limit: kmh(db.flight.limit) })))
     parts.push(el('p', 'shop-note', t('sv.readNote')))
-    if (d.mark) parts.push(recordBox(d.mark, d.state))
+    parts.push(...recordParts(d))
     if (d.sale) parts.push(brokeBox(d.sale, d.state.money))
     if (d.state.ended) parts.push(el('p', 'save-due', t('end.reached')))
     planeSheet.body.replaceChildren(...parts)
@@ -1685,7 +1685,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
         ),
       )
     parts.push(el('p', 'shop-note', t('rg.readNote')))
-    if (d.mark) parts.push(recordBox(d.mark, d.state))
+    parts.push(...recordParts(d))
     if (d.sale) parts.push(brokeBox(d.sale, d.state.money))
     if (d.state.ended) parts.push(el('p', 'save-due', t('end.reached')))
     podSheet.body.replaceChildren(...parts)
@@ -1742,7 +1742,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
         ),
       )
     parts.push(el('p', 'shop-note', t('tf.readNote')))
-    if (d.mark) parts.push(recordBox(d.mark, d.state))
+    parts.push(...recordParts(d))
     if (d.sale) parts.push(brokeBox(d.sale, d.state.money))
     if (d.state.ended) parts.push(el('p', 'save-due', t('end.reached')))
     aircraftSheet.body.replaceChildren(...parts)
@@ -1824,7 +1824,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     if (db.fade) trouble(t(isSkater(design) ? 'race.fadeSkater' : 'race.fade', { client: b.client, time: shortTime(db.fade.lost) }), db.fade.fix, t('race.fix.position'))
     if (db.baseline.lostToGusts > 0) parts.push(el('p', 'shop-note', t('race.oldGusts', { time: shortTime(db.baseline.lostToGusts) })))
     parts.push(el('p', 'shop-note', t('race.readNote')))
-    if (d.mark) parts.push(recordBox(d.mark, d.state))
+    parts.push(...recordParts(d))
     if (d.sale) parts.push(brokeBox(d.sale, d.state.money))
     if (d.state.ended) parts.push(el('p', 'save-due', t('end.reached')))
     const again = button('save-btn quiet', t('race.replay'))
@@ -2300,8 +2300,10 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       meter,
       facts,
       el('p', 'shop-note', t(job.daysLeft === 0 ? 'board.outOfDays' : 'board.used', { used })),
-      actions,
     )
+    const attempt = attemptNote(b, career)
+    if (attempt) card.append(attempt)
+    card.append(actions)
     return card
   }
 
@@ -2311,6 +2313,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     const top = el('p', 'job-client', b.client)
     if (b.tutorial) top.append(' ', el('span', 'save-slot-tag', t('board.first')))
     if (b.small) top.append(' ', el('span', 'save-slot-tag quiet', t('board.small')))
+    if (b.attempt) top.append(' ', el('span', 'save-slot-tag', t('trec.attemptTag')))
     const facts = el('div', 'job-facts')
     // A ski jump shows its hill and the jumper's weight, a bobsled its track, crew and ice, where a race shows its course and power.
     // A truck shows its route and the trailer's height.
@@ -2386,6 +2389,8 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     const bidders = biddersFor(brief.id)
     if (bidders.length > 0) facts.append(fact(t('board.bidders'), bidders.map((f) => RIVALS[f].name).join(', ')))
     card.append(top, el('p', 'job-who', b.who), el('blockquote', 'job-goal', b.goal), el('p', 'job-event', b.event.name), facts)
+    const attempt = attemptNote(b, careerStore.get())
+    if (attempt) card.append(attempt)
     const take = button('save-btn guide-bid', t('board.take'))
     if (busy) {
       take.disabled = true

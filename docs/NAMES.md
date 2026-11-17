@@ -155,6 +155,7 @@ contradict Lombard's `docs/01-GDD.md` (Setting and Brands).
 | Fyodor Shirokov | Standing holder of the ski-jump record (2009, large hill). |
 | Mikhail Avdeev | Standing holder of the land-speed record (1997, Lake Sukhoye). |
 | Dubrova Transport | Truck fleet holding the fuel-figure record (2009). |
+| Elena Shubina | Former pursuit champion; commissions the hour-record attempt (PR 11c). |
 
 ## Still to name (later PRs)
 

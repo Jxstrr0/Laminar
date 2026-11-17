@@ -821,6 +821,8 @@ export interface Delivery {
   /** If the job left cash below zero: the kit sold to cover it (the firm also lost BROKE.dip reputation). */
   sale: Sale | null  /** The Tarnovian record the job broke (PR 11a), or null. */
   mark: RecordMark | null
+  /** A record attempt's bonus, ₽, already in `paid` (PR 11c); 0 if none. */
+  bonus: number
 }
 
 /** The seed for a job's event day. */
@@ -897,6 +899,8 @@ interface Closed {
   sale: Sale | null
   /** The Tarnovian record the job broke (PR 11a), or null. */
   mark: RecordMark | null
+  /** A record attempt's bonus, ₽, already in `paid` (PR 11c); 0 if none. */
+  bonus: number
 }
 
 /** A result on the day that might break a record: which one, and the mark in its unit. */
@@ -924,14 +928,16 @@ export function firmRecords(state: Pick<CareerState, 'history'>): Holding[] {
  * soft landing sells kit and the firm takes the dip.
  */
 function closeJob(state: CareerState, job: Job, penalty: number, result: Pick<JobRecord, 'achieved' | 'predicted' | 'actual'>, attempt: Attempt | null = null): Closed {
-  const paid = job.brief.fee - penalty
+  const b = template(job.brief.id)
+  // A result that beats a Tarnovian record goes on the board (PR 11a); a secret one never does.
+  const mark = attempt && !b.defence ? claim(firmRecords(state), attempt.record, attempt.value) : null
+  // A client out for that record pays a bonus when it falls (PR 11c).
+  const bonus = mark && b.attempt === mark.record ? recordBonus(job.brief.fee) : 0
+  const paid = job.brief.fee - penalty + bonus
   const jobsDone = state.jobsDone + 1
   const raceDay = state.day + job.daysLeft
   const record: JobRecord = { id: job.brief.id, day: raceDay, fee: job.brief.fee, paid, promised: job.promise, ...result }
-  const defence = template(job.brief.id).defence
-  if (defence) record.secret = true
-  // A result that beats a Tarnovian record goes on the board (PR 11a); a secret one never does.
-  const mark = attempt && !defence ? claim(firmRecords(state), attempt.record, attempt.value) : null
+  if (b.defence) record.secret = true
   if (mark) record.mark = mark
   const upkeep = upkeepFor(state, job.daysLeft)
   const wages = wagesFor(state, job.daysLeft)
@@ -965,7 +971,12 @@ function closeJob(state: CareerState, job: Job, penalty: number, result: Pick<Jo
     clearance,
   })
   // The reputation after (firmReputation of the new state) includes any dip for going broke.
-  return { state: next, paid, upkeep, wages, sale, mark }
+  return { state: next, paid, upkeep, wages, sale, mark, bonus }
+}
+
+/** A record attempt's bonus for this fee, ₽ (PR 11c). */
+export function recordBonus(fee: number): number {
+  return Math.round((fee * RECORD_RULES.bonus) / RECORD_RULES.bonusRound) * RECORD_RULES.bonusRound
 }
 
 /** What the jump showed (plan section 9: distance gain at a reference speed, with a pitch-stability floor). */

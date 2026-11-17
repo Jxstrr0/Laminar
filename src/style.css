@@ -1099,6 +1099,7 @@ body[data-guide='deliver'] .guide-deliver {
   background: var(--panel-2);
 }
 .race-record-title { margin: 0 0 4px; font-size: 1rem; }
+.race-record.is-stands { border-left-color: var(--muted); }
 
 /* Backups (PR 7h): the Saves chip asks for one after two weeks; the file picker hides behind its label. */
 .saves-open.due { color: var(--warn); border-color: var(--warn); font-weight: 700; }
