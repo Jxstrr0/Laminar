@@ -16,7 +16,7 @@ import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { TRACK } from '../data/briefs'
 import { FIELD_TROUBLE, type CourseSegment } from '../data/field'
-import { AIRCRAFT_REPLAY, AIRFIELD_KIT, AIRFIELD_SCENE, CAR_REPLAY, CIRCUIT_KIT, SALT_KIT, DRONE_REPLAY, DRONE_SCENE, RECORD_SCENE, REPLAY_SCENE as S, SURVEY_SCENE } from '../data/replay'
+import { AIRCRAFT_REPLAY, AIRFIELD_KIT, AIRFIELD_SCENE, CAR_REPLAY, CIRCUIT_KIT, ROAD_KIT, SALT_KIT, DRONE_REPLAY, DRONE_SCENE, RECORD_SCENE, REPLAY_SCENE as S, SURVEY_SCENE } from '../data/replay'
 import { AIRCRAFT_BODY } from '../data/aircraft'
 import { DRONE_BODY } from '../data/drone'
 import { designPose, type Design } from '../sim/design'
@@ -60,6 +60,15 @@ const COLOURS = {
 const DEG = Math.PI / 180
 
 /** Unit vectors for a compass heading: forward along the road, and right of it. */
+/** A fixed hash of a whole number to [0, 1): the roadside's trees vary by place, the same on every phone. */
+export function hash01(n: number): number {
+  let h = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b)
+  h ^= h >>> 13
+  h = Math.imul(h, 0xc2b2ae35)
+  h ^= h >>> 16
+  return (h >>> 0) / 4294967296
+}
+
 function axes(heading: number) {
   const h = heading * DEG
   return { fx: Math.sin(h), fz: -Math.cos(h), rx: Math.cos(h), rz: Math.sin(h) }
@@ -477,15 +486,22 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
   }
 
   // A venue's kit of Blender pieces (PR 13m: the circuit's; 13n: the salt flat's; 13o: the airfield's), loaded with the view and stood along the course once both are in.
+  // The open road's (PR 13t) is asked for by setCourse, since a track's lap has none.
   // Until it loads, or if it can't, the course is drawn as before.
   const kitFile = circuit ? 'circuit.glb' : salt ? 'saltflat.glb' : airfield ? 'airfield.glb' : null
+  /** Time trials and truck runs: an open road, unless the course is a track's lap. */
+  const roadside = !circuit && !salt && !meadow && !fields && !airfield
+  let road = false
   let kit: THREE.Object3D | null = null
+  let kitAsked = false
   const kitGroup = new THREE.Group()
   scene.add(kitGroup)
   let kitCourse: readonly CourseSegment[] | null = null
-  if (kitFile)
+  function loadKit(file: string) {
+    if (kitAsked) return
+    kitAsked = true
     new GLTFLoader().load(
-      `${import.meta.env.BASE_URL}models/${kitFile}`,
+      `${import.meta.env.BASE_URL}models/${file}`,
       (gltf) => {
         if (disposed) return dropModel(gltf.scene)
         kit = gltf.scene
@@ -495,6 +511,8 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       undefined,
       () => undefined,
     )
+  }
+  if (kitFile) loadKit(kitFile)
 
   /** Copies of one of the kit's pieces at each of these placements, one draw per material. */
   function scatter(name: string, at: readonly THREE.Matrix4[]) {
@@ -595,6 +613,128 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     scatter('RecoveryTruck', [side(Math.min(total - 50, timedTo + K.recovery.afterTimed), K.recovery.out)])
   }
 
+  /**
+   * The open road along this course (PR 13t): trees on both verges, farms,
+   * villages and wind turbines set back, kilometre posts and signs, and at
+   * the ends a time trial's start house, finish arch and crowd, or a fuel
+   * run's truck stop and depot. Nothing lands on the road where the course
+   * doubles back, or within ROAD_KIT.clear of a building. The trees vary by
+   * a fixed hash of their place, so a course looks the same every time.
+   */
+  function placeRoad(segs: readonly CourseSegment[]) {
+    const K = ROAD_KIT
+    const total = segs.reduce((sum, seg) => sum + seg.length, 0)
+    const edge = lay.roadWidth / 2
+    // Every leg's ends on the ground, to keep things off the road where the course passes again.
+    const legs: [number, number, number, number][] = []
+    let lx = 0
+    let lz = 0
+    for (const seg of segs) {
+      const { fx, fz } = axes(seg.heading)
+      legs.push([lx, lz, lx + fx * seg.length, lz + fz * seg.length])
+      lx += fx * seg.length
+      lz += fz * seg.length
+    }
+    const at = new THREE.Vector3()
+    const fromRoad = (m: THREE.Matrix4) => {
+      at.setFromMatrixPosition(m)
+      let best = Infinity
+      for (const [x0, z0, x1, z1] of legs) {
+        const dx = x1 - x0
+        const dz = z1 - z0
+        const t = Math.max(0, Math.min(1, ((at.x - x0) * dx + (at.z - z0) * dz) / (dx * dx + dz * dz || 1)))
+        best = Math.min(best, Math.hypot(at.x - x0 - t * dx, at.z - z0 - t * dz))
+      }
+      return best
+    }
+    const taken: THREE.Vector3[] = []
+    const clear = (m: THREE.Matrix4, r: number) => {
+      at.setFromMatrixPosition(m)
+      return taken.every((q) => q.distanceTo(at) > r)
+    }
+    const claim = (m: THREE.Matrix4) => taken.push(new THREE.Vector3().setFromMatrixPosition(m))
+    /** A piece facing the road from its left (out < 0), or turned round to face it from the right; out is beyond the edge. */
+    const side = (along: number, out: number) => placeAt(segs, along, Math.sign(out) * (edge + Math.abs(out)), out > 0)
+    if (opts.truck) {
+      const depot = side(K.depot.along, -K.depot.out)
+      const shed = side(Math.max(0, total - K.warehouse.before), -K.warehouse.out)
+      scatter('FuelDepot', [depot])
+      scatter('Warehouse', [shed])
+      claim(depot)
+      claim(shed)
+    } else {
+      const start = placeAt(segs, 0, 0)
+      // The arch is built for a time trial's road; a wider one stretches it.
+      const finish = placeAt(segs, total, 0).multiply(new THREE.Matrix4().makeScale(1, 1, lay.roadWidth / S.roadWidth))
+      scatter('FinishArch', [finish])
+      claim(finish)
+      // An out-and-back course finishes where it started: the ramp would stand in the riders' way home.
+      if (clear(start, K.clear)) {
+        scatter('StartRamp', [start])
+        claim(start)
+      }
+      // The crowd's pieces run 40 m along from their origin: on the right, turned round, they start 40 m further on.
+      const crowd: THREE.Matrix4[] = []
+      for (let d = Math.max(0, total - K.crowd.length); d + 40 <= total; d += 40) crowd.push(side(d, -K.crowd.out), side(d + 40, K.crowd.out))
+      scatter('FinishCrowd', crowd)
+    }
+    const buildings = (every: number, most: number, out: number, flip: number, into: THREE.Matrix4[]) => {
+      const step = Math.max(every, total / most)
+      for (let k = 0; (k + 0.5) * step < total; k++) {
+        const o = (k + flip) % 2 === 0 ? -out : out
+        const m = side((k + 0.5) * step, o)
+        // Closer to another leg than to its own: the course doubles back here.
+        if (fromRoad(m) < edge + out - 1) continue
+        if (!clear(m, K.clear * 1.5)) continue
+        into.push(m)
+        claim(m)
+      }
+    }
+    const farms: THREE.Matrix4[] = []
+    const villages: THREE.Matrix4[] = []
+    buildings(K.farms.every, K.farms.most, K.farms.out, 0, farms)
+    buildings(K.villages.every, K.villages.most, K.villages.out, 1, villages)
+    scatter('Farm', farms)
+    scatter('Village', villages)
+    const turbines: THREE.Matrix4[] = []
+    const tStep = Math.max(K.turbines.every, total / K.turbines.most)
+    for (let k = 0; (k + 0.5) * tStep < total; k++) {
+      const m = side((k + 0.5) * tStep, -(K.turbines.out + hash01(k * 7 + 3) * K.turbines.spread))
+      if (fromRoad(m) > K.turbines.out * 0.8 && clear(m, K.clear)) turbines.push(m)
+    }
+    scatter('WindTurbine', turbines)
+    const posts: THREE.Matrix4[] = []
+    for (let d = K.posts.every; d < total; d += K.posts.every) posts.push(placeAt(segs, d, edge + K.posts.out))
+    scatter('KmPost', posts)
+    const signs: THREE.Matrix4[] = []
+    for (let d = K.signs.every / 2; d < total; d += K.signs.every) {
+      const m = placeAt(segs, d, edge + K.signs.out)
+      if (clear(m, K.clear)) signs.push(m)
+    }
+    scatter('Sign', signs)
+    // Trees: three kinds, each set back, turned and sized by a hash of its place.
+    const kinds: THREE.Matrix4[][] = [[], [], []]
+    const step = Math.max(K.trees.every, total / K.trees.most)
+    const spin = new THREE.Matrix4()
+    const size = new THREE.Matrix4()
+    for (const s of [-1, 1])
+      for (let k = 0; k * step < total; k++) {
+        const n = k * 2 + (s > 0 ? 1 : 0)
+        const along = (k + 0.2 + hash01(n * 3) * 0.6) * step
+        if (along >= total) break
+        const out = K.trees.out + hash01(n * 3 + 1) * K.trees.spread
+        const m = placeAt(segs, along, s * (edge + out))
+        if (fromRoad(m) < edge + 2 || !clear(m, K.clear)) continue
+        const r = hash01(n * 3 + 2)
+        const sc = 1 - K.treeScale + 2 * K.treeScale * r
+        m.multiply(spin.makeRotationY(r * Math.PI * 2)).multiply(size.makeScale(sc, sc, sc))
+        kinds[Math.floor(hash01(n * 5 + 7) * 3)]!.push(m)
+      }
+    scatter('TreeRound', kinds[0]!)
+    scatter('TreePine', kinds[1]!)
+    scatter('TreeBirch', kinds[2]!)
+  }
+
   /** Belyanka round its runway: the field side, the threshold bars at each end, edge lights and the windsock. */
   function placeAirfield() {
     const K = AIRFIELD_KIT
@@ -619,6 +759,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     if (!kitCourse) return
     if (circuit) placeCircuit(kitCourse)
     if (salt) placeSalt(kitCourse)
+    if (road) placeRoad(kitCourse)
   }
 
   function clearCourse() {
@@ -754,6 +895,9 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       }
       showVelodrome()
       kitCourse = segs
+      // An open road gets its roadside (PR 13t), asked for the first time it's needed.
+      road = roadside
+      if (road) loadKit('road.glb')
       placeKit()
       // Over the wheat there's no road to lay: the rows are the ground's own grid (PR 10o).
       if (fields) return

@@ -525,6 +525,37 @@ export const SALT_KIT = {
 }
 
 /**
+ * The open road's roadside (PR 13t, art/road/build.py): Blender pieces the
+ * time-trial and truck replays stand along the road. Distances are along the
+ * course, m; `out` is beyond the road's edge (it's wider for the trucks), on
+ * the right when positive. A long truck route spreads its trees and farms
+ * further apart, so no run stands more than `most` of a piece.
+ */
+export const ROAD_KIT = {
+  /** Trees on both verges, one every `every` m a side, set back `out` plus up to `spread` more, in three kinds. */
+  trees: { every: 30, most: 1600, out: 5, spread: 16 },
+  /** Kilometre posts on the right verge. */
+  posts: { every: 1000, out: 1.2 },
+  /** Route signs on the right, a long way apart (a fuel run passes a few). */
+  signs: { every: 9000, out: 3 },
+  /** A farm every so often, alternating sides, set back from the road. */
+  farms: { every: 3800, most: 40, out: 26 },
+  /** A village now and then, on the side the farms aren't. */
+  villages: { every: 13000, most: 14, out: 30 },
+  /** Wind turbines well out on the left, where the crosswind comes over the fields. */
+  turbines: { every: 2400, most: 50, out: 180, spread: 160 },
+  /** Nothing else stands within this many metres of a building, the start or the finish. */
+  clear: 45,
+  /** A time trial's finish: people along both verges for this far before the line, in the crowd piece's 40 m lengths. */
+  crowd: { length: 120, out: 1.2 },
+  /** A fuel run's truck stop just after the start, and the depot just before the end, both on the left. */
+  depot: { along: 40, out: 22 },
+  warehouse: { before: 0, out: 24 },
+  /** How much a tree's size varies either way, a share. */
+  treeScale: 0.2,
+}
+
+/**
  * Belyanka airfield's buildings and runway furniture (PR 13o,
  * art/airfield/build.py): Blender pieces the kit-plane replay stands round
  * the runway (AIRFIELD_SCENE.runway, along +x). Distances along the runway
