@@ -140,7 +140,8 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 13e | The Isobar look begins (`docs/UI-ISOBAR-PLAN.md`, the brief's 13a): the new colour tokens in both themes, Bricolage Grotesque and Geist Mono in place of Instrument Sans and Spline Sans Mono, the lowercase wordmark over its Cp bar, Jobs / Shape / Tunnel in a floating bottom dock with icons, and the money chip and Saves up in the top-right row | **Done** (v0.14.4.0) |
 | 13f | Isobar surfaces and controls (the brief's 13b): the tunnel and shape sheets become a clear column of rounded cards; tabs and segmented controls share one pill style, and the tunnel's view tabs scroll sideways; chips over the view are 44px white pills; every slider gets a teal fill to a ringed thumb (`src/ui/range.ts`); primary buttons are dark 52px pills with a press feel; Irina's card gets her initials, a speech bubble and steps 01–07; a reputation ring on the firm strip; charts draw in the pressure colours; faint isobars behind the Jobs page | **Done** (v0.14.5.0) |
 | 13g | The fan and yaw dials (the brief's 13c, `src/ui/dial.ts`): a semicircle to drag along, − / + steppers that repeat when held, and the native range kept underneath, hidden but focusable, so the keyboard and screen readers work. The fan's dial fills teal to the set speed with a thin mark for the actual speed; the yaw dial points a needle, and a tap on its value squares on. Off is a coral-outlined stop button. The sheet now scrolls inside itself so the 3D view keeps the top of the screen on shorter phones | **Done** (v0.14.6.0) |
-| 13h–13j | `docs/UI-ISOBAR-PLAN.md` | Next: the 3D scenes, pressure colour on the model, every other screen. Then the picked voice takes and more Blender models. |
+| 13h | The 3D scenes take the Isobar look (the brief's 13d): every scene colour in `src/render/theme.ts`, light and dark, and the lab, the Shape bench and the field skies follow the phone's dark mode, even when it flips mid-game. The Dark wall goes near-black in dark mode. Models wear a matte "model shop" finish (indigo suit, teal shaped parts, coral when broken); Shape handles are white dots in a teal ring and the rule box is teal. A rounded frame in the page colour turns each 3D view into a card | **Done** (v0.14.7.0) |
+| 13i–13j | `docs/UI-ISOBAR-PLAN.md` | Next: pressure colour on the model, every other screen. Then the picked voice takes and more Blender models. |
 
 ## Versions
 
@@ -157,6 +158,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 - **0.14.4.0** (PR 13e): the Isobar look begins: new colours, fonts and a bottom dock.
 - **0.14.5.0** (PR 13f): Isobar cards, pills, sliders and buttons.
 - **0.14.6.0** (PR 13g): the fan and yaw dials.
+- **0.14.7.0** (PR 13h): the 3D scenes take the Isobar look and follow dark mode.
 - **0.14.0.0** (PR 13a): lab sounds made in code, with a mute button.
 - **0.13.2.0** (PR 12c): the CFD panel in the tunnel: run it, read its drag and see the flow.
 - **0.13.1.0** (PR 12b): the CFD Cluster upgrade, and the model as cells for its grid.

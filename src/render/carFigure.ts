@@ -2,7 +2,7 @@
  * The racing car as a three.js group (PR 9j), drawn from the design at full
  * size. The shell is lofted from the very cross-sections the drag model
  * reads (src/sim/geom/car.ts), so a lower ride height on screen is a lower
- * floor in the sim. The aero parts are drawn in the instruments' cobalt so
+ * floor in the sim. The aero parts are drawn in the model shop's teal so
  * they read at a glance: the front wing (a splitter flap on a touring car),
  * the rear wing at its angle and chord, the floor with its rake, the
  * diffuser, the edge seals and the cooling inlets.
@@ -12,6 +12,7 @@
  * part behind a warning (porpoising, balance, heat) glows amber.
  */
 import * as THREE from 'three'
+import { MODEL } from './theme'
 import { CAR_BODY, CAR_CLASS, type CarDesign } from '../data/car'
 import { carLength, carStation, carX, floorAt, carAxis } from '../sim/geom/car'
 import type { Highlight } from './riderFigure'
@@ -20,12 +21,12 @@ const COLOURS = {
   body: 0xf2f4f6,
   tub: 0xe6ebef,
   dark: 0x2a3a47,
-  tyre: 0x1d242b,
+  tyre: MODEL.tyre,
   hub: 0x8c97a1,
-  part: 0x2456e8,
-  helmet: 0xf5f7f9,
-  broken: 0xd2462b,
-  strain: 0xe08a00,
+  part: MODEL.panel,
+  helmet: MODEL.helmet,
+  broken: MODEL.broken,
+  strain: MODEL.strain,
 }
 
 const mat = (color: number, roughness = 0.6, metalness = 0) => new THREE.MeshStandardMaterial({ color, roughness, metalness, side: THREE.DoubleSide })

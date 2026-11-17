@@ -14,17 +14,14 @@ import { groundAt, hillSurface, xAtAlong } from '../sim/jumper'
 import type { JumpFrame } from '../sim/jumpReplay'
 import type { JumperDesign } from '../data/jumper'
 import { buildRider, disposeGroup } from './riderFigure'
+import { sceneColours } from './theme'
 
 const COLOURS = {
-  sky: 0xdfe8ef,
   snow: 0xf4f7fa,
   far: 0xe3eaf0,
   tree: 0x3d4f5c,
   tick: 0x93a3b1,
-  /** The K line in the instruments' cobalt, the hill-size line in the failure red. */
-  k: 0x2456e8,
-  hs: 0xd2462b,
-  markMine: 0x2456e8,
+  /** The K line in the model shop's teal, the hill-size line in the failure red. */
   markOld: 0x5a6875,
   ghost: 0x5a6875,
 }
@@ -51,8 +48,10 @@ export function createJumpView(host: HTMLElement): JumpView {
   host.prepend(renderer.domElement)
 
   const scene = new THREE.Scene()
-  scene.background = new THREE.Color(COLOURS.sky)
-  scene.fog = new THREE.Fog(COLOURS.sky, 60, 420)
+  // The sky follows the phone's theme (Isobar, PR 13h); the hill keeps its daylight colours.
+  const theme = sceneColours()
+  scene.background = new THREE.Color(theme.fieldSky)
+  scene.fog = new THREE.Fog(theme.fieldSky, 60, 420)
   scene.add(new THREE.HemisphereLight(0xffffff, 0x8a96a3, 2.2))
   const sun = new THREE.DirectionalLight(0xffffff, 1.5)
   sun.position.set(-20, 60, 40)
@@ -108,7 +107,7 @@ export function createJumpView(host: HTMLElement): JumpView {
     hillGroup.add(plain)
     // The K line and the hill-size line right across the slope; a tick every 10 m down each edge.
     const half = S.width / 2
-    hillGroup.add(bar(xAtAlong(surf, hill.k), COLOURS.k, -half, half), bar(xAtAlong(surf, hill.hs), COLOURS.hs, -half, half))
+    hillGroup.add(bar(xAtAlong(surf, hill.k), theme.mine, -half, half), bar(xAtAlong(surf, hill.hs), theme.sep, -half, half))
     for (let s = 10; s < hill.hs + 20; s += 10) {
       const x = xAtAlong(surf, s)
       hillGroup.add(bar(x, COLOURS.tick, half - 1.2, half), bar(x, COLOURS.tick, -half, -half + 1.2))
@@ -188,7 +187,7 @@ export function createJumpView(host: HTMLElement): JumpView {
     }
     // A mark in the snow where the skis touched, in the jumper's own lane.
     if (f.landed && !j.mark) {
-      j.mark = bar(f.x, j.ghost ? COLOURS.markOld : COLOURS.markMine, j.lane - 1.2, j.lane + 1.2, 0.5)
+      j.mark = bar(f.x, j.ghost ? COLOURS.markOld : theme.mine, j.lane - 1.2, j.lane + 1.2, 0.5)
       scene.add(j.mark)
     } else if (!f.landed && j.mark) {
       scene.remove(j.mark)

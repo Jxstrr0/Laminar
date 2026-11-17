@@ -15,7 +15,7 @@
  * flow field's convention, src/sim/flow/field.ts).
  *
  * Round the rider, the flow instruments (src/render/flowViz.ts) draw smoke
- * and tufts from the flow field. The smoke wand's tip is a cobalt dot: press
+ * and tufts from the flow field. The smoke wand's tip is a teal dot: press
  * near it to move it in a plane across the flow upstream of the model; a
  * press anywhere else turns the camera.
  */
@@ -48,14 +48,17 @@ import { recordLength, recordX } from '../sim/geom/record'
 import type { FlowField, Tuft } from '../sim/flow/field'
 import type { Tap } from '../sim/flow/taps'
 import { createFlowViz, type Instruments } from './flowViz'
+import { onThemeChange, sceneColours } from './theme'
 import type { PivGrid } from '../sim/flow/piv'
 import { buildReferenceWheel, buildRider, disposeGroup, type RiderState } from './riderFigure'
 
 /** Scene colours: a bright, clean lab (plan section 11). */
+/**
+ * The lab's fixed colours. The ones that follow the phone's light or dark mode
+ * (walls, floor, backdrop, the Dark wall, the lights, the teal marks) live in
+ * src/render/theme.ts (Isobar, PR 13h).
+ */
 const COLOURS = {
-  background: 0xe9edf0,
-  wall: 0xf3f5f7,
-  floor: 0xc9d0d6,
   /** A sled's ground board, pale plywood. */
   board: 0xd9c7a3,
   ceilingLight: 0xffffff,
@@ -68,18 +71,7 @@ const COLOURS = {
   screen: 0xb7c1c9,
   smoke: 0xffffff,
   turntable: 0xb3bcc4,
-  accent: 0x2456e8,
-  /** Separation line: the --sep colour from style.css. */
-  separation: 0xd2462b,
   wand: 0x5d6873,
-  wandTip: 0x2456e8,
-  /** The dark backdrop, for white smoke. */
-  darkBackground: 0x1b232b,
-  darkWall: 0x2a343e,
-  darkFloor: 0x222b33,
-  /** The Blender section's panel seams (PR 13b), and on the dark backdrop. */
-  seam: 0xaeb8c1,
-  darkSeam: 0x34404b,
 } as const
 
 /** The smoke wand: where its tip starts (from the model's centre, m) and where it may go. */
@@ -256,7 +248,8 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   host.prepend(renderer.domElement)
 
   const scene = new THREE.Scene()
-  scene.background = new THREE.Color(COLOURS.background)
+  let theme = sceneColours()
+  scene.background = new THREE.Color(theme.background)
 
   const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 40)
   // Start outside the near wall, looking in as if through the observation glass.
@@ -278,8 +271,9 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   controls.update()
 
   // --- Light: soft lab light from above, plus one key light for shape.
-  scene.add(new THREE.HemisphereLight(0xffffff, 0xb8c2cb, 1.6))
-  const key = new THREE.DirectionalLight(0xffffff, 1.4)
+  const hemi = new THREE.HemisphereLight(theme.hemiSky, theme.hemiGround, 1.6)
+  scene.add(hemi)
+  const key = new THREE.DirectionalLight(theme.key, 1.4)
   key.position.set(-1.5, 3, 2)
   scene.add(key)
 
@@ -292,11 +286,11 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   // The code-drawn section, until the Blender model loads (or if it never does).
   const standIn = new THREE.Group()
   scene.add(standIn)
-  const wallMat = new THREE.MeshStandardMaterial({ color: COLOURS.wall, roughness: 0.85, side: THREE.BackSide })
+  const wallMat = new THREE.MeshStandardMaterial({ color: theme.wall, roughness: 0.85, side: THREE.BackSide })
   const box = new THREE.Mesh(new THREE.BoxGeometry(L, H, W), wallMat)
   standIn.add(box)
 
-  const floorMat = new THREE.MeshStandardMaterial({ color: COLOURS.floor, roughness: 0.9 })
+  const floorMat = new THREE.MeshStandardMaterial({ color: theme.floor, roughness: 0.9 })
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(L, W), floorMat)
   floor.rotation.x = -Math.PI / 2
   floor.position.y = floorY + 0.001
@@ -316,10 +310,11 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     new THREE.MeshStandardMaterial({ color: COLOURS.turntable, roughness: 0.6, metalness: 0.1 }),
   )
   turntable.position.y = floorY + 0.006
-  // The yaw table turns as one: the disc, a cobalt tick at its upstream edge and the rider model.
+  // The yaw table turns as one: the disc, a teal tick at its upstream edge and the rider model.
   const yawTable = new THREE.Group()
   yawTable.add(turntable)
-  const tick = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.004, 0.018), new THREE.MeshBasicMaterial({ color: COLOURS.accent }))
+  const accentMat = new THREE.MeshBasicMaterial({ color: theme.accent })
+  const tick = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.004, 0.018), accentMat)
   tick.position.set(-0.48, floorY + 0.013, 0)
   yawTable.add(tick)
   scene.add(yawTable)
@@ -336,7 +331,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   }
 
   // Observation windows on the far wall, with frames.
-  const frameMat = new THREE.MeshStandardMaterial({ color: COLOURS.frame, roughness: 0.5, metalness: 0.3 })
+  const frameMat = new THREE.MeshStandardMaterial({ color: theme.frame, roughness: 0.5, metalness: 0.3 })
   const glassMat = new THREE.MeshStandardMaterial({ color: COLOURS.window, roughness: 0.15, metalness: 0.2 })
   for (const x of [-1.6, 0, 1.6]) {
     const frame = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.85, 0.02), frameMat)
@@ -346,11 +341,8 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     standIn.add(frame, glass)
   }
 
-  // A cobalt reference stripe along the near wall at sphere height.
-  const stripe = new THREE.Mesh(
-    new THREE.PlaneGeometry(L, 0.025),
-    new THREE.MeshBasicMaterial({ color: COLOURS.accent }),
-  )
+  // A teal reference stripe along the near wall at sphere height.
+  const stripe = new THREE.Mesh(new THREE.PlaneGeometry(L, 0.025), accentMat)
   stripe.position.set(0, 0, W / 2 - 0.002)
   stripe.rotation.y = Math.PI
   scene.add(stripe)
@@ -420,15 +412,29 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   interface Section {
     root: THREE.Object3D
     rotor: THREE.Object3D | null
-    paint: { mat: THREE.MeshStandardMaterial; light: number; dark: number }[]
+    /** The materials the theme and the Dark wall recolour, by their name in the model. */
+    paint: { mat: THREE.MeshStandardMaterial; role: PaintRole }[]
   }
+  type PaintRole = 'Wall' | 'Floor' | 'Seam' | 'Frame' | 'Trim' | 'FanRing'
   const sections = new Map<TunnelId, Section | 'loading'>()
   let shownTunnel: TunnelId = 'university'
   let disposed = false
+  /**
+   * The walls, floor and seams for the theme and the Dark wall: in light mode
+   * the Dark wall is navy, in dark mode near-black (Kelbo), so it always shows.
+   */
+  const surfaces = () => (instruments.dark ? theme.darkWall : theme)
   const showBackdrop = () => {
+    const look = surfaces()
+    ;(scene.background as THREE.Color).setHex(look.background)
+    wallMat.color.setHex(look.wall)
+    floorMat.color.setHex(look.floor)
     for (const s of sections.values()) {
       if (s === 'loading') continue
-      for (const p of s.paint) p.mat.color.setHex(instruments.dark ? p.dark : p.light)
+      for (const p of s.paint) {
+        const hex = p.role === 'Wall' ? look.wall : p.role === 'Floor' ? look.floor : p.role === 'Seam' ? look.seam : p.role === 'Frame' ? theme.frame : theme.accent
+        p.mat.color.setHex(hex)
+      }
     }
   }
   /** Show the shown tunnel's section if it has loaded; until then, the code-drawn box. */
@@ -442,7 +448,9 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     standIn.visible = shown === null
     spinner = shown?.rotor ?? rotor
   }
-  const DARK_PAINT: Record<string, number> = { Wall: COLOURS.darkWall, Floor: COLOURS.darkFloor, Seam: COLOURS.darkSeam }
+  /** Which materials follow the theme: your own tunnel's trim and fan ring wear the theme's teal. */
+  const paintRole = (name: string, id: TunnelId): PaintRole | null =>
+    name === 'Wall' || name === 'Floor' || name === 'Seam' || name === 'Frame' || name === 'Trim' ? name : name === 'FanRing' && id === 'own' ? 'FanRing' : null
   const loadSection = (id: TunnelId) => {
     if (sections.has(id)) return
     sections.set(id, 'loading')
@@ -455,8 +463,8 @@ export function createTunnelView(host: HTMLElement): TunnelView {
         root.traverse((obj) => {
           if (!(obj instanceof THREE.Mesh)) return
           const mat = obj.material as THREE.MeshStandardMaterial
-          const dark = DARK_PAINT[mat.name]
-          if (dark !== undefined && !paint.some((p) => p.mat === mat)) paint.push({ mat, light: mat.color.getHex(), dark })
+          const role = paintRole(mat.name, id)
+          if (role && !paint.some((p) => p.mat === mat)) paint.push({ mat, role })
         })
         sections.set(id, { root, rotor: root.getObjectByName('FanRotor') ?? null, paint })
         scene.add(root)
@@ -596,7 +604,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   }
 
   // The separation line: a thin ring on the sphere where the flow lets go.
-  const ringMat = new THREE.MeshBasicMaterial({ color: COLOURS.separation, transparent: true, opacity: 0 })
+  const ringMat = new THREE.MeshBasicMaterial({ color: theme.sep, transparent: true, opacity: 0 })
   let sepRing: THREE.Mesh | null = null
   function placeRing(th: number) {
     if (sepRing) {
@@ -638,7 +646,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   sphereRig.add(smoke)
   // White smoke on a pale lab is hard to see, so the puffs get a faint grey twin.
   const smokeShadowMat = new THREE.PointsMaterial({
-    color: 0x6b7885,
+    color: theme.smokeTwin,
     map: dotTexture,
     size: 0.024,
     transparent: true,
@@ -654,15 +662,30 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   let instruments: Instruments & { dark: boolean } = { wand: false, rake: false, tufts: false, taps: false, dark: false }
   const wandTip = new THREE.Vector3(WAND.x, floorY + WAND.startUp, WAND.startZ)
   const wandRod = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 1, 8), new THREE.MeshStandardMaterial({ color: COLOURS.wand, roughness: 0.5 }))
-  // The tip reads as a handle: a cobalt dot in a white ring, drawn on top.
+  // The tip reads as a handle: a teal dot in a white ring, drawn on top.
   const tipRing = new THREE.Mesh(new THREE.SphereGeometry(0.016, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, transparent: true }))
-  const tipDot = new THREE.Mesh(new THREE.SphereGeometry(0.011, 16, 12), new THREE.MeshBasicMaterial({ color: COLOURS.wandTip, depthTest: false, transparent: true }))
+  const tipDot = new THREE.Mesh(new THREE.SphereGeometry(0.011, 16, 12), new THREE.MeshBasicMaterial({ color: theme.accent, depthTest: false, transparent: true }))
   tipRing.renderOrder = 10
   tipDot.renderOrder = 11
   const wand = new THREE.Group()
   wand.add(wandRod, tipRing, tipDot)
   wand.visible = false
   scene.add(wand)
+
+  // The phone switched between light and dark (Isobar, PR 13h): recolour the lab, nothing else.
+  const stopTheme = onThemeChange((next) => {
+    theme = next
+    hemi.color.setHex(next.hemiSky)
+    hemi.groundColor.setHex(next.hemiGround)
+    key.color.setHex(next.key)
+    accentMat.color.setHex(next.accent)
+    frameMat.color.setHex(next.frame)
+    ringMat.color.setHex(next.sep)
+    smokeShadowMat.color.setHex(next.smokeTwin)
+    ;(tipDot.material as THREE.MeshBasicMaterial).color.setHex(next.accent)
+    flowViz.setTheme(next)
+    showBackdrop()
+  })
   const placeWand = () => {
     // The rod comes up from the floor to the tip.
     const h = wandTip.y - floorY
@@ -1402,10 +1425,6 @@ export function createTunnelView(host: HTMLElement): TunnelView {
       instruments = { ...next }
       flowViz.setInstruments(next)
       wand.visible = next.wand && modelKind === 'rider'
-      const dark = next.dark
-      ;(scene.background as THREE.Color).setHex(dark ? COLOURS.darkBackground : COLOURS.background)
-      wallMat.color.setHex(dark ? COLOURS.darkWall : COLOURS.wall)
-      floorMat.color.setHex(dark ? COLOURS.darkFloor : COLOURS.floor)
       showBackdrop()
     },
     setModel(model) {
@@ -1484,6 +1503,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     },
     dispose() {
       disposed = true
+      stopTheme()
       clearRider()
       clearDebris()
       flowViz.dispose()

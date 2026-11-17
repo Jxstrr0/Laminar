@@ -16,9 +16,9 @@ import { recordAxis, recordLength } from '../sim/geom/record'
 import type { PlanePose } from '../sim/planeReplay'
 import type { TrackPoint } from '../sim/replay'
 import { buildRider, disposeGroup } from './riderFigure'
+import { onThemeChange, sceneColours } from './theme'
 
 const COLOURS = {
-  sky: 0xdfe8ef,
   ground: 0xc9d3b8,
   grid: 0xaab59c,
   road: 0x6b737a,
@@ -34,7 +34,6 @@ const COLOURS = {
   snow: 0xc3d0da,
   infield: 0xa9b8c6,
   line: 0xffffff,
-  markMine: 0x2456e8,
   markOld: 0x5a6875,
   /** The salt flat (PR 9v): the pan, its cracks, the graded course and its black line, and the chutes. */
   salt: 0xece8de,
@@ -165,8 +164,11 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
   host.prepend(renderer.domElement)
 
   const scene = new THREE.Scene()
-  scene.background = new THREE.Color(COLOURS.sky)
-  scene.fog = new THREE.Fog(COLOURS.sky, S.fogNear, S.fogFar)
+  // The sky follows the phone's theme (Isobar, PR 13h); the ground and course keep their daylight colours.
+  const sky = new THREE.Color(sceneColours().fieldSky)
+  scene.background = sky
+  const fog = new THREE.Fog(sky.getHex(), S.fogNear, S.fogFar)
+  scene.fog = fog
   scene.add(new THREE.HemisphereLight(0xffffff, 0x8a9480, 2.2))
   const sun = new THREE.DirectionalLight(0xffffff, 1.6)
   sun.position.set(30, 60, 20)
@@ -212,7 +214,13 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
   // On the track, a coloured ring under each rider keeps them easy to find in the wide shot.
   const ringGeo = new THREE.RingGeometry(S.track.marker * 0.75, S.track.marker, 24)
   ringGeo.rotateX(-Math.PI / 2)
-  const ringMine = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: COLOURS.markMine, depthWrite: false }))
+  const ringMine = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: sceneColours().mine, depthWrite: false }))
+  // The phone switched between light and dark: a new sky and your ring's blue, nothing else.
+  const stopTheme = onThemeChange((next) => {
+    sky.setHex(next.fieldSky)
+    fog.color.setHex(next.fieldSky)
+    ;(ringMine.material as THREE.MeshBasicMaterial).color.setHex(next.mine)
+  })
   const ringOld = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: COLOURS.markOld, depthWrite: false }))
   ringMine.renderOrder = ringOld.renderOrder = -1
   ringMine.position.y = ringOld.position.y = 0.01
@@ -699,6 +707,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       renderer.render(scene, camera)
     },
     dispose() {
+      stopTheme()
       watcher.disconnect()
       clearCourse()
       dropFigure(mine)

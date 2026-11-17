@@ -21,14 +21,16 @@ import type { PivGrid } from '../sim/flow/piv'
 import { PIV_PALETTE } from '../data/piv'
 import { cpRgb } from './cpScale'
 import { pivRgb } from './pivScale'
+import { sceneColours, type SceneColours } from './theme'
 import type { Point } from '../sim/geom/pose'
 
+/**
+ * Smoke is white. Its twin and the attached tufts follow the phone's theme
+ * (src/render/theme.ts): a faint ink twin on pale walls, white on dark ones;
+ * tufts in the lab's ink. Flailing tufts are --sep coral; motion tells them apart too.
+ */
 const COLOURS = {
   smoke: 0xffffff,
-  smokeTwin: 0x6b7885,
-  /** Attached tufts: the lab's ink. Flailing ones: the --sep colour. Motion tells them apart too. */
-  tuft: new THREE.Color(0x13202b),
-  tuftSeparated: new THREE.Color(0xd2462b),
 }
 
 export interface Instruments {
@@ -49,6 +51,8 @@ export interface FlowViz {
   setTaps(taps: readonly Tap[], cps: readonly number[]): void
   /** The PIV's side sheet (PR 10ah), coloured by the air's speed; null hides it. */
   setPiv(grid: PivGrid | null): void
+  /** The phone switched between light and dark (Isobar, PR 13h). */
+  setTheme(colours: SceneColours): void
   /** The wand's tip, in the rider's coordinates. */
   setWandTip(p: Point): void
   /** Advance the smoke and tufts; `fan` is the air speed over the fan's top speed. */
@@ -79,7 +83,10 @@ export function createFlowViz(dot: THREE.Texture): FlowViz {
   smokeGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
   const smokeMat = new THREE.PointsMaterial({ color: COLOURS.smoke, map: dot, size: 0.02, transparent: true, opacity: 0.9, depthWrite: false })
   // White smoke on a pale lab gets a faint grey twin so it always reads.
-  const twinMat = new THREE.PointsMaterial({ color: COLOURS.smokeTwin, map: dot, size: 0.03, transparent: true, opacity: 0.4, depthWrite: false })
+  let theme = sceneColours()
+  const tuftInk = new THREE.Color(theme.tuft)
+  const tuftSep = new THREE.Color(theme.sep)
+  const twinMat = new THREE.PointsMaterial({ color: theme.smokeTwin, map: dot, size: 0.03, transparent: true, opacity: 0.4, depthWrite: false })
   const smoke = new THREE.Points(smokeGeo, smokeMat)
   const twin = new THREE.Points(smokeGeo, twinMat)
   twin.renderOrder = -1
@@ -123,7 +130,7 @@ export function createFlowViz(dot: THREE.Texture): FlowViz {
     tuftGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(list.length * 6), 3))
     const colours = new Float32Array(list.length * 6)
     list.forEach((t, i) => {
-      const c = COLOURS.tuft.clone().lerp(COLOURS.tuftSeparated, t.strength)
+      const c = tuftInk.clone().lerp(tuftSep, t.strength)
       for (let k = 0; k < 2; k++) c.toArray(colours, i * 6 + k * 3)
     })
     tuftGeo.setAttribute('color', new THREE.BufferAttribute(colours, 3))
@@ -339,6 +346,13 @@ export function createFlowViz(dot: THREE.Texture): FlowViz {
     },
     setPiv(grid) {
       showPiv(grid)
+    },
+    setTheme(next) {
+      theme = next
+      twinMat.color.setHex(next.smokeTwin)
+      tuftInk.setHex(next.tuft)
+      tuftSep.setHex(next.sep)
+      if (tuftList.length > 0) buildTufts(tuftList)
     },
     setWandTip(p) {
       wandTip = { ...p }

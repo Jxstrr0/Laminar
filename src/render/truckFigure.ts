@@ -2,7 +2,7 @@
  * The truck as a three.js group (PR 9b), drawn from the design at full
  * size: the cab with its corners rounded to the design's nose radius, the
  * box trailer, the wheels and chassis, and the add-on parts in the
- * instruments' cobalt so they read at a glance: the roof fairing, the side
+ * model shop's teal so they read at a glance: the roof fairing, the side
  * extenders, the gap filler, the skirts and the boat-tail's panels.
  *
  * Built nose along +x, wheels on y = 0, +z to the right, centred on the
@@ -10,6 +10,7 @@
  * glows red; a fairing that misses the trailer's roof glows amber.
  */
 import * as THREE from 'three'
+import { MODEL } from './theme'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { RIG, type TruckDesign } from '../data/truck'
 import { doorsAt, truckLength } from '../sim/geom/truck'
@@ -20,12 +21,12 @@ const COLOURS = {
   cab: 0xf2f4f6,
   trailer: 0xe6ebef,
   chassis: 0x3d4f5c,
-  tyre: 0x1d242b,
+  tyre: MODEL.tyre,
   hub: 0x8c97a1,
   glass: 0x2a3a47,
-  part: 0x2456e8,
-  broken: 0xd2462b,
-  strain: 0xe08a00,
+  part: MODEL.panel,
+  broken: MODEL.broken,
+  strain: MODEL.strain,
 }
 
 const mat = (color: number, roughness = 0.6, metalness = 0) => new THREE.MeshStandardMaterial({ color, roughness, metalness })

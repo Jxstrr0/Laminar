@@ -15,15 +15,13 @@ import { SLED_SCENE as S } from '../data/replay'
 import { bobsledPose } from '../sim/geom/bobsledPose'
 import { pointAt, type SledFrame, type TrackLine } from '../sim/sledReplay'
 import { buildRider, disposeGroup } from './riderFigure'
+import { sceneColours } from './theme'
 
 const COLOURS = {
-  sky: 0xdfe8ef,
   snow: 0xf4f7fa,
   ice: 0xdde9f2,
   lip: 0x93a3b1,
   tree: 0x3d4f5c,
-  /** The finish line in the instruments' cobalt. */
-  finish: 0x2456e8,
   ghost: 0x5a6875,
 }
 
@@ -69,8 +67,10 @@ export function createSledView(host: HTMLElement): SledView {
   host.prepend(renderer.domElement)
 
   const scene = new THREE.Scene()
-  scene.background = new THREE.Color(COLOURS.sky)
-  scene.fog = new THREE.Fog(COLOURS.sky, 40, 260)
+  // The sky follows the phone's theme (Isobar, PR 13h); the track keeps its daylight colours.
+  const theme = sceneColours()
+  scene.background = new THREE.Color(theme.fieldSky)
+  scene.fog = new THREE.Fog(theme.fieldSky, 40, 260)
   scene.add(new THREE.HemisphereLight(0xffffff, 0x8a96a3, 2.2))
   const sun = new THREE.DirectionalLight(0xffffff, 1.4)
   sun.position.set(-40, 80, 30)
@@ -142,7 +142,7 @@ export function createSledView(host: HTMLElement): SledView {
       for (let k = 0; k <= steps; k++) row.push(wallPoint(at, right, -wall + (2 * wall * k) / steps).addScaledVector(UP, 0.02))
       finishRows.push(row)
     }
-    trackGroup.add(strip(finishRows, new THREE.MeshLambertMaterial({ color: COLOURS.finish, side: THREE.DoubleSide })))
+    trackGroup.add(strip(finishRows, new THREE.MeshLambertMaterial({ color: theme.mine, side: THREE.DoubleSide })))
     // Fir trees out beyond the banks, alternating sides.
     const treeGeo = new THREE.ConeGeometry(1.6, 6, 7)
     treeGeo.translate(0, 3, 0)
