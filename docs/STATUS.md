@@ -169,6 +169,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 13ad | Phone pass on a fresh career's screens (board, bid, Shape, Tunnel) and on the end of a job at each venue (Deliver, replay, debrief), light and dark, at 360 px. Fixes: the small grey line under a reading ("±0.039 · wind-averaged CdA", "Full size · 1:2 · uncorrected") was cut off with "…" and now wraps; your own tunnel's power cost keeps "no run fee" on one line. | **Done** (v0.15.19.2) |
 | 13ae | The coloured stripe down the left edge of six boxes (race-day trouble, going broke, a new record, your row on the records board, the challenge card and result, the backup reminder) becomes a thin border all the way round with a faint tint, like the "Promise kept" box: the Isobar look has no left-stripe cards. The "Challenge a friend" box on the debrief was red like trouble; it's teal now. | **Done** (v0.15.19.3) |
 | 13af | The money chip (top right) writes millions as "₽12.3M" rather than "₽12,345k", and the Tunnel title reads "Tunnel · university" or "Tunnel · your own" (was "University tunnel · test section"), like "Jobs · Stavren" and "Shape · …". With a rich (or deep in debt) firm the title card was squeezed to three lines on a 360 px phone; it's two at most now. | **Done** (v0.15.19.4) |
+| 13ag | Two new commentator lines, so the finish fits what the job is judged on. Riders and skaters (judged on drag): "Across the line! Now, what did the drag really do?" Trucks (judged on fuel): "That's the run done. Let's see what it burned." Cars, sleds, drones and record cars, judged on time or speed, keep "Across the line! Let's see the time." Recorded on ElevenLabs with the same commentator voice (Kelbo approved the quote: 199 credits, about CA$0.05), take 2 of each, levelled to -20 LUFS like the rest. | **Done** (v0.15.20.0) |
 | Next | | Kelbo's call: every venue now has its Blender kit. |
 
 ## Versions
@@ -192,6 +193,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 - **0.15.0.0** (PR 14a): the game works offline, and asks before updating.
 - **0.15.1.0** (PR 14b): the voices: tunnel techs, analysts, clients and the commentator.
 - **0.15.2.0** (PR 14c): the balance bot, for checking the economy (nothing changes in play).
+- **0.15.20.0** (PR 13ag): two new commentator finish lines, for drag-judged jobs (riders, skaters) and fuel-judged ones (trucks).
 - **0.15.19.4** (PR 13af): the money chip shows millions as ₽…M; the Tunnel title is "Tunnel · university" / "Tunnel · your own", so the title card stays at two lines.
 - **0.15.19.3** (PR 13ae): left-stripe boxes get a full thin border and tint; the challenge box is teal, not red.
 - **0.15.19.2** (PR 13ad): phone pass: the small line under a reading wraps instead of being cut off; "no run fee" stays on one line.

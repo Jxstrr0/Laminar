@@ -3,7 +3,8 @@
 Status: **in the game (PR 14b, v0.15.1.0).** Kelbo approved the quote on 17 November 2026; 4,972 credits were used (2 takes of each line). Kelbo picked **take 2 of every line**. Each one is in `public/voice/` under its `file_name`, and the script sheet's `generation_id` names it.
 
 - **Fixes (PR 13ab, v0.15.19.0):** four lines said "road" but play at every venue, so they were re-recorded with new words on the flow "LAM — Laminar voice fixes v2 (road lines)": LAM-ZHELIN-0006, LAM-ZHELIN-0007, LAM-SOROKOVA-0006 and LAM-CLIENT-0003. Kelbo approved the quote (398 credits, about CA$0.10; 2 takes each) and left the pick to Claude: take 2 of each. Their files end `_t4` (takes 3 and 4 of the line), which also makes phones that cached the old lines offline fetch the new ones.
-- Script sheet: `lam-voice-pack-v1.csv` (60 lines, game code `LAM`). Line IDs never change once shipped.
+- **New lines (PR 13ag, v0.15.20.0):** the commentator said "Let's see the time" at the end of every race, though riders' and skaters' jobs are judged on drag and trucks' on fuel. Two lines were added on the flow "LAM — Laminar voice fixes v3 (finish lines)": LAM-COMM-0017 ("Across the line! Now, what did the drag really do?") for riders and skaters, and LAM-COMM-0018 ("That's the run done. Let's see what it burned.") for trucks. Kelbo approved the quote (199 credits, about CA$0.05; 2 takes each; 200 used). Take 2 of each, levelled to -20 LUFS. Cars, sleds, drones and record cars keep LAM-COMM-0006.
+- Script sheet: `lam-voice-pack-v1.csv` (62 lines, game code `LAM`). Line IDs never change once shipped.
 - Flow on ElevenLabs: "LAM — Laminar voice pack v1" (one node per line, labelled with its line ID).
 - Quote (17 November 2026): 4,973 credits for 60 lines × 2 takes on `eleven_v4`,
   about US$0.87 of the Creator plan's monthly credits. One take each is about half.
