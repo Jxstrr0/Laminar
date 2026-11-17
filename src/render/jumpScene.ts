@@ -3,9 +3,13 @@
  * the landing slope with the K line and the hill-size line across it, fir
  * trees down the far side, your jumper and the old setup as a see-through twin
  * beside it. Every position comes from src/sim/jumpReplay.ts; this file only
- * draws them.
+ * draws them. The hill's buildings (the in-run deck, the start house, the
+ * judges' tower and the rest) are a Blender model (PR 13l,
+ * art/skijump/build.py), placed here on whichever hill is in use; the slope
+ * itself stays in code, because the sim shapes it.
  */
 import * as THREE from 'three'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { FLIGHT_ATTITUDE } from '../data/jumper'
 import type { Hill } from '../data/hills'
 import { JUMP_SCENE as S } from '../data/replay'
@@ -74,6 +78,72 @@ export function createJumpView(host: HTMLElement): JumpView {
     return m
   }
 
+  // The hill's buildings (PR 13l): loaded with the view, then placed on each hill. Until they load,
+  // or if they can't (offline on an old cache), the hill is bare snow and the jump plays the same.
+  const buildings = new THREE.Group()
+  scene.add(buildings)
+  let kit: THREE.Object3D | null = null
+  let shownHill: Hill | null = null
+  let disposed = false
+  new GLTFLoader().load(
+    `${import.meta.env.BASE_URL}models/skijump.glb`,
+    (gltf) => {
+      if (disposed) return dropModel(gltf.scene)
+      kit = gltf.scene
+      placeBuildings()
+    },
+    undefined,
+    () => undefined,
+  )
+  function dropModel(root: THREE.Object3D) {
+    root.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return
+      o.geometry.dispose()
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) (m as THREE.Material).dispose()
+    })
+  }
+
+  /** A copy of one of the model's pieces (sharing its mesh), at (x, y, z), turned `tilt` radians about z. */
+  function put(name: string, x: number, y: number, z: number, tilt = 0): THREE.Object3D | null {
+    const piece = kit?.getObjectByName(name)?.clone()
+    if (!piece) return null
+    piece.position.set(x, y, z)
+    piece.rotation.set(0, 0, tilt)
+    buildings.add(piece)
+    return piece
+  }
+
+  /** Stand the buildings on the hill in use: the deck down the in-run and table, the start house at the top, the rest beside the slope's far edge. */
+  function placeBuildings() {
+    buildings.clear()
+    if (!kit || !surface || !shownHill) return
+    const surf = surface
+    const hill = shownHill
+    const B = S.buildings
+    const half = S.width / 2
+    const td = hill.tableDeg * DEG
+    const id = S.inrun.deg * DEG
+    // The deck runs back along −x from its origin: turned down by the slope's angle, it climbs up the in-run.
+    put('Table', 0, 0, 0, -td)
+    const topX = -S.table * Math.cos(td)
+    const topY = S.table * Math.sin(td)
+    put('Inrun', topX, topY, 0, -id)
+    put('StartHouse', topX - S.inrun.length * Math.cos(id), topY + S.inrun.length * Math.sin(id), 0)
+    const end = (surf.y.length - 1) * surf.step
+    const beside = (name: string, x: number, out: number) => put(name, x, groundAt(surf, x).y, -(half + out))
+    beside('JudgesTower', xAtAlong(surf, hill.k - B.judges.beforeK), B.judges.out)
+    beside('CoachStand', xAtAlong(surf, B.coach.along), B.coach.out)
+    for (let s = B.masts.from; s < hill.hs + 30; s += B.masts.every) beside('LightMast', xAtAlong(surf, s), B.masts.out)
+    beside('Grandstand', end - B.stand.fromEnd, B.stand.out)
+    // The fence: one panel per length of slope, each laid along the snow under it.
+    for (let x = 0; x + B.panel <= end; x += B.panel) {
+      const a = groundAt(surf, x).y
+      const b = groundAt(surf, x + B.panel).y
+      const panel = put('FencePanel', x, a, -(half + B.fenceOut), Math.atan2(b - a, B.panel))
+      if (panel) panel.scale.x = Math.hypot(B.panel, b - a) / B.panel
+    }
+  }
+
   function setHill(hill: Hill) {
     for (const child of [...hillGroup.children]) {
       hillGroup.remove(child)
@@ -81,6 +151,7 @@ export function createJumpView(host: HTMLElement): JumpView {
     }
     const surf = hillSurface(hill)
     surface = surf
+    shownHill = hill
     const end = (surf.y.length - 1) * surf.step
     const low = Math.min(...surf.y) - S.base
     // The side profile: in-run down to the table's edge, the drop under it, the landing slope and outrun, then down to the base.
@@ -121,6 +192,7 @@ export function createJumpView(host: HTMLElement): JumpView {
       tree.position.set(x, groundAt(surf, x).y - 0.5, -(half + S.treeOut))
       hillGroup.add(tree)
     }
+    placeBuildings()
   }
 
   /**
@@ -240,6 +312,9 @@ export function createJumpView(host: HTMLElement): JumpView {
       renderer.render(scene, camera)
     },
     dispose() {
+      disposed = true
+      buildings.clear()
+      if (kit) dropModel(kit)
       watcher.disconnect()
       drop(mine)
       drop(old)

@@ -148,7 +148,8 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 14c | The balance bot: `npm run balance` plays whole careers headless (a careful player whose tunnel tells the truth: it shapes each client's setup on practice days, bids its worst day less a margin, pays for a model and runs, builds its own tunnel, applies for clearance) and prints every brief's reachable cut against the ask, cash and reputation by year, each sport's share and pay, and flags. Nothing in the game changes. First findings in `docs/BALANCE.md` | **Done** (v0.15.2.0) |
 | 14d | Balance, Kelbo's picks from the bot's report: reputation gains and losses about a sixth of what they were (top clients in about three years, not one), bolder rivals (Bystro promises the ask plus 3 to 8), pod and jet fees 20% lower, the small brief ₽25k more. An illegal cyclist or bobsled can no longer be delivered: the Deliver sheet says so and Shape lists what to change. The bot shapes for its worst day, ranks jobs by profit and scouts wider | **Done** (v0.15.3.0) |
 | 13k | The velodrome is a Blender model (`art/velodrome/build.py`): pine boards in two tones with the black, red and blue lines, banking that rises outside the riders to 3.4 m at the middle of each bend, the pale blue band and the apron, a barrier and rail, sixteen rows of stands all round, the infield's warm-up lane, six team pens, the officials' desk, a podium and a photo-finish mast on the line. It is built on the replay's own lap, so the riders stay on the boards (a test checks it against `TRACK`); the code-drawn boards stay as the fallback, and the 400 m ice oval keeps them | **Done** (v0.15.4.0) |
-| Next | | More Blender venues (ski-jump hill, circuit, salt flat, airfield, bobsled run), Blender body parts, then the sound-effects pack. |
+| 13l | The ski-jump hill's buildings are a Blender model (`art/skijump/build.py`): a deck down the in-run and table with an ice track for each lane, side walls and the red lip, the start house with its bar, the judges' tower, the coaches' stand, floodlight masts, a grandstand at the outrun and the fence along the slope's far edge. The slope stays in code (the sim shapes it per hill); the jump scene places each piece on whichever hill is in use, and the hill is bare snow until they load | **Done** (v0.15.5.0) |
+| Next | | More Blender venues (circuit, salt flat, airfield, bobsled run), Blender body parts, then the sound-effects pack. |
 
 ## Versions
 
@@ -171,6 +172,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 - **0.15.0.0** (PR 14a): the game works offline, and asks before updating.
 - **0.15.1.0** (PR 14b): the voices: tunnel techs, analysts, clients and the commentator.
 - **0.15.2.0** (PR 14c): the balance bot, for checking the economy (nothing changes in play).
+- **0.15.5.0** (PR 13l): the ski-jump hill gets its buildings.
 - **0.15.4.0** (PR 13k): the velodrome is a Blender model.
 - **0.15.3.0** (PR 14d): balance from the bot's report, and illegal designs can't race.
 - **0.14.0.0** (PR 13a): lab sounds made in code, with a mute button.
