@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { BRIEFS } from '../src/data/briefs'
 import { DEFAULT_CYCLIST } from '../src/data/cyclist'
 import { botBid, deliverAny, knobsOf, legal, modelQuote, playCareer, practise, runsCost, shapeFor, type ShapeCache } from '../src/sim/bot'
-import { newCareer, type CareerState } from '../src/sim/career'
+import { deliver, deliverSled, newCareer, ruleBreaksFor, type CareerState } from '../src/sim/career'
+import type { BobsledDesign } from '../src/data/bobsled'
 import { sportOf, SPORTS } from '../src/sim/design'
 
 /** A career with this brief's job in hand at the client's ask. */
@@ -85,5 +86,32 @@ describe('the balance bot', () => {
     expect(a.bidsWon).toBe(a.jobs.length)
     expect(a.final.day).toBeGreaterThan(0)
     for (const j of a.jobs) expect(j.spent).toBeGreaterThan(0)
+  })
+})
+
+describe('the rule box at delivery (PR 14d)', () => {
+  it('won’t deliver a cyclist outside the rules, and says how many it breaks', () => {
+    const state = onJob('selivan-regional')
+    const illegal = { ...DEFAULT_CYCLIST, wheels: { front: 'disc' as const, rear: 'disc' as const }, posture: { ...DEFAULT_CYCLIST.posture, handReach: 0.9 } }
+    expect(ruleBreaksFor('selivan-regional', illegal)).toBe(2)
+    expect(deliver(state, illegal, 0.25)).toBeNull()
+    expect(deliver(state, DEFAULT_CYCLIST, 0.25)).not.toBeNull()
+    // Gornova's book allows a disc front wheel.
+    expect(ruleBreaksFor('kostka-altitude', { ...DEFAULT_CYCLIST, wheels: { front: 'disc', rear: 'disc' } })).toBe(0)
+  })
+
+  it('won’t deliver a sled longer or higher than the sliding rules allow', () => {
+    const state = onJob('kedrova-two')
+    const setup = BRIEFS.find((b) => b.id === 'kedrova-two')!.setup as BobsledDesign
+    const tall = { ...setup, sled: { ...setup.sled, cowl: 0.66 } }
+    expect(ruleBreaksFor('kedrova-two', tall)).toBeGreaterThan(0)
+    expect(deliverSled(state, tall, 50)).toBeNull()
+    expect(deliverSled(state, setup, 50)).not.toBeNull()
+  })
+
+  it('leaves sports with no rule box alone', () => {
+    for (const id of ['lenok-oval', 'zorin-junior', 'kovyl-haulage', 'belan-sport']) {
+      expect(ruleBreaksFor(id, BRIEFS.find((b) => b.id === id)!.setup)).toBe(0)
+    }
   })
 })

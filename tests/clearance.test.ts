@@ -22,7 +22,7 @@ const job = (off: number, secret = false): JobRecord => ({
 
 /** A well-known firm with close reads and money to spare. */
 function known(): CareerState {
-  return { ...newCareer(4), day: 300, money: 1_000_000, history: Array.from({ length: 12 }, () => job(0.005)) }
+  return { ...newCareer(4), day: 300, money: 1_000_000, history: Array.from({ length: 40 }, () => job(0.005)) }
 }
 
 describe('defence clearance when closed', () => {
@@ -49,7 +49,7 @@ describe('defence clearance (PR 10x)', () => {
     expect(clearanceBlock(s)).toBeNull()
     expect(clearanceBlock({ ...s, money: CLEARANCE.fee - 1 })).toBe('money')
     // Loose reads keep the correlation score down even with the name to apply.
-    const loose = { ...s, history: [...s.history.slice(0, 7), ...Array.from({ length: 5 }, () => job(0.05))] }
+    const loose = { ...s, history: [...s.history.slice(0, 35), ...Array.from({ length: 5 }, () => job(0.05))] }
     expect(reputationOf(loose.history)).toBeGreaterThanOrEqual(CLEARANCE.minReputation)
     expect(clearanceBlock(loose)).toBe('correlation')
   })

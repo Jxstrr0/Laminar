@@ -11,8 +11,12 @@ export const BOT = {
    * work would. More is steadier and slower.
    */
   practiceDays: 3,
-  /** Designs tried with about half the knobs set at random, before the nudging (gates like a stall check need two parts changed at once). */
-  scouts: 40,
+  /**
+   * Designs tried at random before the nudging: half with about half the
+   * knobs moved (gates like a stall check need two parts changed at once),
+   * half with every knob moved (to look past a cliff like the sound barrier).
+   */
+  scouts: 60,
   /** Rounds of nudging every slider; each round halves the nudge. */
   shapeRounds: 4,
   /** The first nudge, as a share of a slider's range. */

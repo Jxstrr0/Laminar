@@ -146,7 +146,8 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 14a | Offline play: a service worker keeps every built file in a `laminar-` cache named after a hash of the build, so the game opens with no signal; voice lines are cached on first play (`laminar-voice-1`). A new version waits for the player: a bar above the dock says it's ready, and Reload saves the career, then swaps. It only ever deletes `laminar-` caches. `?nosw` removes the worker and its caches. The Credits sheet says whether this copy works offline | **Done** (v0.15.0.0) |
 | 14b | The voices: Kelbo's picks (take 2 of all 60 lines) in `public/voice/`, played one at a time through the game's sound with a caption. The tech (Basov or Krasna) calls the fan, the sweeps, the tare, the sphere, strain, flutter, breaks and smoke; the analyst (Zhelin or Sorokova) weighs compared runs, early separation on the tufts, the promise and the road's read; each is heard only once hired. The client speaks as a job starts, on the day and at the debrief; the commentator over every replay. Files load on first play, never in the first load; mute silences them | **Done** (v0.15.1.0) |
 | 14c | The balance bot: `npm run balance` plays whole careers headless (a careful player whose tunnel tells the truth: it shapes each client's setup on practice days, bids its worst day less a margin, pays for a model and runs, builds its own tunnel, applies for clearance) and prints every brief's reachable cut against the ask, cash and reputation by year, each sport's share and pay, and flags. Nothing in the game changes. First findings in `docs/BALANCE.md` | **Done** (v0.15.2.0) |
-| Next | | Kelbo picks which balance changes to make (`docs/BALANCE.md`), then more Blender models and the sound-effects pack. |
+| 14d | Balance, Kelbo's picks from the bot's report: reputation gains and losses about a sixth of what they were (top clients in about three years, not one), bolder rivals (Bystro promises the ask plus 3 to 8), pod and jet fees 20% lower, the small brief ₽25k more. An illegal cyclist or bobsled can no longer be delivered: the Deliver sheet says so and Shape lists what to change. The bot shapes for its worst day, ranks jobs by profit and scouts wider | **Done** (v0.15.3.0) |
+| Next | | More Blender models, then the sound-effects pack. |
 
 ## Versions
 
@@ -169,6 +170,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 - **0.15.0.0** (PR 14a): the game works offline, and asks before updating.
 - **0.15.1.0** (PR 14b): the voices: tunnel techs, analysts, clients and the commentator.
 - **0.15.2.0** (PR 14c): the balance bot, for checking the economy (nothing changes in play).
+- **0.15.3.0** (PR 14d): balance from the bot's report, and illegal designs can't race.
 - **0.14.0.0** (PR 13a): lab sounds made in code, with a mute button.
 - **0.13.2.0** (PR 12c): the CFD panel in the tunnel: run it, read its drag and see the flow.
 - **0.13.1.0** (PR 12b): the CFD Cluster upgrade, and the model as cells for its grid.
