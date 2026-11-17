@@ -486,7 +486,7 @@ export const STRINGS = {
   'up.title': 'Upgrades',
   'up.intro': 'Paid in cash and fitted over some days while you keep working. Each one takes effect the day it’s done.',
   'up.screens': 'Turbulence screens',
-  'up.screensWhat': 'Fine mesh screens calm the air: transition comes on later, closer to the road.',
+  'up.screensWhat': 'Fine mesh screens calm the air: transition comes on later, closer to the open air.',
   'up.turntable': 'Bigger turntable',
   'up.turntableWhat': 'Yaw sweeps out to ±{deg}°, for the gustiest courses.',
   'up.wheelDrive': 'Wheel-drive rig',
@@ -681,7 +681,7 @@ export const STRINGS = {
   'race.faster': '{time} faster',
   'race.slower': '{time} slower',
   'race.predicted': 'You predicted',
-  'race.actual': 'Road CdA',
+  'race.actual': 'CdA on the day',
   'race.read': 'Your read',
   'race.read.good': '{pct} % {dir} · good',
   'race.read.fair': '{pct} % {dir} · fair',
@@ -751,7 +751,7 @@ export const STRINGS = {
   'jr.gap.short': '{m} m short of the old setup',
   'jr.gap.level': 'level with the old setup',
   'jr.predicted': 'You predicted {pred} m on the reference jump. It counted {real} m.',
-  'race.readNote': 'Road CdA is your design’s wind-averaged CdA in race day’s air and wind strength, averaged over every wind direction, so one gusty corner doesn’t decide it. Close reads build the firm’s name.',
+  'race.readNote': 'CdA on the day is your design’s wind-averaged CdA in race day’s air and wind strength, averaged over every wind direction, so one gusty corner doesn’t decide it. Close reads build the firm’s name.',
   // Ski-jump jobs on the board (PR 8i): the promise is metres on the reference jump.
   'board.promiseJump': '+{m} m',
   'board.hill': 'Hill',
@@ -1961,7 +1961,10 @@ export type StringKey = keyof typeof STRINGS
 
 /** Look up a string and fill any {slots}. */
 export function t(key: StringKey, slots: Record<string, string | number> = {}): string {
-  return STRINGS[key].replace(/\{(\w+)\}/g, (whole, name: string) =>
-    name in slots ? String(slots[name]) : whole,
-  )
+  return STRINGS[key]
+    .replace(/\{(\w+)\}/g, (whole, name: string) => (name in slots ? String(slots[name]) : whole))
+    // Keep "60 %" and "₽ 600" on one line: a narrow phone would otherwise
+    // wrap the % or the ₽ away from its number.
+    .replace(/(\d) %/g, '$1 %')
+    .replace(/₽ (?=[\d−-])/g, '₽ ')
 }
