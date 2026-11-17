@@ -148,8 +148,9 @@ html, body {
   position: absolute;
   top: calc(10px + var(--safe-t));
   left: calc(16px + var(--safe-l));
-  /* Leave room for the money chip and Saves on the right. */
-  right: calc(176px + var(--safe-r));
+  /* Leave room for the money chip and Saves on the right: main.ts measures
+     them into --chips-w, since the money chip grows with a job's days left. */
+  right: calc(var(--chips-w, 160px) + 24px + var(--safe-r));
   pointer-events: none;
 }
 .title-block {
@@ -1020,6 +1021,10 @@ input[type='range']:disabled { opacity: 0.45; cursor: default; }
   box-shadow: var(--shadow-card);
   font-weight: 600;
 }
+/* Narrow phones: slimmer chips leave the title card room beside them. */
+@media (max-width: 400px) {
+  .top-chips .chip { padding: 0 11px; }
+}
 .job-chip { font-family: var(--font-num); font-weight: 500; }
 .sound-chip { display: inline-grid; place-items: center; min-width: 32px; padding: 0 7px; }
 .sound-chip.off { color: var(--muted); }
@@ -1490,3 +1495,6 @@ body[data-guide='deliver'] .guide-deliver {
 .voice-caption[hidden] { display: none; }
 /* In a replay the panel fills the foot, so the caption sits under the title. */
 .replay .voice-caption { top: calc(64px + var(--safe-t)); bottom: auto; }
+/* With a sheet open (a bid, Deliver, the debrief), its buttons and inputs fill
+   the foot, so the caption moves up over the dimmed screen instead. */
+body:has(.gloss.is-open) .voice-caption { top: calc(64px + var(--safe-t)); bottom: auto; }
