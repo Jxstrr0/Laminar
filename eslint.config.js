@@ -35,7 +35,7 @@ export default tseslint.config(
           patterns: [
             { group: ['three', 'three/*'], message: 'The sim must not import three.' },
             {
-              group: ['**/render/**', '**/ui/**', '**/audio/**', '**/persist/**'],
+              group: ['**/render/**', '**/ui/**', '**/audio/**', '**/persist/**', '**/cfd/**'],
               message: 'The sim must stay pure.',
             },
           ],
@@ -59,6 +59,21 @@ export default tseslint.config(
           patterns: [
             { group: ['three', 'three/*'], message: 'Saves must not import three.' },
             { group: ['**/render/**', '**/ui/**', '**/audio/**'], message: 'Saves hold state, not screens.' },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // The CFD Cluster (PR 12) is an instrument: it reads designs and its own numbers, never the screens, saves or 3D.
+    files: ['src/cfd/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            { group: ['three', 'three/*'], message: 'The solver must not import three.' },
+            { group: ['**/render/**', '**/ui/**', '**/audio/**', '**/persist/**'], message: 'The solver is an instrument, not a screen or a save.' },
           ],
         },
       ],
