@@ -208,7 +208,8 @@ export const COMM_LINES: Record<string, string> = {
   'plane:launch': 'LAM-COMM-0001',
   'plane:gust': 'LAM-COMM-0002',
   'record:start': 'LAM-COMM-0001',
-  'record:timed': 'LAM-COMM-0006',
+  // "Across the line! Let's see the time.": as the car leaves the timed kilometre, where its time is taken (PR 13u; it was said on the way in).
+  'record:through': 'LAM-COMM-0006',
 }
 /** "What a run!", in place of the plain finish line when the new design won big. */
 export const COMM_BIG_WIN = 'LAM-COMM-0016'
@@ -222,6 +223,17 @@ export const VOICE = {
   stale: 4,
   /** Lines that may wait in the queue behind the one playing. */
   queue: 2,
+  /**
+   * The commentator over a replay (PR 13u): his line is tied to a moment on
+   * screen, so it goes first. It waits only for another of his calls with
+   * this long or less to run, s; anything else speaking fades out over
+   * `cutFade` s to let him in. A call that can't start within `commStale` s
+   * of its moment is dropped, and the gap before it is `commGap` s.
+   */
+  commWait: 0.8,
+  cutFade: 0.15,
+  commStale: 1.5,
+  commGap: 0.1,
   /** The same cue again within this long is skipped, s (no "Smoke's on" on every tap). */
   repeat: 20,
   /** A finish counts as a big win when the new design gains this share of the old time or more. */

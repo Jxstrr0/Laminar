@@ -15,7 +15,7 @@
 const CACHE = self.__LAMINAR_CACHE__
 const FILES = self.__LAMINAR_FILES__
 const PREFIX = 'laminar-'
-const VOICE = 'laminar-voice-1' // keep in step with VOICE_CACHE in src/pwa/precache.ts
+const VOICE = 'laminar-voice-2' // keep in step with VOICE_CACHE in src/pwa/precache.ts (2: the voice lines levelled, PR 13u)
 // Match by address only. Servers add `Vary: Origin`, and the page's module
 // scripts send an Origin header the install fetch didn't, so a strict match
 // would miss every script and the game wouldn't open offline.

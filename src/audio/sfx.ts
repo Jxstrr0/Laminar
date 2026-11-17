@@ -6,6 +6,7 @@
  */
 import { SFX, SFX_TUNING, replaySfxFor, type SfxName } from '../data/sfx'
 import { audioOut, isMuted } from './engine'
+import { onReplay, replayOpen } from './replayWatch'
 
 const buffers = new Map<SfxName, AudioBuffer>()
 const loading = new Map<SfxName, Promise<AudioBuffer | null>>()
@@ -106,27 +107,15 @@ export function setTunnelAir(speed: number, topSpeed: number): void {
 }
 
 // --- The replays: an effect at each note that has one. A loop (the sled's
-// runners) stops at the finish or when the replay closes; the one-shots are
-// short and play out, so the cheer isn't cut off by "See the debrief".
+// runners) stops at the finish or the moment the replay closes; the one-shots
+// are short and play out, so the cheer isn't cut off by "See the debrief".
 
-const replayOpen = () => document.querySelector('.replay') !== null
 const loops = new Set<Playing>()
 let watching = false
 
 function stopLoops(): void {
   for (const p of loops) fadeOut(p)
   loops.clear()
-}
-
-function watchReplay(): void {
-  if (watching) return
-  watching = true
-  const timer = window.setInterval(() => {
-    if (replayOpen() && loops.size > 0) return
-    window.clearInterval(timer)
-    watching = false
-    stopLoops()
-  }, SFX_TUNING.watchMs)
 }
 
 /** The effect for a replay's note, if it has one. */
@@ -137,22 +126,31 @@ export function replaySfx(replay: string, kind: string): void {
   const p = start(name)
   if (!p || !p.src.loop) return
   loops.add(p)
-  watchReplay()
+  if (!watching) {
+    watching = true
+    onReplay((open) => {
+      if (!open) stopLoops()
+    })
+  }
 }
 
 /**
- * Play an effect once the event's replay has been and gone (the fee landing
- * as the debrief opens). The replay opens a moment after the delivery, so
- * this waits for it to open first, or plays after `replayWaitMs` if none does.
+ * Play an effect the moment the event's replay closes (the fee landing as the
+ * debrief opens). The replay opens just after the delivery, so if none is
+ * open yet this waits for one, and plays anyway after `replayWaitMs` if none
+ * comes.
  */
 export function playAfterReplay(name: SfxName): void {
-  let seen = false
-  let waited = 0
-  const timer = window.setInterval(() => {
-    waited += SFX_TUNING.watchMs
-    if (replayOpen()) return void (seen = true)
-    if (!seen && waited < SFX_TUNING.replayWaitMs) return
-    window.clearInterval(timer)
+  let seen = replayOpen()
+  const fallback = window.setTimeout(() => {
+    if (seen) return
+    off()
     playSfx(name)
-  }, SFX_TUNING.watchMs)
+  }, SFX_TUNING.replayWaitMs)
+  const off = onReplay((open) => {
+    if (open) return void (seen = true)
+    window.clearTimeout(fallback)
+    off()
+    playSfx(name)
+  })
 }

@@ -212,11 +212,11 @@ export async function playRecordReplay(input: RecordReplayInput): Promise<void> 
     let idx = -1
     for (let i = 0; i < r.notes.length; i++) if (r.notes[i]!.t <= at) idx = i
     if (idx !== shown && idx >= 0) {
+      // Each moment passed since the last frame gets its sound and call, in order (PR 13u; see replayOverlay).
+      for (let k = Math.max(shown + 1, idx - 1); k <= idx; k++) commentate('record', r.notes[k]!.kind, { jet })
       shown = idx
       const note = r.notes[idx]!
       said.textContent = noteText(note)
-      // The commentator says it too (PR 14b).
-      commentate('record', note.kind, { jet })
       // The boom: a white flash over the salt, unless motion is turned down (the line says it anyway).
       if (note.kind === 'barrier' && !reduce && dt < 1) {
         root.classList.remove('is-boom')

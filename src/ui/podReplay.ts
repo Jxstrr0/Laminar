@@ -209,10 +209,11 @@ export function playPodReplay(input: PodReplayInput): void {
     let idx = -1
     for (let i = 0; i < notes.length; i++) if (notes[i]!.t <= time) idx = i
     if (idx !== shown && idx >= 0) {
+      // Each moment passed since the last frame gets its sound and the commentator's call, in order, so two
+      // landing in one frame both play (PR 13u); at most the last two, so a long pause doesn't fire a pile at once.
+      for (let k = Math.max(shown + 1, idx - 1); k <= idx; k++) commentate('pod', notes[k]!.kind)
       shown = idx
       said.textContent = noteText(notes[idx]!, input)
-      // The commentator says it too (PR 14b).
-      commentate('pod', notes[idx]!.kind)
     }
   }
 

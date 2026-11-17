@@ -55,10 +55,12 @@ export function lineForCue(cue: VoiceCue, cast: VoiceCast): string | null {
 
 /**
  * The commentator's line for a replay note, or null for notes he lets pass.
- * `ahead` splits a halfway note; `gain` (the new design's time saved, as a
+ * `ahead` splits a halfway note (`level` lets it pass); `gain` (the new design's time saved, as a
  * share of the old time) turns a plain finish into "What a run!".
  */
-export function commLineFor(replay: ReplayKind, kind: string, extra: { ahead?: boolean; gain?: number } = {}): string | null {
+export function commLineFor(replay: ReplayKind, kind: string, extra: { ahead?: boolean; level?: boolean; gain?: number } = {}): string | null {
+  // Dead level at halfway: he has no line for that, and "behind" would contradict the screen.
+  if (kind === 'half' && extra.level) return null
   const key = kind === 'half' ? (extra.ahead ? 'halfAhead' : 'halfBehind') : kind
   const line = COMM_LINES[`${replay}:${key}`] ?? null
   if (line && key === 'finish' && (extra.gain ?? 0) >= VOICE.bigWin) return COMM_BIG_WIN
@@ -70,3 +72,15 @@ export const boldPromise = (promise: number, asked: number) => promise > asked +
 
 /** Did the road agree with the tunnel: a read off by VOICE.agreeWithin or less? */
 export const roadAgreed = (readError: number) => Math.abs(readError) <= VOICE.agreeWithin
+
+/**
+ * A commentator's line is due (PR 13u): what happens to whoever is speaking?
+ * A moment's call can't wait, so it plays now if nobody is talking, waits only
+ * for another call that is about to finish, and otherwise cuts in: the line
+ * playing fades out quickly. `left` is the playing line's time still to run, s.
+ */
+export function commTakeover(playing: { comm: boolean; left: number } | null, wait: number): 'now' | 'after' | 'cut' {
+  if (!playing) return 'now'
+  return playing.comm && playing.left <= wait ? 'after' : 'cut'
+}
+

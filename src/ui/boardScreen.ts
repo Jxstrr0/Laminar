@@ -31,6 +31,7 @@ import { recordForecast } from './recordForecast'
 import { CAR_CLASS, type CarDesign } from '../data/car'
 import { checkCarRules, lapTime, scrutineered } from '../sim/car'
 import { playCarReplay } from './carReplay'
+import { preloadCommentary, say } from '../audio/voice'
 import { playRecordReplay } from './recordReplay'
 import { playDroneReplay } from './droneReplay'
 import { playAircraftReplay } from './aircraftReplay'
@@ -275,6 +276,10 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       deliverSheet.open()
       return
     }
+    // The client's "data's in" line plays here, while the prediction is weighed, rather than over
+    // the replay's first moments; and the commentator's lines are fetched now so his first call is on time (PR 13u).
+    say('eventDay')
+    preloadCommentary()
     // A ski-jump job declares a distance instead (winning one puts a jumper on the bench).
     if (isJumpBrief(job.brief.id)) {
       if (isJumper(bench)) openDeliverJump(bench)

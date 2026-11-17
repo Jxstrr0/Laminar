@@ -31,3 +31,24 @@ export const AUDIO = {
   /** A model part letting go: a sharp crack. */
   snap: { gain: 0.3, cutoff: 2400, decay: 0.12 },
 } as const
+
+/**
+ * The mix (PR 13u): how the game's four kinds of sound sit together. Voice
+ * lines are levelled to about -20 LUFS, the effects to about -18 and the
+ * music to about -18, before the gains in their own tables; these numbers
+ * then make room for whoever is speaking.
+ */
+export const MIX = {
+  /** While a voice line plays, the music drops to this share of its level, and the effects (code-made ones too) to this. */
+  duck: { music: 0.45, sfx: 0.7 },
+  /** How fast the duck comes in as a line starts, and goes out after it ends (time constants, s). */
+  duckAttack: 0.05,
+  duckRelease: 0.3,
+  /**
+   * A safety limiter over everything: a cheer, an engine and a line landing
+   * together are caught here instead of clipping a phone's speaker.
+   * Threshold and knee in dB; attack and release in s.
+   */
+  limiter: { threshold: -4, knee: 3, ratio: 12, attack: 0.003, release: 0.2 },
+} as const
+

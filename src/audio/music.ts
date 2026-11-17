@@ -11,6 +11,7 @@
  */
 import { MUSIC, MUSIC_TUNING, type TrackName } from '../data/music'
 import { audioOut, isMuted } from './engine'
+import { onReplay, replayOpen } from './replayWatch'
 
 const KEY = 'laminar.music'
 
@@ -105,11 +106,9 @@ function stopTrack(p: Playing, ctx: AudioContext): void {
   }
 }
 
-const replayOpen = () => document.querySelector('.replay') !== null
-
-/** Every half second: which track should be playing, and keep it going. */
+/** Which track should be playing, and keep it going: every half second, and the moment a replay opens or closes. */
 function tick(): void {
-  const out = audioOut()
+  const out = audioOut('music')
   if (!out) return
   const want: TrackName | null = on && !isMuted() ? (replayOpen() ? 'replay' : 'lab') : null
   if (current && current.name !== want) {
@@ -133,6 +132,7 @@ export function startMusic(): void {
   if (on) for (const name of Object.keys(MUSIC) as TrackName[]) load(name, audioOut()!.ctx)
   tick()
   window.setInterval(tick, MUSIC_TUNING.watchMs)
+  onReplay(tick)
 }
 
 export const isMusicOn = () => on

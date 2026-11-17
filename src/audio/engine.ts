@@ -3,15 +3,23 @@
  * API. Browsers only allow sound after a tap, so nothing starts until
  * unlockAudio() runs in one. Muting is remembered in `laminar.muted`, and
  * the sound pauses while the game is in the background.
+ *
+ * The mix (PR 13u): voice lines, effects and music each have their own bus
+ * into the master volume, so the music and effects can step back while
+ * someone speaks, and a limiter after the master keeps sounds landing
+ * together from clipping.
  */
-import { AUDIO } from '../data/audio'
+import { AUDIO, MIX } from '../data/audio'
 import { fanVoice } from './cues'
 
 const MUTED_KEY = 'laminar.muted'
 
+export type Bus = 'voice' | 'sfx' | 'music'
+
 interface Voices {
   ctx: AudioContext
   master: GainNode
+  buses: Record<Bus, GainNode>
   hum: OscillatorNode
   humFilter: BiquadFilterNode
   humGain: GainNode
@@ -48,7 +56,22 @@ function build(): Voices | null {
   const ctx = new Ctx()
   const master = ctx.createGain()
   master.gain.value = muted ? 0 : AUDIO.master
-  master.connect(ctx.destination)
+  const L = MIX.limiter
+  const limiter = ctx.createDynamicsCompressor()
+  limiter.threshold.value = L.threshold
+  limiter.knee.value = L.knee
+  limiter.ratio.value = L.ratio
+  limiter.attack.value = L.attack
+  limiter.release.value = L.release
+  master.connect(limiter).connect(ctx.destination)
+  const bus = () => {
+    const g = ctx.createGain()
+    g.connect(master)
+    return g
+  }
+  const buses: Record<Bus, GainNode> = { voice: bus(), sfx: bus(), music: bus() }
+  // The code-made sounds below are effects: they step back for a voice line too.
+  const fx = buses.sfx
 
   // The fan motor's hum.
   const hum = ctx.createOscillator()
@@ -58,7 +81,7 @@ function build(): Voices | null {
   humFilter.frequency.value = AUDIO.fan.humCutoff
   const humGain = ctx.createGain()
   humGain.gain.value = 0
-  hum.connect(humFilter).connect(humGain).connect(master)
+  hum.connect(humFilter).connect(humGain).connect(fx)
   hum.start()
 
   // The rushing air.
@@ -71,7 +94,7 @@ function build(): Voices | null {
   rushFilter.Q.value = AUDIO.fan.rushQ
   const rushGain = ctx.createGain()
   rushGain.gain.value = 0
-  rush.connect(rushFilter).connect(rushGain).connect(master)
+  rush.connect(rushFilter).connect(rushGain).connect(fx)
   rush.start()
 
   // The turntable's motor, wobbling a little.
@@ -85,7 +108,7 @@ function build(): Voices | null {
   wobble.connect(wobbleDepth).connect(whirr.frequency)
   const whirrGain = ctx.createGain()
   whirrGain.gain.value = 0
-  whirr.connect(whirrGain).connect(master)
+  whirr.connect(whirrGain).connect(fx)
   whirr.start()
   wobble.start()
 
@@ -93,7 +116,7 @@ function build(): Voices | null {
     if (document.hidden) void ctx.suspend()
     else if (!muted) void ctx.resume()
   })
-  return { ctx, master, hum, humFilter, humGain, rushFilter, rushGain, whirr, whirrGain, noise }
+  return { ctx, master, buses, hum, humFilter, humGain, rushFilter, rushGain, whirr, whirrGain, noise }
 }
 
 /** Start the sound, from inside a tap or key press (browsers require one). */
@@ -138,7 +161,7 @@ function knock(pitch: number | null, toneGain: number, noiseGain: number, cutoff
     const g = v.ctx.createGain()
     g.gain.setValueAtTime(toneGain, now)
     g.gain.exponentialRampToValueAtTime(0.0001, now + decay)
-    osc.connect(g).connect(v.master)
+    osc.connect(g).connect(v.buses.sfx)
     osc.start(now)
     osc.stop(now + decay + 0.05)
   }
@@ -150,7 +173,7 @@ function knock(pitch: number | null, toneGain: number, noiseGain: number, cutoff
   const g = v.ctx.createGain()
   g.gain.setValueAtTime(noiseGain, now)
   g.gain.exponentialRampToValueAtTime(0.0001, now + decay)
-  src.connect(filter).connect(g).connect(v.master)
+  src.connect(filter).connect(g).connect(v.buses.sfx)
   src.start(now)
   src.stop(now + decay + 0.05)
 }
@@ -169,9 +192,27 @@ export function snap(): void {
 
 export const isMuted = () => muted
 
-/** The sound's context and master volume, for the voice player (null before the first tap). */
-export function audioOut(): { ctx: AudioContext; master: GainNode } | null {
-  return voices ? { ctx: voices.ctx, master: voices.master } : null
+/** The sound's context and the bus a kind of sound plays into (null before the first tap). */
+export function audioOut(bus: Bus = 'sfx'): { ctx: AudioContext; master: GainNode } | null {
+  return voices ? { ctx: voices.ctx, master: voices.buses[bus] } : null
+}
+
+let speaking = 0
+
+/**
+ * Someone starts (true) or stops (false) speaking: the music and the effects
+ * step back while they do, and come back after. Counted, so two lines that
+ * overlap for a moment don't bring the music back early.
+ */
+export function duckForVoice(on: boolean): void {
+  speaking = Math.max(0, speaking + (on ? 1 : -1))
+  const v = voices
+  if (!v) return
+  const now = v.ctx.currentTime
+  const ducked = speaking > 0
+  const tc = ducked ? MIX.duckAttack : MIX.duckRelease
+  v.buses.music.gain.setTargetAtTime(ducked ? MIX.duck.music : 1, now, tc)
+  v.buses.sfx.gain.setTargetAtTime(ducked ? MIX.duck.sfx : 1, now, tc)
 }
 
 /** Mute or unmute, remembered for next time. */

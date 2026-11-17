@@ -43,7 +43,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
 
 /** "12.3 s up", "4.0 s down" or "level", against the old setup. */
 function gapText(gap: number): string {
-  if (Math.abs(gap) < 0.05) return t('replay.level')
+  if (Math.abs(gap) < REPLAY.levelWithin) return t('replay.level')
   return t(gap > 0 ? 'replay.up' : 'replay.down', { s: fixed(Math.abs(gap), 1) })
 }
 
@@ -176,10 +176,11 @@ export async function playReplay(input: ReplayInput): Promise<void> {
     let idx = -1
     for (let i = 0; i < notes.length; i++) if (notes[i]!.t <= raceT) idx = i
     if (idx !== shown && idx >= 0) {
+      // Each moment passed since the last frame gets its sound and the commentator's call, in order, so two
+      // landing in one frame both play (PR 13u); at most the last two, so a long pause doesn't fire a pile at once.
+      for (let k = Math.max(shown + 1, idx - 1); k <= idx; k++) commentate('ride', notes[k]!.kind, voiceGap(notes[k]!, input.baseline.time))
       shown = idx
       line.textContent = noteText(notes[idx]!, input)
-      // The commentator says it too (PR 14b).
-      commentate('ride', notes[idx]!.kind, voiceGap(notes[idx]!, input.baseline.time))
     }
   }
 
