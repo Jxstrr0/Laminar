@@ -2,7 +2,9 @@
  * The grey tunnel: the university's test section with either the calibration
  * sphere on a sting or your rider model on the yaw turntable, the fan at the
  * far end, and a light smoke rake round the sphere so you can see the air
- * move. Placeholder geometry until the Blender art pass (PR 13).
+ * move. The section itself is a Blender model (art/tunnel/build.py, PR 13b),
+ * loaded once the page is up; the code-drawn box stands in until it arrives,
+ * or for good if it can't load.
  *
  * The renderer only draws. It reads the air speed and the separation line
  * the sim worked out and never decides anything itself.
@@ -19,6 +21,7 @@
  */
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { HANDLE_TOUCH } from '../data/handles'
 import { BOB_TUNNEL } from '../data/bobsled'
 import { FLIGHT_ATTITUDE } from '../data/jumper'
@@ -73,6 +76,9 @@ const COLOURS = {
   darkBackground: 0x1b232b,
   darkWall: 0x2a343e,
   darkFloor: 0x222b33,
+  /** The Blender section's panel seams (PR 13b), and on the dark backdrop. */
+  seam: 0xaeb8c1,
+  darkSeam: 0x34404b,
 } as const
 
 /** The smoke wand: where its tip starts (from the model's centre, m) and where it may go. */
@@ -280,15 +286,18 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   // --- The test section: floor, ceiling and two walls seen from inside.
   // BackSide means a wall only draws when seen from inside the box, so from
   // outside the near wall vanishes and the section reads as a cutaway.
+  // The code-drawn section, until the Blender model loads (or if it never does).
+  const standIn = new THREE.Group()
+  scene.add(standIn)
   const wallMat = new THREE.MeshStandardMaterial({ color: COLOURS.wall, roughness: 0.85, side: THREE.BackSide })
   const box = new THREE.Mesh(new THREE.BoxGeometry(L, H, W), wallMat)
-  scene.add(box)
+  standIn.add(box)
 
   const floorMat = new THREE.MeshStandardMaterial({ color: COLOURS.floor, roughness: 0.9 })
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(L, W), floorMat)
   floor.rotation.x = -Math.PI / 2
   floor.position.y = floorY + 0.001
-  scene.add(floor)
+  standIn.add(floor)
 
   // Panel seams on the floor, so speed and depth read at a glance.
   const seams = new THREE.GridHelper(L, 16, COLOURS.frame, COLOURS.frame)
@@ -296,7 +305,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   seams.position.y = floorY + 0.003
   ;(seams.material as THREE.Material).transparent = true
   ;(seams.material as THREE.Material).opacity = 0.35
-  scene.add(seams)
+  standIn.add(seams)
 
   // Turntable under the model (the yaw table arrives in PR 3).
   const turntable = new THREE.Mesh(
@@ -320,7 +329,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   for (const z of [-W / 4, W / 4]) {
     const strip = new THREE.Mesh(new THREE.BoxGeometry(L * 0.8, 0.02, 0.12), lightMat)
     strip.position.set(0, H / 2 - 0.011, z)
-    scene.add(strip)
+    standIn.add(strip)
   }
 
   // Observation windows on the far wall, with frames.
@@ -331,7 +340,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     frame.position.set(x, 0.05, -W / 2 + 0.011)
     const glass = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.75), glassMat)
     glass.position.set(x, 0.05, -W / 2 + 0.023)
-    scene.add(frame, glass)
+    standIn.add(frame, glass)
   }
 
   // A cobalt reference stripe along the near wall at sphere height.
@@ -347,7 +356,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   const screen = new THREE.GridHelper(Math.max(W, H), 24, COLOURS.screen, COLOURS.screen)
   screen.rotation.z = Math.PI / 2
   screen.position.x = -L / 2 + 0.02
-  scene.add(screen)
+  standIn.add(screen)
 
   // --- The model: a sphere on a sting from behind, down to the floor.
   const r = REFERENCE_SPHERE.diameter / 2
@@ -396,7 +405,43 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     rotor.add(arm)
   }
   fan.add(rotor)
-  scene.add(fan)
+  standIn.add(fan)
+  /** What spins with the fan: the stand-in's rotor, then the model's. */
+  let spinner: THREE.Object3D = rotor
+  /** The model's wall and floor, darkened with the backdrop like the stand-in's. */
+  let modelWall: THREE.MeshStandardMaterial | null = null
+  let modelFloor: THREE.MeshStandardMaterial | null = null
+  let modelSeam: THREE.MeshStandardMaterial | null = null
+  let disposed = false
+  const showBackdrop = () => {
+    const dark = instruments.dark
+    modelWall?.color.setHex(dark ? COLOURS.darkWall : COLOURS.wall)
+    modelFloor?.color.setHex(dark ? COLOURS.darkFloor : COLOURS.floor)
+    modelSeam?.color.setHex(dark ? COLOURS.darkSeam : COLOURS.seam)
+  }
+  // The Blender section (art/tunnel/build.py): named pieces the game spins and recolours.
+  new GLTFLoader().load(
+    `${import.meta.env.BASE_URL}models/tunnel-university.glb`,
+    (gltf) => {
+      if (disposed) return
+      const section = gltf.scene
+      const fanRotor = section.getObjectByName('FanRotor')
+      section.traverse((obj) => {
+        if (!(obj instanceof THREE.Mesh)) return
+        const mat = obj.material as THREE.MeshStandardMaterial
+        if (mat.name === 'Wall') modelWall = mat
+        if (mat.name === 'Floor') modelFloor = mat
+        if (mat.name === 'Seam') modelSeam = mat
+      })
+      if (fanRotor) spinner = fanRotor
+      scene.add(section)
+      standIn.visible = false
+      showBackdrop()
+    },
+    undefined,
+    // Offline or missing: the stand-in stays, and the game plays the same.
+    () => undefined,
+  )
 
   // --- Smoke rake: dashes of smoke that ride the flow around the sphere.
   // A stand-in for the proper smoke and tufts in PR 3, driven by the same speed.
@@ -1268,7 +1313,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
       const top = UNIVERSITY_TUNNEL.topSpeed
 
       fanAngle += (speed / top) * FAN_REVS_AT_TOP * Math.PI * 2 * step
-      rotor.rotation.x = fanAngle
+      spinner.rotation.x = fanAngle
       // A powered quad's props turn whether or not the fan runs.
       for (const r of rotors) r.rotation.y += PROP_REVS * Math.PI * 2 * step
       for (const r of noseProps) r.rotation.x += PROP_REVS * Math.PI * 2 * step
@@ -1332,6 +1377,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
       ;(scene.background as THREE.Color).setHex(dark ? COLOURS.darkBackground : COLOURS.background)
       wallMat.color.setHex(dark ? COLOURS.darkWall : COLOURS.wall)
       floorMat.color.setHex(dark ? COLOURS.darkFloor : COLOURS.floor)
+      showBackdrop()
     },
     setModel(model) {
       // Re-aim when the kind of model changes, or a truck comes on or off the posts (it's ten times a rider's length).
@@ -1403,6 +1449,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
       resize()
     },
     dispose() {
+      disposed = true
       clearRider()
       clearDebris()
       flowViz.dispose()
