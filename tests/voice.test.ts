@@ -12,8 +12,8 @@ const sheet = readFileSync(new URL('../docs/voice/lam-voice-pack-v1.csv', import
   .map((row) => row.match(/("([^"]|"")*"|[^,]*)(,|$)/g)!.map((c) => c.replace(/,$/, '').replace(/^"|"$/g, '').replace(/""/g, '"')))
 
 describe('voice pack', () => {
-  it('has all 60 lines from the script sheet, picked, each with its file in public/voice', () => {
-    expect(sheet).toHaveLength(60)
+  it('has all 62 lines from the script sheet, picked, each with its file in public/voice', () => {
+    expect(sheet).toHaveLength(62)
     for (const row of sheet) {
       const [id, , , character, , text, , , , file, , , status, gen] = row
       const line = VOICE_LINES[id!]
@@ -71,7 +71,10 @@ describe('voice pack', () => {
   it('splits halfway by who leads, and calls a big win at the finish', () => {
     expect(commLineFor('ride', 'half', { ahead: true })).toBe('LAM-COMM-0003')
     expect(commLineFor('ride', 'half', { ahead: false })).toBe('LAM-COMM-0004')
-    expect(commLineFor('ride', 'finish', { gain: 0.001 })).toBe('LAM-COMM-0006')
+    // Drag-judged and fuel-judged jobs get their own finish; the timed ones keep "Let's see the time".
+    expect(commLineFor('ride', 'finish', { gain: 0.001 })).toBe('LAM-COMM-0017')
+    expect(commLineFor('truck', 'finish', { gain: 0.001 })).toBe('LAM-COMM-0018')
+    expect(commLineFor('car', 'finish', { gain: 0.001 })).toBe('LAM-COMM-0006')
     expect(commLineFor('car', 'finish', { gain: 0.05 })).toBe(COMM_BIG_WIN)
     expect(commLineFor('pod', 'buffet')).toBeNull()
   })

@@ -1,5 +1,5 @@
 /**
- * The voice pack (PR 14b): 60 lines recorded on ElevenLabs (docs/voice/),
+ * The voice pack (PR 14b): 62 lines recorded on ElevenLabs (docs/voice/),
  * take 2 of each, picked by Kelbo on 17 November 2026. The files live in
  * public/voice/ and load the first time a line plays, never on the first load.
  *
@@ -86,6 +86,9 @@ export const VOICE_LINES: Record<string, VoiceLine> = {
   'LAM-COMM-0014': { speaker: 'comm', file: 'lam_comm_lam-comm-0014.mp3', text: "Into the gates, and they're flying." },
   'LAM-COMM-0015': { speaker: 'comm', file: 'lam_comm_lam-comm-0015.mp3', text: "The wind's picking up. This changes things." },
   'LAM-COMM-0016': { speaker: 'comm', file: 'lam_comm_lam-comm-0016.mp3', text: "What a run!" },
+  // Finishes for jobs not judged on time (PR 13ag): riders and skaters on drag, trucks on fuel.
+  'LAM-COMM-0017': { speaker: 'comm', file: 'lam_comm_lam-comm-0017.mp3', text: "Across the line! Now, what did the drag really do?" },
+  'LAM-COMM-0018': { speaker: 'comm', file: 'lam_comm_lam-comm-0018.mp3', text: "That's the run done. Let's see what it burned." },
 }
 
 /** Who each speaker is, for the caption. */
@@ -191,7 +194,8 @@ export const COMM_LINES: Record<string, string> = {
   'ride:halfAhead': 'LAM-COMM-0003',
   'ride:halfBehind': 'LAM-COMM-0004',
   'ride:bell': 'LAM-COMM-0005',
-  'ride:finish': 'LAM-COMM-0006',
+  // Riders' and skaters' jobs are judged on drag, so not "Let's see the time" (PR 13ag).
+  'ride:finish': 'LAM-COMM-0017',
   'ride:turn': 'LAM-COMM-0015',
   'jump:off': 'LAM-COMM-0007',
   'jump:pitch': 'LAM-COMM-0008',
@@ -202,7 +206,8 @@ export const COMM_LINES: Record<string, string> = {
   'car:start': 'LAM-COMM-0012',
   'car:finish': 'LAM-COMM-0006',
   'truck:start': 'LAM-COMM-0013',
-  'truck:finish': 'LAM-COMM-0006',
+  // A truck job is judged on fuel burned (PR 13ag).
+  'truck:finish': 'LAM-COMM-0018',
   'drone:start': 'LAM-COMM-0014',
   'drone:finish': 'LAM-COMM-0006',
   'plane:launch': 'LAM-COMM-0001',
