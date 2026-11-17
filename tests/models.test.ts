@@ -6,7 +6,7 @@ import { TRACK } from '../src/data/briefs'
 import { HILLS } from '../src/data/hills'
 import { SKELETON } from '../src/data/pose'
 import { CIRCUITS, segmentLength } from '../src/data/circuits'
-import { AIRFIELD_KIT, AIRFIELD_SCENE, CIRCUIT_KIT, JUMP_SCENE, RECORD_SCENE, REPLAY_SCENE, SALT_KIT, SLED_KIT, SLED_SCENE } from '../src/data/replay'
+import { AIRFIELD_KIT, AIRFIELD_SCENE, CIRCUIT_KIT, JUMP_SCENE, RECORD_SCENE, REPLAY_SCENE, ROAD_KIT, SALT_KIT, SLED_KIT, SLED_SCENE } from '../src/data/replay'
 import { TRACKS } from '../src/data/tracks'
 import { pointAt, trackLine } from '../src/sim/sledReplay'
 import { RECORD_RUN as RUN } from '../src/data/record'
@@ -191,6 +191,23 @@ describe('Belyanka airfield’s buildings and runway furniture (PR 13o)', () => 
     expect(AIRFIELD_KIT.buildings.out).toBeGreaterThan(AIRFIELD_SCENE.mast.out + 5)
     expect(Math.abs(AIRFIELD_KIT.windsock.out)).toBeGreaterThan(AIRFIELD_SCENE.mast.out)
     expect(AIRFIELD_KIT.buildings.from).toBeGreaterThan(AIRFIELD_SCENE.runway.from)
+  })
+})
+
+describe('the open road’s roadside (PR 13t)', () => {
+  it('has every piece the time trials and fuel runs stand along the road, and loads without a wait', () => {
+    const { size, json } = gltfOf('road.glb')
+    const names = json.nodes.map((n) => n.name)
+    for (const name of ['TreeRound', 'TreePine', 'TreeBirch', 'KmPost', 'Sign', 'Farm', 'Village', 'WindTurbine', 'StartRamp', 'FinishArch', 'FinishCrowd', 'FuelDepot', 'Warehouse']) expect(names).toContain(name)
+    expect(size).toBeLessThan(250 * 1024)
+  })
+
+  it('builds the finish arch for the time trial’s road, and keeps the buildings off it', () => {
+    const script = readFileSync(join(ROOT, 'art/road/build.py'), 'utf8')
+    expect(Number(/^ROAD = ([0-9.]+)/m.exec(script)?.[1])).toBe(REPLAY_SCENE.roadWidth)
+    expect(ROAD_KIT.farms.out).toBeGreaterThan(ROAD_KIT.trees.out)
+    expect(ROAD_KIT.villages.out).toBeGreaterThan(ROAD_KIT.trees.out)
+    expect(ROAD_KIT.turbines.out).toBeGreaterThan(ROAD_KIT.villages.out)
   })
 })
 
