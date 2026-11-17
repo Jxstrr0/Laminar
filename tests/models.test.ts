@@ -4,7 +4,8 @@ import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { TRACK } from '../src/data/briefs'
 import { HILLS } from '../src/data/hills'
-import { JUMP_SCENE, REPLAY_SCENE } from '../src/data/replay'
+import { CIRCUITS, segmentLength } from '../src/data/circuits'
+import { CIRCUIT_KIT, JUMP_SCENE, REPLAY_SCENE } from '../src/data/replay'
 
 const ROOT = join(__dirname, '..')
 
@@ -128,5 +129,30 @@ describe('the ski-jump hill’s buildings (PR 13l)', () => {
     // Every hill's buildings stand off the slope's far edge, clear of the trees.
     expect(JUMP_SCENE.buildings.coach.out).toBeGreaterThan(JUMP_SCENE.treeOut + 1)
     for (const hill of Object.values(HILLS)) expect(hill.k - JUMP_SCENE.buildings.judges.beforeK).toBeGreaterThan(0)
+  })
+})
+
+describe('the circuit’s trackside (PR 13m)', () => {
+  it('has every piece the race-lap replay stands along the lap, and loads without a wait', () => {
+    const { size, json } = gltfOf('circuit.glb')
+    const names = json.nodes.map((n) => n.name)
+    for (const name of ['StartGantry', 'GridLine', 'PitBuilding', 'Grandstand', 'Footbridge', 'Barrier', 'Kerb', 'MarshalPost']) expect(names).toContain(name)
+    expect(size).toBeLessThan(200 * 1024)
+  })
+
+  it('fits the pits, the stand and the footbridge on every circuit’s main straight, off the road', () => {
+    for (const c of Object.values(CIRCUITS)) {
+      const first = c.segments[0]!
+      expect(first.kind, c.id).toBe('straight')
+      const straight = segmentLength(first)
+      expect(CIRCUIT_KIT.pits.from + CIRCUIT_KIT.pits.length, c.id).toBeLessThan(straight)
+      expect(CIRCUIT_KIT.stand.from + 100, c.id).toBeLessThan(straight)
+      expect(CIRCUIT_KIT.bridgeAt + 5, c.id).toBeLessThan(straight)
+    }
+    const edge = REPLAY_SCENE.car.roadWidth / 2
+    // The pit wall stands 8 m in front of the building, still off the road; the barriers and stand clear of it too.
+    expect(CIRCUIT_KIT.pits.out - 8).toBeGreaterThan(edge)
+    expect(CIRCUIT_KIT.barrier.out).toBeGreaterThan(edge)
+    expect(CIRCUIT_KIT.stand.out).toBeGreaterThan(CIRCUIT_KIT.barrier.out)
   })
 })
