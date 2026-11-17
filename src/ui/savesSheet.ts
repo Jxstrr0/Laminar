@@ -6,6 +6,7 @@
  */
 import { t, type StringKey } from '../data/strings'
 import { decodeSave, encodeSave } from '../persist/code'
+import { decodeChallenge, findChallengeCode } from '../persist/designCode'
 import { readSlot, SLOTS } from '../persist/db'
 import { parseSave, type SaveFile } from '../persist/save'
 import { createSheet, type Sheet } from './sheet'
@@ -26,6 +27,8 @@ export interface SavesActions {
   load(save: SaveFile): Promise<void>
   /** A backup was just made (a file saved or the code copied). */
   backedUp(): void
+  /** Open a friend's challenge (PR 11i): a practice copy, outside this career. */
+  openChallenge(code: string): Promise<void>
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
@@ -165,6 +168,36 @@ export async function openSaves(actions: SavesActions): Promise<void> {
     loadStatus,
   )
 
+  // Challenges (PR 11i): a friend's link or code opens their job as a practice copy.
+  const challenge = el('div', 'save-code')
+  const chBox = el('textarea', 'save-code-box')
+  chBox.rows = 2
+  chBox.spellcheck = false
+  chBox.autocapitalize = 'off'
+  chBox.setAttribute('autocorrect', 'off')
+  chBox.placeholder = 'LAMD1:…'
+  chBox.id = 'challenge-code-box'
+  const chLabel = el('label', 'shop-label', t('chal.openLabel'))
+  chLabel.htmlFor = chBox.id
+  const chOpen = button('save-btn', t('chal.open'))
+  const chStatus = el('p', 'shop-note')
+  chStatus.setAttribute('aria-live', 'polite')
+  chOpen.addEventListener('click', async () => {
+    const found = findChallengeCode(chBox.value)
+    if (!found) {
+      chStatus.textContent = t('chal.error.prefix')
+      return
+    }
+    chStatus.textContent = t('saves.busy')
+    const got = await decodeChallenge(found)
+    if (!got.ok) {
+      chStatus.textContent = t(`chal.error.${got.error}` as StringKey)
+      return
+    }
+    await actions.openChallenge(found)
+  })
+  challenge.append(el('h3', 'save-code-title', t('chal.openTitle')), el('p', 'shop-note', t('chal.openNote')), chLabel, chBox, chOpen, chStatus)
+
   // The backup file: the save code in a text file, saved to the phone's downloads.
   const backup = el('div', 'save-code')
   const last = el('p', 'shop-note')
@@ -184,6 +217,6 @@ export async function openSaves(actions: SavesActions): Promise<void> {
     backedUp()
   })
   backup.append(el('h3', 'save-code-title', t('backup.title')), el('p', 'shop-note', t('backup.note')), last, save, saveStatus)
-  body.append(backup, code)
+  body.append(backup, code, challenge)
   sheet.open()
 }

@@ -3,7 +3,7 @@ import { CHALLENGE, DESIGN_CODE_PREFIX } from '../src/data/challenge'
 import type { CyclistDesign } from '../src/data/cyclist'
 import { DEFAULT_JUMPER } from '../src/data/jumper'
 import { BRIEFS } from '../src/data/briefs'
-import { decodeChallenge, encodeChallenge } from '../src/persist/designCode'
+import { challengeLink, decodeChallenge, encodeChallenge, findChallengeCode } from '../src/persist/designCode'
 import { wrapText } from '../src/persist/code'
 import { briefTemplate, dayCdA, deliver, type Brief } from '../src/sim/career'
 import { challengeable, challengeCareer, challengeOutcome, challengeTarget, type Challenge } from '../src/sim/challenge'
@@ -87,5 +87,21 @@ describe('design codes (PR 11h)', () => {
     expect(await decodeChallenge(await wrap({ ...sent, v: CHALLENGE.version, brief: { id: 'zorin-junior', fee: 1, days: jump.days, seed: 1 }, design: DEFAULT_JUMPER }))).toEqual({ ok: false, error: 'unknown' })
     expect(await decodeChallenge(await wrap({ ...sent, v: CHALLENGE.version, firm: '   ' }))).toEqual({ ok: false, error: 'damaged' })
     expect(await decodeChallenge(await wrap({ ...sent, v: CHALLENGE.version, seed: -1 }))).toEqual({ ok: false, error: 'damaged' })
+  })
+})
+
+describe('challenge links (PR 11i)', () => {
+  it('find the code in a link, an escaped link, a bare code, or a message around it', async () => {
+    const code = await encodeChallenge(sent)
+    const link = challengeLink('https://laminar.longlight.games/', code)
+    expect(link).toContain('?challenge=LAMD1%3A')
+    expect(link.endsWith('#board')).toBe(true)
+    expect(findChallengeCode(link)).toBe(code)
+    expect(findChallengeCode(code)).toBe(code)
+    expect(findChallengeCode(`Beat this! ${link} good luck`)).toBe(code)
+    expect(findChallengeCode(link.replace('%3A', ':'))).toBe(code)
+    expect(findChallengeCode('LAM1:zabc.def')).toBeNull()
+    expect(findChallengeCode('nothing here')).toBeNull()
+    expect((await decodeChallenge(findChallengeCode(link)!)).ok).toBe(true)
   })
 })

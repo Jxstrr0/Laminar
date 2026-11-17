@@ -1101,6 +1101,12 @@ body[data-guide='deliver'] .guide-deliver {
 }
 .race-record-title { margin: 0 0 4px; font-size: 1rem; }
 .race-record.is-stands { border-left-color: var(--muted); }
+/* Challenges (PR 11i): the card on Jobs and the result in the debrief. The outcome is in the words; the edge colour only repeats it. */
+.challenge-card { border-left: 4px solid var(--accent); margin-bottom: 12px; }
+.challenge-card .board-heading { margin-top: 0; }
+.challenge-result.is-short { border-left-color: var(--muted); }
+.challenge-result .race-verdict { margin: 0 0 8px; }
+.challenge-share .save-code-box { margin-top: 8px; }
 
 /* Backups (PR 7h): the Saves chip asks for one after two weeks; the file picker hides behind its label. */
 .saves-open.due { color: var(--warn); border-color: var(--warn); font-weight: 700; }
