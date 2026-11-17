@@ -6,7 +6,7 @@ import { TRACK } from '../src/data/briefs'
 import { HILLS } from '../src/data/hills'
 import { SKELETON } from '../src/data/pose'
 import { CIRCUITS, segmentLength } from '../src/data/circuits'
-import { AIRFIELD_KIT, AIRFIELD_SCENE, CIRCUIT_KIT, JUMP_SCENE, RECORD_SCENE, REPLAY_SCENE, ROAD_KIT, SALT_KIT, SLED_KIT, SLED_SCENE } from '../src/data/replay'
+import { AIRFIELD_KIT, AIRFIELD_SCENE, CIRCUIT_KIT, DRONE_SCENE, JUMP_SCENE, MEADOW_KIT, RECORD_SCENE, REPLAY_SCENE, ROAD_KIT, SALT_KIT, SLED_KIT, SLED_SCENE } from '../src/data/replay'
 import { TRACKS } from '../src/data/tracks'
 import { pointAt, trackLine } from '../src/sim/sledReplay'
 import { RECORD_RUN as RUN } from '../src/data/record'
@@ -191,6 +191,27 @@ describe('Belyanka airfield’s buildings and runway furniture (PR 13o)', () => 
     expect(AIRFIELD_KIT.buildings.out).toBeGreaterThan(AIRFIELD_SCENE.mast.out + 5)
     expect(Math.abs(AIRFIELD_KIT.windsock.out)).toBeGreaterThan(AIRFIELD_SCENE.mast.out)
     expect(AIRFIELD_KIT.buildings.from).toBeGreaterThan(AIRFIELD_SCENE.runway.from)
+  })
+})
+
+describe('the Lugovoy meadow’s kit (PR 13v)', () => {
+  it('has every piece the quad replay stands round the line, and loads without a wait', () => {
+    const { size, json } = gltfOf('meadow.glb')
+    const names = json.nodes.map((n) => n.name)
+    for (const name of ['TreeRound', 'TreePine', 'TreeBirch', 'HayBale', 'Bunting', 'StartPads', 'PilotTent', 'TimingTower', 'Spectators', 'ClubHut']) expect(names).toContain(name)
+    expect(size).toBeLessThan(200 * 1024)
+  })
+
+  it('is built for the mown line the scene draws, with a launch pad in each quad’s lane', () => {
+    const script = readFileSync(join(ROOT, 'art/meadow/build.py'), 'utf8')
+    expect(Number(/^LINE = ([0-9.]+)/m.exec(script)?.[1])).toBe(DRONE_SCENE.roadWidth)
+    expect(Number(/^FLY = ([0-9.]+)/m.exec(script)?.[1])).toBe(DRONE_SCENE.flyHeight)
+    expect(script).toContain(`for y in (${DRONE_SCENE.laneOld}, ${DRONE_SCENE.laneMine}):`)
+  })
+
+  it('keeps the bales and bunting off the line, outside the gates', () => {
+    const gateHalf = DRONE_SCENE.gate.width / 2 + DRONE_SCENE.gate.bar
+    for (const out of [MEADOW_KIT.bales.out, MEADOW_KIT.bunting.out, MEADOW_KIT.tower.out, MEADOW_KIT.tent.out]) expect(DRONE_SCENE.roadWidth / 2 + out).toBeGreaterThan(gateHalf)
   })
 })
 
