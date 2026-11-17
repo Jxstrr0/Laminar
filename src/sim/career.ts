@@ -65,7 +65,9 @@ import { buildBlock, machineBlock, NO_FACILITY, upgradeBlock, upkeepDays, type F
 import { MACHINE_PRICE, type MachineId } from '../data/model'
 import { OWN_TUNNEL_BUILD, TUNNEL_UPGRADES, type UpgradeId } from '../data/tunnel'
 import { sellToCover, type Sale } from './broke'
-import { hire, letGo, NO_CREW, wagesPerDay, type Crew } from './staff'
+import { crewEffects, hire, letGo, NO_CREW, wagesPerDay, type Crew, type CrewEffects } from './staff'
+import { combineEffects, finishedResearch, NO_RESEARCH, researchBlock, researchEffects, type Research } from './research'
+import { RESEARCH, type ResearchId } from '../data/research'
 import type { StaffId } from '../data/staff'
 import { fieldResult, REFERENCE_TT, truth, type EventSpec, type FieldResult } from './views'
 import { claim, recordBoard, type Holding, type RecordMark } from './records'
@@ -142,6 +144,8 @@ export interface CareerState {
   ended: Ending | null
   /** Where the firm stands with the defence ministry (PR 10x). */
   clearance: Clearance
+  /** The R&D projects started, and when (PR 11d). */
+  research: Research
 }
 
 /** The end of a career: the player retired, or 2040 came. */
@@ -321,6 +325,7 @@ export function newCareer(seed: number): CareerState {
     firm: null,
     ended: null,
     clearance: NO_CLEARANCE,
+    research: NO_RESEARCH,
   }
 }
 
@@ -434,6 +439,17 @@ export function orderUpgrade(state: CareerState, id: UpgradeId): CareerState {
   if (state.ended || upgradeBlock(state.facility, state.day, state.money, id)) return state
   const facility = { ...state.facility, upgrades: { ...state.facility.upgrades, [id]: state.day } }
   return { ...state, money: state.money - TUNNEL_UPGRADES[id].price, facility }
+}
+
+/** Start an R&D project (cash up front); it's done RESEARCH[id].days later. One at a time. Unchanged if it can't start. */
+export function startResearch(state: CareerState, id: ResearchId): CareerState {
+  if (state.ended || researchBlock(state.research, state.day, state.money, id)) return state
+  return { ...state, money: state.money - RESEARCH[id].price, research: { ...state.research, [id]: state.day } }
+}
+
+/** What the staff and the finished R&D change together today (PR 11d). */
+export function firmEffects(state: Pick<CareerState, 'crew' | 'research' | 'day'>): CrewEffects {
+  return combineEffects(crewEffects(state.crew), researchEffects(finishedResearch(state.research, state.day)))
 }
 
 /** The event a brief is for, ready for the field model. */

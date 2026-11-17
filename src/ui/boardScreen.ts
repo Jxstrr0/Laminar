@@ -111,9 +111,10 @@ import {
   type TruckDelivery,
   type CarDelivery,
   promiseLimits,
+  firmEffects,
 } from '../sim/career'
 import { bobDeskEstimate, carDeskEstimate, deskEstimate, droneDeskEstimate, planeDeskEstimate, aircraftDeskEstimate, podDeskEstimate, jumpDeskEstimate, recordDeskEstimate, truckDeskEstimate } from '../sim/desk'
-import { crewEffects, wagesPerDay } from '../sim/staff'
+import { wagesPerDay } from '../sim/staff'
 import type { Sale } from '../sim/broke'
 import { legacyOf } from '../sim/legacy'
 import { STAFF, STAFF_IDS, STAFF_ROLES, type StaffId } from '../data/staff'
@@ -305,7 +306,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     }
     const b = briefTemplate(job.brief.id)!
     const design = designStore.get()
-    const desk = deskEstimate(designShape(design), eventOf(job.brief), job.brief.seed, JSON.stringify(design), crewEffects(career.crew).deskLevel)
+    const desk = deskEstimate(designShape(design), eventOf(job.brief), job.brief.seed, JSON.stringify(design), firmEffects(career).deskLevel)
     const input = el('input', 'deliver-input')
     input.type = 'number'
     input.id = 'deliver-cda'
@@ -370,7 +371,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     const b = briefTemplate(job.brief.id)!
     const event = jumpEventOf(job.brief)!
     const forecast = jumpForecast.get(design, event)
-    const desk = jumpDeskEstimate(design, event, job.brief.seed, JSON.stringify(design), crewEffects(career.crew).deskLevel)
+    const desk = jumpDeskEstimate(design, event, job.brief.seed, JSON.stringify(design), firmEffects(career).deskLevel)
     // Start from the tunnel's forecast if it flew one for this design, else the desk; never past the hill size.
     const start = Math.min(forecast ? forecast.counted : desk.value, event.hill.hs)
     const box = stepper('deliver-jump', fixed(start, 1).replace(/,/g, ''), 'm', t('deliver.lessJump'), t('deliver.moreJump'), (dir) => {
@@ -533,7 +534,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     const sled: BobsledDesign = design
     const track = event.track
     const forecast = sledForecast.get(sled, track.id)
-    const desk = bobDeskEstimate(sled, track, job.brief.seed, JSON.stringify(sled), crewEffects(career.crew).deskLevel)
+    const desk = bobDeskEstimate(sled, track, job.brief.seed, JSON.stringify(sled), firmEffects(career).deskLevel)
     const start = forecast ? forecast.time : desk.value
     const box = stepper('deliver-sled', start.toFixed(2), 's', t('deliver.lessSled'), t('deliver.moreSled'), (dir) => {
       const v = Number(box.input.value) || start
@@ -687,7 +688,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     const { route, old } = currentTruckRun(career, truck.trailerTop)
     const routeName = t(`route.${route.id}`)
     const forecast = truckForecast.get(truck, route.id)
-    const desk = truckDeskEstimate(truck, old, route, job.brief.seed, JSON.stringify(truck), crewEffects(career.crew).deskLevel)
+    const desk = truckDeskEstimate(truck, old, route, job.brief.seed, JSON.stringify(truck), firmEffects(career).deskLevel)
     const start = forecast ? forecast.fuel : desk.fuel
     const box = stepper('deliver-truck', start.toFixed(1), 'L/100 km', t('deliver.lessTruck'), t('deliver.moreTruck'), (dir) => {
       const v = Number(box.input.value) || start
@@ -840,7 +841,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     const { circuit, old } = currentCarRun(career, car.class)
     const circuitName = t(`circuit.${circuit.id}`)
     const forecast = carForecast.get(car, circuit.id)
-    const desk = carDeskEstimate(car, old, circuit, job.brief.seed, JSON.stringify(car), crewEffects(career.crew).deskLevel)
+    const desk = carDeskEstimate(car, old, circuit, job.brief.seed, JSON.stringify(car), firmEffects(career).deskLevel)
     const oldLap = lapTime(old, circuit).time
     const deskLap = oldLap - desk.value
     const start = forecast ? forecast.time : deskLap
@@ -915,7 +916,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     const { flat, old } = currentRecordRun(career, car.class)
     const flatName = t(`flat.${flat.id}`)
     const forecast = recordForecast.get(car, flat.id)
-    const desk = recordDeskEstimate(car, old, flat, job.brief.seed, JSON.stringify(car), crewEffects(career.crew).deskLevel)
+    const desk = recordDeskEstimate(car, old, flat, job.brief.seed, JSON.stringify(car), firmEffects(career).deskLevel)
     const oldSpeed = desk.old ?? 0
     // Start from the tunnel's speed, else the desk's; a forecast that pulled its chutes starts from the team's own car.
     const start = (forecast ? forecast.speed : desk.value) ?? oldSpeed
@@ -1164,7 +1165,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     const { course, old } = currentDroneRun(career, quad.class)
     const courseName = t(`course.${course.id}`)
     const forecast = droneForecast.get(quad, course.id)
-    const desk = droneDeskEstimate(quad, old, course, job.brief.seed, JSON.stringify(quad), crewEffects(career.crew).deskLevel)
+    const desk = droneDeskEstimate(quad, old, course, job.brief.seed, JSON.stringify(quad), firmEffects(career).deskLevel)
     const oldTime = desk.old ?? 0
     // Start from the tunnel's time, else the desk's; one that tumbles starts from the pilot's own quad.
     const start = forecast?.time ?? desk.value ?? oldTime
@@ -1324,7 +1325,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     const { site, old } = currentPlaneRun(career, plane.class)
     const siteName = t(`site.${site.id}`)
     const forecast = planeForecast.get(plane, site.id)
-    const desk = planeDeskEstimate(plane, old, site, job.brief.seed, JSON.stringify(plane), crewEffects(career.crew).deskLevel)
+    const desk = planeDeskEstimate(plane, old, site, job.brief.seed, JSON.stringify(plane), firmEffects(career).deskLevel)
     // Start from the tunnel's range, else the desk's.
     const start = forecast?.range ?? desk.value
     const box = stepper('deliver-plane', start.toFixed(1), 'km', t('deliver.lessPlane'), t('deliver.morePlane'), (dir) => {
@@ -1476,7 +1477,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     const fieldName = t(`airfield.${field.id}`)
     const limit = fixed(AIRCRAFT_CLASS[plane.class].certifiedStall, 0)
     const forecast = aircraftForecast.get(plane, field.id)
-    const desk = aircraftDeskEstimate(plane, old, field, job.brief.seed, JSON.stringify(plane), crewEffects(career.crew).deskLevel)
+    const desk = aircraftDeskEstimate(plane, old, field, job.brief.seed, JSON.stringify(plane), firmEffects(career).deskLevel)
     // Start from the tunnel's cruise, else the desk's.
     const start = forecast?.cruise ?? desk.value
     const box = stepper('deliver-aircraft', start.toFixed(1), 'km/h', t('deliver.lessAircraft'), t('deliver.moreAircraft'), (dir) => {
@@ -1569,7 +1570,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     const rangeName = t(`range.${range.id}`)
     const limit = fixed(POD_BUFFET.limit, 2)
     const forecast = podForecast.get(pod, range.id)
-    const desk = podDeskEstimate(pod, old, range, job.brief.seed, JSON.stringify(pod), crewEffects(career.crew).deskLevel, oldSensor)
+    const desk = podDeskEstimate(pod, old, range, job.brief.seed, JSON.stringify(pod), firmEffects(career).deskLevel, oldSensor)
     // Start from the tunnel's hours, else the desk's.
     const start = forecast?.hours ?? desk.value
     const box = stepper('deliver-pod', start.toFixed(2), 'h', t('deliver.lessPod'), t('deliver.morePod'), (dir) => {

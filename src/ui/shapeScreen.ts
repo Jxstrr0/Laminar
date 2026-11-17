@@ -37,12 +37,11 @@ import type { RuleBreak } from '../sim/cyclist'
 import type { FixTarget } from '../sim/failure'
 import { bobDeskEstimate, carDeskEstimate, deskEstimate, droneDeskEstimate, jumpDeskEstimate, planeDeskEstimate, aircraftDeskEstimate, podDeskEstimate, recordDeskEstimate, truckDeskEstimate } from '../sim/desk'
 import { jumperReadouts } from '../sim/jumper'
-import { crewEffects } from '../sim/staff'
 import type { ControlId } from '../sim/designDiff'
 import { designPose, designReadouts, designShape, isAircraft, isBobsled, isCar, isCyclist, isDrone, isJumper, isPlane, isPod, isRecord, isSkater, isTruck, type Design } from '../sim/design'
 import { availableHandles, dragHandle, handleDef, handlePoint } from '../sim/geom/handles'
 import { ruleVolumes } from '../sim/geom/ruleBox'
-import { briefTemplate, currentAircraftRun, currentPodRun, currentCarRun, currentDroneRun, currentPlaneRun, currentRecordRun, currentEvent, currentJumpEvent, currentTruckEvent, currentTruckRun } from '../sim/career'
+import { briefTemplate, firmEffects, currentAircraftRun, currentPodRun, currentCarRun, currentDroneRun, currentPlaneRun, currentRecordRun, currentEvent, currentJumpEvent, currentTruckEvent, currentTruckRun } from '../sim/career'
 import { cracksOnGravel, roadLegal } from '../sim/truckJob'
 import type { Highlight, ShapeView } from '../render/shapeScene'
 import type { GlossaryId } from '../data/glossary'
@@ -846,7 +845,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     const shape = designShape(design)
     // The desk estimate is for the job's event, with the job's own bias.
     const career = careerStore.get()
-    const desk = deskEstimate(shape, currentEvent(career), career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(design), crewEffects(career.crew).deskLevel)
+    const desk = deskEstimate(shape, currentEvent(career), career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(design), firmEffects(career).deskLevel)
     deskR.value.textContent = `${fixed(desk.value, 3)} m²`
     deskR.sub.textContent = t('read.deskNote', { spread: fixed((desk.high - desk.low) / 2, 3) })
 
@@ -899,7 +898,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   function showJumper(jumper: JumperDesign) {
     const career = careerStore.get()
     const event = currentJumpEvent(career)
-    const desk = jumpDeskEstimate(jumper, event, career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(jumper), crewEffects(career.crew).deskLevel)
+    const desk = jumpDeskEstimate(jumper, event, career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(jumper), firmEffects(career).deskLevel)
     jumpDeskR.value.textContent = `${fixed(desk.value, 1)} m`
     jumpDeskR.sub.textContent = t('read.deskJumpNote', { spread: fixed((desk.high - desk.low) / 2, 1), hill: t(`hill.${event.hill.id}`) })
     const r = jumperReadouts(jumper)
@@ -937,7 +936,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   function showBobsled(sled: BobsledDesign) {
     const career = careerStore.get()
     const track = TRACKS.belogor
-    const desk = bobDeskEstimate(sled, track, career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(sled), crewEffects(career.crew).deskLevel)
+    const desk = bobDeskEstimate(sled, track, career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(sled), firmEffects(career).deskLevel)
     bobDeskR.value.textContent = `${fixed(desk.value, 2)} s`
     bobDeskR.sub.textContent = t('read.deskBobNote', { spread: fixed((desk.high - desk.low) / 2, 2), track: t(`track.${track.id}`) })
     const d = desk.drag
@@ -989,7 +988,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     const job = career.job
     // Their route and their truck as it runs today: the job's, or the fleet's plain rig on the Mostograd run between jobs.
     const { route, old } = currentTruckRun(career, truck.trailerTop)
-    const desk = truckDeskEstimate(truck, old, route, job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(truck), crewEffects(career.crew).deskLevel)
+    const desk = truckDeskEstimate(truck, old, route, job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(truck), firmEffects(career).deskLevel)
     const signed = (v: number, digits: number) => `${v < 0 ? '−' : ''}${fixed(Math.abs(v), digits)}`
     truckDeskR.value.textContent = `${signed(desk.value, 1)} %`
     truckDeskR.sub.textContent = t('read.deskTruckNote', { spread: fixed((desk.high - desk.low) / 2, 1), fuel: fixed(desk.fuel, 1) })
@@ -1054,7 +1053,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
     const career = careerStore.get()
     // The team's circuit and their car as it runs today: the job's, or a middling car at the Dolgo Ring between jobs.
     const { circuit, old } = currentCarRun(career, c.class)
-    const desk = carDeskEstimate(c, old, circuit, career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(c), crewEffects(career.crew).deskLevel)
+    const desk = carDeskEstimate(c, old, circuit, career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(c), firmEffects(career).deskLevel)
     const signed = (v: number, digits: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${fixed(Math.abs(v), digits)}`
     carDeskR.value.textContent = `${signed(desk.value, 2)} s`
     carDeskR.sub.textContent = t('read.deskCarNote', { spread: fixed((desk.high - desk.low) / 2, 2), circuit: t(`circuit.${circuit.id}`) })
@@ -1133,7 +1132,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   function showRecord(r: RecordDesign) {
     const career = careerStore.get()
     const { flat, old } = currentRecordRun(career, r.class)
-    const desk = recordDeskEstimate(r, old, flat, career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(r), crewEffects(career.crew).deskLevel)
+    const desk = recordDeskEstimate(r, old, flat, career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(r), firmEffects(career).deskLevel)
     const kmh = (v: number) => fixed(v * 3.6, 0)
     const oldText = desk.old === null ? t('read.recordChutes') : `${kmh(desk.old)} km/h`
     if (desk.value === null) {
@@ -1211,7 +1210,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   function showPod(p: PodDesign) {
     const career = careerStore.get()
     const { range, old, oldSensor } = currentPodRun(career, p.class)
-    const desk = podDeskEstimate(p, old, range, career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(p), crewEffects(career.crew).deskLevel, oldSensor)
+    const desk = podDeskEstimate(p, old, range, career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(p), firmEffects(career).deskLevel, oldSensor)
     podDeskR.value.textContent = `${fixed(desk.value, 2)} h`
     podDeskR.sub.textContent = t(oldSensor === 'new' ? 'read.deskPodNoteJob' : 'read.deskPodNote', { spread: fixed(((desk.high - desk.low) / 2) * 60, 0), old: fixed(desk.old, 2) })
     const b = desk.buffet
@@ -1251,7 +1250,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   function showAircraft(p: AircraftDesign) {
     const career = careerStore.get()
     const { field, old } = currentAircraftRun(career, p.class)
-    const desk = aircraftDeskEstimate(p, old, field, career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(p), crewEffects(career.crew).deskLevel)
+    const desk = aircraftDeskEstimate(p, old, field, career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(p), firmEffects(career).deskLevel)
     acDeskR.value.textContent = `${fixed(desk.value, 0)} km/h`
     acDeskR.sub.textContent = t('read.deskAircraftNote', { spread: fixed((desk.high - desk.low) / 2, 0), old: fixed(desk.old, 0) })
     const close = desk.stall > desk.limit - AIRCRAFT_DESK.stallClose
@@ -1292,7 +1291,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   function showPlane(p: PlaneDesign) {
     const career = careerStore.get()
     const { site, old } = currentPlaneRun(career, p.class)
-    const desk = planeDeskEstimate(p, old, site, career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(p), crewEffects(career.crew).deskLevel)
+    const desk = planeDeskEstimate(p, old, site, career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(p), firmEffects(career).deskLevel)
     const kmh = (v: number) => fixed(v * 3.6, 0)
     plDeskR.value.textContent = `${fixed(desk.value, 0)} km`
     plDeskR.sub.textContent = t('read.deskPlaneNote', { spread: fixed((desk.high - desk.low) / 2, 0), old: fixed(desk.old, 0) })
@@ -1330,7 +1329,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   function showDrone(q: DroneDesign) {
     const career = careerStore.get()
     const { course, old } = currentDroneRun(career, q.class)
-    const desk = droneDeskEstimate(q, old, course, career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(q), crewEffects(career.crew).deskLevel)
+    const desk = droneDeskEstimate(q, old, course, career.job?.brief.seed ?? DESK.demoJobSeed, JSON.stringify(q), firmEffects(career).deskLevel)
     const kmh = (v: number) => fixed(v * 3.6, 0)
     const signedDeg = (v: number) => `${v > 0.5 ? '+' : v < -0.5 ? '−' : ''}${fixed(Math.abs(v), 0)}`
     const oldText = desk.old === null ? t('read.droneTumbles') : `${fixed(desk.old, 1)} s`

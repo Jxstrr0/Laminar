@@ -26,9 +26,9 @@ import { STOCK_AIRCRAFT } from './data/aircraft'
 import { STOCK_POD } from './data/pod'
 import type { Design } from './data/sport'
 import { careerStore, freshSeed } from './ui/careerStore'
-import { charge, currentAircraftRun, currentPodRun, currentCarRun, currentDroneRun, currentPlaneRun, currentRecordRun, currentEvent, currentJumpEvent, currentSledEvent, currentTruckRun, newCareer, orderBlock, orderModel, repairModel } from './sim/career'
+import { charge, firmEffects, currentAircraftRun, currentPodRun, currentCarRun, currentDroneRun, currentPlaneRun, currentRecordRun, currentEvent, currentJumpEvent, currentSledEvent, currentTruckRun, newCareer, orderBlock, orderModel, repairModel } from './sim/career'
 import { makersOwned, tunnelSetup } from './sim/facility'
-import { crewEffects } from './sim/staff'
+import { finishedResearch } from './sim/research'
 import { afterDesign, afterOrder, afterRun, afterSwap, currentStep } from './sim/guide'
 import { runCost } from './sim/run'
 import { rublesShort } from './ui/format'
@@ -157,7 +157,7 @@ async function boot(): Promise<void> {
     tunnelSeed: careerStore.get().seed,
     tunnel: () => {
       const career = careerStore.get()
-      return tunnelSetup(career.seed, career.facility, career.day, career.crew)
+      return tunnelSetup(career.seed, career.facility, career.day, career.crew, finishedResearch(career.research, career.day))
     },
     event: () => currentEvent(careerStore.get()),
     // A jumper is forecast on the job's hill and day, or the practice jump between jobs.
@@ -184,7 +184,7 @@ async function boot(): Promise<void> {
         daysLeft: career.job?.daysLeft ?? 0,
         topSpeed: tunnelSetup(career.seed, career.facility, career.day).build.topSpeed,
         makers: makersOwned(career.facility),
-        hand: crewEffects(career.crew),
+        hand: firmEffects(career),
       }
     },
     onOrder: (price, days) => careerStore.set(afterOrder(orderModel(careerStore.get(), price, days))),
