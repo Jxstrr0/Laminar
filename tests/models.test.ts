@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { TRACK } from '../src/data/briefs'
 import { HILLS } from '../src/data/hills'
 import { CIRCUITS, segmentLength } from '../src/data/circuits'
-import { CIRCUIT_KIT, JUMP_SCENE, RECORD_SCENE, REPLAY_SCENE, SALT_KIT } from '../src/data/replay'
+import { AIRFIELD_KIT, AIRFIELD_SCENE, CIRCUIT_KIT, JUMP_SCENE, RECORD_SCENE, REPLAY_SCENE, SALT_KIT } from '../src/data/replay'
 import { RECORD_RUN as RUN } from '../src/data/record'
 
 const ROOT = join(__dirname, '..')
@@ -171,5 +171,22 @@ describe('the salt flat’s camp and course furniture (PR 13n)', () => {
     expect(SALT_KIT.markers.out).toBeGreaterThan(edge)
     for (const out of [SALT_KIT.camp.out, SALT_KIT.hut.out, SALT_KIT.posts.out, SALT_KIT.boards.out, SALT_KIT.viewing.out, SALT_KIT.recovery.out]) expect(Math.abs(out)).toBeGreaterThan(edge + 1)
     for (const runUp of Object.values(RUN.runUp)) expect(SALT_KIT.recovery.afterTimed).toBeLessThan(runUp)
+  })
+})
+
+describe('Belyanka airfield’s buildings and runway furniture (PR 13o)', () => {
+  it('has every piece the kit-plane replay stands round the runway, and loads without a wait', () => {
+    const { size, json } = gltfOf('airfield.glb')
+    const names = json.nodes.map((n) => n.name)
+    for (const name of ['Buildings', 'Threshold', 'RunwayLight', 'Windsock']) expect(names).toContain(name)
+    expect(size).toBeLessThan(200 * 1024)
+  })
+
+  it('keeps the lights off the runway and the buildings clear of the timing masts', () => {
+    const edge = AIRFIELD_SCENE.runway.width / 2
+    expect(AIRFIELD_KIT.lights.out).toBeGreaterThan(edge)
+    expect(AIRFIELD_KIT.buildings.out).toBeGreaterThan(AIRFIELD_SCENE.mast.out + 5)
+    expect(Math.abs(AIRFIELD_KIT.windsock.out)).toBeGreaterThan(AIRFIELD_SCENE.mast.out)
+    expect(AIRFIELD_KIT.buildings.from).toBeGreaterThan(AIRFIELD_SCENE.runway.from)
   })
 })

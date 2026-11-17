@@ -27,10 +27,11 @@ The two wind tunnels' test sections (`public/models/tunnel-university.glb` and
 `public/models/tunnel-own.glb`) are built by Longlight Interactive's own script,
 `art/tunnel/build.py`, in Blender 4.5.15. The velodrome
 (`public/models/velodrome.glb`), the ski-jump hill's buildings
-(`public/models/skijump.glb`), the circuits' trackside (`public/models/circuit.glb`)
-and the salt flat's camp (`public/models/saltflat.glb`) are built the same way by
-`art/velodrome/build.py`, `art/skijump/build.py`, `art/circuit/build.py` and
-`art/saltflat/build.py`.
+(`public/models/skijump.glb`), the circuits' trackside (`public/models/circuit.glb`),
+the salt flat's camp (`public/models/saltflat.glb`) and Belyanka airfield's
+buildings (`public/models/airfield.glb`) are built the same way by
+`art/velodrome/build.py`, `art/skijump/build.py`, `art/circuit/build.py`,
+`art/saltflat/build.py` and `art/airfield/build.py`.
 Blender is GPL-licensed software; the models it outputs belong to the studio.
 
 ## Sound

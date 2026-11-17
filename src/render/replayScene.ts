@@ -9,13 +9,14 @@
  * race is shown; until then, or if it can't load, the boards are drawn here.
  * A circuit's trackside (PR 13m, art/circuit/build.py) is a kit of Blender
  * pieces stood along whichever lap is raced, copied by instancing; so are the
- * salt flat's camp and course furniture (PR 13n, art/saltflat/build.py).
+ * salt flat's camp and course furniture (PR 13n, art/saltflat/build.py) and
+ * Belyanka airfield's buildings (PR 13o, art/airfield/build.py).
  */
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { TRACK } from '../data/briefs'
 import { FIELD_TROUBLE, type CourseSegment } from '../data/field'
-import { AIRCRAFT_REPLAY, AIRFIELD_SCENE, CAR_REPLAY, CIRCUIT_KIT, SALT_KIT, DRONE_REPLAY, DRONE_SCENE, RECORD_SCENE, REPLAY_SCENE as S, SURVEY_SCENE } from '../data/replay'
+import { AIRCRAFT_REPLAY, AIRFIELD_KIT, AIRFIELD_SCENE, CAR_REPLAY, CIRCUIT_KIT, SALT_KIT, DRONE_REPLAY, DRONE_SCENE, RECORD_SCENE, REPLAY_SCENE as S, SURVEY_SCENE } from '../data/replay'
 import { AIRCRAFT_BODY } from '../data/aircraft'
 import { DRONE_BODY } from '../data/drone'
 import { designPose, type Design } from '../sim/design'
@@ -475,9 +476,9 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     })
   }
 
-  // A venue's kit of Blender pieces (PR 13m: the circuit's; PR 13n: the salt flat's), loaded with the view and stood along the course once both are in.
+  // A venue's kit of Blender pieces (PR 13m: the circuit's; 13n: the salt flat's; 13o: the airfield's), loaded with the view and stood along the course once both are in.
   // Until it loads, or if it can't, the course is drawn as before.
-  const kitFile = circuit ? 'circuit.glb' : salt ? 'saltflat.glb' : null
+  const kitFile = circuit ? 'circuit.glb' : salt ? 'saltflat.glb' : airfield ? 'airfield.glb' : null
   let kit: THREE.Object3D | null = null
   const kitGroup = new THREE.Group()
   scene.add(kitGroup)
@@ -594,12 +595,28 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     scatter('RecoveryTruck', [side(Math.min(total - 50, timedTo + K.recovery.afterTimed), K.recovery.out)])
   }
 
+  /** Belyanka round its runway: the field side, the threshold bars at each end, edge lights and the windsock. */
+  function placeAirfield() {
+    const K = AIRFIELD_KIT
+    const W = AIRFIELD_SCENE.runway
+    const at = (x: number, z: number, turned = false) => new THREE.Matrix4().compose(new THREE.Vector3(x, 0, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), turned ? Math.PI : 0), new THREE.Vector3(1, 1, 1))
+    scatter('Buildings', [at(K.buildings.from, -K.buildings.out)])
+    scatter('Threshold', [at(W.from, 0), at(W.to, 0, true)])
+    const lights: THREE.Matrix4[] = []
+    for (let x = W.from; x <= W.to; x += K.lights.every) lights.push(at(x, K.lights.out), at(x, -K.lights.out))
+    scatter('RunwayLight', lights)
+    scatter('Windsock', [at(K.windsock.at, -K.windsock.out)])
+  }
+
   function placeKit() {
     for (const child of [...kitGroup.children]) {
       kitGroup.remove(child)
       if (child instanceof THREE.InstancedMesh) child.dispose()
     }
-    if (!kit || !kitCourse) return
+    if (!kit) return
+    // The airfield stands round its fixed runway (the kit-plane replay sets no course); the others along the course.
+    if (airfield) placeAirfield()
+    if (!kitCourse) return
     if (circuit) placeCircuit(kitCourse)
     if (salt) placeSalt(kitCourse)
   }
