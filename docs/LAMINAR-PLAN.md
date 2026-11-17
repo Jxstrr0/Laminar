@@ -605,6 +605,10 @@ readout, not colour alone.
   section, observation windows, a coloured accent for instruments. Smoke in
   white (with a dark-backdrop option so it reads), tufts in a strong contrast
   colour, Cp map in a perceptual diverging palette.
+- **Isobar (Kelbo, 16 November 2026; PR 13e–13j):** the look is the pressure
+  map: lilac-ice lab, Cp blue and coral, one teal for actions, Bricolage
+  Grotesque and Geist Mono, and a navy app icon with a Cp-shaded ball. The
+  brief is `docs/UI-ISOBAR-PLAN.md`; screenshots in `docs/screenshots/`.
 - **The lab follows the phone (Kelbo, 16 November 2026, Isobar PR 13h):** the
   3D lab used to stay bright in both themes; now it goes navy in dark mode,
   and the Dark wall goes near-black there so the chip still does something.

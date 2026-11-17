@@ -127,13 +127,13 @@ export function drawLegacy(L: Legacy): HTMLCanvasElement {
   const g = c.getContext('2d')
   if (!g) return c
   const col = {
-    bg: token('--bg', '#F5F7F9'),
+    bg: token('--bg', '#EDEFFA'),
     panel: token('--panel', '#FFFFFF'),
-    panel2: token('--panel-2', '#E6EBEF'),
-    line: token('--line', '#D3DAE0'),
-    ink: token('--ink', '#13202B'),
-    muted: token('--muted', '#5A6875'),
-    accent: token('--accent', '#2456E8'),
+    panel2: token('--panel-2', '#EDEFFA'),
+    line: token('--line', '#E4E7F6'),
+    ink: token('--ink', '#161A33'),
+    muted: token('--muted', '#5A6082'),
+    accent: token('--accent', '#00756F'),
   }
   g.fillStyle = col.bg
   g.fillRect(0, 0, width, height)

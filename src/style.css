@@ -36,6 +36,8 @@
   /* How strongly the background isobars show, and their violet. */
   --iso: 0.13;
   --iso-violet: #8c7bff;
+  /* The sonic boom's flash over a replay: white in both themes. */
+  --flash: #ffffff;
   /* The pod sensor's grey picture (PR 10af): the same in both themes. */
   --sensor-bg: #3b4147;
   --sensor-field-a: #51585e;
@@ -122,6 +124,8 @@ html, body {
 
 #app { position: fixed; inset: 0; }
 #app .screen { position: absolute; inset: 0; }
+/* The 3D screens show the scene colour until WebGL draws (the same colour theme.ts gives the scene). */
+.screen[data-screen='tunnel'], .screen[data-screen='shape'] { background: var(--scene); }
 .screen > canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 /*
  * The scene card (PR 13h): the page colour round a rounded window onto the
@@ -1179,7 +1183,7 @@ input[type='range']:disabled { opacity: 0.45; cursor: default; }
 .race-verdict.is-met { background: color-mix(in srgb, var(--accent) 14%, transparent); border: 1px solid var(--accent); }
 .race-verdict.is-missed { background: color-mix(in srgb, var(--sep) 12%, transparent); border: 1px solid var(--sep); }
 
-/* --- Race-day replay (PR 5g): the 3D lab stays bright, so the title chip keeps dark ink. */
+/* --- Race-day replay (PR 5g; Isobar, PR 13j): the sky follows the theme, so the title is a panel pill. */
 .replay { position: fixed; inset: 0; z-index: 500; background: var(--bg); }
 .replay-stage { position: absolute; inset: 0; }
 .replay-canvas { display: block; width: 100%; height: 100%; }
@@ -1189,15 +1193,15 @@ input[type='range']:disabled { opacity: 0.45; cursor: default; }
   padding: calc(12px + var(--safe-t)) calc(16px + var(--safe-r)) 0 calc(16px + var(--safe-l));
 }
 .replay-title {
-  margin: 0; padding: 6px 10px; border-radius: 10px; font-size: 1rem; font-weight: 700;
-  color: #13202b; background: rgba(255, 255, 255, 0.82);
+  margin: 0; padding: 8px 14px; border-radius: var(--r-pill); font-size: 1rem; font-weight: 700;
+  color: var(--ink); background: var(--panel); border: var(--card-border); box-shadow: var(--shadow-pill);
 }
 .replay-skip { min-height: var(--tap); }
 .replay-panel {
   position: absolute; left: 0; right: 0; bottom: 0;
   padding: 12px calc(16px + var(--safe-r)) calc(14px + var(--safe-b)) calc(16px + var(--safe-l));
-  background: var(--panel); color: var(--ink); border-top: 1px solid var(--line);
-  border-radius: 16px 16px 0 0; box-shadow: var(--shadow);
+  background: var(--panel); color: var(--ink); border-top: var(--card-border);
+  border-radius: var(--r-card) var(--r-card) 0 0; box-shadow: var(--shadow-card);
 }
 .replay-reads { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 10px; }
 /* A jet car's run adds a narrow Mach box (PR 9z+): the run and the Mach number take only what they need. */
@@ -1205,7 +1209,7 @@ input[type='range']:disabled { opacity: 0.45; cursor: default; }
 /* A quad race adds a narrow Lap box (PR 10h). */
 .replay-reads.has-lap { grid-template-columns: auto repeat(3, minmax(0, 1fr)); }
 /* The boom: a quick white flash over the salt (never with reduced motion: the replay doesn't add the class then). */
-.replay-stage::after { content: ''; position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+.replay-stage::after { content: ''; position: absolute; inset: 0; background: var(--flash); opacity: 0; pointer-events: none; }
 .replay.is-boom .replay-stage::after { animation: replay-boom 0.6s ease-out; }
 @keyframes replay-boom { 0% { opacity: 0.85; } 100% { opacity: 0; } }
 .replay-read { display: flex; flex-direction: column; min-width: 0; }

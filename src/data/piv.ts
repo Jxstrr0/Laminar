@@ -61,13 +61,14 @@ export const PIV_HINT = {
 } as const
 
 /**
- * How the PIV slice is drawn (PR 10ah). One hue, dark to pale, so speed
- * reads as lightness alone (colour-blind safe, and in greyscale): still air
- * is deep cobalt, air at the tunnel's speed nearly white. Faster than the
- * tunnel (round the shoulders) stays palest.
+ * How the PIV slice is drawn (PR 10ah; Isobar retint, PR 13j). Dark to pale,
+ * so speed reads as lightness alone (colour-blind safe, and in greyscale;
+ * OKLab lightness 27, 43, 60, 81, 97): still air is deep indigo, air at the
+ * tunnel's speed a pale teal-white. Faster than the tunnel (round the
+ * shoulders) stays palest. The CFD slice shares it.
  */
 export const PIV_PALETTE = {
-  stops: ['#0B1B4D', '#1F45B8', '#5F86EE', '#AFC4F7', '#EEF2FC'],
+  stops: ['#1E1A5E', '#3B3FA6', '#3E86B8', '#86D3CC', '#E8FAF7'],
   /** The speed share each stop sits at. */
   at: [0, 0.35, 0.65, 0.88, 1],
   /** Legend ticks, share of the tunnel's speed. */
