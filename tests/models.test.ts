@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { TRACK } from '../src/data/briefs'
+import { REPLAY_SCENE } from '../src/data/replay'
 
 const ROOT = join(__dirname, '..')
 
@@ -50,5 +52,53 @@ describe('the Blender models (PR 13b)', () => {
     }
     expect(names('own')).toEqual(expect.arrayContaining(['Trim', 'YawMarks']))
     expect(names('university')).not.toContain('Trim')
+  })
+})
+
+/** A model's glTF JSON, read from the front of its .glb. */
+function gltfOf(file: string) {
+  const glb = readFileSync(join(ROOT, 'public/models', file))
+  type Accessor = { min?: number[]; max?: number[] }
+  const json = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString('utf8')) as {
+    nodes: { name: string; mesh?: number }[]
+    meshes: { primitives: { attributes: { POSITION: number } }[] }[]
+    accessors: Accessor[]
+  }
+  return { size: glb.length, json }
+}
+
+describe('the velodrome (PR 13k)', () => {
+  it('has the track, the stands and the infield, and loads without a wait', () => {
+    const { size, json } = gltfOf('velodrome.glb')
+    expect(json.nodes.map((n) => n.name)).toEqual(expect.arrayContaining(['Track', 'Infield', 'Barrier', 'Stands', 'HallWall', 'InfieldKit']))
+    expect(size).toBeLessThan(400 * 1024)
+  })
+
+  it('lies on the replay’s lap, so the riders stay on the boards', () => {
+    const { json } = gltfOf('velodrome.glb')
+    const track = json.nodes.find((n) => n.name === 'Track')!
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity
+    for (const p of json.meshes[track.mesh!]!.primitives) {
+      const a = json.accessors[p.attributes.POSITION]!
+      minX = Math.min(minX, a.min![0]!)
+      maxX = Math.max(maxX, a.max![0]!)
+      minZ = Math.min(minZ, a.min![2]!)
+      maxZ = Math.max(maxZ, a.max![2]!)
+    }
+    // The circle through the ends of the replay's bend pieces (src/data/briefs.ts ovalCourse).
+    const straight = TRACK.lap * TRACK.straight
+    const piece = (TRACK.lap * (1 - 2 * TRACK.straight)) / 2 / TRACK.bendPieces
+    const radius = piece / (2 * Math.sin(Math.PI / (2 * TRACK.bendPieces)))
+    // The boards reach 8 m out from the course's centre line (RAIL in art/velodrome/build.py); the apron 4.4 m in.
+    const rail = 8
+    expect(maxZ).toBeCloseTo(rail, 1)
+    expect(minZ).toBeCloseTo(-(2 * radius + rail), 1)
+    expect(maxX).toBeCloseTo(straight + radius + rail, 0)
+    expect(minX).toBeCloseTo(-(radius + rail), 0)
+    // Both riders' lines lie on the flat of the boards, inside the rail.
+    for (const lane of [REPLAY_SCENE.laneMine, REPLAY_SCENE.laneOld]) {
+      expect(lane).toBeGreaterThan(-1.2)
+      expect(lane).toBeLessThan(3.2)
+    }
   })
 })

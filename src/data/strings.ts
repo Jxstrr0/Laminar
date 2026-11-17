@@ -1946,7 +1946,7 @@ export const STRINGS = {
   'credits.fonts': 'Typefaces',
   'credits.code': 'Code',
   'credits.art': '3D models',
-  'credits.artNote': 'The wind tunnel is built from scripts in Blender, run in GitHub Actions. Everything else in 3D is drawn in code.',
+  'credits.artNote': 'The wind tunnels and the velodrome are built from scripts in Blender, run in GitHub Actions. Everything else in 3D is drawn in code.',
   'credits.sound': 'Sound',
   'credits.soundNote': 'The fan, the turntable and every snap and clunk are made in code as the game runs. The voices were made with ElevenLabs text to speech, from seven voices in its library.',
   'credits.setting': 'The setting',

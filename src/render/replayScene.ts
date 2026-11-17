@@ -4,9 +4,13 @@
  * the next lane, wind flags along the verge, and a chase camera. Every
  * position comes from src/sim/replay.ts; this file only draws them. A
  * rider the field model says eased off in the gusts rocks now and then;
- * one it says sat up is drawn sitting up.
+ * one it says sat up is drawn sitting up. The velodrome is a Blender model
+ * (PR 13k, art/velodrome/build.py), loaded the first time a 250 m track
+ * race is shown; until then, or if it can't load, the boards are drawn here.
  */
 import * as THREE from 'three'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { TRACK } from '../data/briefs'
 import { FIELD_TROUBLE, type CourseSegment } from '../data/field'
 import { AIRCRAFT_REPLAY, AIRFIELD_SCENE, CAR_REPLAY, DRONE_REPLAY, DRONE_SCENE, RECORD_SCENE, REPLAY_SCENE as S, SURVEY_SCENE } from '../data/replay'
 import { AIRCRAFT_BODY } from '../data/aircraft'
@@ -222,8 +226,9 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     ;(ringMine.material as THREE.MeshBasicMaterial).color.setHex(next.mine)
   })
   const ringOld = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: COLOURS.markOld, depthWrite: false }))
-  ringMine.renderOrder = ringOld.renderOrder = -1
-  ringMine.position.y = ringOld.position.y = 0.01
+  // Drawn after the riders and the velodrome's boards (PR 13k), a few centimetres up, so the boards never hide them.
+  ringMine.renderOrder = ringOld.renderOrder = 1
+  ringMine.position.y = ringOld.position.y = 0.05
   ringMine.visible = ringOld.visible = false
   scene.add(ringMine, ringOld)
   /** The fixed broadcast camera on the track, or null for the chase camera. */
@@ -427,7 +432,48 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
   watcher.observe(host)
   resize()
 
+  // The velodrome (PR 13k): loaded on the first 250 m track race, then kept for the screen's life.
+  let disposed = false
+  let velodrome: THREE.Object3D | 'loading' | null = null
+  let wantVelodrome = false
+  /** The code-drawn boards and finish line, hidden while the velodrome model stands in for them. */
+  const trackPieces: THREE.Object3D[] = []
+  function showVelodrome() {
+    const ready = velodrome instanceof THREE.Object3D
+    if (velodrome instanceof THREE.Object3D) velodrome.visible = wantVelodrome
+    for (const p of trackPieces) p.visible = !(ready && wantVelodrome)
+  }
+  function loadVelodrome() {
+    if (velodrome !== null) return
+    velodrome = 'loading'
+    new GLTFLoader().load(
+      `${import.meta.env.BASE_URL}models/velodrome.glb`,
+      (gltf) => {
+        if (disposed) {
+          dropModel(gltf.scene)
+          return
+        }
+        velodrome = gltf.scene
+        scene.add(gltf.scene)
+        showVelodrome()
+      },
+      undefined,
+      // Offline with an old cache, or missing: the code-drawn boards stay, and the race plays the same.
+      () => {
+        velodrome = null
+      },
+    )
+  }
+  function dropModel(root: THREE.Object3D) {
+    root.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return
+      o.geometry.dispose()
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) (m as THREE.Material).dispose()
+    })
+  }
+
   function clearCourse() {
+    trackPieces.length = 0
     for (const child of [...course.children]) {
       course.remove(child)
       if (child instanceof THREE.InstancedMesh) child.dispose()
@@ -487,6 +533,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       const { rx, rz } = axes(seg.heading)
       board.position.set(x + (fx * seg.length) / 2 + rx * S.laneMine, 0, z + (fz * seg.length) / 2 + rz * S.laneMine)
       course.add(board)
+      trackPieces.push(board)
       x += fx * seg.length
       z += fz * seg.length
       along += seg.length
@@ -500,6 +547,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     line.rotation.x = -Math.PI / 2
     line.position.set(0, 0, axes(90).rz * S.laneMine)
     course.add(line)
+    trackPieces.push(line)
     const cx = (minX + maxX) / 2
     const cz = (minZ + maxZ) / 2
     const c = S.track.camera
@@ -547,10 +595,15 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       boardsMat.color.setHex(opts.ice ? COLOURS.ice : COLOURS.boards)
       roadMat.color.setHex(salt ? COLOURS.saltCourse : meadow ? COLOURS.mown : opts.ice ? COLOURS.ice : COLOURS.road)
       ;(ground.material as THREE.MeshLambertMaterial).color.setHex(salt ? COLOURS.salt : fields ? COLOURS.wheat : opts.lap ? COLOURS.infield : opts.ice ? COLOURS.snow : COLOURS.ground)
+      // The cycling track's 250 m lap is the velodrome; the ice oval keeps its code-drawn ice.
+      wantVelodrome = opts.lap === TRACK.lap && !opts.ice
+      if (wantVelodrome) loadVelodrome()
       if (opts.lap) {
         layTrack(segs, opts.lap)
+        showVelodrome()
         return
       }
+      showVelodrome()
       // Over the wheat there's no road to lay: the rows are the ground's own grid (PR 10o).
       if (fields) return
       const downwind = (90 - (opts.windFromDeg + 180)) * DEG
@@ -707,6 +760,8 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       renderer.render(scene, camera)
     },
     dispose() {
+      disposed = true
+      if (velodrome instanceof THREE.Object3D) dropModel(velodrome)
       stopTheme()
       watcher.disconnect()
       clearCourse()
