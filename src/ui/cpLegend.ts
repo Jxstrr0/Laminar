@@ -1,9 +1,9 @@
 /**
- * The Cp map's legend: a slim upright colour bar with numbered ticks
- * (pressure at the top, suction at the bottom), and the highest and lowest
- * readings the taps took, with where. The numbers carry the reading, so the
- * map never relies on colour alone. It sits at the side of the 3D view to
- * keep the model clear on a phone.
+ * The Cp map's legend (Isobar, PR 13i): a white pill with "Cp" on top, a slim
+ * colour bar (suction on the left, pressure on the right) with numbered ticks
+ * under it, and the highest and lowest readings the taps took, with where.
+ * The numbers carry the reading, so the map never relies on colour alone. It
+ * sits at the side of the 3D view to keep the model clear on a phone.
  */
 import { CP_PALETTE } from '../data/flowViz'
 import { STRINGS, t, type StringKey } from '../data/strings'
@@ -47,7 +47,7 @@ export function createCpLegend(): CpLegend {
 
   const scale = el('div', 'cp-scale')
   const bar = el('div', 'cp-bar')
-  bar.style.background = cpGradient('to top')
+  bar.style.background = cpGradient('to right')
   bar.setAttribute('role', 'img')
   bar.setAttribute('aria-label', t('cp.legend', { min: signedCp(CP_PALETTE.min, 1), max: signedCp(CP_PALETTE.max, 1) }))
   const ticks = el('div', 'cp-ticks')
@@ -55,7 +55,7 @@ export function createCpLegend(): CpLegend {
   for (const tick of CP_PALETTE.ticks) {
     const s = el('span', 'cp-tick')
     s.textContent = signedCp(tick, 1)
-    s.style.bottom = `${(cpPosition(tick) * 100).toFixed(1)}%`
+    s.style.left = `${(cpPosition(tick) * 100).toFixed(1)}%`
     ticks.append(s)
   }
   scale.append(bar, ticks)

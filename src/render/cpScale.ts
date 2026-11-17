@@ -1,7 +1,8 @@
 /**
  * The Cp map's colour scale (plan section 11): CP_PALETTE's diverging stops,
- * blue for suction through grey at 0 to orange for pressure. The 3D taps and
- * the DOM legend both read colours from here, so they always agree.
+ * blue for suction through pale grey at 0 to coral for pressure. The 3D taps,
+ * the paint on the model (cpSurface.ts) and the DOM legend all read colours
+ * from here, so they always agree.
  */
 import { CP_PALETTE } from '../data/flowViz'
 

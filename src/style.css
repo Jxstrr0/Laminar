@@ -630,33 +630,38 @@ input[type='range']:disabled { opacity: 0.45; cursor: default; }
 @media (min-width: 720px) {
   .instruments { left: 50%; right: auto; transform: translateX(-50%); width: min(860px, 100%); padding: 0 16px; }
 }
+/* Top right, under the money and Saves chips, where it covers the least of the model. */
 .cp-legend {
   position: absolute;
-  right: calc(10px + var(--safe-r));
-  bottom: calc(var(--sheet-h, 0px) + 48px);
-  width: 134px;
-  padding: 6px 8px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--panel) 90%, transparent);
+  right: calc(12px + var(--safe-r));
+  top: calc(66px + var(--safe-t));
+  width: 156px;
+  padding: 6px 12px 7px;
+  border: var(--card-border);
+  border-radius: var(--r-pill);
+  background: var(--panel);
+  box-shadow: var(--shadow-pill);
   color: var(--ink);
   font-family: var(--font-num);
   font-size: 0.64rem;
   line-height: 1.3;
 }
 .cp-legend[hidden] { display: none; }
-.cp-title { margin: 0 0 4px; font-family: var(--font-ui); font-size: 0.74rem; font-weight: 600; }
-.cp-scale { display: flex; gap: 6px; height: 72px; margin: 4px 0 6px; }
-.cp-bar { width: 10px; border-radius: 5px; border: 1px solid var(--line); }
-.cp-ticks { position: relative; flex: 1; color: var(--muted); }
-.cp-tick { position: absolute; left: 0; transform: translateY(50%); }
-.cp-line { margin: 0; }
+.cp-title { margin: 0; text-align: center; font-family: var(--font-ui); font-size: 0.78rem; font-weight: 700; }
+/* An 8px bar, suction left, pressure right, with the numbered ticks under it. */
+.cp-scale { display: flex; flex-direction: column; gap: 3px; margin: 4px 0 6px; }
+.cp-bar { height: 8px; border-radius: 4px; }
+.cp-ticks { position: relative; height: 1.3em; color: var(--muted); }
+.cp-tick { position: absolute; top: 0; transform: translateX(-50%); }
+.cp-tick:first-child { transform: none; }
+.cp-tick:last-child { transform: translateX(-100%); }
+.cp-line { margin: 0; text-align: center; }
 .cp-line[hidden] { display: none; }
 /* The PIV (PR 10ah): a slim scale over the view (bottom left, opposite the Cp legend), the words in the sheet. */
 .piv-legend {
   position: absolute;
   left: calc(10px + var(--safe-l));
-  bottom: calc(var(--sheet-h, 0px) + 48px);
+  bottom: calc(var(--sheet-h, 0px) + 70px);
   width: 128px;
   padding: 4px 8px 3px;
   border: 1px solid var(--line);

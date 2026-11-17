@@ -172,7 +172,7 @@ export const STRINGS = {
   'cfd.bias': 'A coarse grid: its air is thick, thin parts come out thick and there’s no floor. Trust the change between runs, and the tunnel for the number.',
   'piv.changeName': 'Change {control} on the Shape screen',
   'cp.title': 'Cp',
-  'cp.legend': 'Cp scale from {min} to {max}: blue is suction, grey is 0, orange is pressure',
+  'cp.legend': 'Cp scale from {min} to {max}: blue is suction, pale grey is 0, coral is pressure',
   'cp.high': 'High {cp} {part}',
   'cp.low': 'Low {cp} {part}',
   'cp.fanUp': 'Fan up to read the taps',
