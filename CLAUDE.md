@@ -50,6 +50,7 @@ src/audio/    cues (pure) and engine            (PR 13a; mute in `laminar.muted`
 src/persist/  saves, save code, safety          (PR 5)
 src/cfd/      the CFD Cluster's solver: CPU reference and WebGPU (PR 12)
 scripts/      bundle check, icons, release title
+art/          Blender build scripts (PR 13b): headless, output in public/models/
 docs/         the plan, NAMES.md, STATUS.md
 ```
 
@@ -156,6 +157,9 @@ the loading splash, the credit line, the studio link, and later the credits scre
 - `npm run test`: Vitest
 - `npm run build`: production build to `dist/`, then the first-load budget check (15 MiB)
 - `npm run icons`: redraw `public/icons/` from `public/icon.svg` (needs Playwright)
+- `~/blender/blender --background --factory-startup --python art/<name>/build.py -- --preview`:
+  rebuild a Blender model (Blender 4.5.15, pinned). Or run the `art` workflow in Actions,
+  which builds and commits them; `tests/models.test.ts` fails if a script changed without a rebuild.
 
 The PR check is the `deploy` workflow: lint, test, build. Merging to `main`
 publishes to Pages.

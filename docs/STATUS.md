@@ -134,7 +134,8 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 12b | The CFD Cluster as a tunnel upgrade (Kelbo: ₽900,000 and 21 days to fit, free to run), offered only on a phone with WebGPU; elsewhere the card says the phone can't run it and the rest of the game doesn't need it. The model's surface for the grid: the tunnel's own figure for any sport, turned to the yaw, filled by rays along all three axes (two votes of three), so open-ended lofts still fill and overlapping parts add up; parts thinner than 1.5 cells (tyres, disc wheels, tubes) become one-cell shells | **Done** (v0.13.1.0) |
 | 12c | The CFD panel in the tunnel: a CFD chip once the Cluster is fitted, a free Run button, progress, the CFD drag area (scaled by the grid's own sphere calibration) and the change on the last CFD run this visit, a side-on slice of the air's speed with a numbered scale, and a stale note when the model or yaw moves on. The first batch is timed and a run that would take over two minutes stops with an estimate. Never saved or scored | **Done** (v0.13.2.0) |
 | 13a | Lab sounds made in code (Kelbo: code now, ElevenLabs effects maybe later): the fan's hum and rushing air follow its speed, the turntable whirrs while it turns and knocks as it stops, and a part snaps when it breaks. Sound starts on the first tap; a speaker button in the tunnel sheet mutes it, remembered in `laminar.muted`; it pauses in the background | **Done** (v0.14.0.0) |
-| 13b–14 | See the plan | Next: Blender hero models built in GitHub Actions; the voice quote; the credits screen. |
+| 13b | The first Blender model: the university test section (chamfered corners, panel seams, framed windows, light troughs, the inlet screen, the fan with its nacelle and stators), scripted in `art/tunnel/build.py` and loaded over the code-drawn box, which stays as the fallback. The `art` workflow builds and commits the models in Actions; a test checks they match the scripts | **Done** (v0.14.1.0) |
+| 13c–14 | See the plan | Next: more Blender models (the own tunnel, venues, bodies), the voice quote, the credits screen. |
 
 ## Versions
 
@@ -145,6 +146,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 - **0.10.30.0** (PR 10ae): defence clearance opens.
 - **0.10.31.0** (PR 10af): the sensor pod's range day from its sensor.
 - **0.10.32.0** (PR 10ag): PIV's wake slices, speed loss and hint, in the sim only.
+- **0.14.1.0** (PR 13b): the tunnel's test section is a Blender model.
 - **0.14.0.0** (PR 13a): lab sounds made in code, with a mute button.
 - **0.13.2.0** (PR 12c): the CFD panel in the tunnel: run it, read its drag and see the flow.
 - **0.13.1.0** (PR 12b): the CFD Cluster upgrade, and the model as cells for its grid.
