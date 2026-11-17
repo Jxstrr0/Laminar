@@ -151,7 +151,8 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 13l | The ski-jump hill's buildings are a Blender model (`art/skijump/build.py`): a deck down the in-run and table with an ice track for each lane, side walls and the red lip, the start house with its bar, the judges' tower, the coaches' stand, floodlight masts, a grandstand at the outrun and the fence along the slope's far edge. The slope stays in code (the sim shapes it per hill); the jump scene places each piece on whichever hill is in use, and the hill is bare snow until they load | **Done** (v0.15.5.0) |
 | 13m | The circuits' trackside is a kit of Blender pieces (`art/circuit/build.py`): the start gantry and its lights, the chequered line, 150 m of pit garages behind the pit wall, a 100 m grandstand, a footbridge, steel barriers both sides of the lap, red-and-white kerbs on the inside of every corner and marshals' posts. Each circuit's lap comes from its corners, so the race-lap replay stands the pieces along whichever lap is raced, copied by instancing (one draw per piece), with the numbers in `CIRCUIT_KIT` | **Done** (v0.15.6.0) |
 | 13n | The salt flat's camp and course furniture are Blender pieces (`art/saltflat/build.py`): the team's transporter, awning, motorhomes and fuel bowser by the start, the timekeepers' trailer and the timing-light posts at each end of the timed kilometre, kilometre boards, orange posts along both edges of the course, a viewing area by the middle of the kilometre and the recovery truck where the cars stop. The record replay stands them along each run (both directions), with the numbers in `SALT_KIT` | **Done** (v0.15.7.0) |
-| Next | | More Blender venues (airfield, bobsled run), Blender body parts, then the sound-effects pack. |
+| 13o | Belyanka airfield's buildings are Blender pieces (`art/airfield/build.py`): the apron and taxiway, three hangars, the flying club's clubhouse, the control tower, four parked light planes and a fuel truck, threshold bars at each end of the runway, edge lights down both sides and a windsock by the measured course. The kit-plane replay stands them round the runway, with the numbers in `AIRFIELD_KIT`; the field side is on the left, away from the check's side-on camera, so the passes' camera sees it as it looks back | **Done** (v0.15.8.0) |
+| Next | | The bobsled run, Blender body parts, then the sound-effects pack. |
 
 ## Versions
 
@@ -174,6 +175,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 - **0.15.0.0** (PR 14a): the game works offline, and asks before updating.
 - **0.15.1.0** (PR 14b): the voices: tunnel techs, analysts, clients and the commentator.
 - **0.15.2.0** (PR 14c): the balance bot, for checking the economy (nothing changes in play).
+- **0.15.8.0** (PR 13o): Belyanka airfield gets its hangars, tower and runway lights.
 - **0.15.7.0** (PR 13n): the salt flat gets its camp and course furniture.
 - **0.15.6.0** (PR 13m): the circuits get their trackside.
 - **0.15.5.0** (PR 13l): the ski-jump hill gets its buildings.

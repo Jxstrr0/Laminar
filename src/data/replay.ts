@@ -504,3 +504,19 @@ export const SALT_KIT = {
   /** The recovery truck, waiting on the right this far past the timed kilometre. */
   recovery: { afterTimed: 1500, out: 30 },
 }
+
+/**
+ * Belyanka airfield's buildings and runway furniture (PR 13o,
+ * art/airfield/build.py): Blender pieces the kit-plane replay stands round
+ * the runway (AIRFIELD_SCENE.runway, along +x). Distances along the runway
+ * are x, m; out is from its centre line, the field side on the left (−z),
+ * away from the check's side-on camera.
+ */
+export const AIRFIELD_KIT = {
+  /** The field side (apron, hangars, clubhouse, tower) from this far along, its apron's edge `out` from the centre line: behind the timed passes, where the passes' camera looks back. */
+  buildings: { from: -350, out: 35 },
+  /** Edge lights both sides of the runway, one every `every` metres, this far out. */
+  lights: { every: 60, out: 11.5 },
+  /** The windsock beside the measured course. */
+  windsock: { at: 100, out: 30 },
+}
