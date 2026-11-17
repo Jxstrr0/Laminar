@@ -869,6 +869,18 @@ html, body {
 .job-days { margin-top: 10px; }
 .save-slot-tag.quiet { background: var(--panel-2); color: var(--ink); }
 .saves { z-index: 400; }
+/* The Credits sheet (PR 13c). The studio block is a studio piece: Longlight colours and Space Grotesk only. */
+.credits { z-index: 400; }
+.credits-sheet { max-height: min(86vh, 680px); max-height: min(86dvh, 680px); }
+.credits-studio { margin: 4px 0 8px; padding: 18px 14px 16px; border-radius: 8px; background: #141413; color: #faf9f5; font-family: 'Space Grotesk', system-ui, sans-serif; font-weight: 500; text-align: center; }
+.credits-logo { display: block; width: min(220px, 70%); height: auto; margin: 0 auto 10px; }
+.credits-game { margin: 0 0 4px; font-size: 0.95rem; color: #b48ce8; }
+.credits-copy { margin: 0 0 8px; font-size: 0.8rem; }
+.credits-site { display: inline-block; padding: 10px 14px; font-weight: 700; color: #d97757; }
+.credits-head { margin: 14px 0 4px; font-size: 0.95rem; }
+.credits-list { margin: 0; padding-left: 1.2em; line-height: 1.45; }
+.credits-note { margin: 0; color: var(--muted); line-height: 1.45; }
+.credits-note.version { margin-top: 16px; font-size: 0.8rem; }
 .saves-sheet { max-height: min(86vh, 680px); max-height: min(86dvh, 680px); }
 .save-slots { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
 .save-slot { padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
