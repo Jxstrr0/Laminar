@@ -18,7 +18,7 @@ import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { OVAL, TRACK } from '../data/briefs'
 import { FIELD_TROUBLE, type CourseSegment } from '../data/field'
-import { AIRCRAFT_REPLAY, AIRFIELD_KIT, AIRFIELD_SCENE, CAR_REPLAY, CIRCUIT_KIT, MEADOW_KIT, ROAD_KIT, SALT_KIT, SURVEY_KIT, DRONE_REPLAY, DRONE_SCENE, RECORD_SCENE, REPLAY_SCENE as S, SURVEY_SCENE } from '../data/replay'
+import { AIRCRAFT_REPLAY, AIRFIELD_KIT, AIRFIELD_SCENE, CAR_REPLAY, CIRCUIT_KIT, LAKE_KIT, MEADOW_KIT, ROAD_KIT, SALT_KIT, SURVEY_KIT, DRONE_REPLAY, DRONE_SCENE, RECORD_SCENE, REPLAY_SCENE as S, SURVEY_SCENE } from '../data/replay'
 import { AIRCRAFT_BODY } from '../data/aircraft'
 import { SURVEY_PATTERN } from '../data/plane'
 import { DRONE_BODY } from '../data/drone'
@@ -496,6 +496,8 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
   /** Time trials and truck runs: an open road, unless the course is a track's lap. */
   const roadside = !circuit && !salt && !meadow && !fields && !airfield
   let road = false
+  /** An ice marathon's loop on the frozen lake (PR 13y), not a road. */
+  let lake = false
   let kit: THREE.Object3D | null = null
   let kitAsked = false
   const kitGroup = new THREE.Group()
@@ -912,6 +914,85 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     for (const name of names) scatter(name, kinds[name]!)
   }
 
+  /**
+   * Lake Dolgo (PR 13y): the plough's snowbanks along every side of the loop
+   * with spruce branches stuck in them, the start banner, the warming hut and
+   * the plough, people near the finish, fishing shacks out on the ice and the
+   * shore all round. Placed once, round the first lap; the ice stays in code.
+   */
+  function placeLake(segs: readonly CourseSegment[]) {
+    const K = LAKE_KIT
+    // The first lap: up to the first time the course is back where it started.
+    let x = 0
+    let z = 0
+    let n = segs.length
+    for (let i = 0; i < segs.length; i++) {
+      const { fx, fz } = axes(segs[i]!.heading)
+      x += fx * segs[i]!.length
+      z += fz * segs[i]!.length
+      if (Math.hypot(x, z) < 1) {
+        n = i + 1
+        break
+      }
+    }
+    const loop = segs.slice(0, n)
+    const { total, legs, side } = courseTools(loop)
+    // The banks and brooms side by side, each side of the loop, stopping short of the corners.
+    const banks: THREE.Matrix4[] = []
+    const brooms: THREE.Matrix4[] = []
+    let start = 0
+    for (const seg of loop) {
+      const from = start + K.corner
+      const to = start + seg.length - K.corner
+      for (let d = from; d + K.bank.every <= to; d += K.bank.every) banks.push(side(d, -K.bank.out), side(d + K.bank.every, K.bank.out))
+      for (let d = from + K.broom.every / 2; d <= to; d += K.broom.every) brooms.push(side(d, -K.broom.out), side(d, K.broom.out))
+      start += seg.length
+    }
+    scatter('Snowbank', banks)
+    scatter('Broom', brooms)
+    // The banner over the finish, at the corner where the loop starts and ends: built along the last side, its pole on the outside.
+    scatter('StartBanner', [placeAt(loop, total, 0)])
+    scatter('WarmingHut', [side(K.hut.along, -K.hut.out)])
+    scatter('Plough', [side(K.plough.along, -K.plough.out)])
+    scatter('Crowd', [side(total - K.crowd.before, -K.crowd.out)])
+    // Fishing shacks out on the ice, either side, each turned its own way.
+    const up = new THREE.Vector3(0, 1, 0)
+    const huddles: THREE.Matrix4[] = []
+    for (let k = 0; k < K.shacks.count; k++) {
+      const out = K.shacks.from + hash01(k * 29 + 3) * (K.shacks.to - K.shacks.from)
+      const m = side(hash01(k * 31 + 1) * total, (hash01(k * 37 + 2) < 0.5 ? -1 : 1) * out)
+      huddles.push(m.multiply(new THREE.Matrix4().makeRotationY(hash01(k * 41 + 5) * Math.PI * 2)))
+    }
+    scatter('Shacks', huddles)
+    // The shore: a ring round the loop's middle, beyond its far corners, every piece facing the lake.
+    let minX = Infinity
+    let maxX = -Infinity
+    let minZ = Infinity
+    let maxZ = -Infinity
+    for (const [x0, z0, x1, z1] of legs) {
+      minX = Math.min(minX, x0, x1)
+      maxX = Math.max(maxX, x0, x1)
+      minZ = Math.min(minZ, z0, z1)
+      maxZ = Math.max(maxZ, z0, z1)
+    }
+    const cx = (minX + maxX) / 2
+    const cz = (minZ + maxZ) / 2
+    const reach = Math.hypot(maxX - minX, maxZ - minZ) / 2 + K.shore.out
+    const count = Math.ceil((2 * Math.PI * reach) / K.shore.piece)
+    const shore: THREE.Matrix4[] = []
+    for (let k = 0; k < count; k++) {
+      const a = (k / count) * Math.PI * 2
+      const px = cx + Math.cos(a) * reach
+      const pz = cz + Math.sin(a) * reach
+      // A piece faces +z (three.js) as built: turn it to face the middle, and start it half a piece back so it's centred here.
+      const turn = Math.atan2(cx - px, cz - pz)
+      const q = new THREE.Quaternion().setFromAxisAngle(up, turn)
+      const back = new THREE.Vector3(1, 0, 0).applyQuaternion(q).multiplyScalar(-K.shore.piece / 2)
+      shore.push(new THREE.Matrix4().compose(new THREE.Vector3(px + back.x, 0, pz + back.z), q, new THREE.Vector3(1, 1, 1)))
+    }
+    scatter('ShorePines', shore)
+  }
+
   function placeKit() {
     for (const child of [...kitGroup.children]) {
       kitGroup.remove(child)
@@ -924,6 +1005,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     if (circuit) placeCircuit(kitCourse)
     if (salt) placeSalt(kitCourse)
     if (road) placeRoad(kitCourse)
+    if (lake) placeLake(kitCourse)
     if (meadow) placeMeadow(kitCourse)
     if (fields) placeFields(kitCourse)
   }
@@ -1063,8 +1145,11 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       showHall()
       kitCourse = segs
       // An open road gets its roadside (PR 13t), asked for the first time it's needed.
-      road = roadside
+      // An ice race that isn't on an oval is Lake Dolgo's loop (PR 13y): snowbanks, not farms.
+      lake = roadside && opts.ice === true
+      road = roadside && !lake
       if (road) loadKit('road.glb')
+      if (lake) loadKit('lake.glb')
       placeKit()
       // Over the wheat there's no road to lay: the rows are the ground's own grid (PR 10o).
       if (fields) return

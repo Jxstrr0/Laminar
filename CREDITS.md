@@ -32,11 +32,11 @@ the salt flat's camp (`public/models/saltflat.glb`), Belyanka airfield's
 buildings (`public/models/airfield.glb`), the sliding track's buildings
 (`public/models/bobsled.glb`), the open road's trees, farms and finish
 (`public/models/road.glb`), the drone club's meadow (`public/models/meadow.glb`)
-the Ozimka survey fields (`public/models/fields.glb`) and the Stavren Ice Oval
-(`public/models/iceoval.glb`) are built the same way by `art/velodrome/build.py`, `art/skijump/build.py`,
+the Ozimka survey fields (`public/models/fields.glb`), the Stavren Ice Oval
+(`public/models/iceoval.glb`) and Lake Dolgo (`public/models/lake.glb`) are built the same way by `art/velodrome/build.py`, `art/skijump/build.py`,
 `art/circuit/build.py`, `art/saltflat/build.py`, `art/airfield/build.py`,
 `art/bobsled/build.py`, `art/road/build.py`, `art/meadow/build.py`,
-`art/fields/build.py` and `art/iceoval/build.py`, and
+`art/fields/build.py`, `art/iceoval/build.py` and `art/lake/build.py`, and
 the people's smooth body parts (`public/models/body.glb`) by `art/body/build.py`.
 Blender is GPL-licensed software; the models it outputs belong to the studio.
 

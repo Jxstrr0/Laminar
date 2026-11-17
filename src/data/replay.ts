@@ -584,6 +584,29 @@ export const SURVEY_KIT = {
 }
 
 /**
+ * Lake Dolgo (PR 13y, art/lake/build.py): where the ice-marathon replay
+ * stands its pieces round the ploughed loop, m. Distances are along the
+ * loop's first lap; `out` is beyond the ice's edge (left when negative in
+ * the scene, so the outside of a loop raced clockwise).
+ */
+export const LAKE_KIT = {
+  /** The plough's snowbanks either side, a piece every 20 m, stopping `corner` short of each corner so none cuts across a turn. */
+  bank: { out: 0.5, every: 20 },
+  corner: 12,
+  /** A spruce branch stuck in each bank about this often, this far out. */
+  broom: { every: 40, out: 1.6 },
+  /** The warming hut and the plough outside the first side, near the start. */
+  hut: { along: 30, out: 9 },
+  plough: { along: 46, out: 14 },
+  /** People on the outside bank, this far before the finish. */
+  crowd: { before: 40, out: 2.6 },
+  /** Ice-fishing huddles out on the lake, between `from` and `to` beyond the loop, either side. */
+  shacks: { count: 12, from: 60, to: 320 },
+  /** The shore all round, this far beyond the loop's far corners, in 40 m pieces. */
+  shore: { out: 250, piece: 40 },
+}
+
+/**
  * The open road's roadside (PR 13t, art/road/build.py): Blender pieces the
  * time-trial and truck replays stand along the road. Distances are along the
  * course, m; `out` is beyond the road's edge (it's wider for the trucks), on
