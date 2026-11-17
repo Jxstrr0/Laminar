@@ -819,6 +819,8 @@ export const STRINGS = {
   'deliver.forecastSledFloor': 'That reading was taken on the bare floor, where the runners read low, so it’s too quick. A ground board fixes it.',
   'deliver.noForecastSled': 'No tunnel forecast for this design yet: run this sled’s model in the tunnel. Filled in from the desk estimate ({desk} ± {spread} s) for now.',
   'deliver.badSled': 'Enter a run time between 30 and 90 s.',
+  'deliver.illegalOne': 'This design breaks a rule, so it can’t race. Shape lists it with a jump to the part to change; fix it, then deliver.',
+  'deliver.illegal': 'This design breaks {count} rules, so it can’t race. Shape lists them with a jump to each part to change; fix them, then deliver.',
   'deliver.wrongSled': 'The sled on the bench isn’t a {crew} sled. Shape the one the job is for, then deliver.',
   'deliver.sled': 'Lock it in and race',
   'sd.title': 'Race day',

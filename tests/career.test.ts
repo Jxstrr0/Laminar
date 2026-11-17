@@ -160,10 +160,10 @@ describe('the career', () => {
     const t = BRIEFS.find((b) => b.id === 'stavren-club')!
     expect(clampBid(t.id, { price: 1, promise: 99 })).toEqual({ price: t.fee.min, promise: BID.promiseMax })
     expect(clampBid(t.id, { price: 1e9, promise: 0.2 })).toEqual({ price: t.fee.max, promise: BID.promiseMin })
-    expect(clampBid(t.id, { price: 40400, promise: 10.3 })).toEqual({ price: 40000, promise: 10.5 })
+    expect(clampBid(t.id, { price: 65400, promise: 10.3 })).toEqual({ price: 65000, promise: 10.5 })
     const worth = pointWorth(t.id)
     expect(worth).toBe(Math.round(((t.fee.min + t.fee.max) / 2) * BID.pointValue / 100) * 100)
-    expect(bidScore(t.id, { price: 40000, promise: 11 })).toBe(11 * worth + t.fee.max - 40000)
+    expect(bidScore(t.id, { price: 65000, promise: 11 })).toBe(11 * worth + t.fee.max - 65000)
   })
 
   it('wins on a better bid, and a lost brief makes way for another', () => {

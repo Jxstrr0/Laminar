@@ -39,7 +39,8 @@ import { AIRCRAFT_JOBS, POD_JOBS, BID, BRIEFS, CAREER, CAR_JOBS, DRONE_JOBS, JUM
 import { recordAero, recordDayAir, sightLoss, soundSpeed, twoWay, type RecordAttempt, type RecordDay } from './record'
 import { dragScaleForSpeed, PRACTICE_FLAT, recordEventFrom, sightCost, stillAttempt, type RecordEvent } from './recordJob'
 import type { BobsledDesign } from '../data/bobsled'
-import { dayDrag, referenceConditions, referenceRun, runWith, type BobRun, type RunConditions } from './bobsled'
+import { checkSledRules, dayDrag, referenceConditions, referenceRun, runWith, type BobRun, type RunConditions } from './bobsled'
+import { checkRules } from './cyclist'
 import { cdAForTime, PRACTICE_RUN, raceConditions, sledEventFrom, type SledEvent } from './sledJob'
 import { FLEET_TRUCK, GRAVEL_YARD, type TruckDesign } from '../data/truck'
 import type { Route } from '../data/routes'
@@ -53,7 +54,7 @@ import { HILLS, PRACTICE_JUMP } from '../data/hills'
 import type { JumperDesign } from '../data/jumper'
 import { jumpDay, referenceJump, type JumpEvent, type JumpResult, type ReferenceJump } from './jumper'
 import { REFERENCE_RIDER } from '../data/field'
-import { designComfort, designEvent, designShape, sportOf, sportRider, type Design } from './design'
+import { asCyclist, designComfort, designEvent, designShape, isBobsled, sportOf, sportRider, type Design } from './design'
 import type { FixTarget } from './failure'
 import { hashString, Rng } from './rng'
 import type { Guide } from './guide'
@@ -460,6 +461,19 @@ export function firmEffects(state: Pick<CareerState, 'crew' | 'research' | 'day'
 export function rulesFor(id: string | undefined): CyclingRules {
   const country = id === undefined ? undefined : briefTemplate(id)?.country
   return country ? COUNTRIES[country].rules : TCF_TIME_TRIAL
+}
+
+/**
+ * How many of its sport's rules a design breaks for this brief: the
+ * cycling federation's (the brief's country's abroad) and the sliding
+ * federation's. A design that breaks any can't be delivered (plan section
+ * 5; PR 14d, the balance bot found it could). Cars and trucks are trimmed
+ * to legal on the day instead, and the other sports have no rule box.
+ */
+export function ruleBreaksFor(id: string, design: Design): number {
+  if (sportOf(design) === 'cycling') return checkRules(asCyclist(design), rulesFor(id)).length
+  if (isBobsled(design)) return checkSledRules(design).length
+  return 0
 }
 
 /** The event a brief is for, ready for the field model. */
@@ -871,11 +885,11 @@ export function dayCdA(brief: Brief, design: Design): number {
  * Deliver the design with a declared CdA: the calendar jumps to the event,
  * the rider races it (with whatever power the position costs them), and so
  * does their old setup in the same air, for the promise. The fee is paid,
- * less any penalty. Null if there's no job.
+ * less any penalty. Null if there's no job, or the design breaks the rules.
  */
 export function deliver(state: CareerState, design: Design, predicted: number): Delivery | null {
   const job = state.job
-  if (!job) return null
+  if (!job || ruleBreaksFor(job.brief.id, design) > 0) return null
   const b = template(job.brief.id)
   const event = eventOf(job.brief)
   const seed = daySeed(job.brief)
@@ -1148,11 +1162,11 @@ export interface SledDelivery extends Closed {
  * on the reference run (the usual push, good ice, still air), the same for
  * any day. Race day, your sled and the old one in the same conditions, is
  * the show. The firm's record keeps the read on drag, like every other job.
- * Null if there's no job or it isn't a bobsled race.
+ * Null if there's no job, it isn't a bobsled race or the sled breaks the rules.
  */
 export function deliverSled(state: CareerState, design: BobsledDesign, predicted: number): SledDelivery | null {
   const job = state.job
-  if (!job) return null
+  if (!job || ruleBreaksFor(job.brief.id, design) > 0) return null
   const event = sledEventOf(job.brief)
   const setup = template(job.brief.id).setup
   if (!event || setup.sport !== 'bobsled' || design.crew !== setup.crew) return null

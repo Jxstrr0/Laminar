@@ -10,14 +10,18 @@ export const REPUTATION = {
   start: 20,
   min: 0,
   max: 100,
-  /** Each delivery: a kept promise adds `kept`; a missed one costs `missed` plus `perPointShort` for each point short. */
-  kept: 6,
-  missed: -4,
-  perPointShort: -2,
+  /**
+   * Each delivery: a kept promise adds `kept`; a missed one costs `missed` plus `perPointShort` for each point short.
+   * PR 14d (Kelbo, 17 November 2026): every gain and loss here is about a sixth of what it was, so a
+   * strong firm reaches the top clients in about three years, not one (the balance bot's finding).
+   */
+  kept: 1,
+  missed: -0.7,
+  perPointShort: -0.35,
   /** The points short cost no more than this between them (PR 9z: a jet car that pulls its chutes falls 54 points short; the fee penalty stops at half too). */
-  shortCap: -20,
+  shortCap: -3.5,
   /** How close the declared CdA was (PROMISE.goodRead sets the bands). */
-  read: { good: 4, fair: 1, poor: -4 },
+  read: { good: 0.6, fair: 0.15, poor: -0.7 },
   /** In a sealed bid, each reputation point counts as this many promised points. */
   bidPerPoint: 0.02,
 }
@@ -38,5 +42,6 @@ export const BROKE = {
   saleShare: 0.5,
   /** Sale prices are rounded to this many ₽. */
   round: 1000,
-  dip: 5,
+  /** A sixth of what it was before PR 14d, with the other reputation changes. */
+  dip: 1,
 }

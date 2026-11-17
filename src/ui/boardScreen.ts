@@ -114,6 +114,7 @@ import {
   type CarDelivery,
   promiseLimits,
   firmEffects,
+  ruleBreaksFor,
 } from '../sim/career'
 import { bobDeskEstimate, carDeskEstimate, deskEstimate, droneDeskEstimate, planeDeskEstimate, aircraftDeskEstimate, podDeskEstimate, jumpDeskEstimate, recordDeskEstimate, truckDeskEstimate } from '../sim/desk'
 import { wagesPerDay } from '../sim/staff'
@@ -267,6 +268,13 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     if (!job) return
     deliverSheet ??= createSheet({ cls: 'deliver', title: t('deliver.title'), closeLabel: t('deliver.close') })
     const bench = designStore.get()
+    // An illegal cyclist or sled can't race (PR 14d): Shape lists what breaks the rules.
+    const breaks = ruleBreaksFor(job.brief.id, bench)
+    if (breaks > 0) {
+      deliverSheet.body.replaceChildren(el('p', 'shop-intro', breaks === 1 ? t('deliver.illegalOne') : t('deliver.illegal', { count: breaks })))
+      deliverSheet.open()
+      return
+    }
     // A ski-jump job declares a distance instead (winning one puts a jumper on the bench).
     if (isJumpBrief(job.brief.id)) {
       if (isJumper(bench)) openDeliverJump(bench)

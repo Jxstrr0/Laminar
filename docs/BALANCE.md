@@ -4,7 +4,7 @@ The balance bot (PR 14c) plays whole careers headless, so the economy can be
 checked across many seeds without anyone playing for thirty game years.
 
 ```
-npm run balance              # 8 careers (BOT.seeds), about 6 minutes
+npm run balance              # 8 careers (BOT.seeds), about 8 minutes
 npm run balance -- 20        # more careers
 npm run balance -- 4 --json out.json   # also write the numbers as JSON
 ```
@@ -16,15 +16,16 @@ player is `src/sim/bot.ts`; the report is `scripts/balance.mjs`.
 
 It plays like a careful player whose tunnel tells the truth:
 
-- **Shaping.** It starts from the client's setup and tries about 40 designs
-  with half the sliders set at random (some briefs have a gate, like the stall
-  check, that only clears when two parts change together), then nudges every
-  slider up and down, tries every pick and flips every flag, keeping whatever
-  helps. It judges each design on three practice days, made-up event days,
-  never the real one, so it can't see race day's weather. It keeps to the rule
-  box: the cycling and sliding federations' rules (cars and trucks are trimmed
-  by the scrutineers and the road code anyway).
-- **Bidding.** It goes for the board's best fee per day first, promises its
+- **Shaping.** It starts from the client's setup and tries 60 designs at
+  random: half with about half the sliders moved (some briefs have a gate, like
+  the stall check, that only clears when two parts change together), half with
+  every slider moved (to look past a cliff like the sound barrier). Then it
+  nudges every slider up and down, tries every pick and flips every flag,
+  keeping whatever lifts its worst practice day (then the mean). Practice days
+  are made-up event days, never the real one, so it can't see race day's
+  weather. It keeps to the rule box, as the game now makes everyone do.
+- **Bidding.** It goes for the board's best profit per day first (the fee less
+  a model and the runs), promises its
   worst practice day less half a point, asks halfway up the fee range, and
   passes on a brief it couldn't promise a point on.
 - **The work.** Each job pays for a model (the family's usual scale, sanded,
@@ -68,28 +69,46 @@ players will find less of each cut and read the road less well.
 Own tunnel bought around 2011; clearance applied for in 2010. Bids won 96%,
 promises kept 99%, never broke.
 
-### What looks off
+### What it found, and what Kelbo decided
 
-1. **Reputation climbs far too fast.** A kept promise (+6) and a good read
-   (+4) add 10 a job, so a strong player goes from 20 to 100 in about eight
-   jobs: every client in the game (the top needs 85) and defence clearance
-   (60) open inside the first year.
-2. **The asks are easy, so bids aren't a contest.** On its worst practice day
-   the bot beats almost every ask by 5 to 25 points. The rivals promise the
-   ask plus a point or two, so a strong player wins 96% of bids.
-3. **The military pods and the jets pay three to five times as much a day.**
-   The pods net about ₽16k a day and the jet record cars ₽9–13k, against a
-   median brief's ₽3k. With reputation open early, they take over the career.
-4. **Small briefs lose money at the university.** A 1:2 model (₽52k) and
-   eight runs (about ₽22k) cost more than a ₽35–60k fee. The small brief that
-   is always on the board is a trap for a new firm, unless the player knows to
-   order a cheap 1:4 printed model.
-5. **Cash piles up.** The median career ends 2040 with about ₽78M, nearly
-   forty times the price of your own tunnel, with nothing left to buy.
-6. **The Proryv jet's ask is out of reach.** It asks for 54 km/h; the bot
-   reaches about 36 on its worst day, so the brief is never taken.
-7. **Bug: an illegal cyclist or bobsled can be delivered.** The plan says you
-   can't deliver an illegal design, but only cars and trucks are trimmed on
-   the day; a cyclist or sled outside the rule box races and gets paid.
+1. **Reputation climbed far too fast.** A kept promise (+6) and a good read
+   (+4) added 10 a job, so a strong player went from 20 to 100 in about eight
+   jobs: every client (the top needs 85) and defence clearance (60) opened in
+   the first year. *Kelbo: about three years. Every reputation gain and loss
+   is now about a sixth of what it was (PR 14d).*
+2. **The asks were easy, so bids weren't a contest.** On its worst practice
+   day the bot beats almost every ask by 5 to 25 points, and the rivals
+   promised the ask plus a point or two. *Kelbo: bolder rivals. Bystro now
+   promises the ask plus 3 to 8, Vysota plus 2 to 6, Vershina plus 2 to 5,
+   Bereg plus 3 to 7 (PR 14d).*
+3. **The military pods and the jets paid three to five times as much a
+   day.** *Kelbo: 20% off their fees (PR 14d).*
+4. **The small brief lost money at the university.** A 1:2 model (₽52k) and
+   eight runs cost more than its ₽35–50k fee. *Kelbo: ₽25k more (PR 14d). With
+   a 1:2 model it still only breaks even at the university; a cheap 1:4
+   printed model makes it pay.*
+5. **Cash piles up** (about ₽78M by 2040). *Kelbo: keep it, it's a score.*
+6. **Bug: an illegal cyclist or bobsled could be delivered.** *Fixed in PR
+   14d: the Deliver sheet says the design breaks the rules and Shape lists
+   what to change.*
+7. ~~The Proryv jet's ask is out of reach.~~ Wrong: the first bot got stuck
+   short of the sound barrier. A pinched waist and a long nose take it through
+   (the bot now finds 89 km/h against the ask of 54), so the ask stays.
 
-Fixes are Kelbo's call; they'll be listed here as they land.
+## After PR 14d (17 November 2026, 8 careers, v0.15.3.0)
+
+The same bot (with the wider scouting and worst-day shaping) on the old and
+the new numbers:
+
+| | Before | After |
+| --- | --- | --- |
+| Reputation 85 (every client) | mid-2010 | early 2013 |
+| Defence clearance applied for | 2010 | late 2011 |
+| Cash in 2012 | ₽2.3M | ₽1.1M |
+| Cash in 2040 | ₽85M | ₽71M |
+| Bids won | 100% | 92% |
+| Pods, net per day | ₽16k | ₽13k |
+| Jets, net per day | ₽11–13k | ₽8–10k |
+
+Remember the bot is a ceiling: a player who misreads the tunnel loses more
+bids and climbs slower.

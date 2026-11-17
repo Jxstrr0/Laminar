@@ -580,7 +580,8 @@ export const BRIEFS: readonly BriefTemplate[] = [
     },
     rider: { power: 230, mass: 66 },
     setup: setup({ torsoDeg: 34, headDrop: 0.15, armWidth: 0.42, handReach: 0.6, handHeight: 0.04 }),
-    fee: { min: 35000, max: 50000 },
+    // PR 14d: +25k, so a small job covers a model and runs at the university.
+    fee: { min: 60000, max: 75000 },
     days: 10,
     target: 10,
     small: true,
@@ -1110,7 +1111,8 @@ export const BRIEFS: readonly BriefTemplate[] = [
     },
     rider: { power: 0, mass: 0 },
     setup: jetCar({ nose: { length: 2.6, droop: 2 }, canopy: 0.4, fin: 2.4, fairings: 0.3 }),
-    fee: { min: 420000, max: 540000 },
+    // PR 14d (Kelbo): 20% less; it paid three to five times a typical brief a day.
+    fee: { min: 340000, max: 430000 },
     days: 36,
     minRep: 75,
     target: 30,
@@ -1133,7 +1135,8 @@ export const BRIEFS: readonly BriefTemplate[] = [
     },
     rider: { power: 0, mass: 0 },
     setup: jetCar({ nose: { length: 3.2, droop: 2.5 }, canopy: 0.32, fin: 2.6, fairings: 0.7 }),
-    fee: { min: 520000, max: 680000 },
+    // PR 14d (Kelbo): 20% less; it paid three to five times a typical brief a day.
+    fee: { min: 420000, max: 540000 },
     days: 40,
     minRep: 85,
     // 108 km/h on their car: a two-way mean just over the speed of sound on the salt's usual day.
@@ -1338,7 +1341,8 @@ export const BRIEFS: readonly BriefTemplate[] = [
     event: { ...stepnoyTrial, spread: { ...stepnoyTrial.spread } },
     rider: { power: 0, mass: 0 },
     setup: sensorPod(),
-    fee: { min: 420000, max: 560000 },
+    // PR 14d (Kelbo): 20% less; it paid three to five times a typical brief a day.
+    fee: { min: 340000, max: 450000 },
     days: 30,
     minRep: 60,
     defence: true,
@@ -1353,7 +1357,8 @@ export const BRIEFS: readonly BriefTemplate[] = [
     event: { ...stepnoyTrial, spread: { ...stepnoyTrial.spread } },
     rider: { power: 0, mass: 0 },
     setup: sensorPod({ nose: 0.7, tail: 0.7, gap: 0.1 }),
-    fee: { min: 450000, max: 600000 },
+    // PR 14d (Kelbo): 20% less; it paid three to five times a typical brief a day.
+    fee: { min: 360000, max: 480000 },
     days: 30,
     minRep: 65,
     defence: true,
@@ -1368,7 +1373,8 @@ export const BRIEFS: readonly BriefTemplate[] = [
     event: { ...stepnoyTrial, spread: { ...stepnoyTrial.spread } },
     rider: { power: 0, mass: 0 },
     setup: sensorPod({ nose: 0.6, tail: 0.05, gap: 0.4, at: 0.6 }),
-    fee: { min: 480000, max: 640000 },
+    // PR 14d (Kelbo): 20% less; it paid three to five times a typical brief a day.
+    fee: { min: 380000, max: 510000 },
     days: 32,
     minRep: 70,
     defence: true,

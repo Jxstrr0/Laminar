@@ -101,9 +101,21 @@ describe('trouble on race day', () => {
     return { ...start, job: { brief, promise: coast.target, startDay: start.day, daysLeft: brief.days, spent: 0 } }
   }
 
+  /**
+   * A career with the Gornova altitude job taken: its rulebook allows a disc
+   * front wheel, which the TCF's doesn't (an illegal design can't be
+   * delivered since PR 14d), and its road is windy enough to gust.
+   */
+  function inGornova(): CareerState {
+    const t = BRIEFS.find((b) => b.id === 'kostka-altitude')!
+    const start = newCareer(11)
+    const brief = { id: t.id, fee: t.fee.min, days: t.days, seed: 99 }
+    return { ...start, job: { brief, promise: t.target, startDay: start.day, daysLeft: brief.days, spent: 0 } }
+  }
+
   it('names each kind of trouble in the debrief, with the part to change', () => {
     const design: CyclistDesign = { ...extreme, wheels: { front: 'disc', rear: 'disc' } }
-    const d = deliver(onTheCoast(), design, 0.2)!
+    const d = deliver(inGornova(), design, 0.2)!
     expect(d.debrief.fade).not.toBeNull()
     expect(d.debrief.fade!.lost).toBeCloseTo(d.result.lostToFade, 9)
     expect(d.debrief.fade!.fix).toBe(comfort(design).worst)
@@ -122,7 +134,7 @@ describe('trouble on race day', () => {
 
   it('gives the replay a line for the gust and for sitting up, and still finds the meeting on the way back', () => {
     const design: CyclistDesign = { ...extreme, wheels: { front: 'disc', rear: 'disc' } }
-    const d = deliver(onTheCoast(), design, 0.2)!
+    const d = deliver(inGornova(), design, 0.2)!
     const mine = { course: d.result.course, segments: d.result.segments }
     const old = { course: d.debrief.baseline.course, segments: d.debrief.baseline.segments }
     expect(rideTime(mine)).toBeCloseTo(d.result.time, 6)

@@ -53,15 +53,13 @@ import {
   newCareer,
   orderModel,
   placeBid,
-  rulesFor,
+  ruleBreaksFor,
   waitForBriefs,
   type Bid,
   type CareerState,
   type JobRecord,
 } from './career'
-import { checkSledRules } from './bobsled'
-import { checkRules } from './cyclist'
-import { asCyclist, sportOf, type Design, type Sport } from './design'
+import { sportOf, type Design, type Sport } from './design'
 import { activeTunnel, tunnelRunCost, type TunnelId } from './facility'
 import { FAMILY_START, quote, type ScaleFamily } from './modelShop'
 import { hashString, Rng } from './rng'
@@ -144,6 +142,9 @@ export function knobsOf(design: Design): Knob[] {
   return knobs
 }
 
+/** x on the slider's steps, without float dust (3.4, not 3.4000000000000004). */
+const onStep = (x: number, step: number) => Number((Math.round(x / step) * step).toFixed(6))
+
 function getAt(design: Design, path: string[]): unknown {
   let node: unknown = design
   for (const key of path) node = (node as Tree)[key]
@@ -159,17 +160,9 @@ function setAt(design: Design, path: string[], value: unknown): Design {
   return copy as unknown as Design
 }
 
-/**
- * Inside the rule box (plan section 5: "you can't deliver an illegal
- * design"). The game itself doesn't stop an illegal cyclist or bobsled at
- * delivery yet, so the bot holds itself to it; cars and trucks are trimmed
- * to legal by the scrutineers and the road code on the day.
- */
+/** Inside the rule box (plan section 5): the game won't deliver a design that breaks it. */
 export function legal(design: Design, briefId: string): boolean {
-  const sport = sportOf(design)
-  if (sport === 'cycling') return checkRules(asCyclist(design), rulesFor(briefId)).length === 0
-  if (sport === 'bobsled') return checkSledRules(design as Parameters<typeof checkSledRules>[0]).length === 0
-  return true
+  return ruleBreaksFor(briefId, design) === 0
 }
 
 /**
@@ -253,7 +246,8 @@ export interface Shaped {
  * the knobs set at random (some briefs have a gate, like a stall check,
  * that only clears when two parts change together). Then polish: nudge
  * each slider up and down, try every pick and flip every flag, keep
- * whatever lifts the mean practice gain, and halve the nudge each round.
+ * whatever lifts the worst practice day (then the mean), and halve the
+ * nudge each round.
  */
 export function shapeFor(state: CareerState): Shaped | null {
   const job = state.job
@@ -266,7 +260,8 @@ export function shapeFor(state: CareerState): Shaped | null {
   const tryOne = (candidate: Design) => {
     if (!legal(candidate, b.id)) return false
     const p = practise(state, candidate)
-    if (p.mean > best.mean + 1e-9) {
+    // Its worst day first (that's what it promises, and a steady design reads true), then the mean.
+    if (p.worst > best.worst + 1e-9 || (p.worst > best.worst - 1e-9 && p.mean > best.mean + 1e-9)) {
       design = candidate
       best = p
       return true
@@ -275,12 +270,14 @@ export function shapeFor(state: CareerState): Shaped | null {
   }
   const rng = new Rng(hashString(`bot-scout:${b.id}`))
   for (let i = 0; i < BOT.scouts; i++) {
+    // Every other scout sets every knob at random, to look past a cliff (the sound barrier) a nudge never crosses.
+    const share = i % 2 === 0 ? 0.5 : 1
     let candidate = design
     for (const knob of knobs) {
-      if (rng.next() < 0.5) continue
+      if (rng.next() >= share) continue
       if (knob.kind === 'num') {
         const { min, max, step } = knob.range
-        candidate = setAt(candidate, knob.path, Math.round((min + rng.next() * (max - min)) / step) * step)
+        candidate = setAt(candidate, knob.path, onStep(min + rng.next() * (max - min), step))
       } else if (knob.kind === 'pick') {
         candidate = setAt(candidate, knob.path, rng.pick(knob.options))
       } else {
@@ -294,9 +291,9 @@ export function shapeFor(state: CareerState): Shaped | null {
       const now = getAt(design, knob.path)
       if (knob.kind === 'num') {
         const { min, max, step } = knob.range
-        const move = Math.max(step, Math.round(((max - min) * nudge) / step) * step)
+        const move = Math.max(step, onStep((max - min) * nudge, step))
         for (const dir of [1, -1]) {
-          const next = Math.min(max, Math.max(min, Math.round(((now as number) + dir * move) / step) * step))
+          const next = Math.min(max, Math.max(min, onStep((now as number) + dir * move, step)))
           if (next !== now && tryOne(setAt(design, knob.path, next))) break
         }
       } else if (knob.kind === 'pick') {
@@ -408,8 +405,10 @@ export function playCareer(seed: number, cache: ShapeCache = new Map(), steps: n
       state = applyForClearance(state)
       clearance ??= state.day
     }
-    // Bid for the board's briefs, best fee per day first.
-    const board = [...state.board].sort((a, b) => b.fee / b.days - a.fee / a.days)
+    // Bid for the board's briefs, best profit per day first (the fee less a model and the runs where it tests now).
+    const runs = runsCost(activeTunnel(state.facility, state.day))
+    const net = (b: (typeof state.board)[number]) => (b.fee - runs - modelQuote(sportOf(briefTemplate(b.id)!.setup)).price) / b.days
+    const board = [...state.board].sort((a, b) => net(b) - net(a))
     let won = false
     for (const brief of board) {
       // Shape on a trial job at the client's ask, to see what the bot could promise.

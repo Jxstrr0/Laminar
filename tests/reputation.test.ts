@@ -82,7 +82,7 @@ describe('a good name brings bigger clients', () => {
     const brief = base.board.find((b) => !BRIEFS.find((t) => t.id === b.id)!.tutorial)!
     const t = BRIEFS.find((x) => x.id === brief.id)!
     const unknown: CareerState = { ...base, jobsDone: 1 }
-    const famous: CareerState = { ...unknown, history: Array.from({ length: 10 }, () => job(3, 4, 0)) }
+    const famous: CareerState = { ...unknown, history: Array.from({ length: 60 }, () => job(3, 4, 0)) }
     const a = placeBid(unknown, brief.id, { price: t.fee.max, promise: t.target })!
     const b = placeBid(famous, brief.id, { price: t.fee.max, promise: t.target })!
     expect(a.myRep).toBe(REPUTATION.start)
