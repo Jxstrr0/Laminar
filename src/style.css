@@ -395,8 +395,10 @@ html, body {
 .version { font-family: var(--font-num); white-space: nowrap; }
 .sheet-foot .hint { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sheet-foot .sound-chip { align-self: center; }
-.sheet-foot:has(.sound-chip) { align-items: center; }
-.sheet-foot:has(.sound-chip) .hint { flex: 1; }
+.sheet-foot:has(.sound-chip) { align-items: center; flex-wrap: wrap; row-gap: 4px; }
+/* On a narrow phone the hint keeps the line with the sound and music chips, and the version drops below. */
+.sheet-foot:has(.sound-chip) .hint { flex: 1 1 120px; }
+.sheet-foot:has(.sound-chip) .version { margin-left: auto; }
 
 /* --- Bottom dock (Isobar, PR 13e) ------------------------------------- */
 /* A floating pill, bottom centre, on every screen width (Kelbo: no side rail).
