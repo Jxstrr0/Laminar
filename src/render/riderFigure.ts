@@ -10,6 +10,7 @@
  */
 import * as THREE from 'three'
 import { MODEL } from './theme'
+import { CP_SURFACE } from './cpSurface'
 import { BIKE, HELMET, type CyclistDesign } from '../data/cyclist'
 import { BOB_SKELETON, FRAME, JUMPER_SKELETON, SKATER_SKELETON, SKELETON } from '../data/pose'
 import type { SkaterDesign } from '../data/skater'
@@ -168,8 +169,18 @@ export function buildReferenceWheel(spokes: number): THREE.Group {
   return g
 }
 
-/** The rider and bike for a design, as a fresh group (dispose it with disposeGroup). */
+/**
+ * The rider and bike for a design, as a fresh group (dispose it with
+ * disposeGroup). Its root is marked so the tunnel's pressure colour (PR 13i)
+ * paints the figure and never the mount or the lab.
+ */
 export function buildRider(state: RiderState): THREE.Group {
+  const g = buildFigure(state)
+  g.userData[CP_SURFACE] = true
+  return g
+}
+
+function buildFigure(state: RiderState): THREE.Group {
   const { pose } = state
   if (state.design.sport === 'skating') return buildSkater(state.design, state)
   if (state.design.sport === 'skijump') return buildJumper(state.design, state)

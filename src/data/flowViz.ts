@@ -141,19 +141,21 @@ export const TAPS = {
 }
 
 /**
- * The Cp map's colours (plan section 11): a diverging scale, blue for
- * suction (Cp below 0) through a neutral grey at 0 to orange for pressure,
- * lightness stepping evenly out from the middle. Blue and orange stay apart
- * for every common colour-vision type, and orange keeps clear of the red the
- * lab uses for separation. Equal steps per arm, though the arms cover
- * different Cp ranges.
+ * The Cp map's colours (plan section 11; Isobar, PR 13i): a diverging scale,
+ * blue for suction (Cp below 0) through a pale lilac-grey at 0 to coral for
+ * pressure, lightness stepping out from the middle. These are the look's own
+ * --cp-lo / --cp-hi ends, so the data and the game's colours agree. Checked
+ * with deuteranopia, protanopia and tritanopia simulations (17 November 2026):
+ * mirrored suction and pressure stops stay at least 13 OKLab ΔE apart and
+ * neighbouring stops at least 9, and the legend's ticks stay numbered. Equal
+ * steps per arm, though the arms cover different Cp ranges.
  */
 export const CP_PALETTE = {
   min: -2,
   max: 1,
-  suction: ['#376AD6', '#6A96EB', '#A7BFE9'],
-  neutral: '#E2E2DE',
-  pressure: ['#E3B47D', '#D68125', '#AD5702'],
+  suction: ['#2F45E0', '#5C78FF', '#AAB8FF'],
+  neutral: '#D9DCEB',
+  pressure: ['#FFB3A6', '#FF6F5E', '#D23A2C'],
   /** Legend ticks, Cp. */
   ticks: [-2, -1, 0, 1],
 }

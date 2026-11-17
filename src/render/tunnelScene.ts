@@ -48,6 +48,7 @@ import { recordLength, recordX } from '../sim/geom/record'
 import type { FlowField, Tuft } from '../sim/flow/field'
 import type { Tap } from '../sim/flow/taps'
 import { createFlowViz, type Instruments } from './flowViz'
+import { createCpSurface } from './cpSurface'
 import { onThemeChange, sceneColours } from './theme'
 import type { PivGrid } from '../sim/flow/piv'
 import { buildReferenceWheel, buildRider, disposeGroup, type RiderState } from './riderFigure'
@@ -659,6 +660,13 @@ export function createTunnelView(host: HTMLElement): TunnelView {
 
   // --- Flow instruments round the rider, and the smoke wand.
   const flowViz = createFlowViz(dotTexture)
+  // Pressure colour on the model (PR 13i): only while the taps are on, from their latest scan.
+  const cpSurface = createCpSurface()
+  let scan: { taps: readonly Tap[]; cps: readonly number[] } = { taps: [], cps: [] }
+  function paintCp() {
+    if (instruments.taps && riderGroup && scan.taps.length > 0) cpSurface.paint(riderGroup, flowViz.group, scan.taps, scan.cps)
+    else cpSurface.clear()
+  }
   let instruments: Instruments & { dark: boolean } = { wand: false, rake: false, tufts: false, taps: false, dark: false }
   const wandTip = new THREE.Vector3(WAND.x, floorY + WAND.startUp, WAND.startZ)
   const wandRod = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 1, 8), new THREE.MeshStandardMaterial({ color: COLOURS.wand, roughness: 0.5 }))
@@ -785,6 +793,8 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   let framed: Framing = 'rider'
   function clearRider() {
     if (!riderGroup) return
+    // The paint borrows the figure's meshes: hand them back before it is thrown away.
+    cpSurface.clear()
     // The instruments outlive the model: take them off before it is thrown away.
     riderGroup.remove(flowViz.group)
     // Off the posts after a break, the model may be loose in the section.
@@ -1417,6 +1427,8 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     },
     setTaps(taps, cps) {
       flowViz.setTaps(taps, cps)
+      scan = { taps, cps }
+      paintCp()
     },
     setPiv(grid) {
       flowViz.setPiv(grid)
@@ -1424,6 +1436,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     setInstruments(next) {
       instruments = { ...next }
       flowViz.setInstruments(next)
+      paintCp()
       wand.visible = next.wand && modelKind === 'rider'
       showBackdrop()
     },
@@ -1504,6 +1517,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     dispose() {
       disposed = true
       stopTheme()
+      cpSurface.dispose()
       clearRider()
       clearDebris()
       flowViz.dispose()
