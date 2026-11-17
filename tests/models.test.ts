@@ -4,6 +4,7 @@ import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { TRACK } from '../src/data/briefs'
 import { HILLS } from '../src/data/hills'
+import { SKELETON } from '../src/data/pose'
 import { CIRCUITS, segmentLength } from '../src/data/circuits'
 import { AIRFIELD_KIT, AIRFIELD_SCENE, CIRCUIT_KIT, JUMP_SCENE, RECORD_SCENE, REPLAY_SCENE, SALT_KIT, SLED_KIT, SLED_SCENE } from '../src/data/replay'
 import { TRACKS } from '../src/data/tracks'
@@ -65,7 +66,7 @@ function gltfOf(file: string) {
   const glb = readFileSync(join(ROOT, 'public/models', file))
   type Accessor = { min?: number[]; max?: number[] }
   const json = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString('utf8')) as {
-    nodes: { name: string; mesh?: number }[]
+    nodes: { name: string; mesh?: number; extras?: { length?: number; radius?: number; size?: number[] } }[]
     meshes: { primitives: { attributes: { POSITION: number } }[] }[]
     accessors: Accessor[]
   }
@@ -218,5 +219,28 @@ describe('the Belogor sliding track’s buildings (PR 13p)', () => {
       for (const d of [-6, 0, 6]) expect(pointAt(line, s + d).curve).toBe(0)
     }
     for (const s of [SLED_KIT.shade.from, SLED_KIT.shade.to]) expect(pointAt(line, s).curve).not.toBe(0)
+  })
+})
+
+describe('the people’s body parts (PR 13q)', () => {
+  const { size, json } = gltfOf('body.glb')
+  const node = (name: string) => json.nodes.find((n) => n.name === name)
+
+  it('has every part riderFigure lays between the joints, and loads without a wait', () => {
+    for (const name of ['Thigh', 'Shin', 'UpperArm', 'Forearm', 'Torso', 'Hand', 'Head', 'Shoe', 'Boot', 'RoadHelmet', 'BobHelmet']) expect(node(name)).toBeDefined()
+    expect(size).toBeLessThan(150 * 1024)
+  })
+
+  it('carries the sizes the code scales by, built to the cyclist’s own skeleton', () => {
+    expect(node('Thigh')!.extras).toEqual({ length: SKELETON.thigh, radius: 0.07 })
+    expect(node('Shin')!.extras).toEqual({ length: SKELETON.shin, radius: 0.05 })
+    expect(node('UpperArm')!.extras).toEqual({ length: SKELETON.upperArm, radius: 0.05 })
+    expect(node('Forearm')!.extras).toEqual({ length: SKELETON.forearm, radius: 0.045 })
+    expect(node('Torso')!.extras).toEqual({ length: SKELETON.torso, radius: 0.11 })
+    expect(node('Hand')!.extras?.radius).toBeGreaterThan(0)
+    expect(node('Head')!.extras?.radius).toBe(1)
+    expect(node('BobHelmet')!.extras?.radius).toBe(1)
+    expect(node('Shoe')!.extras?.size).toEqual([0.24, 0.05, 0.08])
+    expect(node('Boot')!.extras?.size).toEqual([0.26, 0.11, 0.09])
   })
 })

@@ -6,11 +6,14 @@
  * helmet's outline is the very cross-section stack the aero model reads, so a
  * longer tail on screen is a longer tail in the sim. Parts that break the
  * rules glow red; the part of the posture that strains the rider most glows
- * amber.
+ * amber. Since PR 13q the people's limbs, torso, hands, head, shoes and
+ * helmets are smooth parts made in Blender (bodyParts.ts), still laid between
+ * the pose's joints; until those load, each is the plain capsule it was.
  */
 import * as THREE from 'three'
 import { MODEL } from './theme'
 import { CP_SURFACE } from './cpSurface'
+import { bodyPart, type PartName } from './bodyParts'
 import { BIKE, HELMET, type CyclistDesign } from '../data/cyclist'
 import { BOB_SKELETON, FRAME, JUMPER_SKELETON, SKATER_SKELETON, SKELETON } from '../data/pose'
 import type { SkaterDesign } from '../data/skater'
@@ -113,6 +116,68 @@ export function rod(a: THREE.Vector3, b: THREE.Vector3, radius: number, material
 export function ball(at: THREE.Vector3, radius: number, material: THREE.Material) {
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(radius, 16, 12), material)
   mesh.position.copy(at)
+  return mesh
+}
+
+/**
+ * A smooth Blender limb or torso (PR 13q) from joint a to joint b at this
+ * thickness, or the plain capsule until the parts load. Its front is turned
+ * a quarter round from the joint line within the side view: `bend` 1 for
+ * legs and arms (the knee's and the biceps' side), −1 for the torso (the
+ * chest). Scale it further with `scale.multiply`, never `scale.set`.
+ */
+function limb(name: PartName, a: THREE.Vector3, b: THREE.Vector3, radius: number, material: THREE.Material, bend: 1 | -1 = 1): THREE.Mesh {
+  const part = bodyPart(name)
+  if (!part) return rod(a, b, radius, material)
+  const y = b.clone().sub(a)
+  const len = y.length()
+  y.normalize()
+  const mesh = new THREE.Mesh(part.geometry.clone(), material)
+  mesh.quaternion.setFromRotationMatrix(facing(y, bend))
+  const k = radius / part.radius
+  mesh.scale.set(k, Math.max(0.001, len) / part.length, k)
+  mesh.position.copy(a)
+  return mesh
+}
+
+/** A frame whose y runs along `dir` and whose x faces a quarter turn round from it in the side view (forward when it can't). */
+function facing(dir: THREE.Vector3, bend: 1 | -1): THREE.Matrix4 {
+  const x = new THREE.Vector3(-dir.y * bend, dir.x * bend, 0)
+  x.addScaledVector(dir, -x.dot(dir))
+  if (x.lengthSq() < 1e-4) x.set(1, 0, 0).addScaledVector(dir, -dir.x)
+  if (x.lengthSq() < 1e-6) x.set(0, 1, 0).addScaledVector(dir, -dir.y)
+  x.normalize()
+  return new THREE.Matrix4().makeBasis(x, dir, new THREE.Vector3().crossVectors(x, dir))
+}
+
+/** A gloved hand at the end of the forearm, pointing on from the elbow, or a ball. */
+function handMesh(elbow: THREE.Vector3, at: THREE.Vector3, radius: number, material: THREE.Material): THREE.Mesh {
+  const part = bodyPart('Hand')
+  if (!part) return ball(at, radius, material)
+  const mesh = new THREE.Mesh(part.geometry.clone(), material)
+  mesh.quaternion.setFromRotationMatrix(facing(at.clone().sub(elbow).normalize(), 1))
+  mesh.scale.setScalar(radius / part.radius)
+  mesh.position.copy(at)
+  return mesh
+}
+
+/** A head facing forward, nodded by the pose's pitch, or a ball. */
+function headMesh(at: THREE.Vector3, radius: number, pitchDeg: number, material: THREE.Material): THREE.Mesh {
+  const part = bodyPart('Head')
+  if (!part) return ball(at, radius, material)
+  const mesh = new THREE.Mesh(part.geometry.clone(), material)
+  mesh.scale.setScalar(radius / part.radius)
+  mesh.rotation.z = (pitchDeg * Math.PI) / 180
+  mesh.position.copy(at)
+  return mesh
+}
+
+/** A shoe or boot filling this box (length, height, width, about its middle, nose to +x), or the box itself. */
+function footwear(name: 'Shoe' | 'Boot', length: number, height: number, width: number, material: THREE.Material): THREE.Mesh {
+  const part = bodyPart(name)
+  if (!part) return new THREE.Mesh(new THREE.BoxGeometry(length, height, width), material)
+  const mesh = new THREE.Mesh(part.geometry.clone(), material)
+  mesh.scale.set(length / part.size.x, height / part.size.y, width / part.size.z)
   return mesh
 }
 
@@ -265,20 +330,20 @@ function buildFigure(state: RiderState): THREE.Group {
 
   // Rider: legs, torso, arms, head.
   for (let i = 0; i < 2; i++) {
-    g.add(rod(v3(pose.hip[i]!), v3(pose.knee[i]!), 0.07, suit))
-    g.add(rod(v3(pose.knee[i]!), v3(pose.foot[i]!), 0.05, suit))
-    const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.05, 0.08), M.tyre)
+    g.add(limb('Thigh', v3(pose.hip[i]!), v3(pose.knee[i]!), 0.07, suit))
+    g.add(limb('Shin', v3(pose.knee[i]!), v3(pose.foot[i]!), 0.05, suit))
+    const shoe = footwear('Shoe', 0.24, 0.05, 0.08, M.tyre)
     shoe.position.copy(v3(pose.foot[i]!)).add(new THREE.Vector3(0.04, 0.01, 0))
     g.add(shoe)
   }
   const hipC = v3(pose.hip[0]).add(v3(pose.hip[1])).multiplyScalar(0.5)
   const shC = v3(pose.shoulder[0]).add(v3(pose.shoulder[1])).multiplyScalar(0.5)
   const torsoWidth = (0.3 + 0.25 * design.posture.armWidth) / 0.22
-  const torso = rod(hipC, shC, 0.11, tint('torso', suit))
-  torso.scale.set(1, 1, torsoWidth)
+  const torso = limb('Torso', hipC, shC, 0.11, tint('torso', suit), -1)
+  torso.scale.multiply(new THREE.Vector3(1, 1, torsoWidth))
   g.add(torso)
-  const stripe = rod(hipC.clone().setZ(0.001), shC.clone().setZ(0.001), 0.112, M.panel)
-  stripe.scale.set(0.35, 0.98, torsoWidth * 1.01)
+  const stripe = limb('Torso', hipC.clone().setZ(0.001), shC.clone().setZ(0.001), 0.112, M.panel, -1)
+  stripe.scale.multiply(new THREE.Vector3(0.35, 0.98, torsoWidth * 1.01))
   g.add(stripe)
 
   const armMat = tint('arms', suit)
@@ -286,9 +351,9 @@ function buildFigure(state: RiderState): THREE.Group {
     const sh = v3(pose.shoulder[i]!)
     const el = v3(pose.elbow[i]!)
     const hand = v3(pose.hand[i]!)
-    g.add(rod(sh, el, 0.05, armMat))
-    g.add(rod(el, hand, 0.045, isBroken('hands') ? M.broken : armMat))
-    g.add(ball(hand, 0.04, M.tyre))
+    g.add(limb('UpperArm', sh, el, 0.05, armMat))
+    g.add(limb('Forearm', el, hand, 0.045, isBroken('hands') ? M.broken : armMat))
+    g.add(handMesh(el, hand, 0.04, M.tyre))
     if (design.suit.armTrips) {
       const band = rod(sh.clone().lerp(el, 0.35), sh.clone().lerp(el, 0.42), 0.053, M.trip)
       g.add(band)
@@ -297,7 +362,7 @@ function buildFigure(state: RiderState): THREE.Group {
   const neck = v3(pose.neck)
   g.add(rod(shC, neck, 0.05, tint('head', M.skin)))
   const head = v3(pose.head)
-  g.add(ball(head, SKELETON.headRadius * 0.85, M.skin))
+  g.add(headMesh(head, SKELETON.headRadius * 0.85, pose.headPitchDeg, M.skin))
 
   // Helmet, tilted with the head; its centre sits a little above the head's.
   const helmetMat = tint('helmet', M.helmet)
@@ -330,11 +395,11 @@ function buildSkater(design: SkaterDesign, state: RiderState): THREE.Group {
     const hip = v3(pose.hip[i]!)
     const knee = v3(pose.knee[i]!)
     const ankle = v3(pose.foot[i]!)
-    g.add(rod(hip, knee, 0.075, legMat))
-    g.add(rod(knee, ankle, 0.055, legMat))
+    g.add(limb('Thigh', hip, knee, 0.075, legMat))
+    g.add(limb('Shin', knee, ankle, 0.055, legMat))
     if (design.suit.legTrips) g.add(rod(knee.clone().lerp(ankle, 0.3), knee.clone().lerp(ankle, 0.38), 0.058, M.trip))
     // Boot and blade, along the ice.
-    const boot = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.11, 0.09), M.tyre)
+    const boot = footwear('Boot', 0.26, 0.11, 0.09, M.tyre)
     boot.position.set(ankle.x + 0.03, ankle.y - 0.06, ankle.z)
     g.add(boot)
     const blade = new THREE.Mesh(new THREE.BoxGeometry(S.blade.length, S.blade.height * 0.25, 0.006), M.blade)
@@ -346,11 +411,11 @@ function buildSkater(design: SkaterDesign, state: RiderState): THREE.Group {
   const hipC = v3(pose.hip[0]).add(v3(pose.hip[1])).multiplyScalar(0.5)
   const shC = v3(pose.shoulder[0]).add(v3(pose.shoulder[1])).multiplyScalar(0.5)
   const width = S.shoulderWidth / 0.2
-  const torso = rod(hipC, shC, 0.11, tint('torso', suit))
-  torso.scale.set(1, 1, width)
+  const torso = limb('Torso', hipC, shC, 0.11, tint('torso', suit), -1)
+  torso.scale.multiply(new THREE.Vector3(1, 1, width))
   g.add(torso)
-  const stripe = rod(hipC.clone().setZ(0.001), shC.clone().setZ(0.001), 0.112, M.panel)
-  stripe.scale.set(0.35, 0.98, width * 1.01)
+  const stripe = limb('Torso', hipC.clone().setZ(0.001), shC.clone().setZ(0.001), 0.112, M.panel, -1)
+  stripe.scale.multiply(new THREE.Vector3(0.35, 0.98, width * 1.01))
   g.add(stripe)
 
   const armMat = tint('arms', suit)
@@ -358,14 +423,14 @@ function buildSkater(design: SkaterDesign, state: RiderState): THREE.Group {
     const sh = v3(pose.shoulder[i]!)
     const el = v3(pose.elbow[i]!)
     const hand = v3(pose.hand[i]!)
-    g.add(rod(sh, el, 0.048, armMat))
-    g.add(rod(el, hand, 0.042, armMat))
-    g.add(ball(hand, 0.038, M.tyre))
+    g.add(limb('UpperArm', sh, el, 0.048, armMat))
+    g.add(limb('Forearm', el, hand, 0.042, armMat))
+    g.add(handMesh(el, hand, 0.038, M.tyre))
   }
   const neck = v3(pose.neck)
   g.add(rod(shC, neck, 0.05, tint('head', suit)))
   const head = v3(pose.head)
-  g.add(ball(head, S.headRadius * 0.85, M.skin))
+  g.add(headMesh(head, S.headRadius * 0.85, pose.headPitchDeg, M.skin))
 
   // A smooth hood (the aero model's own sections) or a knitted cap.
   const headMat = tint('helmet', design.hood === 'hood' ? suit : M.cap)
@@ -420,10 +485,10 @@ function buildJumper(design: JumperDesign, state: RiderState): THREE.Group {
     const hip = v3(pose.hip[i]!)
     const knee = v3(pose.knee[i]!)
     const foot = v3(pose.foot[i]!)
-    g.add(rod(hip, knee, 0.07 * bag, legMat))
-    g.add(rod(knee, foot, 0.055 * bag, legMat))
+    g.add(limb('Thigh', hip, knee, 0.07 * bag, legMat))
+    g.add(limb('Shin', knee, foot, 0.055 * bag, legMat))
     const ski = pose.skis[i]!
-    const boot = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.12, 0.11), M.tyre)
+    const boot = footwear('Boot', 0.3, 0.12, 0.11, M.tyre)
     boot.quaternion.setFromUnitVectors(along, v3(ski.tip).sub(v3(ski.tail)).normalize())
     boot.position.copy(foot).add(new THREE.Vector3(0, 0.05, 0))
     g.add(boot)
@@ -432,11 +497,11 @@ function buildJumper(design: JumperDesign, state: RiderState): THREE.Group {
   const hipC = v3(pose.hip[0]).add(v3(pose.hip[1])).multiplyScalar(0.5)
   const shC = v3(pose.shoulder[0]).add(v3(pose.shoulder[1])).multiplyScalar(0.5)
   const width = (S.shoulderWidth / 0.2) * bag
-  const torso = rod(hipC, shC, 0.11, tint('torso', suit))
-  torso.scale.set(0.85, 1, width)
+  const torso = limb('Torso', hipC, shC, 0.11, tint('torso', suit), -1)
+  torso.scale.multiply(new THREE.Vector3(0.85, 1, width))
   g.add(torso)
-  const stripe = rod(hipC.clone().setZ(0.001), shC.clone().setZ(0.001), 0.112, M.panel)
-  stripe.scale.set(0.3, 0.98, width * 1.01)
+  const stripe = limb('Torso', hipC.clone().setZ(0.001), shC.clone().setZ(0.001), 0.112, M.panel, -1)
+  stripe.scale.multiply(new THREE.Vector3(0.3, 0.98, width * 1.01))
   g.add(stripe)
 
   const armMat = tint('arms', suit)
@@ -444,14 +509,14 @@ function buildJumper(design: JumperDesign, state: RiderState): THREE.Group {
     const sh = v3(pose.shoulder[i]!)
     const el = v3(pose.elbow[i]!)
     const hand = v3(pose.hand[i]!)
-    g.add(rod(sh, el, 0.05 * bag, armMat))
-    g.add(rod(el, hand, 0.045 * bag, armMat))
-    g.add(ball(hand, 0.04, M.tyre))
+    g.add(limb('UpperArm', sh, el, 0.05 * bag, armMat))
+    g.add(limb('Forearm', el, hand, 0.045 * bag, armMat))
+    g.add(handMesh(el, hand, 0.04, M.tyre))
   }
   const neck = v3(pose.neck)
   g.add(rod(shC, neck, 0.05, tint('head', suit)))
   const head = v3(pose.head)
-  g.add(ball(head, S.headRadius * 0.85, M.skin))
+  g.add(headMesh(head, S.headRadius * 0.85, pose.headPitchDeg, M.skin))
   const helmet = roadHelmet(tint('helmet', M.helmet))
   helmet.position.copy(v3(pose.helmet))
   helmet.rotation.z = (pose.headPitchDeg * Math.PI) / 180
@@ -499,22 +564,29 @@ function buildBobsled(design: BobsledDesign, state: RiderState): THREE.Group {
     const at = (p: Point) => v3(p).add(new THREE.Vector3(dx, 0, 0))
     const S = BOB_SKELETON
     for (let k = 0; k < 2; k++) {
-      g.add(rod(at(pose.hip[k]!), at(pose.knee[k]!), 0.065, M.suit))
-      g.add(rod(at(pose.knee[k]!), at(pose.foot[k]!), 0.05, M.suit))
-      g.add(rod(at(pose.shoulder[k]!), at(pose.elbow[k]!), 0.045, M.suit))
-      g.add(rod(at(pose.elbow[k]!), at(pose.hand[k]!), 0.04, M.suit))
-      g.add(ball(at(pose.hand[k]!), 0.035, M.tyre))
+      g.add(limb('Thigh', at(pose.hip[k]!), at(pose.knee[k]!), 0.065, M.suit))
+      g.add(limb('Shin', at(pose.knee[k]!), at(pose.foot[k]!), 0.05, M.suit))
+      g.add(limb('UpperArm', at(pose.shoulder[k]!), at(pose.elbow[k]!), 0.045, M.suit))
+      g.add(limb('Forearm', at(pose.elbow[k]!), at(pose.hand[k]!), 0.04, M.suit))
+      g.add(handMesh(at(pose.elbow[k]!), at(pose.hand[k]!), 0.035, M.tyre))
     }
     const hipC = at(pose.hip[0]).add(at(pose.hip[1])).multiplyScalar(0.5)
     const shC = at(pose.shoulder[0]).add(at(pose.shoulder[1])).multiplyScalar(0.5)
-    const torso = rod(hipC, shC, 0.11, M.suit)
-    torso.scale.set(0.9, 1, S.shoulderWidth / 0.22)
+    const torso = limb('Torso', hipC, shC, 0.11, M.suit, -1)
+    torso.scale.multiply(new THREE.Vector3(0.9, 1, S.shoulderWidth / 0.22))
     g.add(torso)
     g.add(rod(shC, at(pose.neck), 0.05, M.suit))
     const driver = i === 0
     const helmetMat = driver && isBroken('helmet') ? M.broken : driver && isStrained('helmet') ? M.strain : M.helmet
-    const helmet = ball(at(pose.head), S.helmetRadius, helmetMat)
-    helmet.scale.set(1.1, 1, 0.92)
+    // The full-face helmet (PR 13q), nodded with the head; a plain ball until the parts load.
+    const shell = bodyPart('BobHelmet')
+    const helmet = shell ? new THREE.Mesh(shell.geometry.clone(), helmetMat) : ball(at(pose.head), S.helmetRadius, helmetMat)
+    if (shell) {
+      helmet.scale.setScalar(S.helmetRadius / shell.radius)
+      helmet.rotation.z = (pose.headPitchDeg * Math.PI) / 180
+      helmet.position.copy(at(pose.head))
+    }
+    helmet.scale.multiply(new THREE.Vector3(1.1, 1, 0.92))
     g.add(helmet)
     const visor = new THREE.Mesh(new THREE.SphereGeometry(S.helmetRadius * 1.02, 16, 8, -0.9, 1.8, 1.3, 0.6), M.visor)
     visor.rotation.y = Math.PI / 2
@@ -579,7 +651,9 @@ const JUMPER_BAG_DRAW = 0.45
 
 function roadHelmet(material: THREE.Material): THREE.Object3D {
   const r = HELMET.road
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.62), material)
+  // The vented Blender shell (PR 13q) is built in the same 0.5 m unit space as the plain cap it replaces.
+  const shell = bodyPart('RoadHelmet')
+  const mesh = new THREE.Mesh(shell ? shell.geometry.clone() : new THREE.SphereGeometry(0.5, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.62), material)
   mesh.scale.set(r.length, r.height * 1.1, r.width)
   return mesh
 }
