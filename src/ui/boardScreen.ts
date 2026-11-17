@@ -136,6 +136,7 @@ import { twoTap } from './twoTap'
 import { bestText, shareLegacy } from './legacyPicture'
 import { attemptNote, recordParts, recordsCard } from './records'
 import { countryNote, countryTag } from './export'
+import { challengeCard, challengeParts } from './challenge'
 import { COUNTRIES, COUNTRY_IDS } from '../data/export'
 import { researchCard } from './research'
 
@@ -1829,6 +1830,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
     if (db.baseline.lostToGusts > 0) parts.push(el('p', 'shop-note', t('race.oldGusts', { time: shortTime(db.baseline.lostToGusts) })))
     parts.push(el('p', 'shop-note', t('race.readNote')))
     parts.push(...recordParts(d))
+    parts.push(...challengeParts(d, design))
     if (d.sale) parts.push(brokeBox(d.sale, d.state.money))
     if (d.state.ended) parts.push(el('p', 'save-due', t('end.reached')))
     const again = button('save-btn quiet', t('race.replay'))
@@ -2582,8 +2584,11 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       page.replaceChildren(firm, legacyCard())
       return
     }
-    const naming = !career.firm || renaming ? [nameCard()] : []
+    const challenge = challengeCard()
+    // A practice copy (PR 11i) is never named: it isn't a firm anyone keeps.
+    const naming = !challenge && (!career.firm || renaming) ? [nameCard()] : []
     page.replaceChildren(
+      ...(challenge ? [challenge] : []),
       firm,
       ...naming,
       ...(guide ? [guide] : []),

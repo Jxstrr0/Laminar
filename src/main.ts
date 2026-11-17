@@ -26,13 +26,16 @@ import { STOCK_AIRCRAFT } from './data/aircraft'
 import { STOCK_POD } from './data/pod'
 import type { Design } from './data/sport'
 import { careerStore, freshSeed } from './ui/careerStore'
-import { charge, firmEffects, currentAircraftRun, currentPodRun, currentCarRun, currentDroneRun, currentPlaneRun, currentRecordRun, currentEvent, currentJumpEvent, currentSledEvent, currentTruckRun, newCareer, orderBlock, orderModel, repairModel } from './sim/career'
+import { briefTemplate, charge, firmEffects, currentAircraftRun, currentPodRun, currentCarRun, currentDroneRun, currentPlaneRun, currentRecordRun, currentEvent, currentJumpEvent, currentSledEvent, currentTruckRun, newCareer, orderBlock, orderModel, repairModel } from './sim/career'
 import { makersOwned, tunnelSetup } from './sim/facility'
 import { finishedResearch } from './sim/research'
 import { afterDesign, afterOrder, afterRun, afterSwap, currentStep } from './sim/guide'
 import { runCost } from './sim/run'
 import { rublesShort } from './ui/format'
 import { askToKeepStorage, backupDue, noteFirstSeen, readMarks } from './persist/backup'
+import { challengeLink, decodeChallenge } from './persist/designCode'
+import { challengeCareer, challengeTarget } from './sim/challenge'
+import { challengeStore } from './ui/challengeStore'
 
 /** The career slot in play: the one used last visit. */
 const SLOT = lastSlot()
@@ -64,7 +67,12 @@ const PREVIEWS: Record<string, Design> = {
   pod: STOCK_POD.patrol,
 }
 const PREVIEW_DESIGN = PREVIEWS[new URLSearchParams(location.search).get('try') ?? ''] ?? null
-const PREVIEW = PREVIEW_DESIGN !== null
+/**
+ * A challenge from a friend (PR 11i): `?challenge=<LAMD1 code>` opens a
+ * practice copy of their job, which, like a preview, writes nowhere.
+ */
+const CHALLENGE_CODE = new URLSearchParams(location.search).get('challenge')
+const PREVIEW = PREVIEW_DESIGN !== null || CHALLENGE_CODE !== null
 
 const loading = bindLoadingScreen()
 
@@ -129,7 +137,22 @@ async function boot(): Promise<void> {
   loading.progress(0.2)
   // Pick up where the last visit left off. A save that can't be trusted is left alone, unread.
   const saved = PREVIEW ? null : parseSave(await readSlot(SLOT).catch(() => null))
-  if (PREVIEW_DESIGN) {
+  // The design a preview or challenge starts the bench with.
+  let startDesign: Design | undefined = PREVIEW_DESIGN ?? undefined
+  if (CHALLENGE_CODE !== null) {
+    const got = await decodeChallenge(CHALLENGE_CODE)
+    if (!got.ok) {
+      // A broken link: go to the player's own game rather than a dead end.
+      location.replace(location.pathname)
+      return
+    }
+    const c = got.challenge
+    challengeStore.set({ challenge: c, target: challengeTarget(c) })
+    // The client's own setup, never the sender's design.
+    startDesign = structuredClone(briefTemplate(c.brief.id)!.setup)
+    designStore.set(structuredClone(startDesign))
+    careerStore.set(challengeCareer(c))
+  } else if (PREVIEW_DESIGN) {
     designStore.set(structuredClone(PREVIEW_DESIGN))
     careerStore.set(newCareer(freshSeed()))
   } else if (saved) {
@@ -151,7 +174,7 @@ async function boot(): Promise<void> {
   const tunnelHost = screenHost(app, 'tunnel')
   // The tunnel calls back when something worth keeping changes; so do the design and the career.
   let touch = () => {}
-  const tunnel = startTunnelScreen(tunnelHost, createTunnelView(tunnelHost), saved?.lab ?? newLab(PREVIEW_DESIGN ?? undefined), {
+  const tunnel = startTunnelScreen(tunnelHost, createTunnelView(tunnelHost), saved?.lab ?? newLab(startDesign), {
     onChange: () => touch(),
     onRun: (run) => careerStore.set(afterRun(charge(careerStore.get(), runCost(run)))),
     tunnelSeed: careerStore.get().seed,
@@ -269,6 +292,12 @@ async function boot(): Promise<void> {
           career: newCareer(freshSeed()),
         }),
       load: (save) => leaveFor(SLOT, { ...save, savedAt: Date.now() }),
+      // A friend's challenge: keep this career safe, then open the practice copy.
+      openChallenge: async (code) => {
+        await autosave.flush()
+        autosave.stop()
+        location.assign(challengeLink(location.pathname, code))
+      },
       backedUp: showSavesChip,
     })
   })
@@ -295,8 +324,9 @@ async function boot(): Promise<void> {
     const previewChip = document.createElement('button')
     previewChip.type = 'button'
     previewChip.className = 'chip preview-chip'
-    previewChip.textContent = t('preview.chip')
-    previewChip.setAttribute('aria-label', t('preview.chipName'))
+    const challenging = CHALLENGE_CODE !== null
+    previewChip.textContent = t(challenging ? 'chal.chip' : 'preview.chip')
+    previewChip.setAttribute('aria-label', t(challenging ? 'chal.chipName' : 'preview.chipName'))
     previewChip.addEventListener('click', () => location.assign(location.pathname))
     savesBtn.replaceWith(previewChip)
   }

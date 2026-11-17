@@ -62,3 +62,25 @@ export async function decodeChallenge(input: string): Promise<DecodedChallenge> 
   }
   return { ok: true, challenge }
 }
+
+/**
+ * The design code in whatever a friend pasted: the bare code, or a challenge
+ * link with the code in it (escaped or not). Null if there isn't one.
+ */
+export function findChallengeCode(text: string): string | null {
+  let plain = text.replace(/\s+/g, '')
+  try {
+    plain = decodeURIComponent(plain)
+  } catch {
+    // Not escaped: use it as it is.
+  }
+  const at = plain.indexOf(DESIGN_CODE_PREFIX)
+  if (at < 0) return null
+  const m = /^LAMD1:[A-Za-z0-9_-]+\.[a-z0-9]+/.exec(plain.slice(at))
+  return m ? m[0] : null
+}
+
+/** A link that opens the challenge straight away (PR 11i). */
+export function challengeLink(base: string, code: string): string {
+  return `${base}?challenge=${encodeURIComponent(code)}#board`
+}
