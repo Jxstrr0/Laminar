@@ -551,7 +551,7 @@ export const STRINGS = {
   'board.promiseValue': '−{pct} % drag',
   'deliver.title': 'Deliver',
   'deliver.close': 'Close deliver',
-  'deliver.intro': 'Lock the design for {client} and say what the road will read at the {event}.',
+  'deliver.intro': 'Lock the design for {client} and say what CdA it will read on the day at the {event}.',
   'deliver.promise': 'Promise: cut their drag {pct} % from their old setup.',
   'deliver.promiseNote': 'Checked on race day: both setups ridden in that day’s air. Each point short costs a slice of the fee (half at most); half a point is forgiven.',
   'deliver.predict': 'Your prediction:',
@@ -732,7 +732,7 @@ export const STRINGS = {
   'replay.note.gust': 'A gust! {client} wobbles and eases off to keep the bike straight.',
   'replay.note.fade': '{client} is sitting up: that position can’t be held any longer.',
   'replay.note.fadeSkater': '{client} is standing taller: that crouch can’t be held any longer.',
-  'replay.predicted': 'You predicted {pred} m². The road read {real} m².',
+  'replay.predicted': 'You predicted {pred} m². On the day it read {real} m².',
   'replay.debrief': 'See the debrief',
   // The jump replay (PR 8j).
   'jr.time': 'In the air',
