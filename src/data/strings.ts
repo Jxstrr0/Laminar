@@ -1929,6 +1929,13 @@ export const STRINGS = {
   'book.gcu-tt': 'GCU time-trial rules',
   'book.zcl-tt': 'ZCL time-trial rules',
   'shape.credits': 'Credits',
+  // Offline play (PR 14a)
+  'offline.update': 'A new version of Laminar is ready. Your career is saved first.',
+  'offline.reload': 'Reload',
+  'offline.later': 'Later',
+  'offline.ready': 'Works offline: yes. This copy opens with no signal.',
+  'offline.pending': 'Works offline: getting ready. Open the game once more to finish.',
+  'offline.off': 'Works offline: not on this browser.',
   'credits.title': 'Credits',
   'credits.close': 'Close the credits',
   'credits.studioName': 'Longlight Interactive',

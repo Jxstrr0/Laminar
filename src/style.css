@@ -1429,3 +1429,37 @@ body[data-guide='deliver'] .guide-deliver {
 .replay-tick.is-hs { background: var(--sep); }
 .replay-strip.is-jump { margin-top: 22px; }
 .replay-tick-label { position: absolute; top: -20px; transform: translateX(-50%); font: 500 0.7rem var(--font-num); color: var(--muted); }
+
+/* --- New-version bar (PR 14a) ------------------------------------------ */
+/* Floats just above the dock: a white card, the message, Later and a teal Reload. */
+.update-bar {
+  position: fixed;
+  z-index: 40;
+  left: 50%;
+  bottom: calc(var(--dock-h) + 8px);
+  transform: translateX(-50%);
+  width: min(440px, calc(100% - 24px - var(--safe-l) - var(--safe-r)));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 12px 12px 12px 16px;
+  border-radius: 20px;
+  background: var(--panel);
+  border: var(--card-border);
+  box-shadow: var(--shadow-dock);
+  color: var(--ink);
+}
+.update-bar p { flex: 1 1 100%; margin: 0; font-size: 0.9rem; line-height: 1.35; }
+.update-bar button {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 22px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.update-later { margin-left: auto; background: var(--panel-2); color: var(--ink); }
+.update-go { background: var(--accent); color: var(--accent-ink); }
+.update-go:disabled { opacity: 0.6; }
