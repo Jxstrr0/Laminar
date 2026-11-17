@@ -12,8 +12,8 @@ Laminar is made by Kelbo / Longlight Interactive. © 2026.
 
 | Font | Author | Licence | Source |
 | --- | --- | --- | --- |
-| Instrument Sans | The Instrument Sans Project Authors | SIL Open Font License 1.1 | https://github.com/Instrument/instrument-sans (via @fontsource) |
-| Spline Sans Mono | The Spline Sans Mono Project Authors | SIL Open Font License 1.1 | https://github.com/SorkinType/SplineSansMono (via @fontsource) |
+| Bricolage Grotesque | The Bricolage Grotesque Project Authors | SIL Open Font License 1.1 | https://github.com/ateliertriay/bricolage (via @fontsource) |
+| Geist Mono | The Geist Project Authors | SIL Open Font License 1.1 | https://github.com/vercel/geist-font (via @fontsource) |
 | Space Grotesk (studio pieces) | The Space Grotesk Project Authors | SIL Open Font License 1.1 | https://github.com/floriankarsten/space-grotesk (via @fontsource) |
 
 ## Studio

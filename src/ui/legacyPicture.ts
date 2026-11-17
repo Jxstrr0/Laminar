@@ -14,8 +14,8 @@ import { downloadBlob } from '../persist/backup'
 /** The picture's size, px (4:5 portrait, the shape phones show best). */
 export const PICTURE = { width: 1080, height: 1350, margin: 80 }
 
-const UI = "'Instrument Sans', system-ui, sans-serif"
-const NUM = "'Spline Sans Mono', ui-monospace, monospace"
+const UI = "'Bricolage Grotesque', system-ui, sans-serif"
+const NUM = "'Geist Mono', ui-monospace, monospace"
 const STUDIO = "'Space Grotesk', system-ui, sans-serif"
 
 /**
@@ -203,7 +203,7 @@ export function drawLegacy(L: Legacy): HTMLCanvasElement {
     g.font = `400 26px ${UI}`
     g.fillText(wrapLines(label, colW - 24, fits, 1)[0] ?? '', cx, ry + 36)
     g.fillStyle = col.ink
-    g.font = `500 38px ${NUM}`
+    g.font = `600 38px ${NUM}`
     g.fillText(wrapLines(value, colW - 24, fits, 1)[0] ?? '', cx, ry + 80)
   })
 

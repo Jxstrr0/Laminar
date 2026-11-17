@@ -85,27 +85,34 @@ docs/         the plan, NAMES.md, STATUS.md
 - Phone first, portrait first. Touch must work before a feature is done.
 - Every chart has a readable number, not colour alone.
 
-## Look ("Cobalt lab", chosen by Kelbo 15 November 2026)
+## Look ("Isobar", chosen by Kelbo 16 November 2026)
 
-A bright, clean wind-tunnel lab, light first, with a dark mode. Every colour is
-a CSS variable at the top of `src/style.css`.
+The pressure map becomes the look: a soft lilac-ice lab, cool blue for suction
+and coral for pressure, rounded white cards, numbers in a crisp mono, and one
+teal for actions. Light and dark modes, following the phone. Every colour is a
+CSS variable at the top of `src/style.css`. The full brief, with every token, is
+`docs/UI-ISOBAR-PLAN.md` (landing as PR 13e–13j).
 
 | Token | Light | Dark |
 | --- | --- | --- |
-| `--bg` | `#F5F7F9` | `#0E141A` |
-| `--panel` / `--panel-2` | `#FFFFFF` / `#E6EBEF` | `#16202A` / `#1E2A35` |
-| `--line` | `#D3DAE0` | `#2A3A47` |
-| `--ink` / `--muted` | `#13202B` / `#5A6875` | `#E8EEF3` / `#93A3B1` |
-| `--accent` (instruments, cobalt) | `#2456E8` | `#6E93FF` |
-| `--warn` | `#E08A00` | `#F2A93B` |
-| `--sep` (separation, failures) | `#D2462B` | `#F07158` |
+| `--bg` | `#EDEFFA` | `#0F1226` |
+| `--panel` / `--panel-2` | `#FFFFFF` / `#EDEFFA` | `#1A1E3A` / `#151936` |
+| `--scene` | `#F6F7FF` | `#151936` |
+| `--line` | `#E4E7F6` | `#2A2F55` |
+| `--ink` / `--muted` | `#161A33` / `#5A6082` | `#EEF0FF` / `#A3A9CC` |
+| `--accent` (actions, teal) | `#00756F` | `#2ED3C6` |
+| `--cp-lo` / `--cp-hi` (pressure data) | `#3D5BFF` / `#FF5A4E` | `#7189FF` / `#FF7A6E` |
+| `--sep` / `--sep-text` (failures) | `#FF5A4E` / `#C2372C` | `#FF7A6E` / `#FF7A6E` |
+| `--warn` / `--warn-text` | `#E08A00` / `#9A5B00` | `#F2A93B` / `#F2A93B` |
 
-- Fonts, self-hosted from `@fontsource`: **Instrument Sans** (400/600/700) for
-  the UI and **Spline Sans Mono** (400/500) for numbers. No other Longlight
-  game uses either.
-- The 3D lab stays bright in both themes. Smoke is white with a grey twin so it
-  reads on pale walls; a dark-backdrop option comes with the instruments (PR 3).
-- The Cp map (PR 4) must use a perceptual, colour-blind-safe diverging palette.
+- Coral on white is only 3.1:1: failure **text** uses `--sep-text`, never `--sep`.
+- No frosted glass, no gradient washes, no left-border accent cards. Gradients
+  only where they are data (the Cp legend, the Cp bar under the wordmark).
+- Fonts, self-hosted from `@fontsource`: **Bricolage Grotesque** (400/600/700/800)
+  for the UI and **Geist Mono** (400/600) for numbers. No other Longlight game
+  uses either. The wordmark is lowercase "laminar", 800.
+- Jobs / Shape / Tunnel switch in a floating bottom dock on every screen width.
+- The Cp map must use a perceptual, colour-blind-safe diverging palette.
 
 ## Versions
 

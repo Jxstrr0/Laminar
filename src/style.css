@@ -1,19 +1,40 @@
-/* Laminar: "Cobalt lab". A bright, clean wind-tunnel lab, light first, with a
-   dark mode. Chosen by Kelbo, 15 November 2026 (see CLAUDE.md, Look).
+/* Laminar: "Isobar". The pressure map becomes the look: a soft lilac-ice lab,
+   cool blue for suction and coral for pressure, one teal for actions, and
+   numbers in a crisp mono. Chosen by Kelbo, 16 November 2026 (see CLAUDE.md,
+   Look, and docs/UI-ISOBAR-PLAN.md). Light first, with a dark mode.
    Every colour is a variable here; nothing else in the CSS names a colour. */
 :root {
   color-scheme: light dark;
-  --bg: #f5f7f9;
+  --bg: #edeffa;
   --panel: #ffffff;
-  --panel-2: #e6ebef;
-  --line: #d3dae0;
-  --ink: #13202b;
-  --muted: #5a6875;
-  --accent: #2456e8;
+  --panel-2: #edeffa;
+  /* The scene card and the 3D backdrop. */
+  --scene: #f6f7ff;
+  --line: #e4e7f6;
+  --ink: #161a33;
+  --muted: #5a6082;
+  /* The one action colour: active nav, selected controls, slider fills, links. */
+  --accent: #00756f;
   --accent-ink: #ffffff;
+  --accent-soft: #d5f0ee;
+  /* The primary button. */
+  --btn: #161a33;
+  --btn-ink: #ffffff;
+  /* Pressure data: suction blue, pressure coral, and the pale middle of the scale. */
+  --cp-lo: #3d5bff;
+  --cp-mid: #d9dceb;
+  --cp-hi: #ff5a4e;
+  /* Separation and failures: --sep for fills and lines, --sep-text for words
+     (coral on white is only 3.1:1, too faint for text). */
+  --sep: #ff5a4e;
+  --sep-text: #c2372c;
   --warn: #e08a00;
   --warn-text: #9a5b00;
-  --sep: #d2462b;
+  /* Client and staff initials. */
+  --avatar: #ffe1dc;
+  --avatar-ink: #b3261e;
+  /* How strongly the background isobars show. */
+  --iso: 0.13;
   /* The pod sensor's grey picture (PR 10af): the same in both themes. */
   --sensor-bg: #3b4147;
   --sensor-field-a: #51585e;
@@ -22,29 +43,49 @@
   --sensor-road: #8d9499;
   --sensor-hot: #e9ecee;
   --sensor-ink: #e9ecee;
-  --shadow: 0 -6px 24px rgba(19, 32, 43, 0.1);
-  --font-ui: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-num: 'Spline Sans Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --shadow: 0 -6px 24px rgba(40, 50, 120, 0.1);
+  --shadow-card: 0 12px 30px rgba(40, 50, 120, 0.12);
+  --shadow-dock: 0 14px 34px rgba(40, 50, 120, 0.22);
+  /* In dark mode cards get a hairline so they hold their edges. */
+  --card-border: 0 solid transparent;
+  --r-card: 26px;
+  --r-pill: 22px;
+  --r-small: 14px;
+  --font-ui: 'Bricolage Grotesque', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-num: 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-l: env(safe-area-inset-left, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
   --tap: 44px;
+  /* The bottom dock's height plus its gap, so screens can keep clear of it. */
+  --dock-h: calc(64px + 16px + var(--safe-b));
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0e141a;
-    --panel: #16202a;
-    --panel-2: #1e2a35;
-    --line: #2a3a47;
-    --ink: #e8eef3;
-    --muted: #93a3b1;
-    --accent: #6e93ff;
-    --accent-ink: #0e141a;
+    --bg: #0f1226;
+    --panel: #1a1e3a;
+    --panel-2: #151936;
+    --scene: #151936;
+    --line: #2a2f55;
+    --ink: #eef0ff;
+    --muted: #a3a9cc;
+    --accent: #2ed3c6;
+    --accent-ink: #0f1226;
+    --accent-soft: rgba(46, 211, 198, 0.16);
+    --btn: #eef0ff;
+    --btn-ink: #0f1226;
+    --cp-lo: #7189ff;
+    --cp-mid: #d9dceb;
+    --cp-hi: #ff7a6e;
+    --sep: #ff7a6e;
+    --sep-text: #ff7a6e;
     --warn: #f2a93b;
     --warn-text: #f2a93b;
-    --sep: #f07158;
+    --avatar: rgba(255, 122, 110, 0.18);
+    --avatar-ink: #ff9a90;
+    --iso: 0.24;
     --sensor-bg: #3b4147;
     --sensor-field-a: #51585e;
     --sensor-field-b: #646b70;
@@ -53,6 +94,9 @@
     --sensor-hot: #e9ecee;
     --sensor-ink: #e9ecee;
     --shadow: 0 -6px 24px rgba(0, 0, 0, 0.45);
+    --shadow-card: 0 12px 30px rgba(0, 0, 0, 0.45);
+    --shadow-dock: 0 14px 34px rgba(0, 0, 0, 0.55);
+    --card-border: 1px solid var(--line);
   }
 }
 
@@ -83,26 +127,39 @@ html, body {
   position: absolute;
   top: calc(10px + var(--safe-t));
   left: calc(16px + var(--safe-l));
-  /* Leave room for the Jobs / Shape / Tunnel switch on the right. */
-  right: calc(222px + var(--safe-r));
+  /* Leave room for the money chip and Saves on the right. */
+  right: calc(176px + var(--safe-r));
   pointer-events: none;
 }
 .title-block {
   display: inline-block;
-  padding: 8px 12px;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--panel) 82%, transparent);
-  backdrop-filter: blur(6px);
+  padding: 8px 14px 9px;
+  border-radius: var(--r-small);
+  background: var(--panel);
+  border: var(--card-border);
+  box-shadow: var(--shadow-card);
 }
+/* The game's own wordmark, lowercase (Kelbo), over the little Cp bar. */
 .wordmark {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  font-size: 1.625rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  text-transform: lowercase;
   color: var(--ink);
 }
-.place { margin: 2px 0 0; font-size: 0.8rem; color: var(--muted); }
+/* The Cp bar is data colour, so it may be a gradient: suction, the pale middle, pressure. */
+.wordmark::after {
+  content: '';
+  display: block;
+  width: 28px;
+  height: 4px;
+  margin-top: 5px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--cp-lo), var(--cp-mid), var(--cp-hi));
+}
+.place { margin: 4px 0 0; font-size: 0.8rem; color: var(--muted); }
 
 /* --- Bottom sheet ------------------------------------------------------ */
 .sheet {
@@ -110,7 +167,8 @@ html, body {
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 14px calc(16px + var(--safe-r)) calc(12px + var(--safe-b)) calc(16px + var(--safe-l));
+  /* The bottom keeps clear of the dock. */
+  padding: 14px calc(16px + var(--safe-r)) calc(12px + var(--dock-h)) calc(16px + var(--safe-l));
   background: var(--panel);
   border-top: 1px solid var(--line);
   border-radius: 16px 16px 0 0;
@@ -267,45 +325,57 @@ html, body {
 .sheet-foot:has(.sound-chip) { align-items: center; }
 .sheet-foot:has(.sound-chip) .hint { flex: 1; }
 
-/* --- Screen switch (top right) ----------------------------------------- */
+/* --- Bottom dock (Isobar, PR 13e) ------------------------------------- */
+/* A floating pill, bottom centre, on every screen width (Kelbo: no side rail).
+   The screen in use is a teal pill with its label; the others show their icon. */
 .screen-nav {
   position: absolute;
   z-index: 5;
-  top: calc(10px + var(--safe-t));
-  right: calc(16px + var(--safe-r));
+  left: 50%;
+  bottom: calc(16px + var(--safe-b));
+  transform: translateX(-50%);
   display: flex;
-  padding: 3px;
-  gap: 2px;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--panel) 88%, transparent);
-  backdrop-filter: blur(6px);
-  border: 1px solid var(--line);
+  gap: 4px;
+  padding: 6px;
+  border-radius: 32px;
+  background: var(--panel);
+  border: var(--card-border);
+  box-shadow: var(--shadow-dock);
 }
 .nav-button {
-  min-height: var(--tap);
-  min-width: var(--tap);
-  padding: 0 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 52px;
+  min-width: 56px;
+  padding: 0 16px;
   border: 0;
-  border-radius: 9px;
+  border-radius: 26px;
   background: transparent;
   color: var(--muted);
   font: inherit;
-  font-weight: 600;
-  font-size: 0.9rem;
+  font-weight: 700;
+  font-size: 0.95rem;
   cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
 }
-.nav-button[aria-current='page'] { background: var(--accent); color: var(--accent-ink); }
-/* Narrow phones: a smaller wordmark and tighter switch so three screens fit beside it. */
+.nav-button .icon { flex: none; }
+.nav-label { display: none; }
+.nav-button[aria-current='page'] { background: var(--accent); color: var(--accent-ink); padding: 0 20px 0 16px; }
+.nav-button[aria-current='page'] .nav-label { display: inline; }
+@media (prefers-reduced-motion: reduce) {
+  .nav-button { transition: none; }
+}
+/* Narrow phones: a smaller wordmark so the chips fit beside it. */
 @media (max-width: 400px) {
-  .wordmark { font-size: 1.05rem; letter-spacing: 0.14em; }
-  .nav-button { padding: 0 9px; }
-  .top-bar { right: calc(200px + var(--safe-r)); }
+  .wordmark { font-size: 1.4rem; }
 }
 
 /* --- Shape screen ------------------------------------------------------ */
 .shape-sheet { padding-top: 12px; }
 .shape-sheet .readouts { margin-top: 0; }
-.readout-value.over { color: var(--sep); }
+.readout-value.over { color: var(--sep-text); }
 .readout-value.warn { color: var(--warn-text); }
 
 .meter {
@@ -810,31 +880,39 @@ html, body {
 }
 
 /* --- Saves ------------------------------------------------------------- */
-/* The Saves chip sits under the screen switch, top right, on every screen. */
-/* The money chip and Saves, under the screen switch. */
+/* The money chip and Saves, top right on every screen, beside the title. */
 .top-chips {
   position: absolute;
   z-index: 5;
-  top: calc(66px + var(--safe-t));
+  top: calc(10px + var(--safe-t));
   right: calc(16px + var(--safe-r));
   display: flex;
   gap: 6px;
 }
+.top-chips .chip {
+  min-height: var(--tap);
+  padding: 0 14px;
+  border: var(--card-border);
+  border-radius: var(--r-pill);
+  background: var(--panel);
+  box-shadow: var(--shadow-card);
+  font-weight: 600;
+}
 .job-chip { font-family: var(--font-num); font-weight: 500; }
 .sound-chip { display: inline-grid; place-items: center; min-width: 32px; padding: 0 7px; }
 .sound-chip.off { color: var(--muted); }
-.job-chip.over { color: var(--sep); border-color: var(--sep); }
+.job-chip.over { color: var(--sep-text); border-color: var(--sep); }
 
 /* --- Jobs screen -------------------------------------------------------- */
 .board-screen { overflow-y: auto; -webkit-overflow-scrolling: touch; background: var(--bg); }
 .board-page {
   max-width: 640px;
   margin: 0 auto;
-  padding: calc(112px + var(--safe-t)) calc(16px + var(--safe-r)) calc(24px + var(--safe-b)) calc(16px + var(--safe-l));
+  padding: calc(100px + var(--safe-t)) calc(16px + var(--safe-r)) calc(24px + var(--dock-h)) calc(16px + var(--safe-l));
 }
 .firm-strip { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
 .firm-money { margin: 0; font-family: var(--font-num); font-size: 1.6rem; font-weight: 500; }
-.firm-money.over { color: var(--sep); }
+.firm-money.over { color: var(--sep-text); }
 .firm-date { margin: 2px 0 0; color: var(--muted); font-size: 0.85rem; }
 /* Reputation and correlation score under the money (PR 7a). */
 .firm-name { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
@@ -1097,7 +1175,7 @@ body[data-guide='deliver'] .guide-deliver {
 @media (prefers-reduced-motion: reduce) { .fail-warn { animation: none; } }
 .model-note.is-broken { border-color: var(--sep); }
 .breaks { z-index: 400; }
-.fail-head { margin: 4px 0 8px; font-weight: 700; color: var(--sep); }
+.fail-head { margin: 4px 0 8px; font-weight: 700; color: var(--sep-text); }
 .fail-why { margin: 0 0 8px; line-height: 1.45; }
 .fail-cost { margin: 0 0 4px; font-family: var(--font-num); font-size: 0.85rem; }
 
