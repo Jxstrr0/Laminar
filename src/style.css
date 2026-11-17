@@ -120,6 +120,21 @@ html, body {
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
+  /* Like an app: no text selecting or long-press menu on taps (Kelbo, 17 November 2026). */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* No double-tap zoom anywhere. touch-action isn't inherited, so it goes on every
+   element; the canvases and dials that set their own (none, pan-y) still win. */
+* { touch-action: manipulation; }
+
+/* Text boxes still select and copy (save codes, names, search). */
+input, textarea, [contenteditable] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 
 #app { position: fixed; inset: 0; }
