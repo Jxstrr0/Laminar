@@ -447,7 +447,8 @@ export const STRINGS = {
   'own.upkeep': 'Upkeep',
   'own.upkeepValue': '{rub} a day',
   'own.power': 'Power',
-  'own.powerValue': '{rub} a kWh, no run fee',
+  // Non-breaking spaces keep "no run fee" together when the narrow column wraps.
+  'own.powerValue': '{rub} a kWh, no\u00a0run\u00a0fee',
   'own.toGo': 'You have {have}: {short} to go.',
   'own.buy': 'Build it',
   'own.buyConfirm': 'Tap again: pay {price}',
