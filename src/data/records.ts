@@ -52,4 +52,7 @@ export const RECORD_RULES = {
    * thousandth nobody can time).
    */
   scale: { km: 100, kmh: 10, m: 10, per100: 10 } as Record<RecordUnit, number>,
+  /** A record attempt's bonus when the record falls (PR 11c): this share of the fee, rounded to `bonusRound` ₽. */
+  bonus: 0.4,
+  bonusRound: 1000,
 }

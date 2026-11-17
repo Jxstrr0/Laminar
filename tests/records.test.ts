@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { RECORD_IDS, RECORDS } from '../src/data/records'
+import { RECORD_IDS, RECORD_RULES, RECORDS } from '../src/data/records'
 import { STOCK_RECORD, type RecordDesign } from '../src/data/record'
 import { DEFAULT_JUMPER } from '../src/data/jumper'
 import { DEFAULT_TRUCK, RIG, type TruckDesign } from '../src/data/truck'
 import { DEFAULT_CYCLIST, SIT_UP_CYCLIST, type CyclistDesign } from '../src/data/cyclist'
-import { briefTemplate, deliver, deliverJump, deliverRecord, deliverTruck, firmRecords, newCareer, type CareerState } from '../src/sim/career'
+import { briefTemplate, deliver, deliverJump, deliverRecord, deliverTruck, firmRecords, newCareer, openTo, recordBonus, type CareerState } from '../src/sim/career'
 import { beats, claim, measured, recordBoard, recordsHeld } from '../src/sim/records'
 import { legacyOf } from '../src/sim/legacy'
 import { packSave, parseSave, SAVE_VERSION, type SaveFile } from '../src/persist/save'
@@ -114,6 +114,48 @@ describe('breaking records on the job', () => {
     for (const m of marks) expect(m).toMatchObject({ record: 'skiJump' })
     // The normal hill is too small for it.
     for (const s of seeds.slice(0, 8)) expect(deliverJump(onJob('vetrova-cup', s), DEFAULT_JUMPER, 95)!.mark).toBeNull()
+  })
+})
+
+describe('record attempts (PR 11c)', () => {
+  const hour = briefTemplate('shubina-hour')!
+
+  it('the hour attempt is a cycling job on the boards that a well-known firm is offered', () => {
+    expect(hour.attempt).toBe('hour')
+    expect(hour.event.hour).toBe(true)
+    expect(hour.event.indoor).toBe(true)
+    expect(openTo(hour, (hour.minRep ?? 0) - 1)).toBe(false)
+    expect(openTo(hour, hour.minRep ?? 0)).toBe(true)
+  })
+
+  it('her old position falls short of the hour; a sharp one breaks it and earns the bonus', () => {
+    for (const s of seeds.slice(0, 6)) {
+      const d = deliver(onJob(hour.id, s), hour.setup, 0.22)!
+      expect(d.mark).toBeNull()
+      expect(d.bonus).toBe(0)
+    }
+    const d = deliver(onJob(hour.id, 1), fastRider(hour.setup as CyclistDesign), 0.2)!
+    expect(d.mark?.record).toBe('hour')
+    expect(d.mark!.value).toBeGreaterThan(RECORDS.hour.value)
+    expect(d.bonus).toBe(recordBonus(100000))
+    expect(d.bonus).toBe(Math.round(100000 * RECORD_RULES.bonus))
+    expect(d.paid).toBe(100000 - d.debrief.penalty + d.bonus)
+    expect(d.state.history.at(-1)!.paid).toBe(d.paid)
+    expect(firmRecords(d.state).find((h) => h.id === 'hour')!.holder).toBe(hour.client)
+  })
+
+  it('a record broken on a job that wasn’t an attempt pays no bonus', () => {
+    const b = briefTemplate('kovyl-haulage')!
+    const d = deliverTruck(onJob(b.id, 4), goodTruck(b.setup as TruckDesign), 32)!
+    expect(d.mark).not.toBeNull()
+    expect(d.bonus).toBe(0)
+  })
+
+  it('the Proryv Project is out for the land-speed record, and gets the bonus when it falls', () => {
+    expect(briefTemplate('proryv-jet')!.attempt).toBe('landSpeed')
+    const broke = seeds.map((s) => deliverRecord(onJob('proryv-jet', s), GOOD_JET, 330)!).filter((d) => d.mark)
+    expect(broke.length).toBeGreaterThan(0)
+    for (const d of broke) expect(d.bonus).toBe(recordBonus(100000))
   })
 })
 

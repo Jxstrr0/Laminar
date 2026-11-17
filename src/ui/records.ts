@@ -3,12 +3,12 @@
  * and the box a debrief shows when a job breaks one. The board itself comes
  * from the sim (src/sim/records.ts).
  */
-import { CAREER } from '../data/briefs'
+import { CAREER, type BriefTemplate } from '../data/briefs'
 import { RECORD_RULES, RECORDS, type RecordId } from '../data/records'
 import { t, type StringKey } from '../data/strings'
-import { firmName, firmRecords, type CareerState } from '../sim/career'
+import { briefTemplate, firmName, firmRecords, type CareerState } from '../sim/career'
 import type { RecordMark } from '../sim/records'
-import { careerDate, fixed } from './format'
+import { careerDate, fixed, rubles } from './format'
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag)
@@ -55,8 +55,37 @@ export function recordsCard(career: CareerState): HTMLElement {
   return card
 }
 
-/** The debrief's box when a job broke a record: what it is now, and what it beat. */
-export function recordBox(mark: RecordMark, after: CareerState): HTMLElement {
+/** A record attempt's line for a brief or the job in hand (PR 11c): the record as it stands and the bonus. Null for any other brief. */
+export function attemptNote(b: BriefTemplate, career: CareerState): HTMLElement | null {
+  if (!b.attempt) return null
+  const held = firmRecords(career).find((h) => h.id === b.attempt)
+  if (!held) return null
+  return el(
+    'p',
+    'shop-note record-attempt',
+    t('trec.attempt', { record: recordName(held.id).toLowerCase(), value: recordValue(held.id, held.value), holder: held.holder, pct: fixed(RECORD_RULES.bonus * 100, 0) }),
+  )
+}
+
+/**
+ * What a debrief shows about records: the new record if one fell (with the
+ * bonus, on an attempt), or, on an attempt that fell short, that it stands.
+ */
+export function recordParts(d: { mark: RecordMark | null; bonus: number; job: { brief: { id: string } }; state: CareerState }): HTMLElement[] {
+  if (d.mark) return [recordBox(d.mark, d.state, d.bonus)]
+  const id = briefTemplate(d.job.brief.id)?.attempt
+  if (!id) return []
+  const held = firmRecords(d.state).find((h) => h.id === id)!
+  const box = el('section', 'race-record is-stands')
+  box.setAttribute('aria-labelledby', 'record-stands-title')
+  const head = el('h3', 'race-record-title', t('trec.standsTitle'))
+  head.id = 'record-stands-title'
+  box.append(head, el('p', 'shop-note', t('trec.stands', { record: recordName(id).toLowerCase(), value: recordValue(id, held.value), holder: held.holder })))
+  return [box]
+}
+
+/** The debrief's box when a job broke a record: what it is now, what it beat, and any bonus. */
+export function recordBox(mark: RecordMark, after: CareerState, bonus = 0): HTMLElement {
   const held = firmRecords(after).find((h) => h.id === mark.record)
   const box = el('section', 'race-record')
   box.setAttribute('aria-labelledby', 'record-new-title')
@@ -77,5 +106,6 @@ export function recordBox(mark: RecordMark, after: CareerState): HTMLElement {
       }),
     ),
   )
+  if (bonus > 0) box.append(el('p', 'shop-note', t('trec.bonus', { bonus: rubles(bonus) })))
   return box
 }

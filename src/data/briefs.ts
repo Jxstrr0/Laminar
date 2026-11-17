@@ -22,6 +22,7 @@ import { STOCK_PLANE, type PlaneDesign, type SurveySite } from './plane'
 import { STOCK_AIRCRAFT, type AircraftDesign, type Airfield } from './aircraft'
 import { STOCK_POD, type PodDesign, type TestRange } from './pod'
 import type { SaltFlat } from './saltFlats'
+import type { RecordId } from './records'
 
 /** How a career starts, and how the brief board works. */
 export const CAREER = {
@@ -188,7 +189,12 @@ export interface BriefTemplate {
   minRep?: number
   /** A defence brief (PR 10x): only a cleared firm sees it, and it never shows in public (src/data/defence.ts). */
   defence?: true  /** The name a Tarnovian record goes under, if not the client's (a truck fleet's records are the fleet's; PR 11b). */
-  recordHolder?: string
+  recordHolder?: string  /**
+   * A record attempt (PR 11c; Kelbo: "clients commission record attempts"):
+   * the client is out to break this Tarnovian record, and pays RECORD_RULES.bonus
+   * on top of the fee if the day's result does.
+   */
+  attempt?: RecordId
 }
 
 /**
@@ -677,6 +683,35 @@ export const BRIEFS: readonly BriefTemplate[] = [
     target: 5,
   },
   {
+    id: 'shubina-hour',
+    client: 'Elena Shubina',
+    who: 'Former pursuit champion, going for the hour',
+    goal: 'One hour, alone on the boards, as far as I can go. Anton Zimin’s record has stood since 2006. I want it.',
+    event: {
+      name: 'Hour record attempt',
+      place: 'Stavren Velodrome (indoors)',
+      temperature: 27,
+      altitude: 180,
+      windSpeed: 0,
+      riderSpeed: 14.3,
+      spread: { temperature: 1, wind: 0, power: 0.02 },
+      // 52 km of laps, about an hour: the distance ridden in the hour is the average speed times an hour.
+      course: ovalCourse(TRACK, 52),
+      indoor: true,
+      hour: true,
+    },
+    rider: { power: 375, mass: 66 },
+    setup: setup(
+      { torsoDeg: 20, headDrop: 0.35, armWidth: 0.34, handReach: 0.68, handHeight: 0.02 },
+      { helmet: { kind: 'aero', tail: 0.3, vents: 0.2 }, wheels: { front: 'deep', rear: 'disc' } },
+    ),
+    fee: { min: 170000, max: 230000 },
+    days: 30,
+    minRep: 55,
+    target: 4,
+    attempt: 'hour',
+  },
+  {
     id: 'lenok-oval',
     client: 'Sonya Lenok',
     who: 'Young distance skater, fast on the straights',
@@ -1097,6 +1132,7 @@ export const BRIEFS: readonly BriefTemplate[] = [
     minRep: 85,
     // 108 km/h on their car: a two-way mean just over the speed of sound on the salt's usual day.
     target: 54,
+    attempt: 'landSpeed',
   },
   // Racing quads (PR 10f): hobby pilots at the Lugovoy meadow, early in a career.
   {
