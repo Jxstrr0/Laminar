@@ -448,6 +448,13 @@ async function boot(): Promise<void> {
   window.addEventListener('hashchange', () => show(screenFromHash()))
   show(screenFromHash())
   loading.done()
+  // A new player sees the How to play cards once, before the first job (PR 13ai).
+  const fresh = careerStore.get()
+  if (!PREVIEW && fresh.jobsDone === 0 && fresh.job === null) {
+    void import('./ui/tour').then((m) => {
+      if (m.tourUnseen()) m.openTour()
+    })
+  }
 }
 
 boot().catch((err: unknown) => {

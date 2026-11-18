@@ -14,6 +14,8 @@ export const ICONS = {
   shape: svg('<path d="M4 18c3-9 9-12 16-12"/><rect x="2.5" y="16.5" width="3.4" height="3.4" rx=".8"/><rect x="18.3" y="4.3" width="3.4" height="3.4" rx=".8"/><path d="M11 4.5l3 3M8.5 7l5.5 5.5"/><circle cx="11" cy="9.6" r="1.2"/>'),
   /** Tunnel: wind lines streaming past. */
   tunnel: svg('<path d="M3 8h10.5a2.5 2.5 0 1 0-2.5-2.5"/><path d="M3 12h15a3 3 0 1 1-3 3"/><path d="M3 16h6"/>'),
+  /** Deliver (the tutorial's last card): a finish flag on its pole. */
+  deliver: svg('<path d="M5 21V3.5"/><path d="M5 4h13l-2.5 4 2.5 4H5"/><path d="M9 4v8M13 4v8M5 8h13"/>'),
   /** Saves: a floppy disk. */
   saves: svg('<path d="M5 3.5h11l3.5 3.5v11.5a2 2 0 0 1-2 2h-12.5a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2z"/><path d="M8 3.5v5h7v-5"/><rect x="7.5" y="13" width="9" height="7.5" rx="1"/>'),
 } as const

@@ -320,8 +320,12 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   const credits = el('button', 'text-button', t('shape.credits'))
   credits.type = 'button'
   credits.addEventListener('click', () => void import('./creditsSheet').then((m) => m.openCredits()))
+  // The tutorial cards (PR 13ai) load only when asked for, too.
+  const howTo = el('button', 'text-button', t('shape.howTo'))
+  howTo.type = 'button'
+  howTo.addEventListener('click', () => void import('./tour').then((m) => m.openTour()))
   const version = el('span', 'version', `v${__GAME_VERSION__} · ${__BUILD_SHA__} · ${__BUILD_DATE__}`)
-  foot.append(reset, terms, credits, version)
+  foot.append(reset, terms, howTo, credits, version)
 
   // Isobar (PR 13f): the readouts are cards of their own; the controls share one.
   const controlCard = el('div', 'card shape-controls')
