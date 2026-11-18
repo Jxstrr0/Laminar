@@ -37,7 +37,7 @@ plan and over `.github/LONGLIGHT-STUDIO.md` where they disagree.
   Address `https://laminar.longlight.games/`, chosen in PR 0 and **never to
   move** (a new address strands players' saves).
   Vite `base: './'` so the build also works at `jxstrr0.github.io/Laminar/`.
-- No backend, accounts, analytics, ads or API keys.
+- No backend, accounts, ads or API keys. No analytics except the cookieless Cloudflare Web Analytics beacon at the end of `index.html`, which counts visits and load speed (Kelbo, 18 November 2026). It shares Scrapline's Web Analytics site in Cloudflare; visits are told apart by address.
 
 ## Folders
 

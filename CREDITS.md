@@ -80,3 +80,9 @@ and the manager's race-day line) were re-recorded the same way on 17 November 20
 | Commentator | Nathaniel | `9rR45HW0vcBmpCbkc4m9` |
 
 No third-party models or textures; no sound effects but the studio's own.
+
+## Visit counts
+
+Cloudflare Web Analytics (`static.cloudflareinsights.com/beacon.min.js`, loaded at the end of the page) counts
+page views, visits and load speed for Longlight Interactive. It sets no cookies and keeps no personal data. It is the
+only thing the game loads from another address.

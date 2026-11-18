@@ -711,7 +711,8 @@ readout, not colour alone.
     anyway.
 - **Studio rules:** phone first, four-number versions, branch-PR-merge on
   green, fictional names, plain-language summary and a phone test step at
-  the end of every task. No backend, accounts, analytics, ads or API keys.
+  the end of every task. No backend, accounts, ads or API keys; no analytics
+  but the studio's cookieless visit counter (Kelbo, 18 November 2026).
 
 ---
 

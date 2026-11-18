@@ -173,6 +173,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 13ah | Feels more like an app on a phone: a quick double tap no longer zooms the page, and taps no longer select text or open the long-press copy menu. Text boxes (save codes, names, the glossary search) still select and copy. Pinch zoom still works. | **Done** (v0.15.21.0) |
 | 13ai | Quick tutorial: five swipe cards (Welcome, Jobs, Shape, Tunnel, Deliver) in a bottom sheet, shown once to a new player before the first job (`laminar.tourSeen`), then Irina's guided first job takes over. Swipe or use Back and Next; the dots carry a "2 / 5" number. "How to play" on the Shape sheet opens them again. Never shows in a preview or challenge link, or on a save that already has a job | **Done** (v0.15.22.0) |
 | 13aj | Bidding retune from a playtest (7 bids lost in a row). The bid sheet starts at the posted fee and the client's ask, and against Bystro Aero's promise of 3–8 points over the ask that bid never won (0 %; +5 points won 44 %). Bystro now promises 0.9–4.5 over the ask (Kelbo: 1–5, then 10 % softer): the ask at the posted fee wins 8 %, +3 points 59 %, +5 points 91 %, the ask at the lowest price 36 %. The bid sheet now says rivals promise a little more than the ask: beat them on promise or on price | **Done** (v0.15.23.0) |
+| 13ak | From the studio security cycle (Kelbo's picks, 18 November 2026): the cookieless Cloudflare Web Analytics beacon every Longlight game carries, as the last script in `index.html` (visits and load speed; no cookies, nothing about the player or the saves), with `CLAUDE.md`, the plan and `CREDITS.md` saying so; and `.github/dependabot.yml`, one grouped pull request a month for minor and patch updates (majors and three.js by hand). Nothing changes in play. | **Done** (v0.15.23.1) |
 | Next | | Kelbo's call: every venue now has its Blender kit. |
 
 ## Versions
@@ -196,6 +197,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 - **0.15.0.0** (PR 14a): the game works offline, and asks before updating.
 - **0.15.1.0** (PR 14b): the voices: tunnel techs, analysts, clients and the commentator.
 - **0.15.2.0** (PR 14c): the balance bot, for checking the economy (nothing changes in play).
+- **0.15.23.1** (PR 13ak): the studio's visit counter and monthly update PRs (nothing changes in play).
 - **0.15.23.0** (PR 13aj): softer rival bids, and a bidding hint.
 - **0.15.22.0** (PR 13ai): quick tutorial, five swipe cards for new players.
 - **0.15.21.0** (PR 13ah): no double-tap zoom, no text selection on taps.
