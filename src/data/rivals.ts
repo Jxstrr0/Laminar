@@ -33,7 +33,9 @@ export const RIVALS: Record<RivalId, RivalTemplate> = {
     reputation: 26,
     drift: 4,
     // PR 14d (Kelbo): bolder rivals, so bidding is a contest (the balance bot beat most asks by 5 to 25 points).
-    promise: { min: 3, max: 8 },
+    // PR 13aj (Kelbo, 18 November 2026): 3–8 meant a bid at the client's ask never won, so a new firm lost
+    // job after job. Now 1–5 made 10 % softer: the ask at the posted fee wins now and then, +3 about half the time.
+    promise: { min: 0.9, max: 4.5 },
     price: { min: 0.3, max: 0.85 },
     readError: { min: 0.03, max: 0.09 },
     minFee: 0,
