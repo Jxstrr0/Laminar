@@ -578,7 +578,7 @@ export const STRINGS = {
   'board.wait': 'Wait a week for new briefs',
   'bid.title': 'Sealed bid',
   'bid.close': 'Close bid',
-  'bid.intro': 'Your sealed bid for {client}. Another firm is bidding too, and the client weighs price against promise.',
+  'bid.intro': 'Your sealed bid for {client}. Another firm is bidding too, and the client weighs price against promise. Rivals usually promise a little more than the client asked for: beat them on promise, or on price.',
   'bid.introSolo': '{client} asked for your firm by name, so no one else is bidding. Name your price and promise.',
   'bid.price': 'Your price, ₽',
   'bid.priceNote': 'Fee range {min} to {max}. They suggest {fee}.',
