@@ -1514,3 +1514,51 @@ body[data-guide='deliver'] .guide-deliver {
 /* With a sheet open (a bid, Deliver, the debrief), its buttons and inputs fill
    the foot, so the caption moves up over the dimmed screen instead. */
 body:has(.gloss.is-open) .voice-caption { top: calc(64px + var(--safe-t)); bottom: auto; }
+
+/* --- How to play (src/ui/tour.ts, PR 13ai) -------------------------------
+   Five cards in a row that scrolls sideways and snaps: a swipe is the
+   browser's own. Back, the dots with their number, and Next sit below. */
+.tour { z-index: 400; }
+.tour-track {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  touch-action: pan-x pan-y;
+}
+.tour-track::-webkit-scrollbar { display: none; }
+.tour-card {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  box-sizing: border-box;
+  padding: 4px 6px 8px;
+  text-align: center;
+}
+.tour-pic {
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  margin: 6px auto 14px;
+  border-radius: 24px;
+  background: var(--panel-2);
+  color: var(--accent);
+}
+.tour-pic .icon { width: 48px; height: 48px; }
+.tour-pic-welcome { width: 160px; }
+.tour-word { font-size: 2rem; }
+.tour-word::after { margin: 6px auto 0; }
+.tour-head { margin: 0 0 8px; font-size: 1.15rem; font-weight: 800; color: var(--ink); }
+.tour-body { margin: 0 auto; max-width: 34ch; font-size: 0.95rem; line-height: 1.5; color: var(--muted); }
+.tour-foot { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.tour-foot .text-button { flex: none; min-width: 64px; font-size: 0.9rem; }
+.tour-foot .text-button:disabled { visibility: hidden; }
+.tour-foot .tour-next { flex: none; width: auto; min-width: 116px; min-height: var(--tap); margin: 0; padding: 0 20px; }
+.tour-dots { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.tour-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line); transition: width 160ms ease, background 160ms ease; }
+.tour-dot.is-on { width: 18px; border-radius: 4px; background: var(--accent); }
+.tour-count { margin-left: 6px; font-family: var(--font-num); font-size: 0.75rem; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .tour-dot { transition: none; } }
