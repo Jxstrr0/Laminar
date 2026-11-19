@@ -2,7 +2,9 @@
  * A kit of Blender parts in one .glb (PR 13an), for the things a design is
  * made of but no slider reshapes: the bike's frame, wheels and drivetrain
  * (art/bike/build.py → public/models/bike.glb), then the winter sports'
- * skates, skis and sled gear (art/winter/build.py → winter.glb, PR 13ao). Each mesh is one part,
+ * skates, skis and sled gear (art/winter/build.py → winter.glb, PR 13ao), and the
+ * vehicles' wheels, cockpit and cab parts (art/vehicles/build.py → vehicles.glb,
+ * PR 13ap). Each mesh is one part,
  * by name, with any sizes the code needs as extras; the code gives it its
  * colour.
  *
@@ -86,3 +88,41 @@ export type WinterPartName = 'ClapBlade' | 'ClapFrame' | 'JumpSki' | 'JumpSkiStr
 
 /** The winter sports' parts (PR 13ao): the clap skate, the jumping ski, the bobsled's running gear and handles. */
 export const winterKit = partKit<WinterPartName>('winter.glb')
+
+export type VehiclePartName =
+  | 'CarTyre'
+  | 'CarRim'
+  | 'CarBrake'
+  | 'Helmet'
+  | 'Visor'
+  | 'Halo'
+  | 'CarMirror'
+  | 'Lamp'
+  | 'TruckTyre'
+  | 'TruckRim'
+  | 'TruckGrille'
+  | 'TruckBumper'
+  | 'TruckMirror'
+  | 'FuelTank'
+  | 'RecordWheel'
+  | 'ChuteCan'
+  | 'JetNozzle'
+  | 'IntakeLip'
+  | 'IntakeFan'
+  | 'SensorFrame'
+  | 'SensorWindow'
+
+/** The vehicles' parts (PR 13ap): wheels, the single-seater's helmet and halo, mirrors and lamps, the truck's cab parts, the record cars' engine and chute parts, the pod's sensor window. */
+export const vehicleKit = partKit<VehiclePartName>('vehicles.glb')
+
+/** A kit part as a mesh in the given material (a clone, so disposing the figure never touches the kit), or null before the kit is in. */
+export function kitPart<Name extends string>(kit: PartKit<Name>, name: Name, material: THREE.Material): THREE.Mesh | null {
+  const part = kit.get(name)
+  return part ? new THREE.Mesh(part.geometry.clone(), material) : null
+}
+
+/** A number from a part's extras (its size from Blender), or the fallback. */
+export function extra(kit: PartKit<string>, name: string, key: string, fallback: number): number {
+  const value = kit.get(name)?.extras[key]
+  return typeof value === 'number' ? value : fallback
+}

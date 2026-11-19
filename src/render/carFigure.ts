@@ -16,6 +16,7 @@ import { MODEL } from './theme'
 import { CAR_BODY, CAR_CLASS, type CarDesign } from '../data/car'
 import { carLength, carStation, carX, floorAt, carAxis } from '../sim/geom/car'
 import type { Highlight } from './riderFigure'
+import { extra, kitPart, vehicleKit } from './partKit'
 
 const COLOURS = {
   body: 0xf2f4f6,
@@ -25,6 +26,8 @@ const COLOURS = {
   hub: 0x8c97a1,
   part: MODEL.panel,
   helmet: MODEL.helmet,
+  headlight: 0xfff4dc,
+  taillight: 0xd8322a,
   broken: MODEL.broken,
   strain: MODEL.strain,
 }
@@ -37,6 +40,8 @@ const M = {
   hub: mat(COLOURS.hub, 0.35, 0.5),
   part: mat(COLOURS.part, 0.4, 0.1),
   helmet: mat(COLOURS.helmet, 0.3),
+  headlight: new THREE.MeshStandardMaterial({ color: COLOURS.headlight, emissive: COLOURS.headlight, emissiveIntensity: 0.3, roughness: 0.15 }),
+  taillight: new THREE.MeshStandardMaterial({ color: COLOURS.taillight, emissive: COLOURS.taillight, emissiveIntensity: 0.3, roughness: 0.2 }),
   broken: new THREE.MeshStandardMaterial({ color: COLOURS.broken, emissive: COLOURS.broken, emissiveIntensity: 0.35, roughness: 0.5, side: THREE.DoubleSide }),
   strain: new THREE.MeshStandardMaterial({ color: COLOURS.strain, emissive: COLOURS.strain, emissiveIntensity: 0.25, roughness: 0.6, side: THREE.DoubleSide }),
 }
@@ -47,6 +52,10 @@ const DRAW = {
   open: { track: 0.82, tyre: 0.36, floorHalf: 0.7, wingPosts: 0.25, frontSpan: 1.75, frontChord: 0.3 },
   /** Ring points round each lofted section. */
   ring: 20,
+  /** A touring car's lamps (the Blender kit's): how high up and how far out on the car's widest section, as shares. */
+  lamps: { up: 0.15, out: 0.62 },
+  /** The single-seater driver's head centre above the tub's top, m. */
+  headClear: 0.04,
 }
 
 export interface CarLook {
@@ -80,6 +89,21 @@ function shell(design: CarDesign): THREE.Mesh {
       const a = i * n + k
       const b = i * n + ((k + 1) % n)
       index.push(a, a + n, b, b, a + n, b + n)
+    }
+  }
+  // Close the nose and the tail (PR 13ap): a fan from each end ring to a point in its middle.
+  for (const [ring, flip] of [[0, true], [steps, false]] as const) {
+    const s = carStation(design, (len * ring) / steps)
+    // Its own copy of the ring, so the cap's edge stays crisp rather than smoothing into the sides.
+    const start = positions.length / 3
+    positions.push(...positions.slice(ring * n * 3, (ring + 1) * n * 3))
+    const centre = start + n
+    positions.push(carX(design, s.x), axis + (s.top - s.bottom) / 2, 0)
+    for (let k = 0; k < n; k++) {
+      const a = start + k
+      const b = start + ((k + 1) % n)
+      if (flip) index.push(centre, b, a)
+      else index.push(centre, a, b)
     }
   }
   const geo = new THREE.BufferGeometry()
@@ -123,6 +147,21 @@ function wing(design: CarDesign, x: number, y: number, span: number, chord: numb
 
 function wheelPair(design: CarDesign, x: number, track: number, width: number, radius: number): THREE.Group {
   const g = new THREE.Group()
+  if (vehicleKit.ready()) {
+    // The Blender wheel (PR 13ap): tyre, ten-spoke rim and brake disc, sized to this class's tyre, the rim's face outward on both sides.
+    const r = radius / extra(vehicleKit, 'CarTyre', 'radius', radius)
+    const w = width / extra(vehicleKit, 'CarTyre', 'width', width)
+    for (const side of [-1, 1]) {
+      for (const [name, material] of [['CarTyre', M.tyre], ['CarRim', M.hub], ['CarBrake', M.dark]] as const) {
+        const part = kitPart(vehicleKit, name, material)
+        if (!part) continue
+        part.scale.set(r, r, side * w)
+        part.position.set(carX(design, x), radius, side * track)
+        g.add(part)
+      }
+    }
+    return g
+  }
   for (const side of [-1, 1]) {
     const tyre = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, width, 28).rotateX(Math.PI / 2), M.tyre)
     tyre.position.set(carX(design, x), radius, side * track)
@@ -133,6 +172,58 @@ function wheelPair(design: CarDesign, x: number, track: number, width: number, r
   return g
 }
 
+/**
+ * The car's fixed details from the Blender kit (PR 13ap): wing mirrors on
+ * the body's sides, and a touring car's headlights and tail lights, set on
+ * the shell where the drag model's sections put its surface.
+ */
+function details(g: THREE.Group, design: CarDesign): void {
+  const b = CAR_BODY[design.class]
+  const len = carLength(design)
+  const axis = carAxis(design)
+  const touring = design.class === 'touring'
+  // Mirrors: at the windscreen's foot on a touring car, beside the cockpit on a single-seater.
+  const mx = touring ? len * b.roofFrom + 0.25 : len * 0.43 - 0.55
+  const ms = carStation(design, mx)
+  const my = touring ? b.roof - 0.42 : axis + ms.top * 0.6
+  for (const side of [-1, 1]) {
+    const mirror = kitPart(vehicleKit, 'CarMirror', touring ? M.body : M.dark)
+    if (!mirror) continue
+    mirror.scale.z = side
+    mirror.position.set(carX(design, mx), my, side * ms.half * 0.92)
+    g.add(mirror)
+  }
+  if (!touring) return
+  // Headlights in the nose and tail lights across the back, a little in from the corners, each where the shell's surface is.
+  const mid = carStation(design, len / 2)
+  const y = axis + mid.top * DRAW.lamps.up
+  const z = mid.half * DRAW.lamps.out
+  for (const [front, material, turn] of [[true, M.headlight, 0], [false, M.taillight, Math.PI]] as const) {
+    const x = surfaceAt(design, y - axis, z, front)
+    for (const side of [-1, 1]) {
+      const lamp = kitPart(vehicleKit, 'Lamp', material)
+      if (!lamp) continue
+      lamp.rotation.y = turn
+      lamp.position.set(carX(design, x), y, side * z)
+      g.add(lamp)
+    }
+  }
+}
+
+/** The sim x where the touring shell's surface first reaches a point (dy above the axis, z out), coming in from the nose or the tail. */
+function surfaceAt(design: CarDesign, dy: number, z: number, fromNose: boolean): number {
+  const len = carLength(design)
+  // The shell's sections are superellipses of this power (see shell()).
+  const power = 4
+  for (let i = 0; i <= 200; i++) {
+    const x = fromNose ? (len * i) / 400 : len - (len * i) / 400
+    const s = carStation(design, x)
+    const h = dy >= 0 ? s.top : s.bottom
+    if (Math.pow(Math.abs(z) / s.half, power) + Math.pow(Math.abs(dy) / h, power) <= 1) return x
+  }
+  return fromNose ? 0 : len
+}
+
 export function buildCar(design: CarDesign, look: CarLook): THREE.Group {
   const g = new THREE.Group()
   const tint = (h: Highlight) => (look.broken.includes(h) ? M.broken : look.strained.includes(h) ? M.strain : M.part)
@@ -141,6 +232,7 @@ export function buildCar(design: CarDesign, look: CarLook): THREE.Group {
   const d = DRAW[design.class]
   const touring = design.class === 'touring'
   const len = carLength(design)
+  const axis = carAxis(design)
 
   g.add(shell(design))
 
@@ -185,14 +277,27 @@ export function buildCar(design: CarDesign, look: CarLook): THREE.Group {
       g.add(slab(design, podFrom, podTo, floorAt(design, podFrom) + 0.02, podTop, 0.42, side * 0.52, M.body))
       g.add(slab(design, podFrom - 0.01, podFrom + 0.02, podTop - inletH - 0.04, podTop - 0.04, 0.3, side * 0.52, inletMat))
     }
-    // The driver's helmet in the cockpit, and the airbox above it.
-    const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.15, 18, 12), M.helmet)
-    helmet.position.set(carX(design, len * 0.43), b.roof - 0.12, 0)
-    g.add(helmet)
-    const visor = new THREE.Mesh(new THREE.SphereGeometry(0.152, 18, 12, -0.6, 1.2, 1.1, 0.5), M.dark)
-    visor.position.copy(helmet.position)
-    g.add(visor)
+    // The driver's helmet in the cockpit, with its visor (and the halo over it, from the Blender kit).
+    // The head sits on the tub's top, the visor just clear of it (PR 13ap; it used to sink in).
+    const headAt = carStation(design, len * 0.43)
+    const head = new THREE.Vector3(carX(design, len * 0.43), axis + headAt.top + DRAW.headClear, 0)
+    const kitHelmet = kitPart(vehicleKit, 'Helmet', M.helmet)
+    if (kitHelmet) {
+      for (const part of [kitHelmet, kitPart(vehicleKit, 'Visor', M.dark), kitPart(vehicleKit, 'Halo', M.dark)]) {
+        if (!part) continue
+        part.position.copy(head)
+        g.add(part)
+      }
+    } else {
+      const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.15, 18, 12), M.helmet)
+      helmet.position.copy(head)
+      g.add(helmet)
+      const visor = new THREE.Mesh(new THREE.SphereGeometry(0.152, 18, 12, -0.6, 1.2, 1.1, 0.5), M.dark)
+      visor.position.copy(helmet.position)
+      g.add(visor)
+    }
   }
+  if (vehicleKit.ready()) details(g, design)
 
   if (touring) {
     // Glass: the windscreen and side windows as a dark band round the cabin.

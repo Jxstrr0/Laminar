@@ -16,6 +16,7 @@ import { RIG, type TruckDesign } from '../data/truck'
 import { doorsAt, truckLength } from '../sim/geom/truck'
 import { truckX } from '../sim/geom/truckPose'
 import type { Highlight } from './riderFigure'
+import { kitPart, vehicleKit } from './partKit'
 
 const COLOURS = {
   cab: 0xf2f4f6,
@@ -24,6 +25,8 @@ const COLOURS = {
   tyre: MODEL.tyre,
   hub: 0x8c97a1,
   glass: 0x2a3a47,
+  trim: 0xb7c0c8,
+  headlight: 0xfff4dc,
   part: MODEL.panel,
   broken: MODEL.broken,
   strain: MODEL.strain,
@@ -37,6 +40,8 @@ const M = {
   tyre: mat(COLOURS.tyre, 0.9),
   hub: mat(COLOURS.hub, 0.35, 0.5),
   glass: mat(COLOURS.glass, 0.15, 0.4),
+  trim: mat(COLOURS.trim, 0.3, 0.6),
+  headlight: new THREE.MeshStandardMaterial({ color: COLOURS.headlight, emissive: COLOURS.headlight, emissiveIntensity: 0.3, roughness: 0.15 }),
   part: new THREE.MeshStandardMaterial({ color: COLOURS.part, roughness: 0.4, metalness: 0.1, side: THREE.DoubleSide }),
   broken: new THREE.MeshStandardMaterial({ color: COLOURS.broken, emissive: COLOURS.broken, emissiveIntensity: 0.35, roughness: 0.5, side: THREE.DoubleSide }),
   strain: new THREE.MeshStandardMaterial({ color: COLOURS.strain, emissive: COLOURS.strain, emissiveIntensity: 0.25, roughness: 0.6, side: THREE.DoubleSide }),
@@ -60,6 +65,13 @@ const DRAW = {
   panel: 0.04,
   /** The gap filler's width across the trailer's front. */
   fillWidth: 1.7,
+  /** The Blender cab parts (PR 13ap): heights of the grille's and bumper's middles, the headlights' height and spread, the mirror's arm. */
+  grille: 1.45,
+  bumper: 0.62,
+  headlight: { y: 0.93, z: 0.62, size: 1.3 },
+  mirror: { x: 0.32, y: 2.3 },
+  /** The fuel tanks behind the cab, under the gap: the tank's middle this far behind the cab, this high and this far out. */
+  tank: { behind: 0.68, y: 0.72, z: 0.8 },
 }
 
 /** A box between two x positions (sim x, downstream), heights and a centre across, in the drawing's frame. */
@@ -80,6 +92,19 @@ function quad(a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3, d: THREE.Vec
 
 function wheelPair(design: TruckDesign, x: number): THREE.Group {
   const g = new THREE.Group()
+  if (vehicleKit.ready()) {
+    // The Blender wheel (PR 13ap), built at the drawing's size, the rim's face outward on both sides.
+    for (const side of [-1, 1]) {
+      for (const [name, material] of [['TruckTyre', M.tyre], ['TruckRim', M.hub]] as const) {
+        const part = kitPart(vehicleKit, name, material)
+        if (!part) continue
+        part.scale.z = side
+        part.position.set(truckX(design, x), DRAW.wheelRadius, side * DRAW.track)
+        g.add(part)
+      }
+    }
+    return g
+  }
   for (const side of [-1, 1]) {
     const tyre = new THREE.Mesh(new THREE.CylinderGeometry(DRAW.wheelRadius, DRAW.wheelRadius, DRAW.tyreWidth, 24).rotateX(Math.PI / 2), M.tyre)
     tyre.position.set(truckX(design, x), DRAW.wheelRadius, side * DRAW.track)
@@ -88,6 +113,27 @@ function wheelPair(design: TruckDesign, x: number): THREE.Group {
     g.add(tyre, hub)
   }
   return g
+}
+
+/** The cab's fixed parts from the Blender kit (PR 13ap). */
+function cabParts(g: THREE.Group, design: TruckDesign): void {
+  const face = truckX(design, 0)
+  const put = (part: THREE.Mesh | null, x: number, y: number, z = 0): THREE.Mesh | null => {
+    if (!part) return null
+    part.position.set(x, y, z)
+    g.add(part)
+    return part
+  }
+  put(kitPart(vehicleKit, 'TruckGrille', M.trim), face, DRAW.grille)
+  put(kitPart(vehicleKit, 'TruckBumper', M.chassis), face - 0.06, DRAW.bumper)
+  for (const side of [-1, 1]) {
+    put(kitPart(vehicleKit, 'Lamp', M.headlight), face, DRAW.headlight.y, side * DRAW.headlight.z)?.scale.setScalar(DRAW.headlight.size)
+    const mirror = put(kitPart(vehicleKit, 'TruckMirror', M.chassis), truckX(design, DRAW.mirror.x), DRAW.mirror.y, (side * RIG.width) / 2)
+    if (mirror) mirror.scale.z = side
+    // The tank is built round z, like the wheels: turn it to lie along the chassis.
+    const tank = put(kitPart(vehicleKit, 'FuelTank', M.trim), truckX(design, RIG.cab + DRAW.tank.behind), DRAW.tank.y, side * DRAW.tank.z)
+    if (tank) tank.rotation.y = Math.PI / 2
+  }
 }
 
 export interface TruckLook {
@@ -116,8 +162,9 @@ export function buildTruck(design: TruckDesign, look: TruckLook): THREE.Group {
   glass.rotation.y = Math.PI / 2
   glass.position.set(truckX(design, 0) + 0.005, RIG.cabTop - 0.65, 0)
   g.add(glass)
-  // Mirrors on arms at the front corners.
-  for (const side of [-1, 1]) g.add(slab(design, 0.25, 0.4, 1.8, 2.3, 0.08, side * (halfW + 0.22), M.chassis))
+  // Mirrors on arms at the front corners, and (from the Blender kit) the grille, bumper, headlights and fuel tanks.
+  if (vehicleKit.ready()) cabParts(g, design)
+  else for (const side of [-1, 1]) g.add(slab(design, 0.25, 0.4, 1.8, 2.3, 0.08, side * (halfW + 0.22), M.chassis))
 
   // The roof fairing: a curved ramp from the cab roof up to its top at the cab's back wall.
   if (design.cab.fairing > 0.01) {

@@ -15,6 +15,7 @@ import { MODEL } from './theme'
 import { RECORD_BODY, RECORD_CLASS, RECORD_SIDE, type RecordDesign } from '../data/record'
 import { canopyAt, fullnessAt, recordAxis, recordLength, recordX } from '../sim/geom/record'
 import type { Highlight } from './riderFigure'
+import { kitPart, vehicleKit } from './partKit'
 
 const COLOURS = {
   body: 0xf2f4f6,
@@ -55,6 +56,8 @@ const DRAW = {
   intake: 0.24,
   intakeLength: 2.2,
   intakeBack: 0.6,
+  /** How far out the intakes sit, in their radii past the body's side: nearly touching it, so the mouths stay open (PR 13ap; was 0.6). */
+  intakeOut: 0.95,
 }
 
 export interface RecordLook {
@@ -179,11 +182,19 @@ export function buildRecord(design: RecordDesign, look: RecordLook): THREE.Group
   for (const axle of [body.frontAxle, body.rearAxle]) {
     for (const side of [-1, 1]) {
       const x = recordX(design, n + axle)
-      const tyre = new THREE.Mesh(new THREE.CylinderGeometry(b.wheel, b.wheel, DRAW.tyre, 28).rotateX(Math.PI / 2), M.tyre)
-      tyre.position.set(x, b.wheel, side * b.track)
-      const hub = new THREE.Mesh(new THREE.CylinderGeometry(b.wheel * 0.5, b.wheel * 0.5, DRAW.tyre + 0.01, 16).rotateX(Math.PI / 2), M.hub)
-      hub.position.copy(tyre.position)
-      g.add(tyre, hub)
+      // The Blender kit's solid aluminium wheel (PR 13ap): record cars run on no tyres. Its unit size is scaled to the class's.
+      const solid = kitPart(vehicleKit, 'RecordWheel', M.hub)
+      if (solid) {
+        solid.scale.set(b.wheel, b.wheel, side * DRAW.tyre)
+        solid.position.set(x, b.wheel, side * b.track)
+        g.add(solid)
+      } else {
+        const tyre = new THREE.Mesh(new THREE.CylinderGeometry(b.wheel, b.wheel, DRAW.tyre, 28).rotateX(Math.PI / 2), M.tyre)
+        tyre.position.set(x, b.wheel, side * b.track)
+        const hub = new THREE.Mesh(new THREE.CylinderGeometry(b.wheel * 0.5, b.wheel * 0.5, DRAW.tyre + 0.01, 16).rotateX(Math.PI / 2), M.hub)
+        hub.position.copy(tyre.position)
+        g.add(tyre, hub)
+      }
       if (design.fairings >= 0.05) {
         const cover = Math.PI * (0.3 + 0.62 * design.fairings)
         const pod = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 14, 0, Math.PI * 2, 0, cover), tint('fairings', M.part))
@@ -199,20 +210,54 @@ export function buildRecord(design: RecordDesign, look: RecordLook): THREE.Group
     // The jet engine: an intake either side behind the cockpit, its dark mouth forward, and the nozzle at the tail.
     const at = n + b.canopyTo + DRAW.intakeBack
     const out = b.half * fullnessAt(design, at)
+    const kit = vehicleKit.ready()
     for (const side of [-1, 1]) {
-      const duct = new THREE.Mesh(new THREE.CylinderGeometry(DRAW.intake, DRAW.intake, DRAW.intakeLength, 18).rotateZ(Math.PI / 2), M.body)
-      duct.position.set(recordX(design, at + DRAW.intakeLength / 2), axis + half * 0.25, side * (out + DRAW.intake * 0.6))
-      const mouth = new THREE.Mesh(new THREE.CircleGeometry(DRAW.intake * 0.85, 18).rotateY(Math.PI / 2), M.dark)
-      mouth.position.set(recordX(design, at) + 0.01, duct.position.y, duct.position.z)
-      g.add(duct, mouth)
+      // With the Blender kit (PR 13ap), the duct is open at the front: a lip round its mouth and the engine's fan inside.
+      const duct = new THREE.Mesh(new THREE.CylinderGeometry(DRAW.intake, DRAW.intake, DRAW.intakeLength, 18, 1, kit).rotateZ(Math.PI / 2), M.body)
+      duct.position.set(recordX(design, at + DRAW.intakeLength / 2), axis + half * 0.25, side * (out + DRAW.intake * DRAW.intakeOut))
+      g.add(duct)
+      const lip = kitPart(vehicleKit, 'IntakeLip', M.body)
+      const fan = kitPart(vehicleKit, 'IntakeFan', M.dark)
+      if (lip && fan) {
+        for (const part of [lip, fan]) {
+          // Built facing +z: turn it to face forward.
+          part.rotation.y = Math.PI / 2
+          part.position.set(recordX(design, at), duct.position.y, duct.position.z)
+          g.add(part)
+        }
+      } else {
+        const mouth = new THREE.Mesh(new THREE.CircleGeometry(DRAW.intake * 0.85, 18).rotateY(Math.PI / 2), M.dark)
+        mouth.position.set(recordX(design, at) + 0.01, duct.position.y, duct.position.z)
+        g.add(mouth)
+      }
     }
-    const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(b.tailHalf * 0.9, b.tailHalf, 0.5, 24, 1, true).rotateZ(Math.PI / 2), M.dark)
-    nozzle.position.set(recordX(design, len + 0.2), axis, 0)
-    g.add(nozzle)
+    const kitNozzle = kitPart(vehicleKit, 'JetNozzle', M.dark)
+    if (kitNozzle) {
+      // Built along z, its wide front at −z: turn it so the front faces forward.
+      kitNozzle.scale.set(b.tailHalf, b.tailHalf, 0.5)
+      kitNozzle.rotation.y = -Math.PI / 2
+      kitNozzle.position.set(recordX(design, len + 0.2), axis, 0)
+      g.add(kitNozzle)
+    } else {
+      const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(b.tailHalf * 0.9, b.tailHalf, 0.5, 24, 1, true).rotateZ(Math.PI / 2), M.dark)
+      nozzle.position.set(recordX(design, len + 0.2), axis, 0)
+      g.add(nozzle)
+    }
   }
   // The parachute canister at the tail, in its warning orange (above a jet's nozzle).
-  const can = new THREE.Mesh(new THREE.CylinderGeometry(b.tailHalf * 0.7 * (jet ? 0.5 : 1), b.tailHalf * 0.7 * (jet ? 0.5 : 1), 0.3, 16).rotateZ(Math.PI / 2), M.chute)
-  can.position.set(recordX(design, len + 0.1), jet ? axis + half * 0.75 : axis + 0.05, 0)
-  g.add(can)
+  const canR = b.tailHalf * 0.7 * (jet ? 0.5 : 1)
+  const canAt = new THREE.Vector3(recordX(design, len + 0.1), jet ? axis + half * 0.75 : axis + 0.05, 0)
+  const kitCan = kitPart(vehicleKit, 'ChuteCan', M.chute)
+  if (kitCan) {
+    // Built along z with its lid at +z: turn the lid to face back.
+    kitCan.scale.set(canR, canR, 0.3)
+    kitCan.rotation.y = -Math.PI / 2
+    kitCan.position.copy(canAt)
+    g.add(kitCan)
+  } else {
+    const can = new THREE.Mesh(new THREE.CylinderGeometry(canR, canR, 0.3, 16).rotateZ(Math.PI / 2), M.chute)
+    can.position.copy(canAt)
+    g.add(can)
+  }
   return g
 }
