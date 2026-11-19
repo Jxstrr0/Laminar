@@ -1,7 +1,8 @@
 /**
  * A kit of Blender parts in one .glb (PR 13an), for the things a design is
  * made of but no slider reshapes: the bike's frame, wheels and drivetrain
- * first (art/bike/build.py → public/models/bike.glb). Each mesh is one part,
+ * (art/bike/build.py → public/models/bike.glb), then the winter sports'
+ * skates, skis and sled gear (art/winter/build.py → winter.glb, PR 13ao). Each mesh is one part,
  * by name, with any sizes the code needs as extras; the code gives it its
  * colour.
  *
@@ -80,3 +81,8 @@ export type BikePartName =
 
 /** The bike's parts (PR 13an). */
 export const bikeKit = partKit<BikePartName>('bike.glb')
+
+export type WinterPartName = 'ClapBlade' | 'ClapFrame' | 'JumpSki' | 'JumpSkiStripe' | 'JumpBinding' | 'RunnerBlade' | 'RunnerCarrier' | 'Axle' | 'PushHandle' | 'PushBar' | 'SteerRing'
+
+/** The winter sports' parts (PR 13ao): the clap skate, the jumping ski, the bobsled's running gear and handles. */
+export const winterKit = partKit<WinterPartName>('winter.glb')

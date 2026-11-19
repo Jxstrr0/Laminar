@@ -23,27 +23,26 @@ tests/models.test.ts checks they still match.
 
 The game's axes (three.js): +x forward, y up (ground at 0), z to the right
 (the chain side). Blender is z-up, so every point here is written in
-three.js terms and turned by `B()`; the glTF exporter turns it back.
+three.js terms and turned by `B()`; the glTF exporter turns it back. The
+building blocks are shared with the other kits in art/kitlib.py (PR 13ao).
 """
 
 from __future__ import annotations
 
-import hashlib
-import json
 import math
 import sys
 from pathlib import Path
 
 import bmesh
-import bpy
 from mathutils import Vector
 
-ROOT = Path(__file__).resolve().parents[2]
-MANIFEST = ROOT / "public" / "models" / "models.json"
+# Import the shared blocks without leaving a __pycache__ folder for the art workflow to commit.
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from kitlib import ROOT, B, Stage, bridge, box, circle, disc, finish, revolve, ring_verts, run, side_frame, sweep, tube, v  # noqa: E402
+
 OUT = ROOT / "public" / "models" / "bike.glb"
 PREVIEW = ROOT / "art" / "bike" / "preview.jpg"
-# Pinned on purpose, the same as the other art scripts and .github/workflows/art.yml.
-BLENDER = "4.5.15"
 
 # FRAME and SKELETON in src/data/pose.ts (tests/models.test.ts checks these against it).
 BB = (0.0, 0.27)
@@ -59,166 +58,6 @@ DEEP = 0.67 * 0.18 * 0.5
 SPOKES_FRONT, SPOKES_REAR = 20, 24
 # The stem the aero bars hang off: the code's headTop + (0.08, 0.02).
 STEM = (HEAD_TOP[0] + 0.08, HEAD_TOP[1] + 0.02)
-
-
-def input_hash() -> str:
-    """Every art script, in path order, hashed: tests/models.test.ts works it out the same way."""
-    h = hashlib.sha256()
-    for path in sorted((ROOT / "art").rglob("*.py"), key=lambda p: p.relative_to(ROOT).as_posix().encode()):
-        h.update(path.read_bytes())
-    return h.hexdigest()[:16]
-
-
-def B(p) -> tuple[float, float, float]:
-    """A three.js point (x forward, y up, z right) in Blender's axes (x, y = −z, z up)."""
-    return (p[0], -p[2], p[1])
-
-
-def v(x: float, y: float, z: float = 0.0) -> Vector:
-    return Vector((x, y, z))
-
-
-# --- Building blocks ---------------------------------------------------------
-
-
-def ring_verts(bm, centre: Vector, u: Vector, w: Vector, section: list[tuple[float, float]]) -> list:
-    """One cross-section's vertices: each (a, b) of the section at centre + a·u + b·w."""
-    return [bm.verts.new(B(centre + u * a + w * b)) for a, b in section]
-
-
-def bridge(bm, loops: list[list], cap_start: bool = True, cap_end: bool = True) -> None:
-    """Faces between successive loops of equal size, and a fan to close each end."""
-    for la, lb in zip(loops, loops[1:]):
-        n = len(la)
-        for k in range(n):
-            bm.faces.new((la[k], la[(k + 1) % n], lb[(k + 1) % n], lb[k]))
-    for loop, cap in ((loops[0], cap_start), (loops[-1], cap_end)):
-        if not cap:
-            continue
-        mid = Vector((0, 0, 0))
-        for vert in loop:
-            mid += vert.co
-        c = bm.verts.new(mid / len(loop))
-        n = len(loop)
-        for k in range(n):
-            bm.faces.new((loop[k], loop[(k + 1) % n], c))
-
-
-def circle(r: float, n: int = 16) -> list[tuple[float, float]]:
-    return [(r * math.cos(2 * math.pi * k / n), r * math.sin(2 * math.pi * k / n)) for k in range(n)]
-
-
-def kamm(r: float) -> list[tuple[float, float]]:
-    """A Kamm-tail tube's section, nose to +a: as deep as the code's old squashed capsule (2.2×) and as thin (0.75×), its tail cut short and rounded."""
-    w = 0.75 * r
-    depth = 4.4 * r
-    tail = 0.5 * w
-    length = depth - w - tail
-    pts: list[tuple[float, float]] = []
-    for k in range(9):  # the nose, a half circle
-        t = -math.pi / 2 + math.pi * k / 8
-        pts.append((w * math.cos(t), w * math.sin(t)))
-    for k in range(1, 4):  # the top side, tapering back
-        f = k / 4
-        pts.append((-length * f, w + (tail - w) * f))
-    for k in range(9):  # the cut tail, a small half circle
-        t = math.pi / 2 + math.pi * k / 8
-        pts.append((-length + tail * math.cos(t), tail * math.sin(t)))
-    for k in range(3, 0, -1):
-        f = k / 4
-        pts.append((-length * f, -(w + (tail - w) * f)))
-    shift = (length + tail - w) / 2
-    return [(a + shift, b) for a, b in pts]
-
-
-def side_frame(d: Vector) -> tuple[Vector, Vector]:
-    """For a tube along d in the side view: u across it in the side view, facing forward (or up), and w out to the right (+z)."""
-    u = v(-d.y, d.x)
-    if u.x < -1e-6 or (abs(u.x) < 1e-6 and u.y < 0):
-        u = -u
-    return u.normalized(), v(0, 0, 1)
-
-
-def tube(bm, a: Vector, b: Vector, ra: float, rb: float, shape: str = "round", rings: int = 3) -> None:
-    """A straight tube from a to b, its radius running ra to rb, round or Kamm-tailed, closed at both ends."""
-    d = (b - a).normalized()
-    u, w = side_frame(d)
-    if abs(d.z) > 0.5:  # a tube across the bike (an axle): any square frame will do
-        u, w = v(1, 0), d.cross(v(1, 0)).normalized()
-    loops = []
-    for k in range(rings):
-        f = k / (rings - 1)
-        r = ra + (rb - ra) * f
-        loops.append(ring_verts(bm, a.lerp(b, f), u, w, kamm(r) if shape == "kamm" else circle(r)))
-    bridge(bm, loops)
-
-
-def sweep(bm, path: list[Vector], radius, sides: int = 12, cap: bool = True) -> None:
-    """A round tube along a path; `radius` is a number or a function of the share along it. Frames carried along so it never twists."""
-    n = len(path)
-    tangents = []
-    for k in range(n):
-        t = path[min(k + 1, n - 1)] - path[max(k - 1, 0)]
-        tangents.append(t.normalized())
-    ref = v(0, 0, 1) if abs(tangents[0].z) < 0.9 else v(1, 0, 0)
-    u = (ref - tangents[0] * ref.dot(tangents[0])).normalized()
-    loops = []
-    for k in range(n):
-        t = tangents[k]
-        u = (u - t * u.dot(t)).normalized()
-        w = t.cross(u)
-        r = radius(k / (n - 1)) if callable(radius) else radius
-        loops.append(ring_verts(bm, path[k], u, w, circle(r, sides)))
-    bridge(bm, loops, cap, cap)
-
-
-def revolve(bm, profile: list[tuple[float, float]], segments: int = 48, centre: Vector | None = None) -> None:
-    """A solid of revolution round the three.js z axis (an axle) through `profile`, a closed loop of (radius, z)."""
-    c = centre or v(0, 0)
-    loops = []
-    for s in range(segments):
-        phi = 2 * math.pi * s / segments
-        cs, sn = math.cos(phi), math.sin(phi)
-        loops.append([bm.verts.new(B(c + v(r * cs, r * sn, z))) for r, z in profile])
-    m = len(profile)
-    for s in range(segments):
-        la, lb = loops[s], loops[(s + 1) % segments]
-        for k in range(m):
-            bm.faces.new((la[k], la[(k + 1) % m], lb[(k + 1) % m], lb[k]))
-
-
-def disc(bm, centre: Vector, r: float, z0: float, z1: float, segments: int = 24, inner: float = 0.0) -> None:
-    """A flat disc (or ring, with `inner`) across the axle from z0 to z1."""
-    if inner > 0:
-        revolve(bm, [(inner, z0), (r, z0), (r, z1), (inner, z1)], segments, centre)
-    else:
-        revolve(bm, [(1e-4, z0), (r, z0), (r, z1), (1e-4, z1)], segments, centre)
-
-
-def box(bm, centre: Vector, size: tuple[float, float, float]) -> None:
-    res = bmesh.ops.create_cube(bm, size=1.0)
-    for vert in res["verts"]:
-        x, y, z = vert.co.x * size[0], vert.co.z * size[1], -vert.co.y * size[2]
-        vert.co = Vector(B(centre + v(x, y, z)))
-
-
-def finish(bm, name: str, smooth: bool = True, **extras: object) -> bpy.types.Object:
-    """Weld, shade and keep this part, with any sizes the code needs as extras."""
-    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-6)
-    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    for f in bm.faces:
-        f.smooth = smooth
-    me = bpy.data.meshes.new(name)
-    bm.to_mesh(me)
-    bm.free()
-    if smooth:
-        # Smooth, but keep creases sharp where faces meet at more than 50 degrees (rim edges, cogs, the saddle's rails).
-        me.set_sharp_from_angle(angle=math.radians(50))
-    obj = bpy.data.objects.new(name, me)
-    for k, val in extras.items():
-        obj[k] = val
-    bpy.context.collection.objects.link(obj)
-    return obj
 
 
 # --- The frames --------------------------------------------------------------
@@ -645,32 +484,8 @@ def build() -> None:
 
 
 def preview(path: Path) -> None:
-    scene = bpy.context.scene
-    colours = {"frame": (0.12, 0.16, 0.45, 1), "black": (0.03, 0.03, 0.035, 1), "metal": (0.45, 0.48, 0.52, 1), "disc": (0.2, 0.22, 0.26, 1)}
-    mats = {}
-    for k, c in colours.items():
-        m = bpy.data.materials.new(k)
-        m.use_nodes = True
-        bsdf = m.node_tree.nodes["Principled BSDF"]
-        bsdf.inputs["Base Color"].default_value = c
-        bsdf.inputs["Roughness"].default_value = 0.45
-        bsdf.inputs["Metallic"].default_value = 0.6 if k == "metal" else 0.1
-        mats[k] = m
-    objs = {o.name: o for o in scene.objects if o.type == "MESH"}
-
-    def place(name: str, colour: str, at=(0.0, 0.0, 0.0), dx: float = 0.0, rot=None, scale=None):
-        src = objs[name]
-        o = src.copy()
-        o.data = src.data.copy()
-        o.data.materials.clear()
-        o.data.materials.append(mats[colour])
-        o.location = Vector(B(at)) + Vector((dx, 0, 0))
-        if rot is not None:
-            o.rotation_euler = rot
-        if scale is not None:
-            o.scale = scale
-        scene.collection.objects.link(o)
-
+    stage = Stage()
+    place = stage.place
     for dx, frame_name, front_kind, rear_kind, bars in ((0.0, "Frame", "spoked", "spoked", "aero"), (1.7, "FrameKamm", "deep", "disc", "drops")):
         place(frame_name, "frame", dx=dx)
         for axle, kind, front in ((FRONT_AXLE_X, front_kind, True), (REAR_AXLE_X, rear_kind, False)):
@@ -702,72 +517,7 @@ def preview(path: Path) -> None:
             place("DropHoods", "black", clamp, dx)
             d = (clamp[0] - HEAD_TOP[0], clamp[1] - HEAD_TOP[1])
             place("Stem", "metal", (HEAD_TOP[0], HEAD_TOP[1], 0), dx, rot=(0, math.atan2(d[0], d[1]), 0), scale=(1, 1, math.hypot(*d) / 0.1))
-    for o in list(objs.values()):
-        bpy.data.objects.remove(o)
-    floor = bpy.data.meshes.new("Floor")
-    bmf = bmesh.new()
-    bmesh.ops.create_grid(bmf, x_segments=1, y_segments=1, size=6)
-    bmf.to_mesh(floor)
-    fo = bpy.data.objects.new("Floor", floor)
-    pale = bpy.data.materials.new("Pale")
-    pale.use_nodes = True
-    pale.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.82, 0.84, 0.92, 1)
-    floor.materials.append(pale)
-    scene.collection.objects.link(fo)
-    scene.render.engine = "CYCLES"
-    scene.cycles.samples = 48
-    scene.cycles.device = "CPU"
-    scene.render.image_settings.file_format = "JPEG"
-    scene.render.resolution_x, scene.render.resolution_y = 1600, 600
-    world = bpy.data.worlds.new("World")
-    world.use_nodes = True
-    world.node_tree.nodes["Background"].inputs["Color"].default_value = (0.85, 0.87, 0.95, 1)
-    world.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.8
-    scene.world = world
-    sun = bpy.data.lights.new("Key", "SUN")
-    sun.energy = 3.5
-    sun_obj = bpy.data.objects.new("Key", sun)
-    sun_obj.rotation_euler = (0.7, 0.2, -0.9)
-    scene.collection.objects.link(sun_obj)
-    cam = bpy.data.cameras.new("Cam")
-    cam.type = "ORTHO"
-    cam.ortho_scale = 3.4
-    cam_obj = bpy.data.objects.new("Cam", cam)
-    cam_obj.location = (1.15, -4, 0.95)
-    cam_obj.rotation_euler = (math.radians(84), 0, math.radians(6))
-    scene.collection.objects.link(cam_obj)
-    scene.camera = cam_obj
-    scene.render.filepath = str(path)
-    bpy.ops.render.render(write_still=True)
+    stage.render(path, (1.0, 0.0, 0.6), 3.4, (1600, 600))
 
 
-def main() -> None:
-    argv = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else []
-    bpy.ops.wm.read_factory_settings(use_empty=True)
-    build()
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    bpy.ops.export_scene.gltf(
-        filepath=str(OUT),
-        export_format="GLB",
-        use_selection=False,
-        export_extras=True,
-        export_texcoords=False,
-        export_normals=True,
-        export_tangents=False,
-        export_materials="NONE",
-        export_vertex_color="NONE",
-        export_cameras=False,
-        export_lights=False,
-        export_yup=True,
-        export_apply=True,
-        export_draco_mesh_compression_enable=False,
-    )
-    print(f"wrote {OUT} ({OUT.stat().st_size} bytes)")
-    if "--preview" in argv:
-        preview(PREVIEW)
-        print(f"wrote {PREVIEW}")
-    MANIFEST.write_text(json.dumps({"inputHash": input_hash(), "blender": BLENDER}, indent=2) + "\n")
-    print(f"wrote {MANIFEST}")
-
-
-main()
+run(OUT, PREVIEW, build, preview)

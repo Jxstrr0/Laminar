@@ -20,6 +20,7 @@ import { lastSlot, readSlot, setLastSlot, writeSlot } from './persist/db'
 import { packSave, parseSave, SAVE_VERSION, type SaveFile } from './persist/save'
 import { DEFAULT_CYCLIST } from './data/cyclist'
 import { DEFAULT_JUMPER } from './data/jumper'
+import { DEFAULT_SKATER } from './data/skater'
 import { DEFAULT_BOBSLED } from './data/bobsled'
 import { DEFAULT_TRUCK } from './data/truck'
 import { STOCK_CAR } from './data/car'
@@ -58,6 +59,8 @@ const SLOT = lastSlot()
  * or written to the save slots, so a real career is never touched.
  */
 const PREVIEWS: Record<string, Design> = {
+  // The speed skater (PR 13ao, for checking the clap skates on a phone).
+  skater: DEFAULT_SKATER,
   skijump: DEFAULT_JUMPER,
   bobsled: DEFAULT_BOBSLED,
   bobsled4: { ...DEFAULT_BOBSLED, crew: 4 as const },
@@ -196,10 +199,10 @@ async function boot(): Promise<void> {
     careerStore.set(saved.career)
   } else careerStore.set(newCareer(freshSeed()))
   loading.progress(0.3)
-  // The people's smooth body parts (PR 13q) and the bike's Blender parts (PR 13an) load alongside:
+  // The people's smooth body parts (PR 13q) and the kits of Blender parts (PR 13an, 13ao) load alongside:
   // the first figures wait for them a moment, never long.
-  const bodyParts = Promise.all([import('./render/bodyParts'), import('./render/partKit')]).then(([{ loadBodyParts }, { bikeKit }]) =>
-    Promise.race([Promise.all([loadBodyParts(), bikeKit.load()]), new Promise((r) => setTimeout(r, BODY_PARTS_WAIT_MS))]),
+  const bodyParts = Promise.all([import('./render/bodyParts'), import('./render/partKit')]).then(([{ loadBodyParts }, { bikeKit, winterKit }]) =>
+    Promise.race([Promise.all([loadBodyParts(), bikeKit.load(), winterKit.load()]), new Promise((r) => setTimeout(r, BODY_PARTS_WAIT_MS))]),
   )
   // three.js and the scenes load as their own chunks.
   const [{ createTunnelView }, { startTunnelScreen }, { createShapeView }, { startShapeScreen }, { startBoardScreen }] = await Promise.all([
