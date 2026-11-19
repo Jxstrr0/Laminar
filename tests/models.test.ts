@@ -160,7 +160,7 @@ describe('the ski-jump hill’s buildings (PR 13l)', () => {
     const { size, json } = gltfOf('skijump.glb')
     const names = json.nodes.map((n) => n.name)
     for (const name of ['Inrun', 'Table', 'StartHouse', 'JudgesTower', 'CoachStand', 'LightMast', 'Grandstand', 'FencePanel']) expect(names).toContain(name)
-    expect(size).toBeLessThan(200 * 1024)
+    expect(size).toBeLessThan(230 * 1024) // 208 KB since PR 13aw's polish
   })
 
   it('has a deck as long as the scene’s in-run and table, wide enough for both lanes', () => {
@@ -340,7 +340,7 @@ describe('the Belogor sliding track’s buildings (PR 13p)', () => {
     const { size, json } = gltfOf('bobsled.glb')
     const names = json.nodes.map((n) => n.name)
     for (const name of ['StartHouse', 'TimingArch', 'FinishArch', 'Shade', 'Terrace', 'LightMast', 'FinishArea']) expect(names).toContain(name)
-    expect(size).toBeLessThan(300 * 1024)
+    expect(size).toBeLessThan(410 * 1024) // 376 KB since PR 13aw's polish
   })
 
   it('is built round the same channel the scene sweeps', () => {
