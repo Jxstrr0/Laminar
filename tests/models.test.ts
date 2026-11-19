@@ -4,7 +4,8 @@ import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { OVAL, TRACK } from '../src/data/briefs'
 import { HILLS } from '../src/data/hills'
-import { FRAME, SKELETON } from '../src/data/pose'
+import { FRAME, SKATER_SKELETON, SKELETON } from '../src/data/pose'
+import { JUMP_SKIS } from '../src/data/jumper'
 import { BIKE } from '../src/data/cyclist'
 import { CIRCUITS, segmentLength } from '../src/data/circuits'
 import { AIRFIELD_KIT, AIRFIELD_SCENE, CIRCUIT_KIT, DRONE_SCENE, JUMP_SCENE, MEADOW_KIT, LAKE_KIT, RECORD_SCENE, REPLAY_SCENE, ROAD_KIT, SALT_KIT, SLED_KIT, SLED_SCENE, SURVEY_KIT, SURVEY_SCENE } from '../src/data/replay'
@@ -407,5 +408,25 @@ describe('the bike (PR 13an)', () => {
     // The laced wheels have the sim's own spoke counts.
     expect(BIKE.wheels.front.spokes).toBe(20)
     expect(BIKE.wheels.rear.spokes).toBe(24)
+  })
+})
+
+describe('the winter kit (PR 13ao)', () => {
+  const { size, json } = gltfOf('winter.glb')
+  const node = (name: string) => json.nodes.find((n) => n.name === name)
+  type Extras = Record<string, unknown>
+
+  it('has every part riderFigure lays on the skater, the jumper and the sled, and stays small', () => {
+    // The same names as WinterPartName in src/render/partKit.ts.
+    for (const name of ['ClapBlade', 'ClapFrame', 'JumpSki', 'JumpSkiStripe', 'JumpBinding', 'RunnerBlade', 'RunnerCarrier', 'Axle', 'PushHandle', 'PushBar', 'SteerRing'])
+      expect(node(name), name).toBeDefined()
+    expect(size).toBeLessThan(150 * 1024)
+  })
+
+  it('is built to the sizes the code lays it at', () => {
+    expect((node('ClapBlade')!.extras as Extras).length).toBe(SKATER_SKELETON.blade.length)
+    const ski = node('JumpSki')!.extras as Extras
+    expect(ski.length).toBe(JUMP_SKIS.length)
+    expect(ski.width).toBe(JUMP_SKIS.width)
   })
 })

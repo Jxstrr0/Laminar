@@ -8,3 +8,6 @@ shots/
 .env
 .env.*
 !.env.example
+
+# Python caches from the Blender scripts (art/kitlib.py)
+__pycache__/

@@ -11,13 +11,15 @@
  * the pose's joints; until those load, each is the plain capsule it was.
  * Since PR 13an the bike's frames, wheels, saddle, drivetrain, stem and bars
  * are Blender parts too (partKit.ts); the aero extensions, the crank arms'
- * angle and where the drop bars sit still follow the pose.
+ * angle and where the drop bars sit still follow the pose. Since PR 13ao the
+ * skater's clap skates, the jumper's skis and the bobsled's runners, axles,
+ * push handles and steering rings are Blender parts as well.
  */
 import * as THREE from 'three'
 import { MODEL } from './theme'
 import { CP_SURFACE } from './cpSurface'
 import { bodyPart, type PartName } from './bodyParts'
-import { bikeKit, type BikePartName } from './partKit'
+import { bikeKit, winterKit, type BikePartName, type WinterPartName } from './partKit'
 import { BIKE, HELMET, type CyclistDesign } from '../data/cyclist'
 import { BOB_SKELETON, FRAME, JUMPER_SKELETON, SKATER_SKELETON, SKELETON } from '../data/pose'
 import type { SkaterDesign } from '../data/skater'
@@ -212,6 +214,12 @@ function latheMesh(body: BodySpec | undefined, material: THREE.Material): THREE.
 /** A Blender part of the bike as a fresh mesh, or nothing until the kit loads. */
 function kitMesh(name: BikePartName, material: THREE.Material): THREE.Mesh | null {
   const part = bikeKit.get(name)
+  return part ? new THREE.Mesh(part.geometry.clone(), material) : null
+}
+
+/** A Blender part of the winter kit as a fresh mesh, or nothing until it loads. */
+function winterMesh(name: WinterPartName, material: THREE.Material): THREE.Mesh | null {
+  const part = winterKit.get(name)
   return part ? new THREE.Mesh(part.geometry.clone(), material) : null
 }
 
@@ -537,6 +545,16 @@ function buildSkater(design: SkaterDesign, state: RiderState): THREE.Group {
     const boot = footwear('Boot', 0.26, 0.11, 0.09, M.tyre)
     boot.position.set(ankle.x + 0.03, ankle.y - 0.06, ankle.z)
     g.add(boot)
+    // The clap skate (PR 13ao): blade, tube, cups and hinge, from the ice up to the sole.
+    const clap = winterMesh('ClapBlade', M.blade)
+    if (clap) {
+      const frame = winterMesh('ClapFrame', M.cap)!
+      for (const m of [clap, frame]) {
+        m.position.set(ankle.x + S.blade.ahead - S.blade.length / 2 + 0.1, 0, ankle.z)
+        g.add(m)
+      }
+      continue
+    }
     const blade = new THREE.Mesh(new THREE.BoxGeometry(S.blade.length, S.blade.height * 0.25, 0.006), M.blade)
     blade.position.set(ankle.x + S.blade.ahead - S.blade.length / 2 + 0.1, S.blade.height * 0.125, ankle.z)
     g.add(blade)
@@ -605,6 +623,18 @@ function buildJumper(design: JumperDesign, state: RiderState): THREE.Group {
     const tip = v3(ski.tip)
     const len = tail.distanceTo(tip)
     const dir = tip.clone().sub(tail).normalize()
+    // The Blender ski (PR 13ao): its shovel, stripe and binding, laid from the tail.
+    const kitSki = winterKit.get('JumpSki')
+    if (kitSki) {
+      for (const [name, m] of [['JumpSki', M.ski], ['JumpSkiStripe', M.skiStripe], ['JumpBinding', M.tyre]] as const) {
+        const mesh = winterMesh(name, m)!
+        mesh.quaternion.setFromUnitVectors(along, dir)
+        mesh.scale.set(len / (Number(kitSki.extras.length) || JUMP_SKIS.length), 1, 1)
+        mesh.position.copy(tail)
+        g.add(mesh)
+      }
+      continue
+    }
     const board = new THREE.Mesh(new THREE.BoxGeometry(len, S.skiThick, JUMP_SKIS.width), M.ski)
     const stripe = new THREE.Mesh(new THREE.BoxGeometry(len * 0.96, S.skiThick * 1.1, JUMP_SKIS.width * 0.3), M.skiStripe)
     for (const m of [board, stripe]) {
@@ -683,7 +713,8 @@ function buildBobsled(design: BobsledDesign, state: RiderState): THREE.Group {
   // Runners: a pair at the front of the cockpit (they steer) and a pair at its back.
   const body = SLED.body[design.crew]
   const runnerLen = 0.62
-  for (const x of [body / 2 - runnerLen / 2, -body / 2 + runnerLen / 2]) {
+  if (winterKit.ready()) sledGear(g, design, pose, runnerLen)
+  else for (const x of [body / 2 - runnerLen / 2, -body / 2 + runnerLen / 2]) {
     for (const z of [-1, 1]) {
       const blade = new THREE.Mesh(new THREE.BoxGeometry(runnerLen, SLED.floor * 0.7, 0.014), M.blade)
       blade.position.set(x, SLED.floor * 0.35, z * SLED.width * 0.42)
@@ -730,6 +761,60 @@ function buildBobsled(design: BobsledDesign, state: RiderState): THREE.Group {
     g.add(visor)
   })
   return g
+}
+
+/**
+ * The bobsled's Blender running gear (PR 13ao): four runners on their
+ * carriers with an axle across each pair, push handles on the hull's sides
+ * (a second pair for a four-crew), the push bar across the open back, and the
+ * driver's steering rings in the driver's hands.
+ */
+function sledGear(g: THREE.Group, design: BobsledDesign, pose: BobsledPose, runnerLen: number) {
+  const body = SLED.body[design.crew]
+  const z = SLED.width * 0.42
+  for (const x of [body / 2 - runnerLen / 2, -body / 2 + runnerLen / 2]) {
+    for (const side of [-1, 1]) {
+      for (const [name, m] of [['RunnerBlade', M.blade], ['RunnerCarrier', M.frame]] as const) {
+        const mesh = winterMesh(name, m)!
+        mesh.position.set(x, 0, side * z)
+        g.add(mesh)
+      }
+    }
+    const axle = winterMesh('Axle', M.frame)!
+    axle.position.set(x, 0, 0)
+    g.add(axle)
+  }
+  // The hull's section at a point along the cockpit (x = 0 its middle): the station nearest it.
+  const stations = sledShape(design).bodies[0]!.stations
+  const half = (design.sled.cowl - SLED.floor) / 2
+  const centreY = SLED.floor + half
+  const section = (x: number) => {
+    const sx = design.sled.nose + body / 2 - x
+    return stations.reduce((best, st) => (Math.abs(st.x - sx) < Math.abs(best.x - sx) ? st : best), stations[0]!)
+  }
+  const handles = design.crew === 4 ? [body / 2 - 0.14, body / 2 - 1.0] : [body / 2 - 0.14]
+  for (const x of handles) {
+    const st = section(x)
+    for (const side of [-1, 1]) {
+      const handle = winterMesh('PushHandle', M.bars)!
+      handle.position.set(x, centreY + st.top * 0.25, side * st.half * 0.98)
+      handle.scale.z = side
+      g.add(handle)
+    }
+  }
+  const back = -body / 2 + 0.06
+  const bar = winterMesh('PushBar', M.bars)!
+  const st = section(back)
+  bar.position.set(back, centreY + st.top * 0.9, 0)
+  bar.scale.z = Math.min(1.2, (st.half * 0.85) / 0.24)
+  g.add(bar)
+  // The driver's rings sit in the driver's hands.
+  const seat = pose.seats[0] ?? 0
+  for (const h of pose.hand) {
+    const ring = winterMesh('SteerRing', M.bars)!
+    ring.position.copy(v3(h)).add(new THREE.Vector3(seat, 0, 0))
+    g.add(ring)
+  }
 }
 
 /** Sides of each hull ring. */
