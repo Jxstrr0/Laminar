@@ -243,7 +243,8 @@ describe('the Lugovoy meadow’s kit (PR 13v)', () => {
     const { size, json } = gltfOf('meadow.glb')
     const names = json.nodes.map((n) => n.name)
     for (const name of ['TreeRound', 'TreePine', 'TreeBirch', 'HayBale', 'Bunting', 'StartPads', 'PilotTent', 'TimingTower', 'Spectators', 'ClubHut']) expect(names).toContain(name)
-    expect(size).toBeLessThan(200 * 1024)
+    // Polished in Blender: round people on chairs, a braced tower, a plank hut and real cars (PR 13au).
+    expect(size).toBeLessThan(240 * 1024)
   })
 
   it('is built for the mown line the scene draws, with a launch pad in each quad’s lane', () => {
@@ -264,7 +265,8 @@ describe('the Ozimka fields’ kit (PR 13w)', () => {
     const { size, json } = gltfOf('fields.glb')
     const names = json.nodes.map((n) => n.name)
     for (const name of ['Hedge', 'Oak', 'Poplars', 'PowerSpan', 'Track', 'Farmstead', 'Combine', 'BaleStack', 'HayShed']) expect(names).toContain(name)
-    expect(size).toBeLessThan(200 * 1024)
+    // Polished in Blender: braced barn doors, ribbed bins, a combine with its reel and real tractors (PR 13au).
+    expect(size).toBeLessThan(260 * 1024)
   })
 
   it('is built for the planes’ height, its hedge and track pieces as long as the scene steps them, and the yard the size the scene leaves room for', () => {
@@ -292,7 +294,8 @@ describe('Lake Dolgo’s kit (PR 13y)', () => {
     const { size, json } = gltfOf('lake.glb')
     const names = json.nodes.map((n) => n.name)
     for (const name of ['Snowbank', 'Broom', 'StartBanner', 'WarmingHut', 'Plough', 'Crowd', 'Shacks', 'ShorePines']) expect(names).toContain(name)
-    expect(size).toBeLessThan(200 * 1024)
+    // Polished in Blender: people in coats and hats, board huts, a plough with a curved blade (PR 13au).
+    expect(size).toBeLessThan(230 * 1024)
   })
 
   it('is built for the loop the scene draws, its banks as long as the scene steps them', () => {

@@ -28,40 +28,38 @@ along +x. Pieces that face the field face it across −y here:
 The game's axes (three.js): +x along, y up, z to the right. Blender is z-up,
 so here x is the same, y is three.js −z (the left) and z is up; the glTF
 exporter turns it round. Every piece keeps its daylight colours.
+
+PR 13au polished it with the shared venue blocks (art/venuelib.py): poles
+with braced crossarms and glass insulators; a farmstead with braced barn
+doors, a porch and chimney, ribbed grain bins with ladders, spouts off the
+grain leg and a car in the yard; a combine with its reel, a flared grain
+tank and a dust trail; round-hubbed tractors; a trussed hay shed.
 """
 
 from __future__ import annotations
 
-import hashlib
-import json
 import math
 import sys
 from pathlib import Path
 
 import bmesh
 import bpy
-from mathutils import Matrix, Vector
+from mathutils import Vector
 
-ROOT = Path(__file__).resolve().parents[2]
-MANIFEST = ROOT / "public" / "models" / "models.json"
+# Import the shared blocks without leaving a __pycache__ folder for the art workflow to commit.
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import venuelib  # noqa: E402
+from kitlib import ROOT  # noqa: E402
+from venuelib import Mesh, car, run, srgb, wheel  # noqa: E402
+
 OUT = ROOT / "public" / "models" / "fields.glb"
 PREVIEW = ROOT / "art" / "fields" / "preview.jpg"
-# Pinned on purpose, the same as the other art scripts and .github/workflows/art.yml.
-BLENDER = "4.5.15"
-
-
-def input_hash() -> str:
-    """Every art script, in path order, hashed: tests/models.test.ts works it out the same way."""
-    h = hashlib.sha256()
-    for path in sorted((ROOT / "art").rglob("*.py"), key=lambda p: p.relative_to(ROOT).as_posix().encode()):
-        h.update(path.read_bytes())
-    return h.hexdigest()[:16]
-
 
 # The planes fly their lines FLY metres over the wheat (SURVEY_SCENE.flyHeight).
 FLY = 40.0
 
-COLOURS = {
+venuelib.COLOURS.update({
     "White": "F4F4F2",
     "Wall": "E9E2D6",
     "Roof": "8C4A3F",
@@ -88,117 +86,11 @@ COLOURS = {
     "Hay2": "C4A257",
     "Combine": "C9483C",
     "Tractor": "2F5BB7",
-}
-
-
-def srgb(hex_: str) -> tuple[float, float, float, float]:
-    """An sRGB hex colour as Blender's linear RGBA."""
-    out = []
-    for i in (0, 2, 4):
-        c = int(hex_[i : i + 2], 16) / 255
-        out.append(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4)
-    return (out[0], out[1], out[2], 1.0)
-
-
-MATS: dict[str, bpy.types.Material] = {}
-
-
-def mat(name: str) -> bpy.types.Material:
-    """The material for a colour name, made once: matte, the steel a little shiny."""
-    if name not in MATS:
-        m = bpy.data.materials.new(name)
-        m.use_nodes = True
-        bsdf = m.node_tree.nodes["Principled BSDF"]
-        bsdf.inputs["Base Color"].default_value = srgb(COLOURS[name])
-        bsdf.inputs["Roughness"].default_value = 0.3 if name == "Glass" else 0.45 if name in ("Steel", "Silver") else 0.85
-        bsdf.inputs["Metallic"].default_value = 0.4 if name in ("Steel", "Silver") else 0.0
-        MATS[name] = m
-    return MATS[name]
-
-
-class Mesh:
-    """A bmesh that collects shapes with named materials, then becomes one object."""
-
-    def __init__(self) -> None:
-        self.bm = bmesh.new()
-        self.names: list[str] = []
-
-    def _paint(self, verts, name: str) -> None:
-        if name not in self.names:
-            self.names.append(name)
-        idx = self.names.index(name)
-        for f in {f for v in verts for f in v.link_faces}:
-            f.material_index = idx
-
-    def box(self, x0: float, x1: float, y0: float, y1: float, z0: float, z1: float, name: str) -> None:
-        """An axis-aligned box between these bounds."""
-        verts = bmesh.ops.create_cube(self.bm, size=1.0)["verts"]
-        bmesh.ops.scale(self.bm, vec=Vector((x1 - x0, y1 - y0, z1 - z0)), verts=verts)
-        bmesh.ops.translate(self.bm, vec=Vector(((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2)), verts=verts)
-        self._paint(verts, name)
-
-    def cone(self, x: float, y: float, z0: float, z1: float, r0: float, r1: float, sides: int, name: str) -> None:
-        """An upright cone or cylinder (r1 = r0) from z0 to z1, centred on (x, y)."""
-        verts = bmesh.ops.create_cone(self.bm, cap_ends=True, cap_tris=False, segments=sides, radius1=r0, radius2=r1, depth=z1 - z0)["verts"]
-        bmesh.ops.translate(self.bm, vec=Vector((x, y, (z0 + z1) / 2)), verts=verts)
-        self._paint(verts, name)
-
-    def blob(self, x: float, y: float, z: float, rx: float, ry: float, rz: float, name: str) -> None:
-        """A low, faceted lump (a tree's crown): an icosahedron stretched to these radii."""
-        verts = bmesh.ops.create_icosphere(self.bm, subdivisions=1, radius=1.0)["verts"]
-        bmesh.ops.scale(self.bm, vec=Vector((rx, ry, rz)), verts=verts)
-        bmesh.ops.translate(self.bm, vec=Vector((x, y, z)), verts=verts)
-        self._paint(verts, name)
-
-    def flat(self, x0: float, x1: float, y0: float, y1: float, z: float, name: str) -> None:
-        """A flat quad facing up at height z (paint on the road)."""
-        a = [self.bm.verts.new(p) for p in ((x0, y0, z), (x1, y0, z), (x1, y1, z), (x0, y1, z))]
-        self.bm.faces.new(a)
-        self._paint(a, name)
-
-    def roof(self, x0: float, x1: float, y0: float, y1: float, z0: float, ridge: float, name: str) -> None:
-        """A gable roof over the box x0..x1, y0..y1 from the eaves at z0, its ridge along x at z0 + ridge."""
-        bm = self.bm
-        ym = (y0 + y1) / 2
-        a = [bm.verts.new(p) for p in ((x0, y0, z0), (x1, y0, z0), (x1, y1, z0), (x0, y1, z0), (x0, ym, z0 + ridge), (x1, ym, z0 + ridge))]
-        faces = [(a[0], a[1], a[5], a[4]), (a[2], a[3], a[4], a[5]), (a[0], a[4], a[3]), (a[1], a[2], a[5]), (a[0], a[3], a[2], a[1])]
-        for f in faces:
-            bm.faces.new(f)
-        self._paint(a, name)
-
-    def done(self, obj_name: str) -> bpy.types.Object:
-        bmesh.ops.recalc_face_normals(self.bm, faces=self.bm.faces)
-        me = bpy.data.meshes.new(obj_name)
-        self.bm.to_mesh(me)
-        self.bm.free()
-        for n in self.names:
-            me.materials.append(mat(n))
-        obj = bpy.data.objects.new(obj_name, me)
-        bpy.context.collection.objects.link(obj)
-        return obj
-
-
-
-
-# --- Shapes the other kits didn't need.
-
-
-def drum(m: Mesh, x: float, y: float, z: float, r: float, length: float, sides: int, name: str) -> None:
-    """A cylinder lying along y (a bale on its side), centred on (x, y, z)."""
-    verts = bmesh.ops.create_cone(m.bm, cap_ends=True, cap_tris=False, segments=sides, radius1=r, radius2=r, depth=length)["verts"]
-    bmesh.ops.rotate(m.bm, verts=verts, cent=Vector((0, 0, 0)), matrix=Matrix.Rotation(math.pi / 2, 3, "X"))
-    bmesh.ops.translate(m.bm, vec=Vector((x, y, z)), verts=verts)
-    m._paint(verts, name)
-
-
-def rod(m: Mesh, a: tuple[float, float, float], b: tuple[float, float, float], r: float, name: str) -> None:
-    """A thin four-sided rod from a to b, at any slope (a wire, a strut)."""
-    va, vb = Vector(a), Vector(b)
-    d = vb - va
-    verts = bmesh.ops.create_cone(m.bm, cap_ends=True, cap_tris=False, segments=4, radius1=r, radius2=r, depth=d.length)["verts"]
-    bmesh.ops.rotate(m.bm, verts=verts, cent=Vector((0, 0, 0)), matrix=Vector((0, 0, 1)).rotation_difference(d.normalized()).to_matrix())
-    bmesh.ops.translate(m.bm, vec=(va + vb) / 2, verts=verts)
-    m._paint(verts, name)
+    "Hub": "B9C0C8",
+    "Trunk": "6B5A4E",
+    "Dust": "D8C9A2",
+    "Plank": "8E3A31",
+})
 
 
 def wobble(k: int, salt: float) -> float:
@@ -207,13 +99,34 @@ def wobble(k: int, salt: float) -> float:
 
 
 def tractor(m: Mesh, x: float, y: float) -> None:
-    """A blue tractor facing +x: big back wheels, small front ones, the cab over the back axle."""
-    m.box(x, x + 3.6, y - 0.7, y + 0.7, 0.7, 1.7, "Tractor")
-    m.box(x + 0.2, x + 1.7, y - 0.8, y + 0.8, 1.7, 3.0, "Glass")
-    m.box(x + 0.1, x + 1.8, y - 0.9, y + 0.9, 3.0, 3.1, "White")
-    for wy in (y - 1.0, y + 1.0):
-        drum(m, x + 0.9, wy, 0.8, 0.8, 0.5, 10, "Tyre")
-        drum(m, x + 3.1, wy, 0.5, 0.5, 0.35, 8, "Tyre")
+    """A blue tractor facing +x: big back wheels, small front ones, the bonnet sloping down, the cab over the back axle with its exhaust stack."""
+    hood = [(x + 1.6, 0.7), (x + 3.5, 0.7), (x + 3.7, 0.9), (x + 3.7, 1.4), (x + 3.4, 1.65), (x + 1.6, 1.75)]
+    with m.at(0, y, 0):
+        m.loft([[(px, -0.55, pz) for px, pz in hood], [(px, 0.55, pz) for px, pz in hood]], "Tractor", smooth=False)
+        m.box(x + 0.3, x + 1.7, -0.7, 0.7, 0.9, 1.75, "Tractor")
+        m.box(x + 3.7, x + 3.76, -0.4, 0.4, 0.95, 1.3, "Steel")
+    # The cab: a glass box with dark corner posts and a white roof.
+    m.box(x + 0.25, x + 1.75, y - 0.78, y + 0.78, 1.75, 2.95, "Glass")
+    for px in (x + 0.25, x + 1.75):
+        for py in (y - 0.78, y + 0.78):
+            m.cone(px, py, 1.75, 2.95, 0.04, 0.04, 4, "Black")
+    m.box(x + 0.1, x + 1.9, y - 0.9, y + 0.9, 2.95, 3.08, "White")
+    m.cone(x + 2.2, y + 0.4, 1.7, 3.2, 0.06, 0.05, 6, "Black")
+    for s in (-1, 1):
+        wheel(m, x + 0.9, y + s * 1.0, 0.8, 0.5, "Amber", 12)
+        wheel(m, x + 3.1, y + s * 0.85, 0.48, 0.32, "Amber", 10)
+
+
+def trailer(m: Mesh, x0: float, x1: float, y: float, colour: str) -> None:
+    """A grain trailer from x0 to x1 (its drawbar at x1), centred on y: a flared tub on two axles."""
+    w = 1.3
+    tub = [(-w + 0.25, 0.9), (w - 0.25, 0.9), (w + 0.15, 2.8), (-w - 0.15, 2.8)]
+    m.loft([[(x0, y + cy, cz) for cy, cz in tub], [(x1 - 1.0, y + cy, cz) for cy, cz in tub]], colour, smooth=False)
+    m.rod((x1 - 1.0, y, 0.9), (x1, y, 0.7), 0.06, "Steel")
+    mid = (x0 + x1 - 1.0) / 2
+    for ax in (mid - 0.7, mid + 0.7):
+        for s in (-1, 1):
+            wheel(m, ax, y + s * 1.2, 0.55, 0.4, "Hub", 10)
 
 
 # --- The fields' pieces.
@@ -229,9 +142,11 @@ def hedge() -> None:
 
 
 def oak() -> None:
-    """A big field oak, about 12 m tall, its crown in three lumps."""
+    """A big field oak, about 12 m tall, its crown in three lumps on two limbs."""
     m = Mesh()
     m.cone(0, 0, 0, 4.2, 0.45, 0.3, 6, "Bark")
+    m.cyl((0, 0, 3.8), (1.6, -1.0, 7.0), 0.25, "Bark", 5, rb=0.12, cap=False)
+    m.cyl((0, 0, 3.8), (-1.6, 1.0, 6.6), 0.25, "Bark", 5, rb=0.12, cap=False)
     m.blob(0, 0, 7.0, 4.6, 4.4, 3.4, "Leaf")
     m.blob(1.8, -1.2, 9.4, 2.8, 2.6, 2.2, "Hedge2")
     m.blob(-1.9, 1.1, 8.8, 2.6, 2.6, 2.0, "Leaf")
@@ -250,18 +165,23 @@ def poplars() -> None:
 
 
 def power_span() -> None:
-    """A wooden pole with its crossarm, and three wires sagging 60 m to where the next pole stands."""
+    """A wooden pole with its braced crossarm and glass insulators, and three wires sagging 60 m to where the next pole stands."""
     m = Mesh()
     top = 9.0
     m.cone(0, 0, 0, top, 0.15, 0.11, 6, "Wood")
     m.box(-0.08, 0.08, -1.3, 1.3, top - 0.6, top - 0.45, "Wood")
+    for s in (-1, 1):
+        m.rod((0, 0, top - 1.4), (0, s * 0.8, top - 0.6), 0.03, "Steel")
     for y in (-1.15, 0, 1.15):
         z = top - 0.45 if y else top
-        m.cone(0, y, z, z + 0.3, 0.06, 0.06, 5, "White")
+        # A stack of three glass skirts on a pin.
+        m.cone(0, y, z, z + 0.08, 0.03, 0.03, 5, "Steel")
+        for k in range(3):
+            m.cone(0, y, z + 0.08 + k * 0.07, z + 0.15 + k * 0.07, 0.09, 0.04, 7, "Teal")
         # Each wire hangs in a shallow curve: lowest 1.4 m down at midspan, in six straight pieces.
         pts = [(x, y, z + 0.3 - 1.4 * (1 - ((x - 30) / 30) ** 2)) for x in range(0, 61, 10)]
         for a, b in zip(pts, pts[1:]):
-            rod(m, a, b, 0.025, "Black")
+            m.rod(a, b, 0.025, "Black")
     m.done("PowerSpan")
 
 
@@ -274,66 +194,110 @@ def track() -> None:
     m.done("Track")
 
 
+def grain_bin(m: Mesh, x: float, y: float) -> None:
+    """A corrugated grain bin: ribbed walls, a conical roof with a vent cap, and a ladder up the yard side."""
+    m.cone(x, y, 0, 10, 4, 4, 16, "Silver")
+    for z in (2.5, 5, 7.5):
+        m.cone(x, y, z - 0.08, z + 0.08, 4.06, 4.06, 16, "Steel")
+    m.cone(x, y, 10, 12.5, 4.2, 0.6, 16, "Silver")
+    m.cone(x, y, 12.5, 13.0, 0.6, 0.6, 8, "Steel")
+    for dx in (-0.25, 0.25):
+        m.rod((x + dx, y - 4.1, 0), (x + dx, y - 4.1, 10), 0.03, "Steel")
+    for k in range(10):
+        m.rod((x - 0.25, y - 4.1, 0.6 + k), (x + 0.25, y - 4.1, 0.6 + k), 0.02, "Steel")
+
+
 def farmstead() -> None:
     """The co-operative's yard, about 64 by 48 m, its open side to the field (−y)."""
     m = Mesh()
     m.flat(0, 64, 0, 44, 0.03, "Concrete")
-    # The big barn: red boards, a grey roof, two tall doors to the yard.
+    # The big barn: red boards, a grey roof with two vents, two tall braced doors to the yard.
     m.box(4, 34, 14, 30, 0, 7, "Barn")
+    for z in (1.75, 3.5, 5.25):
+        m.box(3.96, 34.04, 13.96, 30.04, z, z + 0.06, "Plank")
     m.roof(3.4, 34.6, 13.4, 30.6, 7, 4.2, "Roof2")
+    for x in (13, 25):
+        m.box(x - 0.8, x + 0.8, 21.2, 22.8, 10.6, 11.8, "Silver")
+        m.roof(x - 1.0, x + 1.0, 21.0, 23.0, 11.8, 0.6, "Roof2")
     for x in (9, 24):
-        m.box(x, x + 5, 13.96, 14, 0, 5.2, "Wall")
+        m.box(x, x + 5, 13.9, 13.96, 0, 5.2, "Wall")
+        m.box(x - 0.15, x + 5.15, 13.84, 13.9, 5.2, 5.4, "Plank")
+        m.rod((x + 0.2, 13.84, 0.2), (x + 4.8, 13.84, 5.0), 0.08, "Plank")
+        m.rod((x + 4.8, 13.84, 0.2), (x + 0.2, 13.84, 5.0), 0.08, "Plank")
     # The machine shed: steel posts, a shallow roof, open to the yard, a tractor parked inside.
     for x in (38, 47, 56):
         for y in (14, 28):
             m.box(x - 0.15, x + 0.15, y - 0.15, y + 0.15, 0, 6, "Steel")
     m.roof(37.5, 56.5, 13.5, 28.5, 6, 1.6, "Silver")
     tractor(m, 41, 21)
-    # The farmhouse behind, white with a red roof, and two trees by it.
+    # The farmhouse behind, white with a red roof, a chimney and a porch, and two trees by it.
     m.box(6, 18, 34, 42, 0, 5.5, "Wall")
     m.roof(5.6, 18.4, 33.6, 42.4, 5.5, 3.2, "Roof")
+    m.box(15, 16, 39, 40, 6, 9.6, "Roof")
     for k in range(3):
-        m.box(7.5 + k * 3.8, 9 + k * 3.8, 33.96, 34, 1.4, 2.6, "Glass")
-        m.box(7.5 + k * 3.8, 9 + k * 3.8, 33.96, 34, 3.4, 4.6, "Glass")
+        for z in (1.4, 3.4):
+            m.box(7.3 + k * 3.8, 9.2 + k * 3.8, 33.94, 34, z - 0.1, z + 1.3, "White")
+            m.box(7.5 + k * 3.8, 9 + k * 3.8, 33.9, 33.94, z, z + 1.2, "Glass")
+    m.box(10.2, 11.4, 33.9, 33.96, 0, 2.2, "Teal")
+    m.box(9.2, 12.4, 32.2, 34, 0, 0.25, "Wood")
+    for x in (9.4, 12.2):
+        m.cone(x, 32.4, 0.25, 2.8, 0.08, 0.08, 6, "White")
+    m.poly([(9.0, 34, 3.0), (12.6, 34, 3.0), (12.6, 32.0, 2.7), (9.0, 32.0, 2.7)], "Roof")
     m.cone(22, 40, 0, 3, 0.25, 0.2, 6, "Bark")
     m.blob(22, 40, 5.2, 3.2, 3.2, 2.8, "Leaf")
     m.cone(-3, 36, 0, 3, 0.25, 0.2, 6, "Bark")
     m.blob(-3, 36, 5.0, 2.8, 2.8, 2.6, "Hedge2")
-    # Two grain bins with conical roofs, and the grain leg towering beside them.
+    # Two grain bins and the grain leg towering between them, a spout down to each.
     for x in (44, 53):
-        m.cone(x, 38, 0, 10, 4, 4, 14, "Silver")
-        m.cone(x, 38, 10, 12.5, 4.2, 0.4, 14, "Silver")
+        grain_bin(m, x, 38)
     m.box(48, 49.4, 37.3, 38.7, 0, 22, "Steel")
     m.box(47.4, 50, 36.7, 39.3, 22, 24, "Barn")
+    m.roof(47.2, 50.2, 36.5, 39.5, 24, 0.8, "Steel")
     for x in (44, 53):
-        rod(m, (48.7, 38, 21), (x, 38, 12.3), 0.18, "Steel")
-    # A pallet of feed sacks and a grain trailer in the yard.
-    m.box(30, 33, 4, 7, 0, 1.2, "Hay")
-    m.box(52, 60, 4, 6.6, 0.9, 2.8, "Combine")
-    for x in (53.5, 58.5):
-        drum(m, x, 5.3, 0.55, 0.55, 3.0, 8, "Tyre")
+        m.rod((48.7, 38, 21), (x, 38, 12.8), 0.18, "Steel", 6)
+    # A pallet of feed sacks, a grain trailer and the farm's car in the yard.
+    m.box(30, 33, 4, 7, 0, 0.15, "Wood")
+    for k in range(3):
+        m.box(30.1 + k, 30.9 + k, 4.1, 6.9, 0.15, 1.15, "Hay")
+    trailer(m, 52, 61, 5.3, "Combine")
+    with m.at(22, 6, 0, math.pi / 2):
+        car(m, "Tractor", 4.2, 1.8)
     m.done("Farmstead")
 
 
 def combine() -> None:
-    """A combine at work, heading +x: 80 m of cut stubble behind it, the cutter bar, the cab and the grain tank, a tractor and trailer alongside."""
+    """A combine at work, heading +x: 80 m of cut stubble behind it, the header and its reel, the cab, the grain tank, a tractor and trailer alongside, dust behind."""
     m = Mesh()
     m.flat(-80, 0, -5, 5, 0.03, "Stubble")
-    m.box(-9, 0, -1.7, 1.7, 1.0, 4.0, "Combine")
-    m.box(-7.5, -1.5, -1.6, 1.6, 4.0, 5.2, "Combine")
-    m.box(-2.4, 0.3, -1.3, 1.3, 3.0, 5.4, "Glass")
-    m.box(-2.6, 0.5, -1.4, 1.4, 5.4, 5.6, "White")
-    m.box(0, 2.2, -4.6, 4.6, 0.3, 1.4, "Amber")
-    m.box(1.4, 2.4, -4.5, 4.5, 1.0, 1.6, "Steel")
-    for wy in (-1.7, 1.7):
-        drum(m, -2.0, wy, 0.9, 0.9, 0.6, 10, "Tyre")
-        drum(m, -8.0, wy, 0.6, 0.6, 0.4, 8, "Tyre")
-    # The unloading auger swung out over the trailer, and the trailer and tractor on the stubble beside.
-    rod(m, (-6, -1.7, 5.0), (-4, -8, 5.4), 0.2, "Combine")
-    m.box(-9, -2, -9.4, -6.6, 1.0, 3.2, "Barn")
-    for x in (-8, -3):
-        drum(m, x, -8.0, 0.55, 0.55, 3.0, 8, "Tyre")
+    # The body, its back sloping, the grain tank flaring on top.
+    side = [(-9, 0.9), (-0.4, 0.9), (0.2, 1.6), (0.2, 3.4), (-1.0, 4.0), (-9.0, 4.0), (-9.6, 3.2), (-9.6, 1.6)]
+    m.loft([[(x, -1.7, z) for x, z in side], [(x, 1.7, z) for x, z in side]], "Combine", smooth=False)
+    tank = [(-7.6, -1.6, 4.0), (-1.6, -1.6, 4.0), (-1.6, 1.6, 4.0), (-7.6, 1.6, 4.0)]
+    lid = [(-8.0, -1.9, 5.3), (-1.2, -1.9, 5.3), (-1.2, 1.9, 5.3), (-8.0, 1.9, 5.3)]
+    m.loft([tank, lid], "Combine", cap_start=False, smooth=False)
+    m.cone(-6.5, 1.2, 5.3, 6.4, 0.12, 0.12, 6, "Black")
+    # The cab up front, its roof white.
+    m.box(-2.2, 0.4, -1.3, 1.3, 3.4, 5.4, "Glass")
+    m.box(-2.4, 0.6, -1.4, 1.4, 5.4, 5.6, "White")
+    # The header: a wide cutter on a feeder, and the reel above it.
+    m.box(0.2, 1.4, -0.7, 0.7, 0.9, 2.3, "Combine")
+    hdr = [(1.0, 0.25), (2.6, 0.25), (2.6, 0.45), (1.6, 1.4), (1.0, 1.4)]
+    m.loft([[(x, -4.6, z) for x, z in hdr], [(x, 4.6, z) for x, z in hdr]], "Amber", smooth=False)
+    m.drum(2.2, 0, 1.9, 0.12, 9.0, 6, "Amber")
+    for k in range(6):
+        a = 2 * math.pi * k / 6
+        m.rod((2.2 + 0.6 * math.cos(a), -4.4, 1.9 + 0.6 * math.sin(a)), (2.2 + 0.6 * math.cos(a), 4.4, 1.9 + 0.6 * math.sin(a)), 0.03, "Amber")
+    for s in (-1, 1):
+        m.rod((1.0, s * 4.4, 1.4), (2.2, s * 4.4, 1.9), 0.05, "Amber")
+        wheel(m, -2.0, s * 1.8, 0.95, 0.65, "Hub", 12)
+        wheel(m, -8.0, s * 1.6, 0.6, 0.4, "Hub", 10)
+    # The unloading auger swung out over the trailer, the trailer and tractor on the stubble beside.
+    m.rod((-6, -1.7, 5.0), (-4, -8, 5.4), 0.2, "Combine", 6)
+    trailer(m, -10, -1.5, -8.0, "Barn")
     tractor(m, -1.6, -8.0)
+    # Dust and chaff behind.
+    for k in range(4):
+        m.blob(-11 - k * 2.6, wobble(k, 9) * 0.6, 1.4 + k * 0.4, 1.4 + k * 0.5, 1.8 + k * 0.4, 1.0 + k * 0.3, "Dust")
     m.done("Combine")
 
 
@@ -342,25 +306,42 @@ def bale_stack() -> None:
     m = Mesh()
     m.flat(-6, 26, -9, 9, 0.03, "Stubble")
     for k in range(4):
-        drum(m, k * 1.9, 0, 0.85, 0.85, 1.4, 10, "Hay")
+        m.drum(k * 1.9, 0, 0.85, 0.85, 1.4, 12, "Hay")
     for k in range(2):
-        drum(m, 0.95 + k * 1.9, 0, 2.4, 0.85, 1.4, 10, "Hay2")
+        m.drum(0.95 + k * 1.9, 0, 2.4, 0.85, 1.4, 12, "Hay2")
     for k, (x, y) in enumerate(((12, -4), (17, 3), (22, -2))):
-        drum(m, x, y, 0.85, 0.85, 1.4, 10, "Hay" if k % 2 else "Hay2")
+        m.drum(x, y, 0.85, 0.85, 1.4, 12, "Hay" if k % 2 else "Hay2")
     m.done("BaleStack")
 
 
 def hay_shed() -> None:
-    """An open-sided hay shed, 18 by 8 m, steel posts and a red roof, half full of bales."""
+    """An open-sided hay shed, 18 by 8 m, steel posts, trusses and a red roof, half full of bales."""
     m = Mesh()
     for x in (0, 6, 12, 18):
         for y in (0, 8):
             m.box(x - 0.15, x + 0.15, y - 0.15, y + 0.15, 0, 5.5, "Steel")
+        # A truss under the roof: the tie, a king post and two struts.
+        m.rod((x, 0, 5.5), (x, 8, 5.5), 0.06, "Steel")
+        m.rod((x, 2, 5.5), (x, 4, 7.2), 0.05, "Steel")
+        m.rod((x, 6, 5.5), (x, 4, 7.2), 0.05, "Steel")
+        m.rod((x, 4, 5.5), (x, 4, 7.2), 0.05, "Steel")
     m.roof(-0.6, 18.6, -0.6, 8.6, 5.5, 1.8, "Combine")
     for k in range(5):
         for j in range(2):
             m.box(1 + k * 1.7, 2.5 + k * 1.7, 1, 7, j * 1.6, j * 1.6 + 1.5, "Hay" if (k + j) % 2 else "Hay2")
     m.done("HayShed")
+
+
+def build() -> None:
+    hedge()
+    oak()
+    poplars()
+    power_span()
+    track()
+    farmstead()
+    combine()
+    bale_stack()
+    hay_shed()
 
 
 def preview(path: Path) -> None:
@@ -430,42 +411,4 @@ def preview(path: Path) -> None:
     bpy.ops.render.render(write_still=True)
 
 
-def main() -> None:
-    argv = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else []
-    bpy.ops.wm.read_factory_settings(use_empty=True)
-    hedge()
-    oak()
-    poplars()
-    power_span()
-    track()
-    farmstead()
-    combine()
-    bale_stack()
-    hay_shed()
-
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    bpy.ops.export_scene.gltf(
-        filepath=str(OUT),
-        export_format="GLB",
-        use_selection=False,
-        export_extras=False,
-        export_texcoords=False,
-        export_normals=True,
-        export_tangents=False,
-        export_materials="EXPORT",
-        export_vertex_color="NONE",
-        export_cameras=False,
-        export_lights=False,
-        export_yup=True,
-        export_apply=True,
-        export_draco_mesh_compression_enable=False,
-    )
-    print(f"wrote {OUT} ({OUT.stat().st_size} bytes)")
-    if "--preview" in argv:
-        preview(PREVIEW)
-        print(f"wrote {PREVIEW}")
-    MANIFEST.write_text(json.dumps({"inputHash": input_hash(), "blender": BLENDER}, indent=2) + "\n")
-    print(f"wrote {MANIFEST}")
-
-
-main()
+run(OUT, PREVIEW, build, preview)

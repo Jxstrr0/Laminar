@@ -55,7 +55,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import venuelib  # noqa: E402
 from kitlib import ROOT  # noqa: E402
-from venuelib import lorry_cab, rounded, run, srgb, wheel  # noqa: E402
+from venuelib import Mesh, lorry_cab, rounded, run, srgb, wheel  # noqa: E402
 
 OUT = ROOT / "public" / "models" / "road.glb"
 PREVIEW = ROOT / "art" / "road" / "preview.jpg"
@@ -100,30 +100,6 @@ venuelib.COLOURS.update({
     "Body": "E9ECF2",
     "Slat": "8A92A6",
 })
-
-
-class Mesh(venuelib.Mesh):
-    """The shared Mesh, with the road's own upright cones, faceted crowns and painted quads."""
-
-    def _paint(self, verts, name: str) -> None:
-        idx = self._index(name)
-        for f in {f for v in verts for f in v.link_faces}:
-            f.material_index = idx
-
-    def cone(self, x: float, y: float, z0: float, z1: float, r0: float, r1: float, sides: int, name: str) -> None:
-        """An upright cone or cylinder (r1 = r0) from z0 to z1, centred on (x, y)."""
-        self.cyl((x, y, z0), (x, y, z1), r0, name, sides, rb=r1)
-
-    def blob(self, x: float, y: float, z: float, rx: float, ry: float, rz: float, name: str) -> None:
-        """A low, faceted lump (a tree's crown): an icosahedron stretched to these radii."""
-        verts = bmesh.ops.create_icosphere(self.bm, subdivisions=1, radius=1.0)["verts"]
-        bmesh.ops.scale(self.bm, vec=Vector((rx, ry, rz)), verts=verts)
-        bmesh.ops.translate(self.bm, vec=Vector((x, y, z)), verts=verts)
-        self._paint(verts, name)
-
-    def flat(self, x0: float, x1: float, y0: float, y1: float, z: float, name: str) -> None:
-        """A flat quad facing up at height z (paint on the road)."""
-        self.poly([(x0, y0, z), (x1, y0, z), (x1, y1, z), (x0, y1, z)], name)
 
 
 # --- Trees: a few draws each, many copies, so kept to a few dozen faces.
@@ -295,11 +271,9 @@ def start_ramp() -> None:
     half = ROAD / 2
     # The ramp: a deck behind the line and a slope down to it.
     m.box(-9, -4, -1.6, 1.6, 0, 1.0, "Concrete")
-    bm = m.bm
-    a = [bm.verts.new(p) for p in ((-4, -1.6, 1.0), (0, -1.6, 0.02), (0, 1.6, 0.02), (-4, 1.6, 1.0), (-4, -1.6, 0), (0, -1.6, 0), (0, 1.6, 0), (-4, 1.6, 0))]
+    a = [m.vert(p) for p in ((-4, -1.6, 1.0), (0, -1.6, 0.02), (0, 1.6, 0.02), (-4, 1.6, 1.0), (-4, -1.6, 0), (0, -1.6, 0), (0, 1.6, 0), (-4, 1.6, 0))]
     for f in ((a[0], a[1], a[2], a[3]), (a[4], a[7], a[6], a[5]), (a[0], a[4], a[5], a[1]), (a[3], a[2], a[6], a[7]), (a[0], a[3], a[7], a[4])):
-        bm.faces.new(f)
-    m._paint(a, "Concrete")
+        m.face(f, "Concrete")
     m.box(-4, 0, -1.6, 1.6, 0.02, 0.03, "Coral")
     # The canopy on its legs, a teal fascia with a lilac stripe.
     for x in (-9.5, -0.5):

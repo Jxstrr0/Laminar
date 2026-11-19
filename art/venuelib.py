@@ -174,6 +174,32 @@ class Mesh:
         for idx in ((0, 1, 5, 4), (2, 3, 4, 5), (0, 4, 3), (1, 2, 5), (0, 3, 2, 1)):
             self.face([a[i] for i in idx], name)
 
+    def cone(self, x: float, y: float, z0: float, z1: float, r0: float, r1: float, sides: int, name: str) -> None:
+        """An upright cone or cylinder (r1 = r0) from z0 to z1, centred on (x, y)."""
+        self.cyl((x, y, z0), (x, y, z1), r0, name, sides, rb=r1)
+
+    def drum(self, x: float, y: float, z: float, r: float, length: float, sides: int, name: str) -> None:
+        """A cylinder lying along y (a bale on its side, a wheel), centred on (x, y, z)."""
+        self.cyl((x, y - length / 2, z), (x, y + length / 2, z), r, name, sides)
+
+    def rod(self, a, b, r: float, name: str, n: int = 4) -> None:
+        """A thin rod from a to b at any slope (a strut, a wire, a brace), open-ended."""
+        self.cyl(a, b, r, name, n, cap=False)
+
+    def blob(self, x: float, y: float, z: float, rx: float, ry: float, rz: float, name: str) -> None:
+        """A low, faceted lump (a tree's crown, a drift): an icosahedron stretched to these radii."""
+        verts = bmesh.ops.create_icosphere(self.bm, subdivisions=1, radius=1.0)["verts"]
+        frame = self.frames[-1] @ Matrix.Translation((x, y, z)) @ Matrix.Diagonal((rx, ry, rz, 1.0))
+        for vert in verts:
+            vert.co = frame @ vert.co
+        idx = self._index(name)
+        for f in {f for vert in verts for f in vert.link_faces}:
+            f.material_index = idx
+
+    def flat(self, x0: float, x1: float, y0: float, y1: float, z: float, name: str) -> None:
+        """A flat quad facing up at height z (paint on the ground)."""
+        self.poly([(x0, y0, z), (x1, y0, z), (x1, y1, z), (x0, y1, z)], name)
+
     def done(self, obj_name: str) -> bpy.types.Object:
         bmesh.ops.remove_doubles(self.bm, verts=self.bm.verts, dist=1e-5)
         bmesh.ops.recalc_face_normals(self.bm, faces=self.bm.faces)
@@ -207,6 +233,43 @@ def wheel(m: Mesh, x: float, y: float, r: float, w: float, hub: str = "Hub", n: 
         yy = y + s * (w / 2 + 0.005)
         ring = [(x + r * 0.55 * math.cos(2 * math.pi * k / 8), yy, r + r * 0.55 * math.sin(2 * math.pi * k / 8)) for k in range(8)]
         m.poly(ring if s < 0 else list(reversed(ring)), hub)
+
+
+def person(m: Mesh, x: float, y: float, top: str, tall: float = 1.0, sitting: bool = False, coat: bool = False, hat: str | None = None, legs: str = "Black") -> None:
+    """Someone facing −y, standing or sitting (on a seat 0.47 high at y): rounded legs, body, arms and head.
+
+    `coat` hangs the top to the knees and fattens it (a winter coat); `hat` adds a knitted hat in that colour.
+    """
+    h = tall
+    if sitting:
+        for s in (-1, 1):
+            xx = x + s * 0.1
+            m.cyl((xx, y, 0.5), (xx, y - 0.42, 0.52), 0.08, legs, 5, cap=False)
+            m.cyl((xx, y - 0.42, 0.52), (xx, y - 0.46, 0.0), 0.065, legs, 5, cap=False)
+        base, chest = 0.47, 1.05
+    else:
+        hem = 0.5 if coat else 0.85
+        m.cyl((x, y, 0), (x, y, hem * h), 0.17, legs, 6, cap=False)
+        base, chest = hem * h, 1.45 * h
+    r = 0.25 if coat else 0.22
+    m.cyl((x, y, base), (x, y, chest), r, top, 7, rb=r - 0.03)
+    for s in (-1, 1):
+        m.cyl((x + s * (r + 0.03), y, chest - 0.03), (x + s * (r + 0.06), y - (0.2 if sitting else 0.05), chest - 0.48), 0.06, top, 4, cap=False)
+    head = chest + 0.17
+    m.sphere((x, y, head), 0.14, "Skin", 8)
+    if hat:
+        m.cyl((x, y, head + 0.02), (x, y, head + 0.17), 0.15, hat, 7, rb=0.07)
+
+
+def chair(m: Mesh, x: float, y: float, colour: str) -> None:
+    """A folding chair at (x, y) facing −y: its seat 0.47 high, the back behind, crossed legs."""
+    m.box(x - 0.24, x + 0.24, y - 0.22, y + 0.2, 0.43, 0.47, colour)
+    m.box(x - 0.24, x + 0.24, y + 0.2, y + 0.24, 0.6, 0.95, colour)
+    for s in (-1, 1):
+        xx = x + s * 0.23
+        m.rod((xx, y - 0.22, 0), (xx, y + 0.22, 0.45), 0.015, "Steel")
+        m.rod((xx, y + 0.22, 0), (xx, y - 0.22, 0.45), 0.015, "Steel")
+        m.rod((xx, y + 0.2, 0.45), (xx, y + 0.24, 0.95), 0.015, "Steel")
 
 
 def car(m: Mesh, colour: str, length: float = 4.3, width: float = 1.8) -> None:
