@@ -19,12 +19,15 @@ along +x (the runway's direction), facing the runway across −y here:
 - Threshold: the white bars across one end of the runway.
 - RunwayLight: one edge light.
 - Windsock: the windsock on its mast.
+
+PR 13as polished it with the shared venue blocks (art/venuelib.py): barrel
+roofs and ribbed doors on the hangars, lofted planes, a fuel bowser, a car
+park, trees, a fence, floodlights, fuel tanks and a fire shed, the runway's
+touchdown marks, and a striped cone of a windsock.
 """
 
 from __future__ import annotations
 
-import hashlib
-import json
 import math
 import sys
 from pathlib import Path
@@ -33,35 +36,31 @@ import bmesh
 import bpy
 from mathutils import Vector
 
-ROOT = Path(__file__).resolve().parents[2]
-MANIFEST = ROOT / "public" / "models" / "models.json"
+# Import the shared blocks without leaving a __pycache__ folder for the art workflow to commit.
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import venuelib  # noqa: E402
+from kitlib import ROOT  # noqa: E402
+from venuelib import Mesh, car, fence, lamp_mast, light_plane, lorry_cab, run, srgb, tree, wheel  # noqa: E402
+
 OUT = ROOT / "public" / "models" / "airfield.glb"
 PREVIEW = ROOT / "art" / "airfield" / "preview.jpg"
-# Pinned on purpose, the same as the other art scripts and .github/workflows/art.yml.
-BLENDER = "4.5.15"
-
-
-def input_hash() -> str:
-    """Every art script, in path order, hashed: tests/models.test.ts works it out the same way."""
-    h = hashlib.sha256()
-    for path in sorted((ROOT / "art").rglob("*.py"), key=lambda p: p.relative_to(ROOT).as_posix().encode()):
-        h.update(path.read_bytes())
-    return h.hexdigest()[:16]
-
 
 # The runway's width: AIRFIELD_SCENE.runway.width in src/data/replay.ts.
 RUNWAY = 20.0
 # The apron's runway-side edge is this far from the runway's centre line, and the taxiway joins the runway's edge.
 APRON_OUT = 35.0
 
-COLOURS = {
+venuelib.COLOURS.update({
     "Concrete": "C9CFD6",
     "Taxi": "B3BCC4",
+    "Asphalt": "7D848C",
     "Yellow": "E3B23B",
     "White": "F4F4F2",
     "Hangar": "E9ECF2",
     "HangarRoof": "8A90B0",
     "Door": "6B7680",
+    "DoorSeam": "4F5862",
     "Wall": "EEF0F5",
     "Glass": "2C3560",
     "Roof": "5D6873",
@@ -70,162 +69,200 @@ COLOURS = {
     "Plane1": "F4F4F2",
     "Plane2": "E0695D",
     "Plane3": "4F5BD5",
-    "Tyre": "1D242B",
     "Tank": "B9C0C8",
     "Cab": "3E4A7A",
-    "Lamp": "FFF4D6",
+    "Fire": "D9483B",
     "Orange": "F07A2A",
-}
+    "Car1": "4F5BD5",
+    "Car2": "A88BE0",
+    "Car3": "6B7680",
+    "Car4": "E9ECF2",
+})
 
 
-def srgb(hex_: str) -> tuple[float, float, float, float]:
-    """An sRGB hex colour as Blender's linear RGBA."""
-    out = []
-    for i in (0, 2, 4):
-        c = int(hex_[i : i + 2], 16) / 255
-        out.append(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4)
-    return (out[0], out[1], out[2], 1.0)
-
-
-MATS: dict[str, bpy.types.Material] = {}
-
-
-def mat(name: str) -> bpy.types.Material:
-    """The material for a colour name, made once: matte, the runway lights glowing."""
-    if name not in MATS:
-        m = bpy.data.materials.new(name)
-        m.use_nodes = True
-        bsdf = m.node_tree.nodes["Principled BSDF"]
-        bsdf.inputs["Base Color"].default_value = srgb(COLOURS[name])
-        bsdf.inputs["Roughness"].default_value = 0.3 if name == "Glass" else 0.45 if name in ("Steel", "Rail") else 0.85
-        bsdf.inputs["Metallic"].default_value = 0.4 if name in ("Steel", "Rail") else 0.0
-        if name == "Lamp":
-            bsdf.inputs["Emission Color"].default_value = srgb(COLOURS[name])
-            bsdf.inputs["Emission Strength"].default_value = 2.0
-        MATS[name] = m
-    return MATS[name]
-
-
-class Mesh:
-    """A bmesh that collects boxes with named materials, then becomes one object."""
-
-    def __init__(self) -> None:
-        self.bm = bmesh.new()
-        self.names: list[str] = []
-
-    def box(self, x0: float, x1: float, y0: float, y1: float, z0: float, z1: float, name: str) -> None:
-        """An axis-aligned box between these bounds."""
-        verts = bmesh.ops.create_cube(self.bm, size=1.0)["verts"]
-        bmesh.ops.scale(self.bm, vec=Vector((x1 - x0, y1 - y0, z1 - z0)), verts=verts)
-        bmesh.ops.translate(self.bm, vec=Vector(((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2)), verts=verts)
-        if name not in self.names:
-            self.names.append(name)
-        idx = self.names.index(name)
-        for f in {f for v in verts for f in v.link_faces}:
-            f.material_index = idx
-
-    def done(self, obj_name: str) -> bpy.types.Object:
-        me = bpy.data.meshes.new(obj_name)
-        self.bm.to_mesh(me)
-        self.bm.free()
-        for n in self.names:
-            me.materials.append(mat(n))
-        obj = bpy.data.objects.new(obj_name, me)
-        bpy.context.collection.objects.link(obj)
-        return obj
-
-
-def hangar(m: "Mesh", x0: float, y0: float, width: float, depth: float, height: float) -> None:
-    """A hangar: walls, a barrel roof as steps of an arc, and the big doors facing the apron (−y)."""
-    m.box(x0, x0 + width, y0, y0 + depth, 0, height * 0.6, "Hangar")
-    steps = 8
+def hangar(m: Mesh, x0: float, y0: float, width: float, depth: float, height: float) -> None:
+    """A hangar: walls, a smooth barrel roof with its gable ends, and ribbed sliding doors facing the apron (−y)."""
+    wall = height * 0.6
     rise = height * 0.4
-    for k in range(steps):
-        a0 = math.pi * k / steps
-        a1 = math.pi * (k + 1) / steps
-        # Each step of the roof spans the width between two angles of a half-circle, squashed to the rise.
-        xa = x0 + width / 2 - (width / 2) * math.cos(a0)
-        xb = x0 + width / 2 - (width / 2) * math.cos(a1)
-        z = height * 0.6 + rise * math.sin((a0 + a1) / 2)
-        m.box(xa, xb, y0, y0 + depth, height * 0.6, z, "HangarRoof")
-    m.box(x0 + 2, x0 + width - 2, y0 - 0.05, y0, 0, height * 0.55, "Door")
-    # A teal band over the doors.
-    m.box(x0, x0 + width, y0 - 0.06, y0, height * 0.55, height * 0.6, "Teal")
+    m.box(x0, x0 + width, y0, y0 + depth, 0, wall, "Hangar")
+    steps = 18
+    arc = [(x0 + width / 2 - (width / 2 + 0.3) * math.cos(math.pi * k / steps), wall + rise * math.sin(math.pi * k / steps)) for k in range(steps + 1)]
+    # The roof: a curved sheet a little proud of the walls, front to back, then the gable ends that fill under it.
+    m.loft([[(x, y0 - 0.4, z) for x, z in arc], [(x, y0 + depth + 0.4, z) for x, z in arc]], "HangarRoof", cap_start=False, cap_end=False, closed=False)
+    m.loft([[(x, y0 + depth + 0.4, z - 0.15) for x, z in arc], [(x, y0 - 0.4, z - 0.15) for x, z in arc]], "HangarRoof", cap_start=False, cap_end=False, closed=False)
+    for y, flip in ((y0 - 0.02, False), (y0 + depth + 0.02, True)):
+        for k in range(steps):
+            (xa, za), (xb, zb) = arc[k], arc[k + 1]
+            quad = [(xa, y, wall), (xb, y, wall), (xb, y, zb), (xa, y, za)]
+            m.poly(list(reversed(quad)) if flip else quad, "Hangar")
+    # Sliding doors: four leaves with seams and a rail, the teal band over them.
+    door_w = (width - 4) / 4
+    for k in range(4):
+        dx = x0 + 2 + k * door_w
+        m.box(dx + 0.05, dx + door_w - 0.05, y0 - 0.12, y0, 0, height * 0.55, "Door")
+    for r in range(1, 6):
+        z = height * 0.55 * r / 6
+        m.box(x0 + 2, x0 + width - 2, y0 - 0.16, y0 - 0.12, z - 0.04, z + 0.04, "DoorSeam")
+    m.box(x0 + 1, x0 + width - 1, y0 - 0.2, y0, height * 0.55, height * 0.58, "Steel")
+    m.box(x0, x0 + width, y0 - 0.06, y0, height * 0.58, wall, "Teal")
+    # A band of windows down each side.
+    m.box(x0 - 0.03, x0 + width + 0.03, y0 + 3, y0 + depth - 3, wall * 0.55, wall * 0.8, "Glass")
 
 
-def plane(m: "Mesh", x: float, y: float, colour: str) -> None:
-    """A parked high-wing light plane, nose to the runway (−y)."""
-    m.box(x - 0.6, x + 0.6, y - 3.5, y + 3.0, 0.6, 1.8, colour)
-    m.box(x - 0.4, x + 0.4, y + 3.0, y + 6.0, 1.0, 1.6, colour)
-    m.box(x - 5.5, x + 5.5, y - 2.4, y - 1.0, 1.85, 2.0, colour)
-    m.box(x - 1.8, x + 1.8, y + 5.0, y + 6.0, 1.3, 1.4, colour)
-    m.box(x - 0.06, x + 0.06, y + 5.0, y + 6.0, 1.4, 2.6, colour)
-    m.box(x - 0.5, x + 0.5, y - 2.0, y - 1.4, 1.2, 1.8, "Glass")
-    for wx in (-1.1, 1.1):
-        m.box(x + wx - 0.15, x + wx + 0.15, y - 0.5, y - 0.1, 0, 0.6, "Tyre")
-    m.box(x - 0.15, x + 0.15, y - 3.3, y - 2.9, 0, 0.6, "Tyre")
+def tower(m: Mesh, x: float, y: float) -> None:
+    """The control tower: an eight-sided shaft with slit windows, a cab wider at the top with its glazing raked out, a roof, a mast and a little radar."""
+    m.cyl((x, y, 0), (x, y, 15), 3.2, "Wall", 8)
+    for k in range(4):
+        m.box(x - 0.4, x + 0.4, y - 3.3, y - 3.1, 3 + k * 3, 4.6 + k * 3, "Glass")
+    m.cyl((x, y, 15), (x, y, 15.6), 5.2, "Roof", 8)
+    m.cyl((x, y, 15.6), (x, y, 19), 4.8, "Glass", 8, rb=5.6)
+    m.cyl((x, y, 19), (x, y, 19.6), 6.0, "Roof", 8)
+    m.cyl((x, y, 19.6), (x, y, 24), 0.12, "Steel", 6)
+    m.box(x - 1.2, x + 1.2, y - 0.04, y + 0.04, 22.5, 22.6, "Steel")
+    m.cyl((x + 2.5, y + 2.5, 19.6), (x + 2.5, y + 2.5, 20.6), 0.15, "Steel", 6)
+    m.box(x + 1.7, x + 3.3, y + 2.4, y + 2.6, 20.6, 21.0, "White")
+
+
+def clubhouse(m: Mesh, x0: float, x1: float, y0: float) -> None:
+    """The clubhouse: low, glazed towards the apron, a deep roof, and a terrace with tables and sunshades."""
+    m.box(x0, x1, y0 + 2, y0 + 16, 0, 5, "Wall")
+    m.box(x0 + 1, x1 - 1, y0 + 1.95, y0 + 2, 1.0, 4.2, "Glass")
+    for k in range(1, 8):
+        px = x0 + 1 + k * (x1 - x0 - 2) / 8
+        m.box(px - 0.08, px + 0.08, y0 + 1.9, y0 + 1.95, 1.0, 4.2, "Steel")
+    m.box(x0 - 1, x1 + 1, y0 - 1.5, y0 + 17, 5, 5.4, "Roof")
+    m.box(x0 - 1, x1 + 1, y0 - 1.6, y0 - 1.5, 4.6, 5.4, "Teal")
+    for px in (x0, (x0 + x1) / 2, x1):
+        m.cyl((px, y0 - 1.2, 0), (px, y0 - 1.2, 5), 0.12, "Steel", 6)
+    m.box(x0, x1, y0 - 6, y0 + 2, 0, 0.15, "Concrete")
+    for k, colour in enumerate(("Teal", "Fire", "Yellow", "Teal")):
+        tx = x0 + 6 + k * (x1 - x0 - 12) / 3
+        m.cyl((tx, y0 - 3.5, 0.15), (tx, y0 - 3.5, 0.9), 0.5, "White", 10)
+        m.cyl((tx, y0 - 3.5, 0.15), (tx, y0 - 3.5, 2.6), 0.04, "Steel", 6)
+        m.cyl((tx, y0 - 3.5, 2.2), (tx, y0 - 3.5, 2.6), 1.4, colour, 10, rb=0.05)
+
+
+def fuel_bowser(m: Mesh) -> None:
+    """The fuel bowser along +x from the origin: a round tank on a chassis, a hose reel and the cab."""
+    m.box(-0.2, 5.6, -1.1, 1.1, 0.5, 0.75, "Black")
+    m.loft([[(x, 1.05 * math.cos(a), 1.8 + 0.95 * math.sin(a)) for a in (2 * math.pi * k / 14 for k in range(14))] for x in (0.0, 5.4)], "Tank")
+    m.box(0.0, 0.6, -0.8, 0.8, 0.8, 2.0, "Steel")
+    m.cyl((0.3, -1.05, 1.4), (0.3, -1.25, 1.4), 0.45, "Black", 12)
+    for wx in (0.9, 3.2):
+        for s in (-1, 1):
+            wheel(m, wx, s * 0.8, 0.45, 0.32)
+    lorry_cab(m, 5.6, 2.3, 2.6, "Cab")
+
+
+def fire_shed(m: Mesh, x0: float, y0: float) -> None:
+    """A small fire shed with two red doors and a tender peeking out."""
+    m.box(x0, x0 + 16, y0, y0 + 10, 0, 6, "Wall")
+    m.box(x0 - 0.5, x0 + 16.5, y0 - 0.5, y0 + 10.5, 6, 6.4, "Roof")
+    for k in range(2):
+        dx = x0 + 1.5 + k * 7
+        m.box(dx, dx + 5.5, y0 - 0.06, y0, 0, 4.6, "Fire")
+        for r in range(1, 5):
+            m.box(dx, dx + 5.5, y0 - 0.09, y0 - 0.06, r * 0.92 - 0.03, r * 0.92 + 0.03, "Wall")
+    m.box(x0, x0 + 16, y0 - 0.07, y0, 5.0, 5.6, "Fire")
 
 
 def buildings() -> None:
-    """The field side, from the apron's runway-side corner: apron and taxiway, three hangars, the clubhouse, the tower, parked planes and a fuel truck."""
+    """The field side, from the apron's runway-side corner: apron and taxiway, three hangars, the clubhouse, the tower, the fire shed, parked planes, the bowser, fuel tanks, a car park, trees, a fence and floodlights."""
     m = Mesh()
     width = 300.0
     depth = 60.0
-    # The apron, a hair above the grass, and the taxiway down to the runway's edge.
+    # The apron, a hair above the grass, with tie-down lines and a lead-in line, and the taxiway down to the runway's edge.
     m.box(0, width, 0, depth, 0, 0.02, "Concrete")
     m.box(width - 40, width - 22, -(APRON_OUT - RUNWAY / 2), 0, 0, 0.02, "Taxi")
     m.box(width - 31.2, width - 30.8, -(APRON_OUT - RUNWAY / 2), depth * 0.6, 0.02, 0.03, "Yellow")
+    m.box(10, width - 45, depth * 0.6 - 0.2, depth * 0.6 + 0.2, 0.02, 0.03, "Yellow")
+    for k in range(6):
+        x = 30 + k * 25
+        m.box(x - 0.2, x + 0.2, 14, 30, 0.02, 0.03, "White")
     # Three hangars along the back of the apron.
     for k in range(3):
         hangar(m, 10 + k * 50, depth, 40, 30, 14)
-    # The clubhouse: low, glazed towards the apron.
-    m.box(170, 215, depth + 2, depth + 16, 0, 5, "Wall")
-    m.box(171, 214, depth + 1.95, depth + 2, 1.2, 4.0, "Glass")
-    m.box(169, 216, depth + 1, depth + 17, 5, 5.4, "Roof")
-    # The control tower: a shaft and a glazed cab.
-    m.box(232, 238, depth + 4, depth + 10, 0, 15, "Wall")
-    m.box(230, 240, depth + 2, depth + 12, 15, 19, "Glass")
-    m.box(229.5, 240.5, depth + 1.5, depth + 12.5, 19, 19.6, "Roof")
-    m.box(234.8, 235.2, depth + 6.8, depth + 7.2, 19.6, 23, "Steel")
-    # Planes parked on the apron, noses to the runway.
-    for x, colour in ((30, "Plane1"), (60, "Plane2"), (90, "Plane3"), (130, "Plane1")):
-        plane(m, x, 22, colour)
-    # The fuel truck.
-    m.box(150, 156, 12, 14.4, 0.6, 2.8, "Tank")
-    m.box(156, 158.4, 12, 14.4, 0.6, 2.6, "Cab")
-    for wx in (151.2, 157.4):
-        for wy in (11.9, 14.1):
-            m.box(wx - 0.45, wx + 0.45, wy, wy + 0.4, 0, 0.9, "Tyre")
+    clubhouse(m, 170, 215, depth)
+    tower(m, 235, depth + 7)
+    fire_shed(m, 250, depth + 2)
+    # Planes parked on the apron, noses to the runway (−y).
+    for x, colour in ((30, "Plane1"), (55, "Plane2"), (80, "Plane3"), (115, "Plane1")):
+        with m.at(x, 22, 0, -math.pi / 2):
+            light_plane(m, colour, "Teal" if colour == "Plane1" else "White")
+    with m.at(150, 13.2, 0):
+        fuel_bowser(m)
+    # The fuel farm by the taxiway: two tanks on a bund.
+    m.box(width - 18, width - 4, 6, 18, 0, 0.6, "Concrete")
+    for ty in (9, 15):
+        m.loft([[(width - 16 + 0.0, ty + 1.8 * math.cos(a), 1.0 + 1.8 + 1.8 * math.sin(a)) for a in (2 * math.pi * k / 16 for k in range(16))], [(width - 6, ty + 1.8 * math.cos(a), 1.0 + 1.8 + 1.8 * math.sin(a)) for a in (2 * math.pi * k / 16 for k in range(16))]], "Tank")
+        for sx in (width - 14, width - 8):
+            m.box(sx - 0.3, sx + 0.3, ty - 1.2, ty + 1.2, 0.6, 1.4, "Steel")
+    # The car park behind the clubhouse, and the cars in it.
+    m.box(150, 230, depth + 22, depth + 40, 0, 0.02, "Asphalt")
+    for k in range(14):
+        x = 153 + k * 5.4
+        m.box(x - 0.08, x + 0.08, depth + 23, depth + 28, 0.02, 0.03, "White")
+        if k % 2 == 0 and k < 13:
+            with m.at(x + 2.7, depth + 25.5, 0, math.pi / 2 if k % 2 else -math.pi / 2):
+                car(m, ("Car1", "Car2", "Car3", "Car4")[k % 4])
+    # Floodlights over the apron, the fence along the back and trees beyond it.
+    for x in (5, 75, 145, 220, 290):
+        lamp_mast(m, x, depth - 2, 14, -math.pi / 2, 3)
+    fence(m, -20, width + 20, depth + 46, 2.0, 10.0)
+    for k in range(15):
+        x = -15 + k * 23 + (k * 37 % 7)
+        y = depth + 52 + (k * 53 % 11)
+        tree(m, x, y, 9 + (k * 29 % 6), "pine" if k % 3 == 0 else "round", "LeafDark" if k % 2 else "Leaf")
     m.done("Buildings")
 
 
 def threshold() -> None:
-    """The white bars across the runway's start, a hair above it: eight bars, four each side of the centre line, 30 m long."""
+    """The white marks at the runway's start, a hair above it: eight threshold bars, four each side of the centre line, then touchdown-zone bars and the two big aiming-point blocks."""
     m = Mesh()
     bar, gap = 1.8, 0.6
     for side in (-1, 1):
         for k in range(4):
             y0 = side * (1.5 + k * (bar + gap))
             m.box(6, 36, min(y0, y0 + side * bar), max(y0, y0 + side * bar), 0, 0.015, "White")
+        # Touchdown zone: pairs of bars every 150 m, then the aiming point.
+        for k, x in enumerate((150, 300, 450)):
+            for b in range(3 - k):
+                y0 = side * (3.0 + b * 1.6)
+                m.box(x, x + 22, min(y0, y0 + side * 0.9), max(y0, y0 + side * 0.9), 0, 0.015, "White")
+        m.box(220, 265, min(side * 4, side * 8), max(side * 4, side * 8), 0, 0.015, "White")
     m.done("Threshold")
 
 
 def runway_light() -> None:
-    """One runway edge light: a short post and a lamp."""
+    """One runway edge light: a short round post, a collar and a glowing dome."""
     m = Mesh()
-    m.box(-0.1, 0.1, -0.1, 0.1, 0, 0.35, "Steel")
-    m.box(-0.18, 0.18, -0.18, 0.18, 0.35, 0.55, "Lamp")
+    m.cyl((0, 0, 0), (0, 0, 0.35), 0.06, "Steel", 8)
+    m.cyl((0, 0, 0.33), (0, 0, 0.38), 0.14, "Steel", 10)
+    m.sphere((0, 0, 0.42), 0.13, "Lamp", 10, (1, 1, 0.9))
     m.done("RunwayLight")
 
 
 def windsock() -> None:
-    """The windsock: a mast with the striped sock streaming along +x."""
+    """The windsock: a mast with a ring frame and the striped cone streaming along +x, drooping a touch."""
     m = Mesh()
-    m.box(-0.08, 0.08, -0.08, 0.08, 0, 6.0, "Steel")
+    m.cyl((0, 0, 0), (0, 0, 6.0), 0.09, "Steel", 8, rb=0.06)
+    m.cyl((0, 0, 0), (0, 0, 0.3), 0.6, "Concrete", 10)
+    m.cyl((0, 0, 5.6), (0.15, 0, 5.6), 0.48, "Steel", 14, cap=False)
+    n = 14
     for k in range(5):
-        r = 0.45 - k * 0.06
-        m.box(0.1 + k * 0.7, 0.8 + k * 0.7, -r, r, 5.6 - r, 5.6 + r, "Orange" if k % 2 == 0 else "White")
+        x0, x1 = 0.15 + k * 0.7, 0.15 + (k + 1) * 0.7
+        r0, r1 = 0.46 - k * 0.06, 0.46 - (k + 1) * 0.06
+        z0, z1 = 5.6 - 0.04 * k * k, 5.6 - 0.04 * (k + 1) ** 2
+        ring = lambda x, r, z: [(x, r * math.cos(2 * math.pi * j / n), z + r * math.sin(2 * math.pi * j / n)) for j in range(n)]
+        m.loft([ring(x0, r0, z0), ring(x1, r1, z1)], "Orange" if k % 2 == 0 else "White", cap_start=False, cap_end=False)
     m.done("Windsock")
+
+
+def build() -> None:
+    buildings()
+    threshold()
+    runway_light()
+    windsock()
 
 
 def preview(path: Path) -> None:
@@ -277,37 +314,4 @@ def preview(path: Path) -> None:
     bpy.ops.render.render(write_still=True)
 
 
-def main() -> None:
-    argv = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else []
-    bpy.ops.wm.read_factory_settings(use_empty=True)
-    buildings()
-    threshold()
-    runway_light()
-    windsock()
-
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    bpy.ops.export_scene.gltf(
-        filepath=str(OUT),
-        export_format="GLB",
-        use_selection=False,
-        export_extras=False,
-        export_texcoords=False,
-        export_normals=True,
-        export_tangents=False,
-        export_materials="EXPORT",
-        export_vertex_color="NONE",
-        export_cameras=False,
-        export_lights=False,
-        export_yup=True,
-        export_apply=True,
-        export_draco_mesh_compression_enable=False,
-    )
-    print(f"wrote {OUT} ({OUT.stat().st_size} bytes)")
-    if "--preview" in argv:
-        preview(PREVIEW)
-        print(f"wrote {PREVIEW}")
-    MANIFEST.write_text(json.dumps({"inputHash": input_hash(), "blender": BLENDER}, indent=2) + "\n")
-    print(f"wrote {MANIFEST}")
-
-
-main()
+run(OUT, PREVIEW, build, preview)
