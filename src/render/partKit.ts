@@ -4,7 +4,8 @@
  * (art/bike/build.py → public/models/bike.glb), then the winter sports'
  * skates, skis and sled gear (art/winter/build.py → winter.glb, PR 13ao), and the
  * vehicles' wheels, cockpit and cab parts (art/vehicles/build.py → vehicles.glb,
- * PR 13ap). Each mesh is one part,
+ * PR 13ap), and the aircraft's props, motors, lenses and gear
+ * (art/aircraft/build.py → aircraft.glb, PR 13aq). Each mesh is one part,
  * by name, with any sizes the code needs as extras; the code gives it its
  * colour.
  *
@@ -114,6 +115,11 @@ export type VehiclePartName =
 
 /** The vehicles' parts (PR 13ap): wheels, the single-seater's helmet and halo, mirrors and lamps, the truck's cab parts, the record cars' engine and chute parts, the pod's sensor window. */
 export const vehicleKit = partKit<VehiclePartName>('vehicles.glb')
+
+export type AircraftPartName = 'Prop2' | 'Prop3' | 'DroneMotor' | 'PusherMotor' | 'LensBarrel' | 'LensGlass' | 'GearTyre' | 'GearHub' | 'Windscreen' | 'NavLight'
+
+/** The aircraft's parts (PR 13aq): props, motors, camera lenses, the light aircraft's wheels, windscreen and wingtip lights. */
+export const aircraftKit = partKit<AircraftPartName>('aircraft.glb')
 
 /** A kit part as a mesh in the given material (a clone, so disposing the figure never touches the kit), or null before the kit is in. */
 export function kitPart<Name extends string>(kit: PartKit<Name>, name: Name, material: THREE.Material): THREE.Mesh | null {

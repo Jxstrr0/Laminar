@@ -18,6 +18,7 @@ import { PLANE_BODY as B, PLANE_CLASS, type PlaneDesign } from '../data/plane'
 import { fuselageStation, planeLength, planeX, podFullness, podPlace, wingFrom } from '../sim/geom/plane'
 import { wingSpan } from '../sim/plane'
 import type { Highlight } from './riderFigure'
+import { aircraftKit, kitPart } from './partKit'
 
 const COLOURS = {
   foam: 0xf3f5f7,
@@ -223,7 +224,8 @@ export function buildPlane(design: PlaneDesign, look: PlaneLook): THREE.Group {
   const pylon = new THREE.Mesh(new THREE.BoxGeometry(0.05, B.pylon, 0.012), M.grey)
   pylon.position.set(motorX + 0.03, B.halfHeight + B.pylon / 2, 0)
   g.add(pylon)
-  const motor = new THREE.Mesh(new THREE.CylinderGeometry(DRAW.motor, DRAW.motor * 0.8, DRAW.motorLength, 16).rotateZ(Math.PI / 2), M.dark)
+  // The Blender kit's outrunner (PR 13aq), its prop end aft, or a plain tapered can.
+  const motor = kitPart(aircraftKit, 'PusherMotor', M.dark) ?? new THREE.Mesh(new THREE.CylinderGeometry(DRAW.motor, DRAW.motor * 0.8, DRAW.motorLength, 16).rotateZ(Math.PI / 2), M.dark)
   motor.position.set(motorX, B.halfHeight + B.pylon, 0)
   g.add(motor)
   const prop = new THREE.Mesh(new THREE.CircleGeometry(B.prop, 32).rotateY(Math.PI / 2), M.prop)
@@ -245,9 +247,21 @@ export function buildPlane(design: PlaneDesign, look: PlaneLook): THREE.Group {
   const podMesh = loft(podSections, DRAW.podPow, tint('pod', M.part))
   podMesh.position.y = (pod.top + pod.bottom) / 2
   g.add(podMesh)
-  const lens = new THREE.Mesh(new THREE.CircleGeometry(h * 0.55, 20).rotateX(Math.PI / 2), M.lens)
-  lens.position.set(planeX(design, pod.x), pod.bottom - 0.001, 0)
-  g.add(lens)
+  // The lens: the Blender kit's barrel and glass looking down (PR 13aq), half sunk in the pod, or a dark disc.
+  const barrel = kitPart(aircraftKit, 'LensBarrel', M.dark)
+  const glass = kitPart(aircraftKit, 'LensGlass', M.lens)
+  if (barrel && glass) {
+    for (const part of [barrel, glass]) {
+      part.scale.setScalar(h * 0.55)
+      part.rotation.z = -Math.PI / 2
+      part.position.set(planeX(design, pod.x), pod.bottom + h * 0.55 * 0.18, 0)
+      g.add(part)
+    }
+  } else {
+    const lens = new THREE.Mesh(new THREE.CircleGeometry(h * 0.55, 20).rotateX(Math.PI / 2), M.lens)
+    lens.position.set(planeX(design, pod.x), pod.bottom - 0.001, 0)
+    g.add(lens)
+  }
   // On its mount, a short strut from the belly down to the pod's top.
   const gap = -B.halfHeight - pod.top
   if (gap > 0.002) {
