@@ -63,7 +63,7 @@ import { REPUTATION } from '../data/reputation'
 import { FOREIGN_RIVAL_IDS, RIVALS, RIVAL_IDS, type RivalId } from '../data/rivals'
 import { COUNTRIES } from '../data/export'
 import { TCF_TIME_TRIAL, type CyclingRules } from '../data/rules'
-import { rivalRecord } from './rivals'
+import { rivalEase, rivalRecord } from './rivals'
 import { buildBlock, machineBlock, NO_FACILITY, upgradeBlock, upkeepDays, type Facility } from './facility'
 import { MACHINE_PRICE, type MachineId } from '../data/model'
 import { OWN_TUNNEL_BUILD, TUNNEL_UPGRADES, type UpgradeId } from '../data/tunnel'
@@ -711,21 +711,25 @@ export function biddersFor(id: string): RivalId[] {
   return RIVAL_IDS.filter((firm) => b.fee.max >= RIVALS[firm].minFee)
 }
 
-/** One rival's sealed bid for a brief (seeded by the brief and the firm). */
-export function rivalBid(brief: Brief, firm: RivalId): Bid {
+/**
+ * One rival's sealed bid for a brief (seeded by the brief and the firm),
+ * against a firm with reputation `myRep`: rivals go easy on a small name
+ * (rivalEase, PR 13al).
+ */
+export function rivalBid(brief: Brief, firm: RivalId, myRep: number): Bid {
   const b = template(brief.id)
   const r = RIVALS[firm]
   const rng = new Rng(brief.seed).fork(`rival-${firm}`)
-  const promise = b.target + rng.range(r.promise.min, r.promise.max)
+  const promise = b.target + rng.range(r.promise.min, r.promise.max) + rivalEase(myRep)
   const share = rng.range(r.price.min, r.price.max)
   return clampBid(brief.id, { price: b.fee.min + share * (b.fee.max - b.fee.min), promise })
 }
 
-/** Every rival's bid for a brief, weighed with that firm's reputation this week. */
-export function rivalBids(state: Pick<CareerState, 'seed' | 'day'>, brief: Brief): RivalBid[] {
+/** Every rival's bid for a brief against a firm with reputation `myRep`, weighed with that rival's reputation this week. */
+export function rivalBids(state: Pick<CareerState, 'seed' | 'day'>, brief: Brief, myRep: number): RivalBid[] {
   return biddersFor(brief.id).map((firm) => ({
     firm,
-    bid: rivalBid(brief, firm),
+    bid: rivalBid(brief, firm, myRep),
     reputation: rivalRecord(state.seed, firm, state.day).reputation,
   }))
 }
@@ -740,9 +744,9 @@ export function placeBid(state: CareerState, id: string, bid: Bid): BidResult | 
   const brief = state.board.find((b) => b.id === id)
   if (!brief || state.job || state.ended) return null
   const mine = clampBid(id, bid)
-  const rivals = rivalBids(state, brief)
-  const worth = pointWorth(id)
   const myRep = firmReputation(state)
+  const rivals = rivalBids(state, brief, myRep)
+  const worth = pointWorth(id)
   // The best rival bid; ties between rivals go to the first listed, and a tie with you goes to you.
   let best: RivalBid | null = null
   for (const r of rivals) if (!best || bidScore(id, r.bid, r.reputation) > bidScore(id, best.bid, best.reputation)) best = r

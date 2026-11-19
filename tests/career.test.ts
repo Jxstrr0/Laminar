@@ -26,6 +26,7 @@ import {
   type CareerState,
 } from '../src/sim/career'
 import { BID, PROMISE } from '../src/data/briefs'
+import { REPUTATION } from '../src/data/reputation'
 import { fieldResult, truth } from '../src/sim/views'
 
 describe('the career', () => {
@@ -148,8 +149,8 @@ describe('the career', () => {
     for (let seed = 1; seed < 40; seed++) {
       for (const b of boardFor(seed, 1)) {
         for (const firm of biddersFor(b.id)) {
-          const rival = rivalBid(b, firm)
-          expect(rival).toEqual(rivalBid(b, firm))
+          const rival = rivalBid(b, firm, REPUTATION.start)
+          expect(rival).toEqual(rivalBid(b, firm, REPUTATION.start))
           expect(clampBid(b.id, rival)).toEqual(rival)
         }
       }

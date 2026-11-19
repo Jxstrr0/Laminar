@@ -10,7 +10,7 @@ import { BROKE, REPUTATION } from '../data/reputation'
 import { ring } from './ring'
 import { isobarLayer } from './isobars'
 import { CLEARANCE } from '../data/defence'
-import { FOREIGN_RIVAL_IDS, RIVALS, RIVAL_IDS } from '../data/rivals'
+import { FOREIGN_RIVAL_IDS, RIVALS, RIVAL_EASE, RIVAL_IDS } from '../data/rivals'
 import { OWN_BILLING, OWN_TUNNEL_BUILD, TUNNEL_UPGRADES, UPGRADE_IDS } from '../data/tunnel'
 import { buildBlock, machineBlock, ownReadyDay, upgradeBlock, upgradeReadyDay } from '../sim/facility'
 import { MACHINE_IDS, MACHINE_PRICE } from '../data/model'
@@ -124,7 +124,7 @@ import { legacyOf } from '../sim/legacy'
 import { STAFF, STAFF_IDS, STAFF_ROLES, type StaffId } from '../data/staff'
 import { DESK } from '../data/cyclist'
 import { correlationScore } from '../sim/reputation'
-import { rivalRecord } from '../sim/rivals'
+import { rivalEase, rivalRecord } from '../sim/rivals'
 import type { FixTarget } from '../sim/failure'
 import { soundSpeed } from '../sim/record'
 import { careerStore } from './careerStore'
@@ -1960,7 +1960,8 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       showBids(r)
     })
     bidSheet.body.replaceChildren(
-      el('p', 'shop-intro', t(b.tutorial ? 'bid.introSolo' : 'bid.intro', { client: b.client })),
+      // While rivals are going easy on a small name by at least half (PR 13al), the intro says so.
+      el('p', 'shop-intro', t(b.tutorial ? 'bid.introSolo' : rivalEase(firmReputation(careerStore.get())) <= RIVAL_EASE.promise / 2 ? 'bid.introEasy' : 'bid.intro', { client: b.client })),
       priceLabel,
       price.row,
       el('p', 'shop-note', t('bid.priceNote', { min: rubles(b.fee.min), max: rubles(b.fee.max), fee: rubles(brief.fee) })),
