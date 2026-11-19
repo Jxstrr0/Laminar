@@ -50,6 +50,7 @@ import { careerStore } from './careerStore'
 import { designStore } from './designStore'
 import { fixed } from './format'
 import { openGlossaryIndex, glossaryTerm } from './glossary'
+import { scrollFade } from './scrollFade'
 
 type Tab = 'position' | 'kit' | 'bike'
 type PostureKey = keyof CyclistDesign['posture']
@@ -216,6 +217,7 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
 
   // --- Sheet: readouts, rule breaks, tabs, controls.
   const sheet = el('section', 'sheet shape-sheet')
+  scrollFade(sheet, 28)
   sheet.setAttribute('aria-label', t('shape.sheet'))
   const grid = el('div', 'readouts')
   const deskR = readout(t('read.desk'), 'deskEstimate')

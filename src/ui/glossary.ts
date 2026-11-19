@@ -10,6 +10,7 @@
  * down on its top edge. The words live in src/data/glossary.ts.
  */
 import { GLOSSARY, GLOSSARY_IDS, GLOSSARY_UI, isGlossaryId, type GlossaryId } from '../data/glossary'
+import { scrollFade } from './scrollFade'
 
 /** How long the sheet takes to slide; matches .gloss-sheet in style.css. */
 const SLIDE_MS = 220
@@ -100,6 +101,7 @@ function buildSheet(): Sheet {
   head.append(title, close)
 
   const body = el('div', 'gloss-body')
+  scrollFade(body, 16)
 
   panel.append(grab, head, body)
   root.append(scrim, panel)

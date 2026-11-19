@@ -5,6 +5,7 @@
  * the scrim closes it. The model shop and the Saves sheet are built on it.
  */
 import { bindGlossary } from './glossary'
+import { scrollFade } from './scrollFade'
 
 /** How long the slide takes, ms (matches the CSS). */
 const SLIDE_MS = 220
@@ -66,6 +67,7 @@ export function createSheet(options: SheetOptions): Sheet {
 
   const body = document.createElement('div')
   body.className = 'gloss-body'
+  scrollFade(body, 16)
   panel.append(grab, head, body)
   root.append(scrim, panel)
   document.body.append(root)
