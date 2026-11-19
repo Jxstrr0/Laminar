@@ -185,7 +185,7 @@ describe('the circuit’s trackside (PR 13m)', () => {
     const { size, json } = gltfOf('circuit.glb')
     const names = json.nodes.map((n) => n.name)
     for (const name of ['StartGantry', 'GridLine', 'PitBuilding', 'Grandstand', 'Footbridge', 'Barrier', 'Kerb', 'MarshalPost']) expect(names).toContain(name)
-    expect(size).toBeLessThan(200 * 1024)
+    expect(size).toBeLessThan(300 * 1024) // 284 KB since PR 13at's polish
   })
 
   it('fits the pits, the stand and the footbridge on every circuit’s main straight, off the road', () => {
@@ -318,7 +318,7 @@ describe('the open road’s roadside (PR 13t)', () => {
     const { size, json } = gltfOf('road.glb')
     const names = json.nodes.map((n) => n.name)
     for (const name of ['TreeRound', 'TreePine', 'TreeBirch', 'KmPost', 'Sign', 'Farm', 'Village', 'WindTurbine', 'StartRamp', 'FinishArch', 'FinishCrowd', 'FuelDepot', 'Warehouse']) expect(names).toContain(name)
-    expect(size).toBeLessThan(250 * 1024)
+    expect(size).toBeLessThan(420 * 1024) // 404 KB since PR 13at's polish
   })
 
   it('builds the finish arch for the time trial’s road, and keeps the buildings off it', () => {

@@ -31,41 +31,40 @@ left, and turns them round for its right):
 The game's axes (three.js): +x along, y up, z to the right. Blender is z-up,
 so here x is the same, y is three.js −z (the left) and z is up; the glTF
 exporter turns it round. Every piece keeps its daylight colours.
+
+PR 13at polished it with the shared venue blocks (art/venuelib.py): windows,
+chimneys and a domed silo on the farm, hay bales and a tractor; chimneys,
+fences and a clock on the village church; a turbine with a rounded nacelle
+and tapered, twisted blades; a lattice finish gantry; a crowd of rounded
+people; proper rigs with cabs; pumps with screens, a shop and lying tanks
+at the truck stop; ribbed dock doors at the warehouse.
 """
 
 from __future__ import annotations
 
-import hashlib
-import json
 import math
 import sys
 from pathlib import Path
 
 import bmesh
 import bpy
-from mathutils import Matrix, Vector
+from mathutils import Vector
 
-ROOT = Path(__file__).resolve().parents[2]
-MANIFEST = ROOT / "public" / "models" / "models.json"
+# Import the shared blocks without leaving a __pycache__ folder for the art workflow to commit.
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import venuelib  # noqa: E402
+from kitlib import ROOT  # noqa: E402
+from venuelib import lorry_cab, rounded, run, srgb, wheel  # noqa: E402
+
 OUT = ROOT / "public" / "models" / "road.glb"
 PREVIEW = ROOT / "art" / "road" / "preview.jpg"
-# Pinned on purpose, the same as the other art scripts and .github/workflows/art.yml.
-BLENDER = "4.5.15"
-
-
-def input_hash() -> str:
-    """Every art script, in path order, hashed: tests/models.test.ts works it out the same way."""
-    h = hashlib.sha256()
-    for path in sorted((ROOT / "art").rglob("*.py"), key=lambda p: p.relative_to(ROOT).as_posix().encode()):
-        h.update(path.read_bytes())
-    return h.hexdigest()[:16]
-
 
 # A time trial's road: REPLAY_SCENE.roadWidth in src/data/replay.ts. The
 # arch and the start house are built for it; the truck road scales them.
 ROAD = 7.0
 
-COLOURS = {
+venuelib.COLOURS.update({
     "White": "F4F4F2",
     "Wall": "E9E2D6",
     "Wall2": "D8DCE6",
@@ -95,60 +94,25 @@ COLOURS = {
     "Shirt3": "E3A23B",
     "Shirt4": "2E9E95",
     "Skin": "D9A88B",
-}
+    "Hay": "D9B86B",
+    "Tractor": "2E9E95",
+    "Hub": "B9C0C8",
+    "Body": "E9ECF2",
+    "Slat": "8A92A6",
+})
 
 
-def srgb(hex_: str) -> tuple[float, float, float, float]:
-    """An sRGB hex colour as Blender's linear RGBA."""
-    out = []
-    for i in (0, 2, 4):
-        c = int(hex_[i : i + 2], 16) / 255
-        out.append(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4)
-    return (out[0], out[1], out[2], 1.0)
-
-
-MATS: dict[str, bpy.types.Material] = {}
-
-
-def mat(name: str) -> bpy.types.Material:
-    """The material for a colour name, made once: matte, the steel a little shiny."""
-    if name not in MATS:
-        m = bpy.data.materials.new(name)
-        m.use_nodes = True
-        bsdf = m.node_tree.nodes["Principled BSDF"]
-        bsdf.inputs["Base Color"].default_value = srgb(COLOURS[name])
-        bsdf.inputs["Roughness"].default_value = 0.3 if name == "Glass" else 0.45 if name in ("Steel", "Silver") else 0.85
-        bsdf.inputs["Metallic"].default_value = 0.4 if name in ("Steel", "Silver") else 0.0
-        MATS[name] = m
-    return MATS[name]
-
-
-class Mesh:
-    """A bmesh that collects shapes with named materials, then becomes one object."""
-
-    def __init__(self) -> None:
-        self.bm = bmesh.new()
-        self.names: list[str] = []
+class Mesh(venuelib.Mesh):
+    """The shared Mesh, with the road's own upright cones, faceted crowns and painted quads."""
 
     def _paint(self, verts, name: str) -> None:
-        if name not in self.names:
-            self.names.append(name)
-        idx = self.names.index(name)
+        idx = self._index(name)
         for f in {f for v in verts for f in v.link_faces}:
             f.material_index = idx
 
-    def box(self, x0: float, x1: float, y0: float, y1: float, z0: float, z1: float, name: str) -> None:
-        """An axis-aligned box between these bounds."""
-        verts = bmesh.ops.create_cube(self.bm, size=1.0)["verts"]
-        bmesh.ops.scale(self.bm, vec=Vector((x1 - x0, y1 - y0, z1 - z0)), verts=verts)
-        bmesh.ops.translate(self.bm, vec=Vector(((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2)), verts=verts)
-        self._paint(verts, name)
-
     def cone(self, x: float, y: float, z0: float, z1: float, r0: float, r1: float, sides: int, name: str) -> None:
         """An upright cone or cylinder (r1 = r0) from z0 to z1, centred on (x, y)."""
-        verts = bmesh.ops.create_cone(self.bm, cap_ends=True, cap_tris=False, segments=sides, radius1=r0, radius2=r1, depth=z1 - z0)["verts"]
-        bmesh.ops.translate(self.bm, vec=Vector((x, y, (z0 + z1) / 2)), verts=verts)
-        self._paint(verts, name)
+        self.cyl((x, y, z0), (x, y, z1), r0, name, sides, rb=r1)
 
     def blob(self, x: float, y: float, z: float, rx: float, ry: float, rz: float, name: str) -> None:
         """A low, faceted lump (a tree's crown): an icosahedron stretched to these radii."""
@@ -159,30 +123,7 @@ class Mesh:
 
     def flat(self, x0: float, x1: float, y0: float, y1: float, z: float, name: str) -> None:
         """A flat quad facing up at height z (paint on the road)."""
-        a = [self.bm.verts.new(p) for p in ((x0, y0, z), (x1, y0, z), (x1, y1, z), (x0, y1, z))]
-        self.bm.faces.new(a)
-        self._paint(a, name)
-
-    def roof(self, x0: float, x1: float, y0: float, y1: float, z0: float, ridge: float, name: str) -> None:
-        """A gable roof over the box x0..x1, y0..y1 from the eaves at z0, its ridge along x at z0 + ridge."""
-        bm = self.bm
-        ym = (y0 + y1) / 2
-        a = [bm.verts.new(p) for p in ((x0, y0, z0), (x1, y0, z0), (x1, y1, z0), (x0, y1, z0), (x0, ym, z0 + ridge), (x1, ym, z0 + ridge))]
-        faces = [(a[0], a[1], a[5], a[4]), (a[2], a[3], a[4], a[5]), (a[0], a[4], a[3]), (a[1], a[2], a[5]), (a[0], a[3], a[2], a[1])]
-        for f in faces:
-            bm.faces.new(f)
-        self._paint(a, name)
-
-    def done(self, obj_name: str) -> bpy.types.Object:
-        bmesh.ops.recalc_face_normals(self.bm, faces=self.bm.faces)
-        me = bpy.data.meshes.new(obj_name)
-        self.bm.to_mesh(me)
-        self.bm.free()
-        for n in self.names:
-            me.materials.append(mat(n))
-        obj = bpy.data.objects.new(obj_name, me)
-        bpy.context.collection.objects.link(obj)
-        return obj
+        self.poly([(x0, y0, z), (x1, y0, z), (x1, y1, z), (x0, y1, z)], name)
 
 
 # --- Trees: a few draws each, many copies, so kept to a few dozen faces.
@@ -237,23 +178,53 @@ def sign() -> None:
 
 
 def house(m: Mesh, x: float, y: float, w: float, d: float, h: float, wall: str, roof: str) -> None:
-    """A house x..x+w along, y..y+d deep, with a gable roof, a door and windows on its road side (−y)."""
+    """A house x..x+w along, y..y+d deep, with a gable roof, a chimney, a door with a step and windows on its road side (−y) and its ends."""
     m.box(x, x + w, y, y + d, 0, h, wall)
     m.roof(x - 0.3, x + w + 0.3, y - 0.3, y + d + 0.3, h, d * 0.45, roof)
+    m.box(x + w * 0.78, x + w * 0.78 + 0.7, y + d * 0.6, y + d * 0.6 + 0.7, h, h + d * 0.45 + 0.6, "Concrete")
     m.box(x + w * 0.42, x + w * 0.58, y - 0.03, y, 0, 2.0, "Wood")
-    for wx in (x + w * 0.18, x + w * 0.72):
+    m.box(x + w * 0.4, x + w * 0.6, y - 0.5, y, 0, 0.15, "Concrete")
+    for wx in (x + w * 0.14, x + w * 0.7):
         m.box(wx, wx + 0.9, y - 0.03, y, h * 0.45, h * 0.45 + 0.9, "Glass")
+        m.box(wx - 0.08, wx + 0.98, y - 0.08, y, h * 0.45 - 0.08, h * 0.45, "White")
+    for ex in (x - 0.03, x + w):
+        m.box(ex, ex + 0.03, y + d * 0.35, y + d * 0.65, h * 0.45, h * 0.45 + 0.9, "Glass")
+
+
+def bale(m: Mesh, x: float, y: float) -> None:
+    """A round hay bale lying on its side, axis along y."""
+    m.cyl((x, y - 0.6, 0.75), (x, y + 0.6, 0.75), 0.75, "Hay", 10)
+
+
+def tractor(m: Mesh, x: float, y: float) -> None:
+    """A small tractor facing +x: big rear wheels, small front ones, the bonnet and a cab."""
+    m.box(x - 0.4, x + 2.4, y - 0.5, y + 0.5, 0.6, 1.3, "Tractor")
+    m.box(x - 0.6, x + 0.6, y - 0.6, y + 0.6, 1.3, 2.6, "Glass")
+    m.box(x - 0.7, x + 0.7, y - 0.7, y + 0.7, 2.6, 2.7, "Tractor")
+    for s in (-1, 1):
+        wheel(m, x - 0.2, y + s * 0.85, 0.75, 0.45)
+        wheel(m, x + 1.9, y + s * 0.7, 0.42, 0.28)
+    m.cyl((x + 1.6, y + 0.3, 1.3), (x + 1.6, y + 0.3, 2.4), 0.06, "Black", 6)
 
 
 def farm() -> None:
-    """A farmhouse near the road, a red barn behind, a silo and a fence along the road side."""
+    """A farmhouse near the road, a red barn behind with its big doors, a silo with a domed cap, hay bales, a tractor and a fence along the road side."""
     m = Mesh()
     house(m, 0, 0, 9, 7, 4.2, "Wall", "Roof")
     m.box(14, 30, 6, 18, 0, 6, "Barn")
     m.roof(13.6, 30.4, 5.6, 18.4, 6, 4.5, "Roof2")
     m.box(19, 25, 5.97, 6.0, 0, 4.5, "White")
-    m.cone(34, 12, 0, 13, 2.6, 2.6, 10, "Silver")
-    m.cone(34, 12, 13, 15, 2.7, 0.3, 10, "Steel")
+    m.box(19.2, 24.8, 5.95, 5.97, 0.2, 4.3, "Barn")
+    m.poly([(19.2, 5.94, 0.2), (19.4, 5.94, 0.2), (24.8, 5.94, 4.1), (24.6, 5.94, 4.3)], "White")
+    m.box(21.2, 22.8, 5.97, 6.0, 7.2, 8.2, "White")
+    m.cone(34, 12, 0, 13, 2.6, 2.6, 12, "Silver")
+    m.sphere((34, 12, 13), 2.65, "Steel", 12, (1, 1, 0.55))
+    for k in range(4):
+        m.cone(34, 12, 2 + k * 3, 2.15 + k * 3, 2.66, 2.66, 12, "Steel")
+    m.box(36.4, 36.7, 11.7, 12.3, 0, 13, "Steel")
+    for k, (bx, by) in enumerate(((6, 13), (7.8, 13.4), (6.9, 15.2), (11, 22), (12.8, 22.3))):
+        bale(m, bx, by)
+    tractor(m, 2, 11)
     # A post-and-rail fence along the road side.
     for x in range(-6, 40, 4):
         m.box(x - 0.08, x + 0.08, -4.08, -3.92, 0, 1.2, "Wood")
@@ -263,37 +234,58 @@ def farm() -> None:
 
 
 def village() -> None:
-    """A few houses either side of a lane, round a church with a tower and a spire."""
+    """A few houses either side of a lane, with picket fences, round a church with a tower, a clock and a spire."""
     m = Mesh()
     spots = ((0, 0, 8, 6, 4.5, "Wall", "Roof"), (11, 1, 7, 6, 5.2, "Wall2", "Roof2"), (21, 0, 9, 7, 4.8, "Wall", "Roof"),
              (2, 16, 7, 6, 4.4, "Wall2", "Roof"), (24, 17, 8, 6, 5.0, "Wall", "Roof2"))
     for x, y, w, d, h, wall, roof in spots:
         house(m, x, y, w, d, h, wall, roof)
-    # The church: a nave and a square tower with a spire.
+    # Picket fences along the front gardens.
+    for x0, x1 in ((-1, 9), (20, 31)):
+        m.box(x0, x1, -2.05, -1.95, 0.55, 0.65, "White")
+        for k in range(int(x1 - x0) + 1):
+            px = x0 + k
+            m.box(px - 0.04, px + 0.04, -2.04, -1.96, 0, 0.9, "White")
+    # The church: a nave with tall windows, and a square tower with a clock and a spire.
     m.box(10, 22, 13, 21, 0, 7, "White")
     m.roof(9.6, 22.4, 12.6, 21.4, 7, 4, "Roof2")
+    for k in range(4):
+        wx = 12 + k * 2.6
+        m.box(wx, wx + 0.8, 12.97, 13.0, 2.0, 5.2, "Glass")
     m.box(6.5, 10, 15, 19, 0, 15, "White")
     m.box(6.4, 10.1, 14.9, 19.1, 11, 12, "Wood")
+    m.cyl((8.25, 14.88, 13.4), (8.25, 14.85, 13.4), 0.9, "Black", 12)
+    m.cyl((8.25, 14.86, 13.4), (8.25, 14.82, 13.4), 0.75, "White", 12)
+    m.box(6.7, 7.5, 14.97, 15.0, 6.0, 9.0, "Glass")
     m.cone(8.25, 17, 15, 22, 2.5, 0.05, 4, "Roof2")
+    m.cyl((8.25, 17, 22), (8.25, 17, 23.2), 0.05, "Steel", 4)
     m.done("Village")
 
 
 def wind_turbine() -> None:
-    """A wind turbine: a tapered tower, the nacelle facing the oncoming road (−x), three still blades."""
+    """A wind turbine: a tapered round tower, a rounded nacelle facing the oncoming road (−x) with its spinner, and three still blades that taper and twist."""
     m = Mesh()
-    m.cone(0, 0, 0, 60, 1.8, 1.0, 10, "White")
-    m.box(-2.5, 4.5, -1.3, 1.3, 59, 62.5, "White")
-    m.box(-3.4, -2.5, -0.8, 0.8, 60, 61.6, "Silver")
-    hub = Vector((-3.6, 0, 60.8))
+    m.cone(0, 0, 0, 60, 1.8, 1.0, 14, "White")
+    m.cone(0, 0, 0, 1.2, 2.6, 2.6, 14, "Concrete")
+    rings = [[(x, 1.4 * cy / 1.4, 60.8 + cz) for cy, cz in rounded(2.4 * f, 3.0 * f, 0.9 * f, 2)] for x, f in ((5.0, 0.7), (4.2, 0.95), (-1.5, 1.0), (-2.6, 0.85))]
+    m.loft(rings, "White")
+    hub = Vector((-3.1, 0, 60.8))
+    m.cyl(hub, hub + Vector((-2.2, 0, 0)), 1.0, "White", 12, rb=0.15)
     for k in range(3):
         a = math.radians(90 + 120 * k)
-        bm = m.bm
-        verts = bmesh.ops.create_cube(bm, size=1.0)["verts"]
-        bmesh.ops.scale(bm, vec=Vector((0.3, 1.6, 26)), verts=verts)
-        bmesh.ops.translate(bm, vec=Vector((0, 0, 13)), verts=verts)
-        bmesh.ops.rotate(bm, verts=verts, cent=Vector((0, 0, 0)), matrix=Matrix.Rotation(a - math.pi / 2, 3, "X"))
-        bmesh.ops.translate(bm, vec=hub, verts=verts)
-        m._paint(verts, "White")
+        out = Vector((0, math.cos(a), math.sin(a)))
+        side = Vector((0, -math.sin(a), math.cos(a)))
+        loops = []
+        for t in (0.03, 0.1, 0.3, 0.6, 0.85, 1.0):
+            r = 1.0 + 26 * t
+            chord = 2.6 * (1 - t) ** 0.7 + 0.35 if t > 0.08 else 1.2
+            twist = math.radians(18 * (1 - t))
+            fwd = Vector((-math.sin(twist), 0, 0)) + side * math.cos(twist)
+            thick = Vector((math.cos(twist), 0, 0)) + side * math.sin(twist)
+            c = hub + Vector((-0.6, 0, 0)) + out * r
+            sec = [(-0.3, 0.0), (0.0, 0.12), (0.7, 0.0), (0.0, -0.08)]
+            loops.append([c + fwd * (u * chord) + thick * (w * chord) for u, w in sec])
+        m.loft(loops, "White", cap_start=False)
     m.done("WindTurbine")
 
 
@@ -324,14 +316,33 @@ def start_ramp() -> None:
 
 
 def finish_arch() -> None:
-    """A truss gantry over the road at the finish line, the banner facing the oncoming riders (−x), and the line itself."""
+    """A lattice truss gantry over the road at the finish line, the banner facing the oncoming riders (−x), the clock on top and the line itself."""
     m = Mesh()
     half = ROAD / 2 + 0.8
+    t = 0.35
+
+    def truss(a: Vector, b: Vector, n: int) -> None:
+        """A square lattice truss of four chords from a to b, braced with zigzags on each face."""
+        d = (b - a)
+        u = d.orthogonal().normalized() * t
+        w = d.normalized().cross(u)
+        corners = [u + w, u - w, -u - w, -u + w]
+        for c in corners:
+            m.cyl(a + c, b + c, 0.05, "Steel", 6, cap=False)
+        for k in range(n):
+            p0, p1 = a + d * (k / n), a + d * ((k + 1) / n)
+            for i in range(4):
+                c0, c1 = corners[i], corners[(i + 1) % 4]
+                m.cyl(p0 + (c0 if k % 2 == 0 else c1), p1 + (c1 if k % 2 == 0 else c0), 0.025, "Steel", 4, cap=False)
+
     for y in (-half, half):
-        m.box(-0.35, 0.35, y - 0.35, y + 0.35, 0, 5.5, "Steel")
-    m.box(-0.35, 0.35, -half - 0.35, half + 0.35, 5.5, 6.3, "Steel")
-    m.box(-0.45, -0.35, -half + 0.4, half - 0.4, 4.6, 6.2, "White")
-    m.box(-0.48, -0.45, -half + 0.6, half - 0.6, 5.1, 5.7, "Coral")
+        truss(Vector((0, y, 0)), Vector((0, y, 5.9)), 8)
+        m.box(-0.5, 0.5, y - 0.5, y + 0.5, 0, 0.12, "Steel")
+    truss(Vector((0, -half - t, 5.9)), Vector((0, half + t, 5.9)), 10)
+    m.box(-0.5, -0.4, -half + 0.4, half - 0.4, 4.5, 5.6, "White")
+    m.box(-0.53, -0.5, -half + 0.6, half - 0.6, 4.75, 5.35, "Coral")
+    m.box(-0.3, 0.3, -1.0, 1.0, 6.25, 7.1, "Black")
+    m.box(-0.32, -0.3, -0.85, 0.85, 6.35, 7.0, "Amber")
     # The finish line across the road, in checks painted on it.
     for k in range(int(ROAD / 0.5)):
         y = -ROAD / 2 + k * 0.5
@@ -340,11 +351,14 @@ def finish_arch() -> None:
     m.done("FinishArch")
 
 
-def person(m: Mesh, x: float, y: float, shirt: str) -> None:
-    """Someone standing: legs, a shirt and a head, as a few boxes."""
-    m.box(x - 0.18, x + 0.18, y - 0.12, y + 0.12, 0, 0.85, "Black")
-    m.box(x - 0.22, x + 0.22, y - 0.15, y + 0.15, 0.85, 1.5, shirt)
-    m.box(x - 0.12, x + 0.12, y - 0.12, y + 0.12, 1.5, 1.78, "Skin")
+def person(m: Mesh, x: float, y: float, shirt: str, tall: float = 1.0) -> None:
+    """Someone standing: legs, a rounded body, arms and a head."""
+    h = tall
+    m.cyl((x, y, 0), (x, y, 0.85 * h), 0.17, "Black", 6, cap=False)
+    m.cyl((x, y, 0.85 * h), (x, y, 1.45 * h), 0.22, shirt, 7, rb=0.19)
+    for s in (-1, 1):
+        m.cyl((x, y + s * 0.24, 1.42 * h), (x - 0.05, y + s * 0.27, 0.95 * h), 0.06, shirt, 4, cap=False)
+    m.sphere((x, y, 1.62 * h), 0.14, "Skin", 8)
 
 
 def finish_crowd() -> None:
@@ -353,48 +367,63 @@ def finish_crowd() -> None:
     for x in range(0, 40, 4):
         m.box(x, x + 3.9, -0.05, 0.05, 0.3, 1.1, "White" if (x // 4) % 2 else "Coral")
         m.box(x + 0.1, x + 0.2, -0.3, 0.3, 0, 0.3, "Steel")
+        m.box(x + 3.7, x + 3.8, -0.3, 0.3, 0, 0.3, "Steel")
     shirts = ("Shirt1", "Shirt2", "Shirt3", "Shirt4")
     for k in range(20):
         x = 0.8 + k * 1.95
         y = 0.6 + (k % 3) * 0.55
-        person(m, x, y, shirts[(k * 7) % 4])
+        person(m, x, y, shirts[(k * 7) % 4], 0.92 + 0.1 * ((k * 5) % 3) / 2)
         if k % 3 == 1:
-            m.box(x - 0.02, x + 0.02, y - 0.02, y + 0.02, 1.5, 2.4, "Steel")
-            m.box(x, x + 0.6, y - 0.01, y + 0.01, 2.0, 2.4, "Teal" if k % 2 else "Lilac")
+            m.cyl((x + 0.05, y - 0.3, 1.4), (x + 0.05, y - 0.3, 2.4), 0.02, "Steel", 4)
+            m.box(x + 0.05, x + 0.65, y - 0.31, y - 0.29, 2.0, 2.4, "Teal" if k % 2 else "Lilac")
     m.done("FinishCrowd")
 
 
 def rig(m: Mesh, x0: float, y0: float, body: str) -> None:
-    """A parked rig: a box trailer, a tractor at the front (+x) and wheels."""
-    m.box(x0, x0 + 13.6, y0, y0 + 2.5, 1.2, 4.0, body)
-    m.box(x0 + 14, x0 + 16.6, y0, y0 + 2.5, 0.9, 3.6, "Cab")
-    m.box(x0 + 16.55, x0 + 16.62, y0 + 0.2, y0 + 2.3, 2.3, 3.2, "Glass")
-    for wx in (x0 + 1.2, x0 + 2.6, x0 + 11.5, x0 + 15.6):
-        for wy in (y0 - 0.05, y0 + 2.15):
-            m.box(wx - 0.5, wx + 0.5, wy, wy + 0.4, 0, 1.0, "Tyre")
+    """A parked rig along +x from (x0, y0) (its left side at y0): a rounded box trailer, the tractor unit with its cab at the front, and wheels."""
+    with m.at(x0, y0 + 1.25, 0):
+        m.loft([[(x, cy, 2.6 + cz) for cy, cz in rounded(2.5, 2.8, 0.12, 2)] for x in (0.0, 13.6)], body)
+        m.box(0.5, 15.0, -1.05, 1.05, 0.55, 1.2, "Black")
+        for wx in (1.2, 2.5, 3.8, 14.2):
+            for s in (-1, 1):
+                wheel(m, wx, s * 0.95, 0.5, 0.36)
+        lorry_cab(m, 14.0, 2.5, 3.6, "Cab", 2.6)
 
 
 def fuel_depot() -> None:
-    """A truck stop: a canopy on posts over two pump islands, round tanks behind and a rig parked, the road on its −y side."""
+    """A truck stop: a canopy on posts over two pump islands with their screens, a shop with a glazed front, lying tanks on saddles behind and a rig parked, the road on its −y side."""
     m = Mesh()
     m.box(-2, 34, -2, 26, 0, 0.05, "Concrete")
     for x in (2, 14, 26):
         for y in (2, 12):
-            m.box(x - 0.25, x + 0.25, y - 0.25, y + 0.25, 0, 6.0, "White")
+            m.cyl((x, y, 0), (x, y, 6.0), 0.25, "White", 8)
     m.box(0, 28, 0, 14, 6.0, 6.6, "White")
     m.box(-0.02, 28.02, -0.02, 14.02, 6.2, 6.5, "Teal")
+    m.box(0.5, 27.5, 0.5, 13.5, 5.98, 6.0, "Lamp")
     for y in (4.5, 9.5):
         m.box(4, 24, y - 0.6, y + 0.6, 0.05, 0.3, "Concrete")
         for x in (7, 14, 21):
             m.box(x - 0.4, x + 0.4, y - 0.3, y + 0.3, 0.3, 2.0, "Coral")
+            m.box(x - 0.3, x + 0.3, y - 0.32, y - 0.3, 1.3, 1.8, "Black")
+            m.box(x - 0.42, x + 0.42, y - 0.32, y + 0.32, 2.0, 2.1, "White")
+    # The shop at the forecourt's end.
+    m.box(30, 40, 0, 10, 0, 4.2, "Wall2")
+    m.box(29.6, 40.4, -0.6, 10.4, 4.2, 4.6, "Teal")
+    m.box(30.5, 39.5, -0.03, 0.0, 0.3, 3.4, "Glass")
+    for k in range(1, 4):
+        m.box(30.5 + k * 2.25 - 0.06, 30.5 + k * 2.25 + 0.06, -0.06, -0.03, 0.3, 3.4, "Steel")
+    # Lying tanks on concrete saddles.
     for k in range(3):
-        m.cone(6 + k * 8, 21, 0, 7, 3, 3, 12, "Silver")
-    rig(m, 4, 15.5, "White")
+        ty = 19 + k * 3.6
+        m.loft([[(x, ty + 1.5 * math.cos(a), 2.1 + 1.5 * math.sin(a)) for a in (2 * math.pi * j / 12 for j in range(12))] for x in (3.0, 15.0)], "Silver")
+        for sx in (5, 13):
+            m.box(sx - 0.4, sx + 0.4, ty - 1.2, ty + 1.2, 0, 0.9, "Concrete")
+    rig(m, 17, 18.5, "White")
     m.done("FuelDepot")
 
 
 def warehouse() -> None:
-    """The depot at the end of the run: a long shed with a low-pitched roof, loading docks on its road side (−y) and a rig backed up."""
+    """The depot at the end of the run: a long shed with a low-pitched roof, ribbed dock doors under canopies on its road side (−y), and a rig backed up."""
     m = Mesh()
     m.box(-4, 64, -14, 30, 0, 0.05, "Concrete")
     m.box(0, 60, 0, 26, 0, 10, "Wall2")
@@ -404,8 +433,34 @@ def warehouse() -> None:
         x = 4 + k * 9
         m.box(x, x + 4, -0.05, 0, 0.9, 5.0, "Steel")
         m.box(x - 0.3, x + 4.3, -1.2, 0, 0.9, 1.2, "Concrete")
-    rig(m, 21, -18, "Coral")
+        m.box(x - 0.2, x + 4.2, -1.4, 0, 5.6, 5.8, "Steel")
+        m.box(x - 0.15, x + 0.05, -0.12, 0, 0.9, 5.2, "Amber")
+        m.box(x + 3.95, x + 4.15, -0.12, 0, 0.9, 5.2, "Amber")
+    for k in range(6):
+        x = 4 + k * 9
+        for r in range(1, 4):
+            z = 0.9 + r * 1.02
+            m.box(x, x + 4, -0.08, -0.05, z - 0.03, z + 0.03, "Slat")
+    m.box(48, 58, -0.03, 0, 1.0, 2.6, "Glass")
+    with m.at(24, -1.4, 0, -math.pi / 2):
+        rig(m, 0, -1.25, "Coral")
     m.done("Warehouse")
+
+
+def build() -> None:
+    tree_round()
+    tree_pine()
+    tree_birch()
+    km_post()
+    sign()
+    farm()
+    village()
+    wind_turbine()
+    start_ramp()
+    finish_arch()
+    finish_crowd()
+    fuel_depot()
+    warehouse()
 
 
 def preview(path: Path) -> None:
@@ -483,46 +538,4 @@ def preview(path: Path) -> None:
     bpy.ops.render.render(write_still=True)
 
 
-def main() -> None:
-    argv = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else []
-    bpy.ops.wm.read_factory_settings(use_empty=True)
-    tree_round()
-    tree_pine()
-    tree_birch()
-    km_post()
-    sign()
-    farm()
-    village()
-    wind_turbine()
-    start_ramp()
-    finish_arch()
-    finish_crowd()
-    fuel_depot()
-    warehouse()
-
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    bpy.ops.export_scene.gltf(
-        filepath=str(OUT),
-        export_format="GLB",
-        use_selection=False,
-        export_extras=False,
-        export_texcoords=False,
-        export_normals=True,
-        export_tangents=False,
-        export_materials="EXPORT",
-        export_vertex_color="NONE",
-        export_cameras=False,
-        export_lights=False,
-        export_yup=True,
-        export_apply=True,
-        export_draco_mesh_compression_enable=False,
-    )
-    print(f"wrote {OUT} ({OUT.stat().st_size} bytes)")
-    if "--preview" in argv:
-        preview(PREVIEW)
-        print(f"wrote {PREVIEW}")
-    MANIFEST.write_text(json.dumps({"inputHash": input_hash(), "blender": BLENDER}, indent=2) + "\n")
-    print(f"wrote {MANIFEST}")
-
-
-main()
+run(OUT, PREVIEW, build, preview)
