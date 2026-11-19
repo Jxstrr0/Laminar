@@ -27,12 +27,15 @@ on its left, and turns them round for its right:
 The game's axes (three.js): +x along, y up, z to the right. Blender is z-up,
 so here x is the same, y is three.js −z (the left) and z is up; the glTF
 exporter turns it round. Every piece keeps its daylight colours.
+
+PR 13au polished it with the shared venue blocks (art/venuelib.py): round
+people in long coats and knitted hats, board huts with snow on their red
+roofs, capped stovepipes and a lit window, a plough with a curved blade and
+a beacon, a fisher on a stool with a rod, and spruces dusted on every tier.
 """
 
 from __future__ import annotations
 
-import hashlib
-import json
 import math
 import sys
 from pathlib import Path
@@ -41,26 +44,20 @@ import bmesh
 import bpy
 from mathutils import Vector
 
-ROOT = Path(__file__).resolve().parents[2]
-MANIFEST = ROOT / "public" / "models" / "models.json"
+# Import the shared blocks without leaving a __pycache__ folder for the art workflow to commit.
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import venuelib  # noqa: E402
+from kitlib import ROOT  # noqa: E402
+from venuelib import Mesh, person, run, srgb, wheel  # noqa: E402
+
 OUT = ROOT / "public" / "models" / "lake.glb"
 PREVIEW = ROOT / "art" / "lake" / "preview.jpg"
-# Pinned on purpose, the same as the other art scripts and .github/workflows/art.yml.
-BLENDER = "4.5.15"
-
-
-def input_hash() -> str:
-    """Every art script, in path order, hashed: tests/models.test.ts works it out the same way."""
-    h = hashlib.sha256()
-    for path in sorted((ROOT / "art").rglob("*.py"), key=lambda p: p.relative_to(ROOT).as_posix().encode()):
-        h.update(path.read_bytes())
-    return h.hexdigest()[:16]
-
 
 # The ploughed loop: REPLAY_SCENE.roadWidth in src/data/replay.ts.
 ROAD = 7.0
 
-COLOURS = {
+venuelib.COLOURS.update({
     "White": "F4F4F2",
     "Snow": "F2F5FA",
     "Snow2": "E6ECF3",
@@ -88,99 +85,12 @@ COLOURS = {
     "Skin": "D9A88B",
     "Hat": "C9483C",
     "Smoke": "D7DBE6",
-}
-
-
-def srgb(hex_: str) -> tuple[float, float, float, float]:
-    """An sRGB hex colour as Blender's linear RGBA."""
-    out = []
-    for i in (0, 2, 4):
-        c = int(hex_[i : i + 2], 16) / 255
-        out.append(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4)
-    return (out[0], out[1], out[2], 1.0)
-
-
-MATS: dict[str, bpy.types.Material] = {}
-
-
-def mat(name: str) -> bpy.types.Material:
-    """The material for a colour name, made once: matte, the steel a little shiny."""
-    if name not in MATS:
-        m = bpy.data.materials.new(name)
-        m.use_nodes = True
-        bsdf = m.node_tree.nodes["Principled BSDF"]
-        bsdf.inputs["Base Color"].default_value = srgb(COLOURS[name])
-        bsdf.inputs["Roughness"].default_value = 0.3 if name == "Glass" else 0.45 if name in ("Steel", "Silver") else 0.85
-        bsdf.inputs["Metallic"].default_value = 0.4 if name in ("Steel", "Silver") else 0.0
-        MATS[name] = m
-    return MATS[name]
-
-
-class Mesh:
-    """A bmesh that collects shapes with named materials, then becomes one object."""
-
-    def __init__(self) -> None:
-        self.bm = bmesh.new()
-        self.names: list[str] = []
-
-    def _paint(self, verts, name: str) -> None:
-        if name not in self.names:
-            self.names.append(name)
-        idx = self.names.index(name)
-        for f in {f for v in verts for f in v.link_faces}:
-            f.material_index = idx
-
-    def box(self, x0: float, x1: float, y0: float, y1: float, z0: float, z1: float, name: str) -> None:
-        """An axis-aligned box between these bounds."""
-        verts = bmesh.ops.create_cube(self.bm, size=1.0)["verts"]
-        bmesh.ops.scale(self.bm, vec=Vector((x1 - x0, y1 - y0, z1 - z0)), verts=verts)
-        bmesh.ops.translate(self.bm, vec=Vector(((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2)), verts=verts)
-        self._paint(verts, name)
-
-    def cone(self, x: float, y: float, z0: float, z1: float, r0: float, r1: float, sides: int, name: str) -> None:
-        """An upright cone or cylinder (r1 = r0) from z0 to z1, centred on (x, y)."""
-        verts = bmesh.ops.create_cone(self.bm, cap_ends=True, cap_tris=False, segments=sides, radius1=r0, radius2=r1, depth=z1 - z0)["verts"]
-        bmesh.ops.translate(self.bm, vec=Vector((x, y, (z0 + z1) / 2)), verts=verts)
-        self._paint(verts, name)
-
-    def blob(self, x: float, y: float, z: float, rx: float, ry: float, rz: float, name: str) -> None:
-        """A low, faceted lump (a tree's crown): an icosahedron stretched to these radii."""
-        verts = bmesh.ops.create_icosphere(self.bm, subdivisions=1, radius=1.0)["verts"]
-        bmesh.ops.scale(self.bm, vec=Vector((rx, ry, rz)), verts=verts)
-        bmesh.ops.translate(self.bm, vec=Vector((x, y, z)), verts=verts)
-        self._paint(verts, name)
-
-    def flat(self, x0: float, x1: float, y0: float, y1: float, z: float, name: str) -> None:
-        """A flat quad facing up at height z (paint on the road)."""
-        a = [self.bm.verts.new(p) for p in ((x0, y0, z), (x1, y0, z), (x1, y1, z), (x0, y1, z))]
-        self.bm.faces.new(a)
-        self._paint(a, name)
-
-    def roof(self, x0: float, x1: float, y0: float, y1: float, z0: float, ridge: float, name: str) -> None:
-        """A gable roof over the box x0..x1, y0..y1 from the eaves at z0, its ridge along x at z0 + ridge."""
-        bm = self.bm
-        ym = (y0 + y1) / 2
-        a = [bm.verts.new(p) for p in ((x0, y0, z0), (x1, y0, z0), (x1, y1, z0), (x0, y1, z0), (x0, ym, z0 + ridge), (x1, ym, z0 + ridge))]
-        faces = [(a[0], a[1], a[5], a[4]), (a[2], a[3], a[4], a[5]), (a[0], a[4], a[3]), (a[1], a[2], a[5]), (a[0], a[3], a[2], a[1])]
-        for f in faces:
-            bm.faces.new(f)
-        self._paint(a, name)
-
-    def done(self, obj_name: str) -> bpy.types.Object:
-        bmesh.ops.recalc_face_normals(self.bm, faces=self.bm.faces)
-        me = bpy.data.meshes.new(obj_name)
-        self.bm.to_mesh(me)
-        self.bm.free()
-        for n in self.names:
-            me.materials.append(mat(n))
-        obj = bpy.data.objects.new(obj_name, me)
-        bpy.context.collection.objects.link(obj)
-        return obj
-
-
-
-
-# --- Shapes the other kits didn't need.
+    "Hat2": "2F5BB7",
+    "Hat3": "F4F4F2",
+    "Window": "F2C66B",
+    "Hub": "B9C0C8",
+    "Trunk": "6B5A4E",
+})
 
 
 def wobble(k: int, salt: float) -> float:
@@ -188,30 +98,42 @@ def wobble(k: int, salt: float) -> float:
     return math.sin(k * 12.9898 + salt * 78.233) * 0.5 + math.sin(k * 4.1414 + salt * 3.7) * 0.5
 
 
-def bundled(m: Mesh, x: float, y: float, coat: str) -> None:
-    """Someone in a long winter coat and a knitted hat, standing."""
-    m.box(x - 0.18, x + 0.18, y - 0.12, y + 0.12, 0, 0.6, "Black")
-    m.box(x - 0.25, x + 0.25, y - 0.18, y + 0.18, 0.6, 1.5, coat)
-    m.box(x - 0.12, x + 0.12, y - 0.12, y + 0.12, 1.5, 1.74, "Skin")
-    m.box(x - 0.14, x + 0.14, y - 0.14, y + 0.14, 1.72, 1.86, "Hat")
+HATS = ("Hat", "Hat2", "Hat3")
+
+
+def bundled(m: Mesh, x: float, y: float, coat: str, k: int = 0) -> None:
+    """Someone in a long winter coat and a knitted hat, standing, facing the loop (−y)."""
+    person(m, x, y, coat, tall=0.96 + 0.04 * (k % 3), coat=True, hat=HATS[k % 3])
 
 
 def pine(m: Mesh, x: float, y: float, h: float) -> None:
-    """A snowy spruce `h` tall: a trunk, three tiers of needles, the top tier's tip white."""
+    """A snowy spruce `h` tall: a trunk, three tiers of needles, each tier's top dusted white."""
     m.cone(x, y, 0, h * 0.18, 0.18 * h / 8, 0.14 * h / 8, 5, "Bark")
     for k, (z0, r) in enumerate(((0.15, 0.32), (0.4, 0.25), (0.62, 0.17))):
-        m.cone(x, y, h * z0, h * (z0 + 0.32), h * r, 0.04, 7, "Pine" if k % 2 else "Pine2")
+        m.cone(x, y, h * z0, h * (z0 + 0.2), h * r, h * r * 0.35, 7, "Pine" if k % 2 else "Pine2")
+        m.cone(x, y, h * (z0 + 0.2), h * (z0 + 0.32), h * r * 0.35, 0.04, 7, "Snow")
     m.cone(x, y, h * 0.82, h * 1.0, h * 0.07, 0.02, 7, "Snow")
 
 
 def hut(m: Mesh, x0: float, y0: float, w: float, d: float, h: float, wall: str) -> None:
-    """A small hut on skids, `w` along x and `d` deep, a snowy gable roof and a stovepipe."""
+    """A small hut on skids, `w` along x and `d` deep, its door and a window to −y, a snowy gable roof and a capped stovepipe."""
     for y in (y0 + 0.2, y0 + d - 0.2):
-        m.box(x0 - 0.3, x0 + w + 0.3, y - 0.08, y + 0.08, 0, 0.15, "Steel")
+        m.box(x0 - 0.2, x0 + w + 0.2, y - 0.08, y + 0.08, 0, 0.15, "Steel")
+        for x in (x0 - 0.2, x0 + w + 0.2):
+            m.rod((x, y, 0.15), (x + (0.25 if x > x0 else -0.25), y, 0.4), 0.06, "Steel")
     m.box(x0, x0 + w, y0, y0 + d, 0.15, h, wall)
-    m.roof(x0 - 0.2, x0 + w + 0.2, y0 - 0.2, y0 + d + 0.2, h, 0.9, "Snow")
-    m.box(x0 + w * 0.4, x0 + w * 0.6, y0 - 0.02, y0, 0.15, h - 0.4, "Wood")
+    # Boards: darker lines along the front.
+    for z in (0.15 + (h - 0.15) * f for f in (0.33, 0.66)):
+        m.box(x0 - 0.01, x0 + w + 0.01, y0 - 0.01, y0 + d + 0.01, z, z + 0.03, "Wood")
+    m.roof(x0 - 0.2, x0 + w + 0.2, y0 - 0.2, y0 + d + 0.2, h, 0.9, "Roof")
+    m.roof(x0 - 0.22, x0 + w + 0.22, y0 - 0.12, y0 + d + 0.12, h + 0.12, 0.84, "Snow")
+    m.box(x0 + w * 0.35, x0 + w * 0.6, y0 - 0.04, y0, 0.15, h - 0.4, "Wood")
+    m.box(x0 + w * 0.55, x0 + w * 0.58, y0 - 0.07, y0 - 0.04, (h - 0.25) / 2, (h - 0.25) / 2 + 0.06, "Steel")
+    if w > 3:
+        m.box(x0 + w * 0.7, x0 + w * 0.92, y0 - 0.05, y0, h * 0.45, h * 0.8, "White")
+        m.box(x0 + w * 0.72, x0 + w * 0.9, y0 - 0.07, y0 - 0.05, h * 0.47, h * 0.78, "Window")
     m.cone(x0 + w * 0.8, y0 + d * 0.6, h, h + 1.3, 0.09, 0.09, 6, "Black")
+    m.cone(x0 + w * 0.8, y0 + d * 0.6, h + 1.3, h + 1.45, 0.18, 0.05, 6, "Black")
 
 
 # --- The lake's pieces.
@@ -233,7 +155,8 @@ def broom() -> None:
     """A spruce branch stuck upright in the bank: a stick and a small green sprig, about 1.6 m."""
     m = Mesh()
     m.cone(0, 0, 0, 1.0, 0.03, 0.025, 5, "Bark")
-    m.cone(0, 0, 0.7, 1.6, 0.28, 0.02, 6, "Pine")
+    m.cone(0, 0, 0.7, 1.15, 0.3, 0.12, 6, "Pine")
+    m.cone(0, 0, 1.1, 1.6, 0.22, 0.02, 6, "Pine2")
     m.done("Broom")
 
 
@@ -245,9 +168,13 @@ def start_banner() -> None:
     m = Mesh()
     half = ROAD / 2 + 1.2
     m.cone(0, half, 0, 4.8, 0.12, 0.1, 6, "Steel")
+    m.cone(0, half, 0, 0.3, 0.45, 0.35, 8, "Snow")
     m.box(-0.08, 0.08, -ROAD / 2, half, 4.5, 4.7, "Steel")
+    m.rod((0, half, 3.6), (0, half - 1.6, 4.5), 0.04, "Steel")
     m.box(-0.06, 0.06, -ROAD / 2 + 0.2, half - 0.4, 3.4, 4.4, "SignBlue")
     m.box(-0.08, 0.08, -ROAD / 2 + 0.6, half - 0.8, 3.55, 4.25, "White")
+    for y in (-ROAD / 2 + 0.3, half - 0.5):
+        m.rod((0, y, 4.5), (0, y, 4.4), 0.015, "Steel")
     for k in range(int(ROAD / 0.5)):
         y = -ROAD / 2 + k * 0.5
         for j in range(2):
@@ -260,30 +187,52 @@ def warming_hut() -> None:
     m = Mesh()
     hut(m, 0, 0, 5, 3.2, 2.6, "Wood2")
     for k in range(3):
-        m.blob(4.0 + k * 0.25, 1.9 - k * 0.1, 4.2 + k * 0.6, 0.35 + k * 0.12, 0.35 + k * 0.12, 0.3 + k * 0.1, "Smoke")
+        m.blob(4.0 + k * 0.25, 1.9 - k * 0.1, 4.4 + k * 0.6, 0.35 + k * 0.12, 0.35 + k * 0.12, 0.3 + k * 0.1, "Smoke")
     m.box(0.6, 3.0, -1.0, -0.6, 0.4, 0.5, "Wood")
+    m.box(0.6, 3.0, -0.62, -0.56, 0.5, 0.9, "Wood")
     for x in (0.7, 2.9):
         m.box(x - 0.05, x + 0.05, -0.95, -0.65, 0, 0.4, "Wood")
-    bundled(m, 4.0, -1.4, "Coat1")
-    bundled(m, 4.7, -1.1, "Coat3")
-    # A table with a big flask of tea.
+    bundled(m, 4.0, -1.4, "Coat1", 0)
+    bundled(m, 4.7, -1.1, "Coat3", 1)
+    # A table with a big flask of tea and two mugs.
     m.box(5.6, 6.6, -1.3, -0.5, 0.75, 0.82, "Wood")
     for x in (5.7, 6.5):
         m.box(x - 0.04, x + 0.04, -1.25, -0.55, 0, 0.75, "Steel")
-    m.cone(6.1, -0.9, 0.82, 1.22, 0.12, 0.12, 8, "Coral")
+    m.cone(6.1, -0.9, 0.82, 1.18, 0.11, 0.11, 8, "Coral")
+    m.cone(6.1, -0.9, 1.18, 1.26, 0.07, 0.07, 8, "Black")
+    for x in (5.8, 6.4):
+        m.cone(x, -1.1, 0.82, 0.92, 0.04, 0.04, 6, "White")
+    # Skates hung on the wall by their laces, and a pile of firewood.
+    for x in (1.2, 1.5):
+        m.box(x - 0.03, x + 0.03, -0.06, -0.02, 1.4, 1.65, "Black")
+        m.box(x - 0.12, x + 0.12, -0.08, -0.06, 1.38, 1.4, "Steel")
+    for k in range(3):
+        m.drum(5.3 + k * 0.05, 1.6, 0.12 + k * 0.2, 0.1, 1.2, 6, "Wood")
+        m.drum(5.5 + k * 0.05, 1.6, 0.12 + k * 0.2, 0.1, 1.2, 6, "Wood2")
     m.done("WarmingHut")
 
 
 def plough() -> None:
-    """The little tractor that keeps the loop clear, facing +x, its blade raised at the front."""
+    """The little tractor that keeps the loop clear, facing +x: a curved blade raised at the front, an amber beacon on the cab."""
     m = Mesh()
-    m.box(0, 2.8, -0.6, 0.6, 0.5, 1.4, "Amber")
-    m.box(0.2, 1.4, -0.7, 0.7, 1.4, 2.5, "Glass")
-    m.box(0.1, 1.5, -0.75, 0.75, 2.5, 2.6, "Amber")
-    for x, r in ((0.7, 0.6), (2.3, 0.42)):
-        for y in (-0.8, 0.8):
-            m.box(x - r, x + r, y - 0.18, y + 0.18, 0, 2 * r, "Tyre")
-    m.box(3.1, 3.3, -1.6, 1.6, 0.3, 1.1, "Coral")
+    hood = [(1.3, 0.45), (2.8, 0.45), (2.95, 0.6), (2.95, 1.15), (2.7, 1.35), (1.3, 1.4)]
+    m.loft([[(x, -0.55, z) for x, z in hood], [(x, 0.55, z) for x, z in hood]], "Amber", smooth=False)
+    m.box(0.0, 1.4, -0.6, 0.6, 0.5, 1.4, "Amber")
+    m.box(0.15, 1.35, -0.68, 0.68, 1.4, 2.45, "Glass")
+    for x in (0.15, 1.35):
+        for y in (-0.68, 0.68):
+            m.cone(x, y, 1.4, 2.45, 0.035, 0.035, 4, "Black")
+    m.box(0.05, 1.45, -0.75, 0.75, 2.45, 2.56, "Amber")
+    m.cone(0.75, 0, 2.56, 2.72, 0.09, 0.09, 8, "Lamp")
+    m.cone(1.8, 0.35, 1.35, 2.5, 0.05, 0.05, 6, "Black")
+    for x, r, w in ((0.6, 0.6, 0.38), (2.3, 0.42, 0.3)):
+        for s in (-1, 1):
+            wheel(m, x, s * 0.8, r, w, "Amber", 10)
+    # The blade: a curved steel mouldboard on two arms.
+    curve = [(3.45 - 0.18 * math.sin(math.pi * t / 4), 0.3 + 0.8 * t / 4) for t in range(5)]
+    m.loft([[(x, y, z) for x, z in curve] for y in (-1.6, 1.6)], "Coral", cap_start=False, cap_end=False, smooth=True)
+    for s in (-1, 1):
+        m.rod((2.9, s * 0.4, 0.6), (3.3, s * 0.4, 0.7), 0.05, "Steel")
     m.done("Plough")
 
 
@@ -293,22 +242,25 @@ def crowd() -> None:
     coats = ("Coat1", "Coat2", "Coat3", "Coat4", "Coat5")
     for k in range(8):
         x = 0.7 + k * 1.5 + wobble(k, 4) * 0.2
-        bundled(m, x, 1.2 + (k % 2) * 0.6, coats[(k * 3) % 5])
-    m.cone(6.0, 1.3, 1.2, 3.0, 0.02, 0.02, 5, "Steel")
-    m.box(6.0, 6.9, 1.28, 1.32, 2.4, 3.0, "Teal")
+        bundled(m, x, 1.2 + (k % 2) * 0.6, coats[(k * 3) % 5], k)
+    m.cone(6.0, 1.0, 1.2, 3.0, 0.02, 0.02, 5, "Steel")
+    m.box(6.0, 6.9, 0.98, 1.02, 2.4, 3.0, "Teal")
     m.done("Crowd")
 
 
 def shacks() -> None:
-    """Three ice-fishing shacks on skids in a loose huddle, a fisher on a stool at a hole between them."""
+    """Three ice-fishing shacks on skids in a loose huddle, a fisher on a stool at a hole between them with a rod."""
     m = Mesh()
     for k, (x, y, wall) in enumerate(((0, 0, "Coral"), (4.2, 1.4, "SignBlue"), (1.6, 4.0, "Amber"))):
         hut(m, x, y, 2.2, 1.8, 2.0 + 0.2 * (k % 2), wall)
-    m.flat(3.0, 3.6, -1.4, -0.8, 0.02, "Glass")
-    m.box(2.2, 2.5, -1.25, -0.95, 0, 0.4, "Steel")
-    m.box(2.15, 2.55, -1.35, -0.85, 0.4, 1.1, "Coat5")
-    m.box(2.24, 2.46, -1.2, -1.0, 1.1, 1.36, "Skin")
-    m.box(2.22, 2.48, -1.22, -0.98, 1.34, 1.46, "Hat")
+    hole = [(3.3 + 0.3 * math.cos(k * math.pi / 4), -1.1 + 0.3 * math.sin(k * math.pi / 4), 0.02) for k in range(8)]
+    m.poly(hole, "Glass")
+    m.box(2.2, 2.5, -1.25, -0.95, 0.0, 0.4, "Steel")
+    with m.at(2.35, -1.1, 0, math.pi / 2):
+        person(m, 0, 0, "Coat5", sitting=True, coat=True, hat="Hat")
+    m.rod((2.55, -1.3, 0.75), (3.3, -1.1, 0.9), 0.012, "Black")
+    m.rod((3.3, -1.1, 0.9), (3.3, -1.1, 0.02), 0.004, "White", 3)
+    m.box(1.8, 2.1, -0.6, -0.3, 0, 0.25, "Teal")
     m.done("Shacks")
 
 
@@ -321,6 +273,17 @@ def shore_pines() -> None:
         y = 8 + wobble(k, 7) * 3.5
         pine(m, x, y, 9 + wobble(k, 8) * 3.5)
     m.done("ShorePines")
+
+
+def build() -> None:
+    snowbank()
+    broom()
+    start_banner()
+    warming_hut()
+    plough()
+    crowd()
+    shacks()
+    shore_pines()
 
 
 def preview(path: Path) -> None:
@@ -391,41 +354,4 @@ def preview(path: Path) -> None:
     bpy.ops.render.render(write_still=True)
 
 
-def main() -> None:
-    argv = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else []
-    bpy.ops.wm.read_factory_settings(use_empty=True)
-    snowbank()
-    broom()
-    start_banner()
-    warming_hut()
-    plough()
-    crowd()
-    shacks()
-    shore_pines()
-
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    bpy.ops.export_scene.gltf(
-        filepath=str(OUT),
-        export_format="GLB",
-        use_selection=False,
-        export_extras=False,
-        export_texcoords=False,
-        export_normals=True,
-        export_tangents=False,
-        export_materials="EXPORT",
-        export_vertex_color="NONE",
-        export_cameras=False,
-        export_lights=False,
-        export_yup=True,
-        export_apply=True,
-        export_draco_mesh_compression_enable=False,
-    )
-    print(f"wrote {OUT} ({OUT.stat().st_size} bytes)")
-    if "--preview" in argv:
-        preview(PREVIEW)
-        print(f"wrote {PREVIEW}")
-    MANIFEST.write_text(json.dumps({"inputHash": input_hash(), "blender": BLENDER}, indent=2) + "\n")
-    print(f"wrote {MANIFEST}")
-
-
-main()
+run(OUT, PREVIEW, build, preview)
