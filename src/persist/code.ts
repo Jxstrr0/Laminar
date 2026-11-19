@@ -19,11 +19,47 @@ export type CodeError = 'prefix' | 'check' | 'damaged' | 'newer'
 
 export type Decoded = { ok: true; save: SaveFile } | { ok: false; error: CodeError }
 
+/**
+ * Size limits for a pasted code. A code can come from anyone, and a small one
+ * can be built to unpack to gigabytes and freeze the phone, so reading stops
+ * at these sizes and the code is called damaged. Both are far above any real
+ * career: the longest save the game can make is a few megabytes of text.
+ */
+export const CODE_LIMITS = {
+  /** Longest code that is looked at, in characters. */
+  maxCodeChars: 24_000_000,
+  /** Most a code may unpack to, in bytes. */
+  maxTextBytes: 64_000_000,
+}
+
 const canSqueeze = () => typeof CompressionStream !== 'undefined' && typeof DecompressionStream !== 'undefined'
 
-async function through(bytes: Uint8Array, stream: CompressionStream | DecompressionStream): Promise<Uint8Array> {
-  const out = new Blob([bytes as BlobPart]).stream().pipeThrough(stream)
-  return new Uint8Array(await new Response(out).arrayBuffer())
+/**
+ * Run bytes through a squeeze or unsqueeze stream. With a `limit`, reading
+ * stops (and this throws) as soon as more than that many bytes have come out,
+ * so the rest is never unpacked.
+ */
+async function through(bytes: Uint8Array, stream: CompressionStream | DecompressionStream, limit = Infinity): Promise<Uint8Array> {
+  const reader = (new Blob([bytes as BlobPart]).stream().pipeThrough(stream) as ReadableStream<Uint8Array>).getReader()
+  const parts: Uint8Array[] = []
+  let size = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    size += value.length
+    if (size > limit) {
+      await reader.cancel()
+      throw new Error('unpacks to more than the limit')
+    }
+    parts.push(value)
+  }
+  const out = new Uint8Array(size)
+  let at = 0
+  for (const part of parts) {
+    out.set(part, at)
+    at += part.length
+  }
+  return out
 }
 
 function toBase64Url(bytes: Uint8Array): string {
@@ -56,8 +92,14 @@ export async function wrapText(prefix: string, text: string): Promise<string> {
   return `${head}.${check(head)}`
 }
 
-/** The text inside a code, or why it can't be read. */
-export async function unwrapText(prefix: string, input: string): Promise<{ ok: true; text: string } | { ok: false; error: WrapError }> {
+/** The text inside a code, or why it can't be read. `limits` defaults to CODE_LIMITS. */
+export async function unwrapText(
+  prefix: string,
+  input: string,
+  limits: { maxCodeChars: number; maxTextBytes: number } = CODE_LIMITS,
+): Promise<{ ok: true; text: string } | { ok: false; error: WrapError }> {
+  // Too long to be a code at all: don't even tidy it.
+  if (input.length > limits.maxCodeChars) return { ok: false, error: 'damaged' }
   // Phones and chat apps add line breaks and spaces when a long code is pasted.
   const code = input.replace(/\s+/g, '')
   if (!code.startsWith(prefix)) return { ok: false, error: 'prefix' }
@@ -68,9 +110,9 @@ export async function unwrapText(prefix: string, input: string): Promise<{ ok: t
     const bytes = fromBase64Url(code.slice(prefix.length + 1, dot))
     if (flag === 'z') {
       if (!canSqueeze()) return { ok: false, error: 'damaged' }
-      return { ok: true, text: new TextDecoder().decode(await through(bytes, new DecompressionStream('deflate-raw'))) }
+      return { ok: true, text: new TextDecoder().decode(await through(bytes, new DecompressionStream('deflate-raw'), limits.maxTextBytes)) }
     }
-    if (flag === 'p') return { ok: true, text: new TextDecoder().decode(bytes) }
+    if (flag === 'p') return bytes.length > limits.maxTextBytes ? { ok: false, error: 'damaged' } : { ok: true, text: new TextDecoder().decode(bytes) }
     return { ok: false, error: 'damaged' }
   } catch {
     return { ok: false, error: 'damaged' }

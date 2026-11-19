@@ -210,6 +210,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 - **0.15.1.0** (PR 14b): the voices: tunnel techs, analysts, clients and the commentator.
 - **0.15.2.0** (PR 14c): the balance bot, for checking the economy (nothing changes in play).
 - **0.15.35.0** (PR 13aw): the ski-jump hill and the sliding track polished in Blender: crowds in winter coats, coaches and judges, gabled roofs, truss arches with lit clocks, a photo-finish camera, a podium and pines. The Blender series is done.
+- **0.15.35.1** (security test, 19 November): a pasted save code or challenge code has a size limit. A small code could be built to unpack to hundreds of megabytes and freeze the phone; reading now stops at 64 MB (`CODE_LIMITS` in `src/persist/code.ts`), far above any real career, and the code is called damaged. Nothing changes in play.
 - **0.15.34.0** (PR 13av): the velodrome and the ice oval fill up in Blender with a seated crowd, floodlights, a big screen, mechanics and coaches in the pens, officials at the desk and a lap board with its bell.
 - **0.15.33.0** (PR 13au): the drone meadow, the survey fields and the frozen lake get round people in chairs and coats, a braced timing tower, a proper combine and tractors, and snowy board huts in Blender.
 - **0.15.32.0** (PR 13at): the circuit and the open road get proper garages, a paddock, a stand with a screen, turbines, a lattice finish gantry, a rounder crowd and real rigs in Blender.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { SIT_UP_CYCLIST } from '../src/data/cyclist'
-import { CODE_PREFIX, decodeSave, encodeSave } from '../src/persist/code'
+import { CODE_LIMITS, CODE_PREFIX, decodeSave, encodeSave, unwrapText, wrapText } from '../src/persist/code'
 import { packSave, SAVE_VERSION, type SaveFile } from '../src/persist/save'
 import { newLab } from '../src/sim/lab'
 import { newCareer } from '../src/sim/career'
@@ -37,6 +37,20 @@ describe('save codes', () => {
     const typo = code.slice(0, 20) + (code[20] === 'A' ? 'B' : 'A') + code.slice(21)
     expect(await decodeSave(typo)).toEqual({ ok: false, error: 'check' })
     expect((await decodeSave(code.slice(0, code.length - 30))).ok).toBe(false)
+  })
+
+  it('stop a small code built to unpack to something huge, without unpacking it all', async () => {
+    // 80 million letters squeeze to about 80 thousand characters: over the 64 MB limit.
+    const bomb = await wrapText(CODE_PREFIX, 'a'.repeat(80_000_000))
+    expect(bomb.length).toBeLessThan(200_000)
+    expect(await decodeSave(bomb)).toEqual({ ok: false, error: 'damaged' })
+    // The limit is on what comes out: the same kind of code under the limit still reads.
+    const fine = await wrapText('T1:', 'a'.repeat(300_000))
+    expect(await unwrapText('T1:', fine, { maxCodeChars: 10_000, maxTextBytes: 300_000 })).toEqual({ ok: true, text: 'a'.repeat(300_000) })
+    expect(await unwrapText('T1:', fine, { maxCodeChars: 10_000, maxTextBytes: 299_999 })).toEqual({ ok: false, error: 'damaged' })
+    // And a paste too long to be a code is turned away before any work is done.
+    expect(await unwrapText('T1:', fine, { maxCodeChars: fine.length - 1, maxTextBytes: 300_000 })).toEqual({ ok: false, error: 'damaged' })
+    expect(CODE_LIMITS.maxTextBytes).toBeGreaterThan(8_000_000)
   })
 
   it('say when a code comes from a newer Laminar', async () => {
