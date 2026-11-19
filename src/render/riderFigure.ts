@@ -9,11 +9,15 @@
  * amber. Since PR 13q the people's limbs, torso, hands, head, shoes and
  * helmets are smooth parts made in Blender (bodyParts.ts), still laid between
  * the pose's joints; until those load, each is the plain capsule it was.
+ * Since PR 13an the bike's frames, wheels, saddle, drivetrain, stem and bars
+ * are Blender parts too (partKit.ts); the aero extensions, the crank arms'
+ * angle and where the drop bars sit still follow the pose.
  */
 import * as THREE from 'three'
 import { MODEL } from './theme'
 import { CP_SURFACE } from './cpSurface'
 import { bodyPart, type PartName } from './bodyParts'
+import { bikeKit, type BikePartName } from './partKit'
 import { BIKE, HELMET, type CyclistDesign } from '../data/cyclist'
 import { BOB_SKELETON, FRAME, JUMPER_SKELETON, SKATER_SKELETON, SKELETON } from '../data/pose'
 import type { SkaterDesign } from '../data/skater'
@@ -205,9 +209,39 @@ function latheMesh(body: BodySpec | undefined, material: THREE.Material): THREE.
   return g
 }
 
-function wheel(axleX: number, kind: CyclistDesign['wheels']['front'], material?: THREE.Material, spokes = 16): THREE.Group {
+/** A Blender part of the bike as a fresh mesh, or nothing until the kit loads. */
+function kitMesh(name: BikePartName, material: THREE.Material): THREE.Mesh | null {
+  const part = bikeKit.get(name)
+  return part ? new THREE.Mesh(part.geometry.clone(), material) : null
+}
+
+/**
+ * A wheel at its axle. With the Blender kit in, its tyre, rim or disc, hub and
+ * laced spokes are the kit's (`laced` picks the front's 20 radial spokes or the
+ * rear's 24 crossed ones); a wheel with any other count keeps code spokes.
+ */
+function wheel(axleX: number, kind: CyclistDesign['wheels']['front'], material?: THREE.Material, spokes = 16, laced?: 'Front' | 'Rear'): THREE.Group {
   const g = new THREE.Group()
   const r = FRAME.wheelRadius
+  const tyreKit = kitMesh('Tyre', material ?? M.tyre)
+  if (tyreKit) {
+    g.add(tyreKit, kitMesh('Hub', material ?? M.rim)!)
+    if (kind === 'disc') g.add(kitMesh('Disc', material ?? M.disc)!)
+    else {
+      g.add(kitMesh(kind === 'deep' ? 'RimDeep' : 'RimShallow', material ?? (kind === 'deep' ? M.disc : M.rim))!)
+      if (laced) g.add(kitMesh(`Spokes${laced}${kind === 'deep' ? 'Deep' : ''}`, material ?? M.rim)!)
+      else {
+        const rimIn = r - 0.02 - (kind === 'deep' ? BIKE.wheelDiameter * BIKE.deepChord * 0.5 : 0.022)
+        for (let i = 0; i < spokes; i++) {
+          const a = (i / spokes) * Math.PI * 2
+          const side = i % 2 === 0 ? 0.03 : -0.03
+          g.add(rod(new THREE.Vector3(Math.cos(a) * 0.024, Math.sin(a) * 0.024, side), new THREE.Vector3(Math.cos(a) * rimIn, Math.sin(a) * rimIn, 0), 0.0012, material ?? M.rim))
+        }
+      }
+    }
+    g.position.set(axleX, r, 0)
+    return g
+  }
   const tyre = new THREE.Mesh(new THREE.TorusGeometry(r - 0.012, 0.013, 10, 48), material ?? M.tyre)
   g.add(tyre)
   if (kind === 'disc') {
@@ -264,6 +298,103 @@ function buildFigure(state: RiderState): THREE.Group {
   const tint = (h: Highlight, base: THREE.Material) => (isBroken(h) ? M.broken : isStrained(h) ? M.strain : base)
   const suit = design.suit.fabric === 'textured' ? M.suitTextured : M.suit
 
+  if (bikeKit.ready()) kitBike(g, design, pose, tint, isBroken)
+  else codeBike(g, design, pose, tint, isBroken)
+  drawCyclist(g, design, state, suit, tint)
+  return g
+}
+
+type Tint = (h: Highlight, base: THREE.Material) => THREE.Material
+
+/** The bike from its Blender parts (PR 13an), laid where the code's frame points and the pose say. */
+function kitBike(g: THREE.Group, design: CyclistDesign, pose: Pose, tint: Tint, isBroken: (h: Highlight) => boolean) {
+  const bb = new THREE.Vector3(SKELETON.bottomBracket.x, SKELETON.bottomBracket.y, 0)
+  const ht = new THREE.Vector3(FRAME.headTop.x, FRAME.headTop.y, 0)
+  const add = (m: THREE.Mesh | null) => m && g.add(m)
+  // The frame, fork and seat post come as one piece, already where they sit.
+  add(kitMesh(design.frame === 'kamm' ? 'FrameKamm' : 'Frame', tint('frame', M.frame)))
+  const saddle = kitMesh('Saddle', M.tyre)
+  saddle?.position.set(SKELETON.bottomBracket.x + SKELETON.saddle.x, SKELETON.bottomBracket.y + SKELETON.saddle.y, 0)
+  add(saddle)
+  // Named so a break in the tunnel can find them (PR 6b).
+  const rearWheel = wheel(FRAME.rearAxleX, design.wheels.rear, undefined, BIKE.wheels.rear.spokes, 'Rear')
+  rearWheel.name = 'wheel-rear'
+  g.add(rearWheel)
+  const frontWheel = wheel(FRAME.frontAxleX, design.wheels.front, isBroken('front-wheel') ? M.broken : undefined, BIKE.wheels.front.spokes, 'Front')
+  frontWheel.name = 'wheel-front'
+  g.add(frontWheel)
+  for (const name of ['Chainring', 'Cassette', 'Chain', 'Derailleurs', 'Headset'] as const) add(kitMesh(name, M.bars))
+  // Each crank arm turns from the axle to its foot, just inside the pedal.
+  const crank = bikeKit.get('CrankArm')
+  for (const f of pose.foot) {
+    const side = Math.sign(f.z) || 1
+    const from = bb.clone().setZ(f.z - side * 0.014)
+    const to = v3(f).setZ(from.z)
+    const arm = kitMesh('CrankArm', M.bars)
+    if (arm && crank) {
+      arm.quaternion.setFromUnitVectors(UP, to.clone().sub(from).normalize())
+      arm.scale.set(1, from.distanceTo(to) / (Number(crank.extras.length) || SKELETON.crank), 1)
+      arm.position.copy(from)
+      g.add(arm)
+    }
+    // A pedal on the spindle; its stub faces the crank, so the left one is mirrored.
+    const pedal = kitMesh('Pedal', M.tyre)
+    if (pedal) {
+      pedal.position.copy(v3(f))
+      if (side < 0) pedal.scale.z = -1
+      g.add(pedal)
+    }
+  }
+
+  const barMat = tint('hands', M.bars)
+  const stemTo = (to: THREE.Vector3) => {
+    const stem = kitMesh('Stem', M.bars)
+    const part = bikeKit.get('Stem')
+    if (!stem || !part) return
+    stem.quaternion.setFromUnitVectors(UP, to.clone().sub(ht).normalize())
+    stem.scale.set(1, Math.max(0.02, ht.distanceTo(to)) / (Number(part.extras.length) || 0.1), 1)
+    stem.position.copy(ht)
+    g.add(stem)
+  }
+  if (design.bars === 'aero') {
+    // The base bar is fixed to the stem; the extensions and arm pads follow the hands.
+    const stem = ht.clone().add(new THREE.Vector3(0.08, 0.02, 0))
+    stemTo(stem)
+    add(kitMesh('BaseBar', M.bars))
+    pose.hand.forEach((h, i) => {
+      const hand = v3(h)
+      const elbow = v3(pose.elbow[i]!)
+      const start = new THREE.Vector3(stem.x, hand.y - 0.03, hand.z)
+      g.add(rod(stem.clone().setZ(hand.z), start, 0.012, barMat))
+      g.add(rod(start, hand.clone().add(new THREE.Vector3(0.02, -0.03, 0)), 0.011, barMat))
+      const pad = kitMesh('ArmPad', M.tyre)
+      if (pad) {
+        pad.position.copy(elbow).add(new THREE.Vector3(0.02, -0.06, 0))
+        g.add(pad)
+        g.add(rod(new THREE.Vector3(pad.position.x, stem.y, hand.z), pad.position.clone().add(new THREE.Vector3(0, -0.005, 0)), 0.01, M.bars))
+      }
+    })
+  } else {
+    // Drop bars sit where the hands rest on the hoods, as wide as the hands; the stem reaches them.
+    const part = bikeKit.get('DropBar')
+    const hood = (part?.extras.hood as number[] | undefined) ?? [0.075, 0.03]
+    const half = Number(part?.extras.halfWidth) || 0.21
+    const h0 = v3(pose.hand[0])
+    const clamp = new THREE.Vector3(h0.x - hood[0]!, h0.y - hood[1]!, 0)
+    stemTo(clamp)
+    const widen = Math.abs(h0.z) / half
+    for (const [name, m] of [['DropBar', barMat], ['DropHoods', M.tyre]] as const) {
+      const mesh = kitMesh(name, m)
+      if (!mesh) continue
+      mesh.position.copy(clamp)
+      mesh.scale.z = widen
+      g.add(mesh)
+    }
+  }
+}
+
+/** The bike drawn in code, for before the Blender kit loads (or if it never does). */
+function codeBike(g: THREE.Group, design: CyclistDesign, pose: Pose, tint: Tint, isBroken: (h: Highlight) => boolean) {
   // Bike frame.
   const bb = new THREE.Vector3(SKELETON.bottomBracket.x, SKELETON.bottomBracket.y, 0)
   const ht = new THREE.Vector3(FRAME.headTop.x, FRAME.headTop.y, 0)
@@ -327,6 +458,12 @@ function buildFigure(state: RiderState): THREE.Group {
       g.add(rod(end, v3(h), 0.013, barMat))
     })
   }
+}
+
+/** The rider on the bike: legs, torso, arms, head and helmet. */
+function drawCyclist(g: THREE.Group, design: CyclistDesign, state: RiderState, suit: THREE.Material, tint: Tint) {
+  const { pose } = state
+  const isBroken = (h: Highlight) => state.broken.includes(h)
 
   // Rider: legs, torso, arms, head.
   for (let i = 0; i < 2; i++) {
@@ -376,8 +513,6 @@ function buildFigure(state: RiderState): THREE.Group {
   visor.position.copy(head).add(new THREE.Vector3(0.02, 0, 0))
   visor.rotation.z = (pose.headPitchDeg * Math.PI) / 180
   g.add(visor)
-
-  return g
 }
 
 /** The skater for a design (PR 8b): crouched on the gliding leg, the other pushing out to the side. */
