@@ -4,7 +4,8 @@ import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { OVAL, TRACK } from '../src/data/briefs'
 import { HILLS } from '../src/data/hills'
-import { SKELETON } from '../src/data/pose'
+import { FRAME, SKELETON } from '../src/data/pose'
+import { BIKE } from '../src/data/cyclist'
 import { CIRCUITS, segmentLength } from '../src/data/circuits'
 import { AIRFIELD_KIT, AIRFIELD_SCENE, CIRCUIT_KIT, DRONE_SCENE, JUMP_SCENE, MEADOW_KIT, LAKE_KIT, RECORD_SCENE, REPLAY_SCENE, ROAD_KIT, SALT_KIT, SLED_KIT, SLED_SCENE, SURVEY_KIT, SURVEY_SCENE } from '../src/data/replay'
 import { turnRadius } from '../src/sim/planeJob'
@@ -373,5 +374,38 @@ describe('the people’s body parts (PR 13q)', () => {
     expect(node('BobHelmet')!.extras?.radius).toBe(1)
     expect(node('Shoe')!.extras?.size).toEqual([0.24, 0.05, 0.08])
     expect(node('Boot')!.extras?.size).toEqual([0.26, 0.11, 0.09])
+  })
+})
+
+describe('the bike (PR 13an)', () => {
+  const { size, json } = gltfOf('bike.glb')
+  const node = (name: string) => json.nodes.find((n) => n.name === name)
+  type Extras = Record<string, unknown>
+
+  it('has every part riderFigure lays on the bike, and stays small', () => {
+    // The same names as BikePartName in src/render/partKit.ts.
+    for (const name of ['Frame', 'FrameKamm', 'Tyre', 'RimShallow', 'RimDeep', 'Disc', 'Hub', 'SpokesFront', 'SpokesFrontDeep', 'SpokesRear', 'SpokesRearDeep', 'Saddle', 'Chainring', 'CrankArm', 'Pedal', 'Cassette', 'Chain', 'Derailleurs', 'Headset', 'Stem', 'BaseBar', 'ArmPad', 'DropBar', 'DropHoods'])
+      expect(node(name), name).toBeDefined()
+    expect(size).toBeLessThan(600 * 1024)
+  })
+
+  it('is built round the frame points and skeleton the code draws to', () => {
+    for (const name of ['Frame', 'FrameKamm']) {
+      const x = node(name)!.extras as Extras
+      expect(x.bottomBracket).toEqual([SKELETON.bottomBracket.x, SKELETON.bottomBracket.y])
+      expect(x.seatTop).toEqual([FRAME.seatTop.x, FRAME.seatTop.y])
+      expect(x.headTop).toEqual([FRAME.headTop.x, FRAME.headTop.y])
+      expect(x.headBottom).toEqual([FRAME.headBottom.x, FRAME.headBottom.y])
+      expect(x.axles).toEqual([FRAME.rearAxleX, FRAME.frontAxleX, FRAME.wheelRadius])
+      const saddle = x.saddle as number[]
+      expect(saddle[0]).toBeCloseTo(SKELETON.bottomBracket.x + SKELETON.saddle.x, 6)
+      expect(saddle[1]).toBeCloseTo(SKELETON.bottomBracket.y + SKELETON.saddle.y, 6)
+    }
+    expect((node('CrankArm')!.extras as Extras).length).toBe(SKELETON.crank)
+    expect((node('Stem')!.extras as Extras).length).toBeGreaterThan(0)
+    expect((node('DropBar')!.extras as Extras).hood).toHaveLength(2)
+    // The laced wheels have the sim's own spoke counts.
+    expect(BIKE.wheels.front.spokes).toBe(20)
+    expect(BIKE.wheels.rear.spokes).toBe(24)
   })
 })

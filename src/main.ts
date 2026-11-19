@@ -196,8 +196,11 @@ async function boot(): Promise<void> {
     careerStore.set(saved.career)
   } else careerStore.set(newCareer(freshSeed()))
   loading.progress(0.3)
-  // The people's smooth body parts (PR 13q) load alongside: the first figures wait for them a moment, never long.
-  const bodyParts = import('./render/bodyParts').then(({ loadBodyParts }) => Promise.race([loadBodyParts(), new Promise((r) => setTimeout(r, BODY_PARTS_WAIT_MS))]))
+  // The people's smooth body parts (PR 13q) and the bike's Blender parts (PR 13an) load alongside:
+  // the first figures wait for them a moment, never long.
+  const bodyParts = Promise.all([import('./render/bodyParts'), import('./render/partKit')]).then(([{ loadBodyParts }, { bikeKit }]) =>
+    Promise.race([Promise.all([loadBodyParts(), bikeKit.load()]), new Promise((r) => setTimeout(r, BODY_PARTS_WAIT_MS))]),
+  )
   // three.js and the scenes load as their own chunks.
   const [{ createTunnelView }, { startTunnelScreen }, { createShapeView }, { startShapeScreen }, { startBoardScreen }] = await Promise.all([
     import('./render/tunnelScene'),
