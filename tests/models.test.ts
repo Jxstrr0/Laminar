@@ -14,6 +14,8 @@ import { TRACKS } from '../src/data/tracks'
 import { pointAt, trackLine } from '../src/sim/sledReplay'
 import { RECORD_RUN as RUN } from '../src/data/record'
 import { CAR_BODY } from '../src/data/car'
+import { DRONE_BODY } from '../src/data/drone'
+import { AIRCRAFT_BODY } from '../src/data/aircraft'
 
 const ROOT = join(__dirname, '..')
 
@@ -450,5 +452,29 @@ describe('the vehicles kit (PR 13ap)', () => {
     expect(tyre.radius).toBe(CAR_BODY.touring.wheel)
     // The record car's wheel is a unit, scaled to its class.
     expect((node('RecordWheel')!.extras as Extras).radius).toBe(1)
+  })
+})
+
+describe('the aircraft kit (PR 13aq)', () => {
+  const { size, json } = gltfOf('aircraft.glb')
+  const node = (name: string) => json.nodes.find((n) => n.name === name)
+  type Extras = Record<string, unknown>
+
+  it('has every part the quad, survey drone and light aircraft figures lay, and stays small', () => {
+    // The same names as AircraftPartName in src/render/partKit.ts.
+    for (const name of ['Prop2', 'Prop3', 'DroneMotor', 'PusherMotor', 'LensBarrel', 'LensGlass', 'GearTyre', 'GearHub', 'Windscreen', 'NavLight']) expect(node(name), name).toBeDefined()
+    expect(size).toBeLessThan(250 * 1024)
+  })
+
+  it('is built to the sizes the code lays it at', () => {
+    // Props are a unit radius, scaled to each craft's.
+    expect((node('Prop2')!.extras as Extras).radius).toBe(1)
+    expect((node('Prop3')!.extras as Extras).radius).toBe(1)
+    const motor = node('DroneMotor')!.extras as Extras
+    expect(motor.radius).toBe(DRONE_BODY.motor)
+    expect(motor.height).toBe(DRONE_BODY.motorHeight)
+    const tyre = node('GearTyre')!.extras as Extras
+    expect(tyre.radius).toBe(AIRCRAFT_BODY.wheel.radius)
+    expect(tyre.width).toBe(AIRCRAFT_BODY.wheel.width)
   })
 })

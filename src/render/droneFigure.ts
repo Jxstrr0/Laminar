@@ -17,6 +17,7 @@ import { MODEL } from './theme'
 import { DRONE_AERO, DRONE_BODY, type DroneDesign } from '../data/drone'
 import { podEnds, podHeight, podStation } from '../sim/geom/drone'
 import type { Highlight } from './riderFigure'
+import { aircraftKit, kitPart } from './partKit'
 
 const COLOURS = {
   carbon: 0x2a3a47,
@@ -142,7 +143,8 @@ export function buildDrone(design: DroneDesign, look: DroneLook): THREE.Group {
       sleeve.position.set(reach - B.motor * 1.2 - cover / 2, bar.position.y - B.fairChord * 0.2, 0)
       arm.add(sleeve)
     }
-    const motor = new THREE.Mesh(new THREE.CylinderGeometry(B.motor, B.motor, B.motorHeight, 16), M.motor)
+    // The Blender kit's motor (PR 13aq: mount, bell and prop nut), or a plain can.
+    const motor = kitPart(aircraftKit, 'DroneMotor', M.motor) ?? new THREE.Mesh(new THREE.CylinderGeometry(B.motor, B.motor, B.motorHeight, 16), M.motor)
     motor.position.set(reach, -B.plateThick / 2 + B.motorHeight / 2 - B.armDepth, 0)
     arm.add(motor)
     const propY = motor.position.y + B.motorHeight / 2 + 0.003
@@ -159,7 +161,13 @@ export function buildDrone(design: DroneDesign, look: DroneLook): THREE.Group {
       rotor.name = props === 'spinning' ? 'rotor' : 'blades'
       rotor.position.set(reach, propY, 0)
       rotor.rotation.y = sx * sz * 0.6
-      rotor.add(new THREE.Mesh(new THREE.BoxGeometry(B.prop * 2, DRAW.bladeThick, DRAW.blade), M.blade))
+      // The Blender kit's three-bladed racing prop (PR 13aq), built turning round x: stood up to turn round y. Or two flat blades.
+      const kitProp = kitPart(aircraftKit, 'Prop3', M.blade)
+      if (kitProp) {
+        kitProp.scale.setScalar(B.prop)
+        kitProp.rotation.z = Math.PI / 2
+        rotor.add(kitProp)
+      } else rotor.add(new THREE.Mesh(new THREE.BoxGeometry(B.prop * 2, DRAW.bladeThick, DRAW.blade), M.blade))
       arm.add(rotor)
     }
     g.add(arm)
@@ -172,10 +180,20 @@ export function buildDrone(design: DroneDesign, look: DroneLook): THREE.Group {
   podGroup.position.set(back.x, back.y, back.z)
   podGroup.rotation.z = rake
   podGroup.add(buildPod(design, tint('pod', M.part)))
-  // The camera's lens at the nose.
-  const lens = new THREE.Mesh(new THREE.CircleGeometry(podHeight() * 0.28, 20).rotateY(Math.PI / 2), M.lens)
-  lens.position.set(design.pod.length + 0.0015, 0, 0)
-  podGroup.add(lens)
+  // The camera's lens at the nose: the Blender kit's barrel and glass (PR 13aq), or a dark disc.
+  const barrel = kitPart(aircraftKit, 'LensBarrel', M.carbon)
+  const glass = kitPart(aircraftKit, 'LensGlass', M.lens)
+  if (barrel && glass) {
+    for (const part of [barrel, glass]) {
+      part.scale.setScalar(podHeight() * 0.28)
+      part.position.set(design.pod.length - 0.001, 0, 0)
+      podGroup.add(part)
+    }
+  } else {
+    const lens = new THREE.Mesh(new THREE.CircleGeometry(podHeight() * 0.28, 20).rotateY(Math.PI / 2), M.lens)
+    lens.position.set(design.pod.length + 0.0015, 0, 0)
+    podGroup.add(lens)
+  }
   // The vents: dark slots down each side, as many as are open, from the front back.
   const slots = Math.round(design.pod.vents * B.ventSlots)
   const ventMat = tint('vents', M.lens)

@@ -17,6 +17,7 @@ import { AIRCRAFT_BODY as B, AIRCRAFT_CLASS, type AircraftDesign } from '../data
 import { aircraftLength, aircraftX, cowlFront, fuselageStation, podFullness, podPlace } from '../sim/geom/aircraft'
 import { loft, surface } from './planeFigure'
 import type { Highlight } from './riderFigure'
+import { aircraftKit, kitPart } from './partKit'
 
 const COLOURS = {
   white: 0xf3f5f7,
@@ -25,6 +26,8 @@ const COLOURS = {
   tyre: MODEL.tyre,
   glass: 0x3b5266,
   prop: 0x5a6875,
+  navRed: 0xd8322a,
+  navGreen: 0x1fae5b,
   part: MODEL.panel,
   broken: MODEL.broken,
   strain: MODEL.strain,
@@ -39,6 +42,8 @@ const M = {
   glass: mat(COLOURS.glass, 0.15, 0.3),
   prop: new THREE.MeshStandardMaterial({ color: COLOURS.prop, roughness: 0.5, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false }),
   part: mat(COLOURS.part, 0.45, 0.1),
+  navRed: new THREE.MeshStandardMaterial({ color: COLOURS.navRed, emissive: COLOURS.navRed, emissiveIntensity: 0.4, roughness: 0.2 }),
+  navGreen: new THREE.MeshStandardMaterial({ color: COLOURS.navGreen, emissive: COLOURS.navGreen, emissiveIntensity: 0.4, roughness: 0.2 }),
   broken: new THREE.MeshStandardMaterial({ color: COLOURS.broken, emissive: COLOURS.broken, emissiveIntensity: 0.35, roughness: 0.5, side: THREE.DoubleSide }),
   strain: new THREE.MeshStandardMaterial({ color: COLOURS.strain, emissive: COLOURS.strain, emissiveIntensity: 0.25, roughness: 0.6, side: THREE.DoubleSide }),
 }
@@ -60,6 +65,11 @@ const DRAW = {
   /** The inlets on the cowl's front: their radius on the kit's loose cowl, m, and how far out from the middle, as a share of the front's half-width. */
   inlet: 0.13,
   inletOut: 0.55,
+  /** The Blender windscreen's bow, as a share of the cabin's half-width (PR 13aq). */
+  screenBow: 0.8,
+  /** The wingtip lights: how far back from the leading edge (a share of chord), and how far out along the tip cap. */
+  navBack: 0.2,
+  navOut: 0.8,
   /** The windscreen: how far back from the cowl it reaches, m. */
   screen: 0.6,
   /** A square tip's thickness, m (a rounded one is the tip cap). */
@@ -141,7 +151,12 @@ export function buildAircraft(design: AircraftDesign, look: AircraftLook): THREE
     blades.name = props === 'spinning' ? 'prop-rotor' : 'prop-blades'
     blades.position.set(propX, ax, 0)
     blades.rotation.x = 0.4
-    blades.add(new THREE.Mesh(new THREE.BoxGeometry(DRAW.bladeThick, DRAW.blade, B.prop * 2), M.grey))
+    // The Blender kit's twisted two-bladed prop (PR 13aq), or a flat bar.
+    const kitProp = kitPart(aircraftKit, 'Prop2', M.grey)
+    if (kitProp) {
+      kitProp.scale.setScalar(B.prop)
+      blades.add(kitProp)
+    } else blades.add(new THREE.Mesh(new THREE.BoxGeometry(DRAW.bladeThick, DRAW.blade, B.prop * 2), M.grey))
     g.add(blades)
   }
 
@@ -149,11 +164,21 @@ export function buildAircraft(design: AircraftDesign, look: AircraftLook): THREE
   const wingY = ax + B.halfHeight
   const screenFrom = new THREE.Vector3(aircraftX(B.cowl), ax + B.halfHeight * 0.9, 0)
   const screenTo = new THREE.Vector3(aircraftX(B.wingFrom), wingY, 0)
-  const pane = new THREE.Mesh(new THREE.PlaneGeometry(screenFrom.distanceTo(screenTo), B.half * 1.7), M.glass)
-  pane.position.copy(screenFrom).add(screenTo).multiplyScalar(0.5)
-  pane.rotation.set(Math.PI / 2, Math.atan2(screenTo.y - screenFrom.y, screenFrom.x - screenTo.x), 0, 'YXZ')
-  pane.position.y += 0.01
-  g.add(pane)
+  const kitScreen = kitPart(aircraftKit, 'Windscreen', M.glass)
+  if (kitScreen) {
+    // The Blender kit's curved windscreen (PR 13aq), its foot at the cowl, stretched up to the wing.
+    kitScreen.scale.set(screenFrom.distanceTo(screenTo), B.half * DRAW.screenBow, B.half * 1.7)
+    kitScreen.rotation.z = -Math.atan2(screenTo.y - screenFrom.y, screenFrom.x - screenTo.x)
+    kitScreen.position.copy(screenFrom).add(screenTo).multiplyScalar(0.5)
+    kitScreen.position.y += 0.01
+    g.add(kitScreen)
+  } else {
+    const pane = new THREE.Mesh(new THREE.PlaneGeometry(screenFrom.distanceTo(screenTo), B.half * 1.7), M.glass)
+    pane.position.copy(screenFrom).add(screenTo).multiplyScalar(0.5)
+    pane.rotation.set(Math.PI / 2, Math.atan2(screenTo.y - screenFrom.y, screenFrom.x - screenTo.x), 0, 'YXZ')
+    pane.position.y += 0.01
+    g.add(pane)
+  }
 
   // The wing on top of the cabin, each half out to its tip cap.
   const lead = aircraftX(B.wingFrom)
@@ -172,6 +197,12 @@ export function buildAircraft(design: AircraftDesign, look: AircraftLook): THREE
     cap.rotation.y = side > 0 ? 0 : Math.PI
     cap.position.set(lead - B.chord / 2, wingY, side * halfSpan)
     g.add(cap)
+    // The wingtip light (Blender kit, PR 13aq): red on the left, green on the right.
+    const nav = kitPart(aircraftKit, 'NavLight', side > 0 ? M.navGreen : M.navRed)
+    if (nav) {
+      nav.position.set(lead - B.chord * DRAW.navBack, wingY, side * (halfSpan + capLength * DRAW.navOut))
+      g.add(nav)
+    }
   }
 
   // The struts, cabin to wing: the faired share from the root up (teal), toed into the swirl; the rest a bare tube.
@@ -189,9 +220,20 @@ export function buildAircraft(design: AircraftDesign, look: AircraftLook): THREE
   // The wheels, their legs and any spats.
   const W = B.wheel
   const wheelAt = (x: number, z: number) => {
-    const tyre = new THREE.Mesh(new THREE.CylinderGeometry(W.radius, W.radius, W.width, 24).rotateX(Math.PI / 2), M.tyre)
-    tyre.position.set(x, W.radius, z)
-    g.add(tyre)
+    const kitTyre = kitPart(aircraftKit, 'GearTyre', M.tyre)
+    const kitHub = kitPart(aircraftKit, 'GearHub', M.grey)
+    if (kitTyre && kitHub) {
+      // The Blender kit's balloon tyre and hub (PR 13aq), the hub's face outward.
+      for (const part of [kitTyre, kitHub]) {
+        part.position.set(x, W.radius, z)
+        part.scale.z = z < 0 ? -1 : 1
+        g.add(part)
+      }
+    } else {
+      const tyre = new THREE.Mesh(new THREE.CylinderGeometry(W.radius, W.radius, W.width, 24).rotateX(Math.PI / 2), M.tyre)
+      tyre.position.set(x, W.radius, z)
+      g.add(tyre)
+    }
     if (design.spats >= 0.05) {
       const k = DRAW.spatMin + (1 - DRAW.spatMin) * design.spats
       const spat = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 14), tint('spats', M.part))
