@@ -201,8 +201,8 @@ async function boot(): Promise<void> {
   loading.progress(0.3)
   // The people's smooth body parts (PR 13q) and the kits of Blender parts (PR 13an, 13ao) load alongside:
   // the first figures wait for them a moment, never long.
-  const bodyParts = Promise.all([import('./render/bodyParts'), import('./render/partKit')]).then(([{ loadBodyParts }, { bikeKit, winterKit }]) =>
-    Promise.race([Promise.all([loadBodyParts(), bikeKit.load(), winterKit.load()]), new Promise((r) => setTimeout(r, BODY_PARTS_WAIT_MS))]),
+  const bodyParts = Promise.all([import('./render/bodyParts'), import('./render/partKit')]).then(([{ loadBodyParts }, { bikeKit, winterKit, vehicleKit }]) =>
+    Promise.race([Promise.all([loadBodyParts(), bikeKit.load(), winterKit.load(), vehicleKit.load()]), new Promise((r) => setTimeout(r, BODY_PARTS_WAIT_MS))]),
   )
   // three.js and the scenes load as their own chunks.
   const [{ createTunnelView }, { startTunnelScreen }, { createShapeView }, { startShapeScreen }, { startBoardScreen }] = await Promise.all([

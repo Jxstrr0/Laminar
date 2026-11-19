@@ -18,6 +18,7 @@ import { podMiddleX, podRadius, podX, wingBelow } from '../sim/geom/pod'
 import { podLengths, sensorDiameter } from '../sim/pod'
 import { loft, surface } from './planeFigure'
 import type { Highlight } from './riderFigure'
+import { kitPart, vehicleKit } from './partKit'
 
 const COLOURS = {
   white: 0xf3f5f7,
@@ -45,6 +46,8 @@ const DRAW = {
   /** The sensor's window: its radius as a share of the sensor's, and how far it sits below the axis as a share. */
   window: 0.45,
   windowDrop: 0.97,
+  /** The Blender window's frame sits this share of the sensor's radius below the axis (its pane bulges on to the skin). */
+  frameDrop: 0.95,
 }
 
 export interface PodLook {
@@ -80,10 +83,21 @@ export function buildPod(design: PodDesign, look: PodLook): THREE.Group {
   lift(loft(sections(l.nose, l.nose + l.middle), 1, M.white, false))
   lift(loft(sections(l.nose + l.middle, l.total), 1, tint('boat-tail', M.part)))
 
-  // The sensor's window, underneath the middle.
-  const win = new THREE.Mesh(new THREE.CircleGeometry(r * DRAW.window, 28).rotateX(Math.PI / 2), M.glass)
-  win.position.set(podX(design, l.nose + l.middle / 2), B.axis - r * DRAW.windowDrop, 0)
-  g.add(win)
+  // The sensor's window, underneath the middle: the Blender kit's faceted pane in its frame (PR 13ap), or a dark disc.
+  const winAt = new THREE.Vector3(podX(design, l.nose + l.middle / 2), B.axis - r * DRAW.windowDrop, 0)
+  const frame = kitPart(vehicleKit, 'SensorFrame', M.grey)
+  const pane = kitPart(vehicleKit, 'SensorWindow', M.glass)
+  if (frame && pane) {
+    for (const part of [frame, pane]) {
+      part.scale.setScalar(r * DRAW.window)
+      part.position.copy(winAt).setY(B.axis - r * DRAW.frameDrop)
+      g.add(part)
+    }
+  } else {
+    const win = new THREE.Mesh(new THREE.CircleGeometry(r * DRAW.window, 28).rotateX(Math.PI / 2), M.glass)
+    win.position.copy(winAt)
+    g.add(win)
+  }
 
   if (look.noWing) return g
 

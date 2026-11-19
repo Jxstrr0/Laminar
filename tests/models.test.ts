@@ -13,6 +13,7 @@ import { turnRadius } from '../src/sim/planeJob'
 import { TRACKS } from '../src/data/tracks'
 import { pointAt, trackLine } from '../src/sim/sledReplay'
 import { RECORD_RUN as RUN } from '../src/data/record'
+import { CAR_BODY } from '../src/data/car'
 
 const ROOT = join(__dirname, '..')
 
@@ -428,5 +429,26 @@ describe('the winter kit (PR 13ao)', () => {
     const ski = node('JumpSki')!.extras as Extras
     expect(ski.length).toBe(JUMP_SKIS.length)
     expect(ski.width).toBe(JUMP_SKIS.width)
+  })
+})
+
+describe('the vehicles kit (PR 13ap)', () => {
+  const { size, json } = gltfOf('vehicles.glb')
+  const node = (name: string) => json.nodes.find((n) => n.name === name)
+  type Extras = Record<string, unknown>
+
+  it('has every part the car, truck, record car and pod figures lay, and stays small', () => {
+    // The same names as VehiclePartName in src/render/partKit.ts.
+    for (const name of ['CarTyre', 'CarRim', 'CarBrake', 'Helmet', 'Visor', 'Halo', 'CarMirror', 'Lamp', 'TruckTyre', 'TruckRim', 'TruckGrille', 'TruckBumper', 'TruckMirror', 'FuelTank', 'RecordWheel', 'ChuteCan', 'JetNozzle', 'IntakeLip', 'IntakeFan', 'SensorFrame', 'SensorWindow'])
+      expect(node(name), name).toBeDefined()
+    expect(size).toBeLessThan(450 * 1024)
+  })
+
+  it('builds the racing wheel at the size both car classes share', () => {
+    const tyre = node('CarTyre')!.extras as Extras
+    expect(CAR_BODY.open.wheel).toBe(CAR_BODY.touring.wheel)
+    expect(tyre.radius).toBe(CAR_BODY.touring.wheel)
+    // The record car's wheel is a unit, scaled to its class.
+    expect((node('RecordWheel')!.extras as Extras).radius).toBe(1)
   })
 })
