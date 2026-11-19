@@ -132,6 +132,7 @@ import { designStore } from './designStore'
 import { fixed, scientific } from './format'
 import { glossaryTerm } from './glossary'
 import { createDial } from './dial'
+import { scrollFade } from './scrollFade'
 
 /** The glossary entry for each drag regime word. */
 const REGIME_TERM: Record<Regime, GlossaryId> = { laminar: 'laminar', mixed: 'dragCrisis', turbulent: 'turbulent' }
@@ -396,6 +397,7 @@ export function startTunnelScreen(app: HTMLElement, view: TunnelView, saved: Lab
 
   // --- Bottom sheet
   const sheet = el('section', 'sheet')
+  scrollFade(sheet, 28)
   sheet.setAttribute('aria-label', t('tunnel.sheet'))
 
   // Model switch.

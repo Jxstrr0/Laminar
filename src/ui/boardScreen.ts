@@ -144,6 +144,7 @@ import { challengeCard, challengeParts } from './challenge'
 import { cfdSupported } from '../cfd/support'
 import { COUNTRIES, COUNTRY_IDS } from '../data/export'
 import { researchCard } from './research'
+import { scrollFade } from './scrollFade'
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag)
@@ -241,6 +242,7 @@ export interface BoardControl {
 /** `go` switches screens (the job card's "Shape the position" button). */
 export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => void): BoardControl {
   host.classList.add('board-screen')
+  scrollFade(host, 64)
   const header = el('header', 'top-bar')
   const titleBlock = el('div', 'title-block')
   titleBlock.append(el('h1', 'wordmark', t('game.title')), el('p', 'place', t('board.place')))
