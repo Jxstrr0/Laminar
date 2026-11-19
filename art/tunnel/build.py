@@ -71,6 +71,17 @@ COLOURS = {
     "FanBlade": "3C4650",
     "Steel": "5D6873",
     "Turntable": "B3BCC4",
+    # The control room behind the far wall's windows (PR 13ar): lit walls, a darker floor, the desk, kit in dark grey,
+    # the wall displays' dark glass and the lines drawn on them in the lab's data colours (cp-lo blue, teal, coral).
+    "RoomWall": "E6E9F2",
+    "RoomFloor": "7D8496",
+    "Desk": "D5DAE3",
+    "Kit": "2E3448",
+    "Display": "141A33",
+    "ChartTeal": "2ED3C6",
+    "ChartCoral": "FF7A6E",
+    "ChartBlue": "7189FF",
+    "Led": "5BE38F",
 }
 
 # The two tunnels: what differs between them. Everything else is shared.
@@ -148,7 +159,7 @@ def section_profile(inset: float = 0.0) -> list[tuple[float, float]]:
 
 
 def build_shell(wall: bpy.types.Material, floor: bpy.types.Material) -> None:
-    """The section's skin: the profile swept along the flow, faces inwards. The floor face gets its own material."""
+    """The section's skin: the profile swept along the flow, faces inwards. The floor face gets its own material; the far wall (side 3) is left out for build_far_wall to cut the windows through."""
     bm = bmesh.new()
     prof = section_profile()
     n = len(prof)
@@ -162,6 +173,8 @@ def build_shell(wall: bpy.types.Material, floor: bpy.types.Material) -> None:
         a, b = rings[k], rings[k + 1]
         for i in range(n):
             j = (i + 1) % n
+            if i == 3:
+                continue
             # Wound so the normal points into the section.
             f = bm.faces.new((a[i], a[j], b[j], b[i]))
             # Side 1 of the profile (from (-w+c,-h) to (w-c,-h)) is the floor.
@@ -227,6 +240,184 @@ def build_windows(frame: bpy.types.Material, glass: bpy.types.Material, windows:
             f.normal_flip()
     mesh_object("WindowFrames", bm, [frame])
     mesh_object("WindowGlass", gm, [glass])
+
+
+def facing_quad(bm: bmesh.types.BMesh, pts: list[tuple[float, float, float]], facing: tuple[float, float, float]):
+    """A quad (or any flat polygon) turned to face the given way."""
+    f = bm.faces.new([bm.verts.new(p) for p in pts])
+    f.normal_update()
+    if f.normal.dot(Vector(facing)) < 0:
+        f.normal_flip()
+    return f
+
+
+def openings(windows: list[tuple[float, float]], hgt: float) -> list[tuple[float, float]]:
+    """The holes the windows need in the far wall, each (x0, x1) along the flow; they all share one height band."""
+    return [(x - wdt / 2 + 0.02, x + wdt / 2 - 0.02) for x, wdt in windows]
+
+
+WINDOW_ZC = 0.05
+
+
+def build_far_wall(wall: bpy.types.Material, frame: bpy.types.Material, windows: list[tuple[float, float]], hgt: float) -> None:
+    """The far wall (PR 13ar), with the windows cut through it so the control room shows, and a reveal round each hole the wall's thickness deep."""
+    bm = bmesh.new()
+    w, h, c = WIDTH / 2, HEIGHT / 2, CHAMFER
+    z0, z1 = WINDOW_ZC - hgt / 2 + 0.02, WINDOW_ZC + hgt / 2 - 0.02
+    holes = openings(windows, hgt)
+    inward = (0, -1, 0)
+    steps = 8
+    # Full-length strips below and above the windows, split along the flow for the lighting.
+    for k in range(steps):
+        xa, xb = -LENGTH / 2 + LENGTH * k / steps, -LENGTH / 2 + LENGTH * (k + 1) / steps
+        facing_quad(bm, [(xa, w, -h + c), (xb, w, -h + c), (xb, w, z0), (xa, w, z0)], inward)
+        facing_quad(bm, [(xa, w, z1), (xb, w, z1), (xb, w, h - c), (xa, w, h - c)], inward)
+    # The band between, everywhere the windows aren't.
+    edges = [-LENGTH / 2] + [e for hole in holes for e in hole] + [LENGTH / 2]
+    for k in range(0, len(edges), 2):
+        xa, xb = edges[k], edges[k + 1]
+        if xb - xa > 1e-4:
+            facing_quad(bm, [(xa, w, z0), (xb, w, z0), (xb, w, z1), (xa, w, z1)], inward)
+    mesh_object("FarWall", bm, [wall])
+    # The reveals: the hole's four sides, back to the room's face of the wall.
+    rm = bmesh.new()
+    d = WALL_DEPTH
+    for xa, xb in holes:
+        facing_quad(rm, [(xa, w, z0), (xb, w, z0), (xb, w + d, z0), (xa, w + d, z0)], (0, 0, 1))
+        facing_quad(rm, [(xa, w, z1), (xb, w, z1), (xb, w + d, z1), (xa, w + d, z1)], (0, 0, -1))
+        facing_quad(rm, [(xa, w, z0), (xa, w, z1), (xa, w + d, z1), (xa, w + d, z0)], (1, 0, 0))
+        facing_quad(rm, [(xb, w, z0), (xb, w, z1), (xb, w + d, z1), (xb, w + d, z0)], (-1, 0, 0))
+    mesh_object("WindowReveals", rm, [frame])
+
+
+# The control room behind the far wall: how deep the wall is, how far back the room goes, and its floor and ceiling.
+WALL_DEPTH = 0.18
+ROOM_DEPTH = 2.6
+ROOM_FLOOR = -1.2
+ROOM_CEILING = 1.35
+
+
+def build_room(mats: dict, windows: list[tuple[float, float]], hgt: float) -> None:
+    """The control room (PR 13ar), seen through the glass: its walls facing in, the desk along the windows with the
+    monitors' backs and the chairs, a server rack, ceiling lights, and the big displays on its back wall drawing a
+    drag polar, a yaw sweep and a pressure trace."""
+    y0 = WIDTH / 2 + WALL_DEPTH
+    y1 = y0 + ROOM_DEPTH
+    xa, xb = -LENGTH / 2, LENGTH / 2
+    zf, zc = ROOM_FLOOR, ROOM_CEILING
+    bm = bmesh.new()
+    # Back wall, the two ends and the room's side of the window wall, all facing into the room.
+    facing_quad(bm, [(xa, y1, zf), (xb, y1, zf), (xb, y1, zc), (xa, y1, zc)], (0, -1, 0))
+    facing_quad(bm, [(xa, y0, zf), (xa, y1, zf), (xa, y1, zc), (xa, y0, zc)], (1, 0, 0))
+    facing_quad(bm, [(xb, y0, zf), (xb, y1, zf), (xb, y1, zc), (xb, y0, zc)], (-1, 0, 0))
+    facing_quad(bm, [(xa, y0, zc), (xb, y0, zc), (xb, y1, zc), (xa, y1, zc)], (0, 0, -1))
+    mesh_object("RoomWalls", bm, [mats["RoomWall"]])
+    fm = bmesh.new()
+    facing_quad(fm, [(xa, y0, zf), (xb, y0, zf), (xb, y1, zf), (xa, y1, zf)], (0, 0, 1))
+    mesh_object("RoomFloor", fm, [mats["RoomFloor"]])
+
+    # The desk: one long top under the windows, on a modesty panel, as long as the glass.
+    left = min(x - wdt / 2 for x, wdt in windows) + 0.1
+    right = max(x + wdt / 2 for x, wdt in windows) - 0.1
+    top = WINDOW_ZC - hgt / 2 - 0.12
+    dm = bmesh.new()
+    box(dm, ((left + right) / 2, y0 + 0.45, top - 0.02), (right - left, 0.7, 0.04))
+    box(dm, ((left + right) / 2, y0 + 0.12, (top + zf) / 2), (right - left, 0.03, top - zf))
+    mesh_object("Desk", dm, [mats["Desk"]])
+
+    # Monitors (their backs to us: the operators face the glass), their stands, and a chair at each pair.
+    km = bmesh.new()
+    seats = max(2, round((right - left) / 1.1))
+    for k in range(seats):
+        x = left + (right - left) * (k + 0.5) / seats
+        for dx in (-0.29, 0.29):
+            box(km, (x + dx, y0 + 0.3, top + 0.24), (0.54, 0.035, 0.32))
+            box(km, (x + dx, y0 + 0.33, top + 0.05), (0.05, 0.03, 0.1))
+            box(km, (x + dx, y0 + 0.33, top + 0.005), (0.2, 0.14, 0.01))
+        # The chair: a seat, its back towards the room's back wall, the column and a five-arm base.
+        cy = y0 + 1.1
+        box(km, (x, cy, zf + 0.5), (0.46, 0.44, 0.07))
+        box(km, (x, cy + 0.24, zf + 0.85), (0.44, 0.06, 0.58))
+        box(km, (x, cy, zf + 0.28), (0.05, 0.05, 0.4))
+        for a in range(5):
+            t = 2 * math.pi * a / 5
+            box(km, (x + 0.16 * math.cos(t), cy + 0.16 * math.sin(t), zf + 0.05), (0.06 + 0.26 * abs(math.cos(t)), 0.06 + 0.26 * abs(math.sin(t)), 0.03))
+    # The server rack in the corner, and the displays' frames on the back wall.
+    rack_x = xb - 0.6
+    box(km, (rack_x, y1 - 0.45, (zf + 0.9) / 2 + 0.0), (0.62, 0.85, 0.9 - zf))
+    displays = [(-1.7, 1.5), (0.0, 1.5), (1.7, 1.5)]
+    dz0, dz1 = 0.0, 0.85
+    for x, wdt in displays:
+        box(km, (x, y1 - 0.025, (dz0 + dz1) / 2), (wdt + 0.06, 0.05, dz1 - dz0 + 0.06))
+    mesh_object("RoomKit", km, [mats["Kit"]])
+
+    # The displays' dark glass, a hair in front of their frames.
+    sm = bmesh.new()
+    for x, wdt in displays:
+        facing_quad(sm, [(x - wdt / 2, y1 - 0.052, dz0), (x + wdt / 2, y1 - 0.052, dz0), (x + wdt / 2, y1 - 0.052, dz1), (x - wdt / 2, y1 - 0.052, dz1)], (0, -1, 0))
+    mesh_object("RoomDisplays", sm, [mats["Display"]])
+
+    # What they draw: thin glowing lines a hair in front of the glass. A drag polar, a yaw sweep (two lines), a pressure trace.
+    def trace(bm2, x: float, wdt: float, f, n: int = 24, thick: float = 0.012) -> None:
+        yy = y1 - 0.056
+        pts = []
+        for i in range(n + 1):
+            u = i / n
+            pts.append((x - wdt / 2 + 0.1 + (wdt - 0.2) * u, dz0 + 0.1 + (dz1 - dz0 - 0.2) * f(u)))
+        for (ax_, az_), (bx_, bz_) in zip(pts, pts[1:]):
+            facing_quad(bm2, [(ax_, yy, az_ - thick / 2), (bx_, yy, bz_ - thick / 2), (bx_, yy, bz_ + thick / 2), (ax_, yy, az_ + thick / 2)], (0, -1, 0))
+
+    teal, coral, blue = bmesh.new(), bmesh.new(), bmesh.new()
+    trace(teal, -1.7, 1.5, lambda u: 0.1 + 0.8 * u * u)
+    trace(blue, 0.0, 1.5, lambda u: 0.2 + 0.6 * (2 * u - 1) ** 2)
+    trace(coral, 0.0, 1.5, lambda u: 0.75 - 0.5 * math.sin(math.pi * u))
+    trace(coral, 1.7, 1.5, lambda u: 0.5 + 0.35 * math.sin(6 * math.pi * u) * math.exp(-2.5 * u), n=48)
+    # Axes on each display, dim teal.
+    for x, wdt in displays:
+        yy = y1 - 0.056
+        facing_quad(teal, [(x - wdt / 2 + 0.1, yy, dz0 + 0.095), (x + wdt / 2 - 0.1, yy, dz0 + 0.095), (x + wdt / 2 - 0.1, yy, dz0 + 0.103), (x - wdt / 2 + 0.1, yy, dz0 + 0.103)], (0, -1, 0))
+        facing_quad(teal, [(x - wdt / 2 + 0.095, yy, dz0 + 0.1), (x - wdt / 2 + 0.103, yy, dz0 + 0.1), (x - wdt / 2 + 0.103, yy, dz1 - 0.1), (x - wdt / 2 + 0.095, yy, dz1 - 0.1)], (0, -1, 0))
+    mesh_object("ChartTeal", teal, [mats["ChartTeal"]])
+    mesh_object("ChartCoral", coral, [mats["ChartCoral"]])
+    mesh_object("ChartBlue", blue, [mats["ChartBlue"]])
+
+    # The rack's lights, and the room's ceiling panels.
+    lm = bmesh.new()
+    for row in range(14):
+        for col in range(3):
+            zz = zf + 0.15 + row * 0.13
+            xx = rack_x - 0.2 + col * 0.06
+            facing_quad(lm, [(xx, y1 - 0.88, zz), (xx + 0.025, y1 - 0.88, zz), (xx + 0.025, y1 - 0.88, zz + 0.015), (xx, y1 - 0.88, zz + 0.015)], (0, -1, 0))
+    mesh_object("RackLeds", lm, [mats["Led"]])
+    pm = bmesh.new()
+    for x in (-2.4, -0.8, 0.8, 2.4):
+        facing_quad(pm, [(x - 0.5, y0 + 0.9, zc - 0.005), (x + 0.5, y0 + 0.9, zc - 0.005), (x + 0.5, y0 + 1.5, zc - 0.005), (x - 0.5, y0 + 1.5, zc - 0.005)], (0, 0, -1))
+    mesh_object("RoomLights", pm, [mats["Light"]])
+
+
+def build_instruments(steel: bpy.types.Material, kit: bpy.types.Material) -> None:
+    """Two instruments on the ceiling (PR 13ar): the pitot-static probe upstream that reads the air speed, and the smoke camera downstream of the turntable."""
+    bm = bmesh.new()
+    h = HEIGHT / 2
+    px, py = -2.9, 0.55
+    # The probe: a stem down from the ceiling, and the tube pointing into the oncoming air.
+    for k in range(12):
+        t0, t1 = 2 * math.pi * k / 12, 2 * math.pi * (k + 1) / 12
+        r = 0.008
+        a0, a1 = (r * math.cos(t0), r * math.sin(t0)), (r * math.cos(t1), r * math.sin(t1))
+        facing_quad(bm, [(px + a0[0], py + a0[1], h), (px + a1[0], py + a1[1], h), (px + a1[0], py + a1[1], h - 0.32), (px + a0[0], py + a0[1], h - 0.32)], (a0[0] + a1[0], a0[1] + a1[1], 0))
+        r = 0.006
+        b0, b1 = (r * math.cos(t0), r * math.sin(t0)), (r * math.cos(t1), r * math.sin(t1))
+        zz = h - 0.32
+        facing_quad(bm, [(px + 0.01, py + b0[0], zz + b0[1]), (px + 0.01, py + b1[0], zz + b1[1]), (px - 0.2, py + b1[0], zz + b1[1]), (px - 0.2, py + b0[0], zz + b0[1])], (0, b0[0] + b1[0], b0[1] + b1[1]))
+    box(bm, (px, py, h - 0.01), (0.06, 0.06, 0.02))
+    mesh_object("PitotProbe", bm, [steel])
+    km = bmesh.new()
+    cx, cy = 1.4, 0.3
+    box(km, (cx, cy, h - 0.06), (0.05, 0.05, 0.12))
+    box(km, (cx - 0.02, cy, h - 0.16), (0.16, 0.09, 0.09))
+    box(km, (cx - 0.12, cy, h - 0.17), (0.05, 0.06, 0.06))
+    mesh_object("SmokeCamera", km, [kit])
 
 
 def build_lights(light: bpy.types.Material, frame: bpy.types.Material, kind: str) -> None:
@@ -455,7 +646,14 @@ def build(name: str, v: dict, with_preview: bool) -> None:
     mats["Floor"].node_tree.nodes["Principled BSDF"].inputs["Roughness"].default_value = 0.9
     mats["Seam"] = material("Seam", 0.8)
     mats["Frame"] = material("Frame", 0.5, 0.3, one_sided=False)
-    mats["Glass"] = material("Glass", 0.15, 0.2)
+    mats["Glass"] = material("Glass", 0.1, 0.2)
+    # See-through (PR 13ar), so the control room behind it shows: exported as a blended material.
+    glass_bsdf = mats["Glass"].node_tree.nodes["Principled BSDF"]
+    glass_bsdf.inputs["Alpha"].default_value = 0.22
+    mats["Glass"].surface_render_method = "BLENDED"
+    for n, rough, emit in (("RoomWall", 0.8, 0.0), ("RoomFloor", 0.85, 0.0), ("Desk", 0.5, 0.0), ("Kit", 0.5, 0.0), ("Display", 0.2, 0.0),
+                           ("ChartTeal", 0.5, 2.5), ("ChartCoral", 0.5, 2.5), ("ChartBlue", 0.5, 2.5), ("Led", 0.5, 3.0)):
+        mats[n] = material(n, rough, emit=emit)
     mats["Light"] = material("Light", 1.0, 0.0, emit=2.0)
     mats["Screen"] = material("Screen", 0.6, 0.2, one_sided=False)
     mats["FanRing"] = material("FanRing", 0.5, 0.4, one_sided=False)
@@ -465,7 +663,10 @@ def build(name: str, v: dict, with_preview: bool) -> None:
 
     build_shell(mats["Wall"], mats["Floor"])
     build_seams(mats["Seam"])
+    build_far_wall(mats["Wall"], mats["Frame"], v["windows"], v["window_height"])
     build_windows(mats["Frame"], mats["Glass"], v["windows"], v["window_height"])
+    build_room(mats, v["windows"], v["window_height"])
+    build_instruments(mats["Steel"], mats["Kit"])
     build_lights(mats["Light"], mats["Frame"], v["lights"])
     build_inlet(mats["Screen"], mats["Frame"])
     build_fan(mats["FanRing"], mats["FanBlade"], mats["Steel"], v["blades"])
