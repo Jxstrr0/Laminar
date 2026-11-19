@@ -34,8 +34,9 @@ export const RIVALS: Record<RivalId, RivalTemplate> = {
     drift: 4,
     // PR 14d (Kelbo): bolder rivals, so bidding is a contest (the balance bot beat most asks by 5 to 25 points).
     // PR 13aj (Kelbo, 18 November 2026): 3–8 meant a bid at the client's ask never won, so a new firm lost
-    // job after job. Now 1–5 made 10 % softer: the ask at the posted fee wins now and then, +3 about half the time.
-    promise: { min: 0.9, max: 4.5 },
+    // job after job; 0.9–4.5 still left the ask at the posted fee winning 8 times in 100.
+    // PR 13al (Kelbo, 19 November 2026): 0–3, so that bid wins about 1 in 4 and 2 points over about 2 in 3.
+    promise: { min: 0, max: 3 },
     price: { min: 0.3, max: 0.85 },
     readError: { min: 0.03, max: 0.09 },
     minFee: 0,
@@ -79,6 +80,20 @@ export const RIVALS: Record<RivalId, RivalTemplate> = {
 export const RIVAL_IDS = (Object.keys(RIVALS) as RivalId[]).filter((id) => !RIVALS[id].country)
 /** The foreign firms (PR 11f), one for each export country. */
 export const FOREIGN_RIVAL_IDS = (Object.keys(RIVALS) as RivalId[]).filter((id) => RIVALS[id].country)
+
+/**
+ * Rivals go easy on a firm nobody knows (PR 13al; Kelbo, 19 November 2026:
+ * "still hard with low rep"). Against a firm whose reputation is `fullAt` or
+ * less, every rival's promise moves by `promise` points; that fades in a
+ * straight line and is gone at `goneAt`. With Bystro Aero at 0–3 over the ask
+ * this makes it −1 to +2 for a new firm: the ask at the posted fee wins about
+ * 4 in 10, and 1 point over about 2 in 3.
+ */
+export const RIVAL_EASE = {
+  fullAt: 20,
+  goneAt: 40,
+  promise: -1,
+}
 
 /** Rivals' public records move once a week. */
 export const RIVAL_WEEK_DAYS = 7

@@ -579,6 +579,7 @@ export const STRINGS = {
   'bid.title': 'Sealed bid',
   'bid.close': 'Close bid',
   'bid.intro': 'Your sealed bid for {client}. Another firm is bidding too, and the client weighs price against promise. Rivals usually promise a little more than the client asked for: beat them on promise, or on price.',
+  'bid.introEasy': 'Your sealed bid for {client}. Another firm is bidding too, and the client weighs price against promise. Rivals don’t try hard against a new name: they promise about what the client asked for. They’ll bid harder as your reputation grows.',
   'bid.introSolo': '{client} asked for your firm by name, so no one else is bidding. Name your price and promise.',
   'bid.price': 'Your price, ₽',
   'bid.priceNote': 'Fee range {min} to {max}. They suggest {fee}.',

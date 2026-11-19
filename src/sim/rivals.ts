@@ -4,7 +4,7 @@
  * save needs nothing new and every phone shows the same numbers.
  */
 import { CORRELATION } from '../data/reputation'
-import { RIVALS, RIVAL_WEEK_DAYS, type RivalId } from '../data/rivals'
+import { RIVALS, RIVAL_EASE, RIVAL_WEEK_DAYS, type RivalId } from '../data/rivals'
 import { Rng } from './rng'
 
 export interface RivalRecord {
@@ -25,4 +25,14 @@ export function rivalRecord(seed: number, firm: RivalId, day: number): RivalReco
   }
   const correlation = Math.round(100 * Math.max(0, 1 - total / CORRELATION.jobs / CORRELATION.zeroAt))
   return { reputation: Math.round(r.reputation + drift), correlation }
+}
+
+/**
+ * How far every rival moves its promise against a firm with this reputation,
+ * points (PR 13al): the whole of RIVAL_EASE.promise up to `fullAt`, fading in
+ * a straight line to nothing at `goneAt`.
+ */
+export function rivalEase(reputation: number): number {
+  const share = (RIVAL_EASE.goneAt - reputation) / (RIVAL_EASE.goneAt - RIVAL_EASE.fullAt)
+  return RIVAL_EASE.promise * Math.min(1, Math.max(0, share))
 }
