@@ -210,7 +210,7 @@ describe('the salt flat’s camp and course furniture (PR 13n)', () => {
     const { size, json } = gltfOf('saltflat.glb')
     const names = json.nodes.map((n) => n.name)
     for (const name of ['TeamCamp', 'TimingHut', 'TimingPost', 'KmBoard', 'Marker', 'ViewingArea', 'RecoveryTruck']) expect(names).toContain(name)
-    expect(size).toBeLessThan(200 * 1024)
+    expect(size).toBeLessThan(300 * 1024) // 260 KB since PR 13as's polish
   })
 
   it('keeps everything off the 16 m course, and the recovery truck short of its end', () => {
@@ -226,7 +226,7 @@ describe('Belyanka airfield’s buildings and runway furniture (PR 13o)', () => 
     const { size, json } = gltfOf('airfield.glb')
     const names = json.nodes.map((n) => n.name)
     for (const name of ['Buildings', 'Threshold', 'RunwayLight', 'Windsock']) expect(names).toContain(name)
-    expect(size).toBeLessThan(200 * 1024)
+    expect(size).toBeLessThan(420 * 1024) // 401 KB since PR 13as's polish
   })
 
   it('keeps the lights off the runway and the buildings clear of the timing masts', () => {

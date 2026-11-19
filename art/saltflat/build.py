@@ -26,12 +26,15 @@ round for its right):
 The game's axes (three.js): +x along, y up, z to the right. Blender is z-up,
 so here x is the same, y is three.js −z (the left) and z is up; the glTF
 exporter turns it round. Every piece keeps its daylight colours.
+
+PR 13as polished it with the shared venue blocks (art/venuelib.py): proper
+lorries with cabs and wheels, a tractor unit and trailer for the team,
+rounded motorhomes, a tank on the fuel bowser, a generator and tyre stacks,
+round posts, peaked canopies with chairs, and cars that look like cars.
 """
 
 from __future__ import annotations
 
-import hashlib
-import json
 import math
 import sys
 from pathlib import Path
@@ -40,32 +43,25 @@ import bmesh
 import bpy
 from mathutils import Vector
 
-ROOT = Path(__file__).resolve().parents[2]
-MANIFEST = ROOT / "public" / "models" / "models.json"
+# Import the shared blocks without leaving a __pycache__ folder for the art workflow to commit.
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import venuelib  # noqa: E402
+from kitlib import ROOT  # noqa: E402
+from venuelib import Mesh, car, lorry_cab, rounded, run, srgb, wheel  # noqa: E402
+
 OUT = ROOT / "public" / "models" / "saltflat.glb"
 PREVIEW = ROOT / "art" / "saltflat" / "preview.jpg"
-# Pinned on purpose, the same as the other art scripts and .github/workflows/art.yml.
-BLENDER = "4.5.15"
-
-
-def input_hash() -> str:
-    """Every art script, in path order, hashed: tests/models.test.ts works it out the same way."""
-    h = hashlib.sha256()
-    for path in sorted((ROOT / "art").rglob("*.py"), key=lambda p: p.relative_to(ROOT).as_posix().encode()):
-        h.update(path.read_bytes())
-    return h.hexdigest()[:16]
-
 
 # The graded course: RECORD_SCENE.roadWidth in src/data/replay.ts.
 ROAD = 16.0
 
-COLOURS = {
+venuelib.COLOURS.update({
     "White": "F4F4F2",
     "Body": "E9ECF2",
     "Stripe": "2E9E95",
     "Cab": "3E4A7A",
     "Glass": "2C3560",
-    "Tyre": "1D242B",
     "Black": "1D242B",
     "Steel": "5D6873",
     "Canvas": "EEF0F5",
@@ -77,168 +73,206 @@ COLOURS = {
     "Car1": "4F5BD5",
     "Car2": "A88BE0",
     "Car3": "6B7680",
-}
+    "Car4": "E9ECF2",
+})
+venuelib.EMISSIVE["Amber"] = 0.6
 
 
-def srgb(hex_: str) -> tuple[float, float, float, float]:
-    """An sRGB hex colour as Blender's linear RGBA."""
-    out = []
-    for i in (0, 2, 4):
-        c = int(hex_[i : i + 2], 16) / 255
-        out.append(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4)
-    return (out[0], out[1], out[2], 1.0)
+def box_body(m: Mesh, x0: float, x1: float, width: float, z0: float, z1: float, colour: str, r: float = 0.15) -> None:
+    """A van or trailer body along x, centred on y = 0, its edges rounded."""
+    ring = lambda x: [(x, cy, (z0 + z1) / 2 + cz) for cy, cz in rounded(width, z1 - z0, r, 2)]
+    m.loft([ring(x0), ring(x1)], colour)
 
 
-MATS: dict[str, bpy.types.Material] = {}
+def motorhome(m: Mesh, x0: float, colour: str = "White") -> None:
+    """A motorhome along +x from x0: a rounded body with the cab over the front, a stripe, windows, a door and wheels."""
+    length, width, height = 8.5, 2.35, 3.2
+    rings = []
+    for fx, top, bottom in ((0.0, height, 0.55), (0.82, height, 0.55), (0.9, height - 0.25, 0.55), (0.97, height * 0.62, 0.55), (1.0, height * 0.55, 0.6)):
+        rings.append([(x0 + fx * length, cy, (top + bottom) / 2 + cz) for cy, cz in rounded(width, top - bottom, 0.2, 2)])
+    m.loft(rings, colour)
+    hw = width / 2 + 0.01
+    m.poly([(x0 + length * 0.995, -hw * 0.8, height * 0.56), (x0 + length * 0.995, hw * 0.8, height * 0.56), (x0 + length * 0.93, hw * 0.75, height * 0.8), (x0 + length * 0.93, -hw * 0.75, height * 0.8)], "Glass")
+    for s in (-1, 1):
+        m.box(x0 + 0.3, x0 + length * 0.92, s * hw - 0.01, s * hw + 0.01, 1.2, 1.35, "Stripe")
+        m.box(x0 + 1.0, x0 + 4.5, s * hw - 0.012, s * hw + 0.012, 1.8, 2.5, "Glass")
+    m.box(x0 + 5.2, x0 + 6.0, -hw - 0.015, -hw, 0.6, 2.6, "Steel")
+    for wx in (x0 + 1.8, x0 + length * 0.8):
+        for s in (-1, 1):
+            wheel(m, wx, s * (width / 2 - 0.3), 0.42, 0.28)
 
 
-def mat(name: str) -> bpy.types.Material:
-    """The material for a colour name, made once: matte, the start lights glowing."""
-    if name not in MATS:
-        m = bpy.data.materials.new(name)
-        m.use_nodes = True
-        bsdf = m.node_tree.nodes["Principled BSDF"]
-        bsdf.inputs["Base Color"].default_value = srgb(COLOURS[name])
-        bsdf.inputs["Roughness"].default_value = 0.3 if name == "Glass" else 0.45 if name in ("Steel", "Rail") else 0.85
-        bsdf.inputs["Metallic"].default_value = 0.4 if name in ("Steel", "Rail") else 0.0
-        if name == "Lamp":
-            bsdf.inputs["Emission Color"].default_value = srgb(COLOURS[name])
-            bsdf.inputs["Emission Strength"].default_value = 2.0
-        MATS[name] = m
-    return MATS[name]
-
-
-class Mesh:
-    """A bmesh that collects boxes with named materials, then becomes one object."""
-
-    def __init__(self) -> None:
-        self.bm = bmesh.new()
-        self.names: list[str] = []
-
-    def box(self, x0: float, x1: float, y0: float, y1: float, z0: float, z1: float, name: str) -> None:
-        """An axis-aligned box between these bounds."""
-        verts = bmesh.ops.create_cube(self.bm, size=1.0)["verts"]
-        bmesh.ops.scale(self.bm, vec=Vector((x1 - x0, y1 - y0, z1 - z0)), verts=verts)
-        bmesh.ops.translate(self.bm, vec=Vector(((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2)), verts=verts)
-        if name not in self.names:
-            self.names.append(name)
-        idx = self.names.index(name)
-        for f in {f for v in verts for f in v.link_faces}:
-            f.material_index = idx
-
-    def done(self, obj_name: str) -> bpy.types.Object:
-        me = bpy.data.meshes.new(obj_name)
-        self.bm.to_mesh(me)
-        self.bm.free()
-        for n in self.names:
-            me.materials.append(mat(n))
-        obj = bpy.data.objects.new(obj_name, me)
-        bpy.context.collection.objects.link(obj)
-        return obj
-
-
-def vehicle(m: "Mesh", x0: float, length: float, y0: float, width: float, height: float, body: str, cab: bool = True) -> None:
-    """A lorry or van as boxes: a body, a cab at the front (+x), and wheels."""
-    cab_len = 2.4 if cab else 0.0
-    m.box(x0, x0 + length - cab_len, y0, y0 + width, 0.6, height, body)
-    if cab:
-        m.box(x0 + length - cab_len, x0 + length, y0, y0 + width, 0.6, height * 0.75, "Cab")
-        m.box(x0 + length - 0.05, x0 + length + 0.01, y0 + 0.2, y0 + width - 0.2, height * 0.45, height * 0.7, "Glass")
-    for wx in (x0 + 1.2, x0 + length - 1.4):
-        for wy in (y0 - 0.05, y0 + width - 0.35):
-            m.box(wx - 0.5, wx + 0.5, wy, wy + 0.4, 0, 1.0, "Tyre")
+def tyre_stack(m: Mesh, x: float, y: float, n: int) -> None:
+    """A stack of spare tyres lying flat."""
+    for k in range(n):
+        m.cyl((x, y, k * 0.32), (x, y, k * 0.32 + 0.3), 0.34, "Black", 10)
 
 
 def team_camp() -> None:
-    """The team's camp, the course on its −y side: the transporter with its teal stripe, an awning, two motorhomes and a fuel bowser."""
+    """The team's camp, the course on its −y side: the tractor unit and trailer with its teal stripe, an awning with tables and chests, two motorhomes, a generator, tyre stacks and a fuel bowser."""
     m = Mesh()
-    vehicle(m, 0, 16, 2, 2.6, 4.2, "Body")
-    m.box(0, 13.6, 1.98, 2.0, 2.0, 2.4, "Stripe")
-    # The awning off the transporter's course side, on four posts.
-    m.box(1, 12, -5, 2, 3.3, 3.45, "Canvas")
-    for x in (1.2, 11.8):
-        m.box(x - 0.06, x + 0.06, -5, -4.88, 0, 3.3, "Steel")
-    # Tool chests under it.
-    for x in (3, 6, 9):
-        m.box(x, x + 1.4, -1.5, -0.8, 0, 1.0, "Coral")
-    vehicle(m, 20, 9, 2, 2.4, 3.2, "White")
-    vehicle(m, 31, 9, 2, 2.4, 3.2, "White")
-    # The fuel bowser: a tank on a short chassis.
-    m.box(42, 50, 2.2, 4.4, 0.6, 1.0, "Steel")
-    m.box(42.5, 48.5, 2.3, 4.3, 1.0, 3.0, "Tank")
-    m.box(48.5, 50.5, 2.2, 4.4, 0.6, 2.8, "Cab")
+    # The trailer (x 0–13.4) and tractor unit ahead of it, 2.6 wide, at y 2–4.6.
+    with m.at(0, 3.3, 0):
+        box_body(m, 0, 13.4, 2.6, 1.2, 4.2, "Body", 0.12)
+        for s in (-1, 1):
+            m.box(0.2, 13.2, s * 1.31 - 0.01, s * 1.31 + 0.01, 2.0, 2.4, "Stripe")
+        m.box(0.6, 12.8, -1.1, 1.1, 0.7, 1.2, "Black")
+        for wx in (1.2, 2.4, 3.6):
+            for s in (-1, 1):
+                wheel(m, wx, s * 1.0, 0.5, 0.36)
+        m.box(11.5, 12.0, -1.0, 1.0, 0.2, 1.2, "Steel")
+        m.box(13.4, 14.6, -1.1, 1.1, 0.5, 1.1, "Black")
+        wheel(m, 14.0, -1.0, 0.5, 0.36)
+        wheel(m, 14.0, 1.0, 0.5, 0.36)
+        lorry_cab(m, 13.8, 2.5, 3.6, "Cab", 2.6)
+    # The awning off the trailer's course side: a canvas sloping down to two posts, tables and chests under it.
+    m.poly([(1, 1.95, 3.9), (12, 1.95, 3.9), (12, -5, 2.9), (1, -5, 2.9)], "Canvas")
+    for x in (1.2, 6.5, 11.8):
+        m.cyl((x, -4.9, 0), (x, -4.9, 2.9), 0.05, "Steel", 6)
+    for x in (2.5, 5.0, 7.5):
+        m.box(x, x + 1.4, -1.6, -0.9, 0, 1.0, "Coral")
+        m.box(x + 0.02, x + 1.38, -1.62, -1.6, 0.75, 0.8, "Steel")
+    m.box(9.0, 11.2, -3.2, -2.2, 0.72, 0.78, "White")
+    for x in (9.2, 11.0):
+        m.box(x - 0.03, x + 0.03, -3.0, -2.4, 0, 0.72, "Steel")
+    tyre_stack(m, 0.3, -3.8, 4)
+    tyre_stack(m, 0.3, -2.9, 3)
+    # Two motorhomes and a generator between them.
+    with m.at(0, 3.2, 0):
+        motorhome(m, 20)
+        motorhome(m, 31)
+    m.box(29.0, 30.3, 2.4, 3.4, 0, 1.1, "Amber")
+    m.box(29.1, 30.2, 2.38, 2.4, 0.4, 0.9, "Black")
+    # The fuel bowser: a round tank on a chassis behind its cab.
+    with m.at(42, 3.3, 0):
+        m.box(0, 6.2, -1.0, 1.0, 0.5, 0.75, "Black")
+        m.loft([[(x, 1.0 * math.cos(a), 1.75 + 0.9 * math.sin(a)) for a in (2 * math.pi * k / 14 for k in range(14))] for x in (0.2, 6.0)], "Tank")
+        for s in (-1, 1):
+            wheel(m, 1.2, s * 0.8, 0.45, 0.3)
+            wheel(m, 2.4, s * 0.8, 0.45, 0.3)
+        lorry_cab(m, 6.2, 2.3, 2.7, "Cab", 2.2)
     m.done("TeamCamp")
 
 
 def timing_hut() -> None:
-    """The timekeepers' trailer, a window to the course (−y), and a mast with its aerial."""
+    """The timekeepers' trailer: a rounded box on its axle and jacks, a window to the course (−y), steps, and a mast with its aerial, a dish and a solar panel."""
     m = Mesh()
-    m.box(0, 6, 0, 2.4, 0.4, 3.0, "Body")
-    m.box(-0.2, 6.2, -0.1, 2.5, 3.0, 3.15, "Steel")
-    m.box(1, 5, -0.03, 0.0, 1.5, 2.5, "Glass")
-    m.box(0.3, 0.9, 1.0, 1.4, 0, 0.4, "Black")
-    m.box(5.1, 5.7, 1.0, 1.4, 0, 0.4, "Black")
-    m.box(6.4, 6.55, 2.0, 2.15, 0, 8.0, "Steel")
-    m.box(6.2, 6.75, 1.85, 2.3, 8.0, 8.15, "Amber")
+    with m.at(0, 1.2, 0):
+        box_body(m, 0, 6, 2.4, 0.5, 3.0, "Body", 0.25)
+        m.box(-0.1, 6.1, -1.25, 1.25, 3.0, 3.1, "Steel")
+        m.box(1, 5, -1.215, -1.2, 1.5, 2.5, "Glass")
+        m.box(1, 5, -1.23, -1.2, 2.55, 2.65, "Stripe")
+        wheel(m, 3.0, -1.0, 0.38, 0.22)
+        wheel(m, 3.0, 1.0, 0.38, 0.22)
+        for x in (0.4, 5.6):
+            for s in (-1, 1):
+                m.box(x - 0.06, x + 0.06, s * 0.9 - 0.06, s * 0.9 + 0.06, 0, 0.5, "Steel")
+        m.box(-1.2, 0, -0.08, 0.08, 0.55, 0.65, "Steel")
+        for k in range(3):
+            m.box(0.6, 1.4, -1.5 - k * 0.3, -1.2 - k * 0.3, 0.5 - k * 0.17, 0.55 - k * 0.17, "Steel")
+    m.cyl((6.5, 2.1, 0), (6.5, 2.1, 8.0), 0.08, "Steel", 6, rb=0.05)
+    m.cyl((6.5, 2.1, 8.0), (6.5, 2.1, 9.2), 0.02, "Steel", 4)
+    m.sphere((6.5, 2.1, 8.15), 0.15, "Amber", 8)
+    with m.at(6.5, 2.1, 6.5, -math.pi / 2):
+        m.cyl((0.0, 0, 0), (0.12, 0, 0), 0.4, "White", 12, rb=0.3)
+    with m.at(3.0, 1.2, 3.1):
+        m.poly([(-1.5, 0.2, 0.15), (1.5, 0.2, 0.15), (1.5, 1.0, 0.55), (-1.5, 1.0, 0.55)], "Glass")
+        m.poly([(-1.5, 1.0, 0.5), (1.5, 1.0, 0.5), (1.5, 0.2, 0.1), (-1.5, 0.2, 0.1)], "Steel")
     m.done("TimingHut")
 
 
 def timing_post() -> None:
-    """One post of the timing lights: a striped pole with the beam's eye facing across the course (−y)."""
+    """One post of the timing lights: a round striped pole on a foot, the beam's eye in a hooded box facing across the course (−y)."""
     m = Mesh()
+    m.cyl((0, 0, 0), (0, 0, 0.06), 0.35, "Steel", 10)
     for k in range(5):
-        m.box(-0.08, 0.08, -0.08, 0.08, k * 0.5, (k + 1) * 0.5, "Black" if k % 2 else "Amber")
-    m.box(-0.18, 0.18, -0.3, 0.1, 0.9, 1.25, "Black")
-    m.box(-0.06, 0.06, -0.32, -0.3, 1.02, 1.14, "Lamp")
+        m.cyl((0, 0, k * 0.5), (0, 0, (k + 1) * 0.5), 0.07, "Black" if k % 2 else "Amber", 8)
+    m.box(-0.18, 0.18, -0.25, 0.12, 0.9, 1.25, "Black")
+    m.box(-0.2, 0.2, -0.38, -0.25, 1.22, 1.27, "Black")
+    m.cyl((0, -0.25, 1.08), (0, -0.27, 1.08), 0.07, "Lamp", 10)
     m.done("TimingPost")
 
 
 def km_board() -> None:
-    """A kilometre board on two legs, facing the oncoming car (−x): black and white quarters, readable at speed."""
+    """A kilometre board on two round legs, facing the oncoming car (−x): black and white quarters in a steel frame, readable at speed."""
     m = Mesh()
     for y in (-0.9, 0.9):
-        m.box(-0.06, 0.06, y - 0.06, y + 0.06, 0, 1.2, "Steel")
+        m.cyl((0, y, 0), (0, y, 3.25), 0.05, "Steel", 6)
     for i, (y0, z0) in enumerate(((-1.0, 1.2), (0.0, 1.2), (-1.0, 2.2), (0.0, 2.2))):
         m.box(-0.08, 0.0, y0, y0 + 1.0, z0, z0 + 1.0, "Black" if i in (0, 3) else "White")
+    m.box(-0.1, 0.02, -1.06, 1.06, 3.2, 3.26, "Steel")
+    m.box(-0.1, 0.02, -1.06, 1.06, 1.14, 1.2, "Steel")
     m.done("KmBoard")
 
 
 def marker() -> None:
-    """An orange post marking the course's edge, with a white band."""
+    """An orange post marking the course's edge, with a white band and a cap."""
     m = Mesh()
-    m.box(-0.06, 0.06, -0.06, 0.06, 0, 0.6, "Orange")
-    m.box(-0.065, 0.065, -0.065, 0.065, 0.6, 0.75, "White")
-    m.box(-0.06, 0.06, -0.06, 0.06, 0.75, 1.0, "Orange")
+    m.cyl((0, 0, 0), (0, 0, 0.6), 0.06, "Orange", 6)
+    m.cyl((0, 0, 0.6), (0, 0, 0.75), 0.062, "White", 6)
+    m.cyl((0, 0, 0.75), (0, 0, 1.0), 0.06, "Orange", 6, rb=0.03)
     m.done("Marker")
 
 
+def canopy(m: Mesh, x: float, colour: str) -> None:
+    """A pop-up canopy, 5 m square from (x, 0), its peaked top in a colour, four legs and a valance."""
+    m.loft([[(x, 0, 2.6), (x + 5, 0, 2.6), (x + 5, 5, 2.6), (x, 5, 2.6)], [(x + 2.5, 2.5, 3.4)] * 4], colour, cap_end=False, smooth=False)
+    for y0, y1, x0, x1 in ((-0.02, 0.0, x, x + 5), (5.0, 5.02, x, x + 5)):
+        m.box(x0, x1, y0, y1, 2.3, 2.6, colour)
+    for px in (x + 0.05, x + 4.95):
+        for py in (0.05, 4.95):
+            m.cyl((px, py, 0), (px, py, 2.6), 0.04, "Steel", 4)
+
+
+def chair(m: Mesh, x: float, y: float, colour: str) -> None:
+    """A folding camp chair facing the course (−y)."""
+    m.box(x - 0.25, x + 0.25, y - 0.25, y + 0.2, 0.42, 0.48, colour)
+    m.box(x - 0.25, x + 0.25, y + 0.18, y + 0.24, 0.48, 0.95, colour)
+    for sx in (-0.23, 0.23):
+        m.box(x + sx - 0.02, x + sx + 0.02, y - 0.25, y + 0.24, 0, 0.45, "Steel")
+
+
 def viewing_area() -> None:
-    """Where people watch the timed kilometre: three canopies in a row, facing the course (−y), and parked cars behind."""
+    """Where people watch the timed kilometre: three peaked canopies in a row, facing the course (−y), chairs and a cool box under each, and parked cars behind."""
     m = Mesh()
     for k, colour in enumerate(("Coral", "Stripe", "Amber")):
         x = k * 7.0
-        m.box(x, x + 5, 0, 5, 2.6, 2.75, colour)
-        for px in (x + 0.1, x + 4.9):
-            for py in (0.1, 4.9):
-                m.box(px - 0.05, px + 0.05, py - 0.05, py + 0.05, 0, 2.6, "Steel")
-        m.box(x + 1, x + 4, 3.5, 4.2, 0, 0.8, "Canvas")
-    for k, colour in enumerate(("Car1", "Car2", "Car3", "Car1", "Car3")):
-        x = k * 4.5
-        m.box(x, x + 4.2, 8, 9.8, 0.3, 1.1, colour)
-        m.box(x + 0.9, x + 3.2, 8.1, 9.7, 1.1, 1.6, "Glass")
+        canopy(m, x, colour)
+        for c in range(3):
+            chair(m, x + 1.2 + c * 1.3, 1.2, ("Cab", "Coral", "Stripe")[(c + k) % 3])
+        m.box(x + 3.6, x + 4.4, 3.6, 4.1, 0, 0.5, "White")
+    for k, colour in enumerate(("Car1", "Car2", "Car3", "Car4", "Car3")):
+        with m.at(k * 4.8 + 2.2, 9.0, 0):
+            car(m, colour)
     m.done("ViewingArea")
 
 
 def recovery_truck() -> None:
-    """The flatbed that waits where the cars stop: a long bed, a winch and the cab."""
+    """The flatbed that waits where the cars stop: a long tilting bed with a stripe, a winch, the cab with its light bar."""
     m = Mesh()
-    vehicle(m, 0, 10, 0, 2.5, 3.0, "Body")
-    m.box(0, 7.6, -0.05, 2.55, 1.2, 1.35, "Stripe")
-    m.box(6.6, 7.4, 0.6, 1.9, 1.35, 2.4, "Steel")
-    # Amber beacons on the cab.
-    m.box(9.0, 9.3, 0.3, 0.6, 2.25, 2.5, "Amber")
-    m.box(9.0, 9.3, 1.9, 2.2, 2.25, 2.5, "Amber")
+    with m.at(0, 1.25, 0):
+        m.box(0, 7.4, -0.9, 0.9, 0.55, 0.9, "Black")
+        m.box(-0.2, 7.4, -1.25, 1.25, 0.9, 1.2, "Body")
+        for s in (-1, 1):
+            m.box(-0.2, 7.4, s * 1.25 - 0.012, s * 1.25 + 0.012, 0.95, 1.15, "Stripe")
+        m.box(6.6, 7.4, -0.6, 0.6, 1.2, 2.2, "Steel")
+        m.cyl((7.0, -0.5, 1.6), (7.0, 0.5, 1.6), 0.25, "Black", 10)
+        for wx in (1.0, 2.3):
+            for s in (-1, 1):
+                wheel(m, wx, s * 0.95, 0.5, 0.34)
+        lorry_cab(m, 7.4, 2.4, 3.0, "Body", 2.6)
+        m.box(8.6, 8.9, -0.9, 0.9, 3.0, 3.2, "Amber")
     m.done("RecoveryTruck")
+
+
+def build() -> None:
+    team_camp()
+    timing_hut()
+    timing_post()
+    km_board()
+    marker()
+    viewing_area()
+    recovery_truck()
 
 
 def preview(path: Path) -> None:
@@ -292,40 +326,4 @@ def preview(path: Path) -> None:
     bpy.ops.render.render(write_still=True)
 
 
-def main() -> None:
-    argv = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else []
-    bpy.ops.wm.read_factory_settings(use_empty=True)
-    team_camp()
-    timing_hut()
-    timing_post()
-    km_board()
-    marker()
-    viewing_area()
-    recovery_truck()
-
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    bpy.ops.export_scene.gltf(
-        filepath=str(OUT),
-        export_format="GLB",
-        use_selection=False,
-        export_extras=False,
-        export_texcoords=False,
-        export_normals=True,
-        export_tangents=False,
-        export_materials="EXPORT",
-        export_vertex_color="NONE",
-        export_cameras=False,
-        export_lights=False,
-        export_yup=True,
-        export_apply=True,
-        export_draco_mesh_compression_enable=False,
-    )
-    print(f"wrote {OUT} ({OUT.stat().st_size} bytes)")
-    if "--preview" in argv:
-        preview(PREVIEW)
-        print(f"wrote {PREVIEW}")
-    MANIFEST.write_text(json.dumps({"inputHash": input_hash(), "blender": BLENDER}, indent=2) + "\n")
-    print(f"wrote {MANIFEST}")
-
-
-main()
+run(OUT, PREVIEW, build, preview)
