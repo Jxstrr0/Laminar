@@ -83,7 +83,8 @@ describe('the velodrome (PR 13k)', () => {
   it('has the track, the stands and the infield, and loads without a wait', () => {
     const { size, json } = gltfOf('velodrome.glb')
     expect(json.nodes.map((n) => n.name)).toEqual(expect.arrayContaining(['Track', 'Infield', 'Barrier', 'Stands', 'HallWall', 'InfieldKit']))
-    expect(size).toBeLessThan(400 * 1024)
+    // Polished in Blender: a seated crowd, team pens with rollers and mechanics, officials, a lap board and bell, floodlights and a big screen (PR 13av).
+    expect(size).toBeLessThan(680 * 1024)
   })
 
   it('lies on the replay’s lap, so the riders stay on the boards', () => {
@@ -119,7 +120,8 @@ describe('the Stavren Ice Oval (PR 13x)', () => {
   it('has the ice, the lane blocks, the pads, the stands and the infield, and loads without a wait', () => {
     const { size, json } = gltfOf('iceoval.glb')
     expect(json.nodes.map((n) => n.name)).toEqual(expect.arrayContaining(['Ice', 'Blocks', 'Pads', 'Stands', 'HallWall', 'InfieldKit']))
-    expect(size).toBeLessThan(400 * 1024)
+    // Polished in Blender: a seated crowd, a rounded resurfacer, coaches in the pens, officials and the starter, floodlights and a big screen (PR 13av).
+    expect(size).toBeLessThan(600 * 1024)
   })
 
   it('lies on the replay’s lap, both skaters in the inner lane', () => {
