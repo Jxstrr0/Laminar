@@ -24,6 +24,13 @@ the glTF exporter turns it round.
 The whole hall keeps its daylight colours in both themes, like every field
 scene (only the sky follows the phone). There is no roof: the broadcast
 camera looks down from high over the west bend.
+
+PR 13av filled the hall with the shared venue blocks (art/venuelib.py): a
+seated crowd, thickest along the home straight with gaps for the stairs;
+team pens with rollers, a mechanic, a tool chest and a spare wheel;
+officials at the desk with their screens; a lap board and bell; a proper
+photo-finish camera; a glass rail along the stands, floodlights along the
+wall and a big screen on the east end wall.
 """
 
 from __future__ import annotations
@@ -37,6 +44,13 @@ from pathlib import Path
 import bmesh
 import bpy
 from mathutils import Vector
+
+# Import the shared blocks without leaving a __pycache__ folder for the art workflow to commit.
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import venuelib  # noqa: E402
+from venuelib import Mesh as VMesh  # noqa: E402
+from venuelib import chair, fan, person  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / "public" / "models" / "models.json"
@@ -78,6 +92,8 @@ LINES = {"Black": (-1.0, -0.94), "Red": (-0.4, -0.34), "Blue": (1.9, 1.96)}
 # The stands: their front at STANDS_IN, ROWS rows of seats each ROW deep and STEP higher, the first at STANDS_UP; the hall's wall at WALL_OUT.
 STANDS_IN, STANDS_UP, ROWS, ROW, STEP = 10.0, 4.6, 16, 0.875, 0.5
 WALL_OUT, WALL_UP = 24.5, 15.0
+# The crowd: a seat every SEAT metres along a row, a stair every AISLE metres round the stands.
+SEAT, AISLE = 0.6, 12.0
 # The warm-up lane round the infield.
 LANE = (-9.0, -7.8)
 
@@ -112,6 +128,17 @@ COLOURS = {
     "Gold": "D9B44A",
     "Silver": "B9C0C8",
     "Bronze": "B9784A",
+    # The crowd, the officials and the hall's kit (PR 13av).
+    "Skin": "D9A88B",
+    "Shirt1": "4F5BD5",
+    "Shirt2": "E0695D",
+    "Shirt3": "E3A23B",
+    "Shirt4": "2E9E95",
+    "Shirt5": "A88BE0",
+    "Screen": "3D5BFF",
+    "Glass": "2C3560",
+    "Pane": "C9D6E6",
+    "Lamp": "FFF4D6",
 }
 
 
@@ -138,8 +165,16 @@ def mat(name: str) -> bpy.types.Material:
         bsdf.inputs["Metallic"].default_value = 0.3 if name in ("Rail", "Steel") else 0.0
         # The hall's wall faces in and is one-sided, so a low camera outside it sees through.
         m.use_backface_culling = name == "HallWall"
+        if name == "Lamp":
+            bsdf.inputs["Emission Color"].default_value = srgb(COLOURS[name])
+            bsdf.inputs["Emission Strength"].default_value = 2.0
         MATS[name] = m
     return MATS[name]
+
+
+# The shared blocks' pieces take this hall's colours and materials.
+venuelib.COLOURS.update(COLOURS)
+venuelib.mat = mat
 
 
 class Mesh:
@@ -346,28 +381,125 @@ def build_stands() -> None:
     w.done("HallWall")
 
 
-def build_infield_kit() -> None:
-    """The infield's furniture: six team pens along the home straight, the officials' desk at the line, the podium, and the photo-finish mast."""
+def seat_fill(st: Station, r: int) -> float:
+    """How full a stand is here: the home straight (outside is −y) fullest, the back straight less, the bends thin; the lower rows fuller."""
+    base = 0.15 if st.ny < -0.99 else 0.06 if st.ny > 0.99 else 0.022
+    return base * (1.25 - 0.6 * r / ROWS)
+
+
+def spread(k: int, salt: float) -> float:
+    """A fixed, even spread in 0..1 for the k-th seat: the same every build."""
+    v = math.sin(k * 12.9898 + salt * 78.233) * 43758.5453
+    return v - math.floor(v)
+
+
+def build_crowd() -> None:
+    """People dotted through the stands, seated, thickest along the home straight, with gaps for the stairs."""
+    m = VMesh()
+    st = stations(5.0, 20, False)
+    n = len(st)
+    shirts = ("Shirt1", "Shirt2", "Shirt3", "Shirt4", "Shirt5", "White")
+    k = 0
+    along = 0.0
+    for i in range(n):
+        a, b = st[i], st[(i + 1) % n]
+        for r in range(ROWS):
+            d = STANDS_IN + ROW * r + 0.45
+            z = STANDS_UP + STEP * r
+            pa, pb = Vector(a.at(d, z)), Vector(b.at(d, z))
+            seats = max(1, int((pb - pa).length / SEAT))
+            for j in range(seats):
+                k += 1
+                # A stair every AISLE metres round the stands.
+                if (along + (j + 0.5) * SEAT) % AISLE < 1.2:
+                    continue
+                if spread(k, 1) > seat_fill(a, r):
+                    continue
+                p = pa.lerp(pb, (j + 0.5) / seats)
+                fan(m, p.x, p.y, z, shirts[int(spread(k, 2) * len(shirts))])
+        along += (Vector(b.at(STANDS_IN, 0)) - Vector(a.at(STANDS_IN, 0))).length
+    m.done("Crowd")
+
+
+def build_hall_kit() -> None:
+    """The hall round the track: a rail along the stands' front, floodlights along the top of the wall and the big screen on the east end wall."""
     m = Mesh()
+    st = stations(5.0, 20, False)
+    n = len(st)
+    for i in range(n):
+        a, b = st[i], st[(i + 1) % n]
+        m.quad([a.at(STANDS_IN, STANDS_UP), b.at(STANDS_IN, STANDS_UP), b.at(STANDS_IN, STANDS_UP + 1.0), a.at(STANDS_IN, STANDS_UP + 1.0)], "Pane")
+        m.quad([a.at(STANDS_IN, STANDS_UP + 1.0), b.at(STANDS_IN, STANDS_UP + 1.0), b.at(STANDS_IN + 0.1, STANDS_UP + 1.05), a.at(STANDS_IN + 0.1, STANDS_UP + 1.05)], "Rail", up=True)
+    m.done("StandRail")
+    v = VMesh()
+    # Floodlights on brackets along the top of the wall, every fourth station, tilted down at the track.
+    ex = STRAIGHT + RADIUS + WALL_OUT - 0.6
+    for i in range(0, n, 4):
+        s = st[i]
+        x, y, _ = s.at(WALL_OUT - 0.4, 0)
+        # None in front of the big screen.
+        if x > ex - 8 and abs(y - RADIUS) < 9:
+            continue
+        with v.at(x, y, WALL_UP - 0.6, math.atan2(-s.ny, -s.nx)):
+            v.box(-0.4, 0.0, -0.1, 0.1, -0.1, 0.1, "Steel")
+            v.box(0.0, 0.25, -0.6, 0.6, -0.35, 0.35, "Black")
+            v.box(0.25, 0.27, -0.5, 0.5, -0.28, 0.28, "Lamp")
+    # The big screen on the east end wall, facing back down the hall (−x), over the top row.
+    v.box(ex, ex + 0.5, RADIUS - 5.2, RADIUS + 5.2, 12.9, 18.1, "Black")
+    v.box(ex - 0.03, ex, RADIUS - 4.9, RADIUS + 4.9, 13.2, 17.8, "Screen")
+    for y in (RADIUS - 3.0, RADIUS + 3.0):
+        v.box(ex + 0.1, ex + 0.4, y - 0.15, y + 0.15, 9.0, 12.9, "Steel")
+    v.done("HallKit")
+
+
+def build_infield_kit() -> None:
+    """The infield's furniture: six team pens along the home straight, the officials' desk at the line, the podium, the lap board and bell, and the photo-finish mast."""
+    m = VMesh()
     pens = ["PenCoral", "PenTeal", "PenIndigo", "PenAmber", "PenLilac", "PenSlate"]
+    staff = ("Shirt1", "Shirt2", "Shirt3", "Shirt4", "Shirt5", "White")
     for k, colour in enumerate(pens):
         x = 8.0 + k * 6.2
         y = 12.5
-        # The pen's mat, its bench along the back, two rollers and a toolbox.
-        m.box((x, y, 0.04), (5.0, 3.6, 0.08), colour)
-        m.box((x, y + 1.5, 0.25), (4.2, 0.45, 0.5), "Desk")
-        m.box((x - 1.2, y - 0.3, 0.2), (0.6, 1.4, 0.4), "Steel")
-        m.box((x + 0.4, y - 0.3, 0.2), (0.6, 1.4, 0.4), "Steel")
-        m.box((x + 1.8, y + 0.3, 0.3), (0.5, 0.5, 0.6), "Rail")
-    # The officials' desk inside the apron, level with the finish line.
-    m.box((0.6, 5.6, 0.45), (3.4, 1.0, 0.9), "Desk")
-    m.box((0.6, 6.4, 0.6), (3.4, 0.5, 1.2), "Rail")
-    # The podium behind it: second, first, third.
+        # The pen's mat, its bench along the back, a team board behind it.
+        m.box(x - 2.5, x + 2.5, y - 1.8, y + 1.8, 0, 0.08, colour)
+        m.box(x - 2.1, x + 2.1, y + 1.3, y + 1.75, 0.08, 0.5, "Desk")
+        m.box(x - 2.3, x + 2.3, y + 2.0, y + 2.08, 1.3, 2.1, colour)
+        m.cone(x, y + 2.04, 0, 1.3, 0.05, 0.05, 4, "Steel")
+        # Two sets of rollers: a frame and three drums each.
+        for rx in (x - 1.2, x + 0.4):
+            for side in (-0.28, 0.28):
+                m.box(rx - 0.75, rx + 0.75, y - 0.3 + side - 0.03, y - 0.3 + side + 0.03, 0.08, 0.16, "Steel")
+            for dx in (-0.55, 0.0, 0.55):
+                m.cyl((rx + dx, y - 0.58, 0.2), (rx + dx, y - 0.02, 0.2), 0.06, "Silver", 6, cap=False)
+        # A mechanic on the bench, a tool chest and two spare wheels against it.
+        person(m, x - 0.8 + 0.3 * (k % 2), y + 1.52, staff[k % 6], sitting=True)
+        m.box(x + 1.55, x + 2.05, y + 0.05, y + 0.55, 0.08, 0.68, "Rail")
+        m.poly([(x + 1.8 + 0.34 * math.cos(a), y + 0.75, 0.42 + 0.34 * math.sin(a)) for a in (2 * math.pi * k / 12 for k in range(12))], "Black")
+    # The officials' desk inside the apron, level with the finish line: three officials on chairs behind it, screens on top.
+    m.box(-1.1, 2.3, 5.1, 6.1, 0, 0.9, "Desk")
+    m.box(-1.1, 2.3, 5.05, 5.1, 0.1, 0.8, "PenIndigo")
+    for k, ox in enumerate((-0.3, 0.6, 1.5)):
+        chair(m, ox, 6.7, "Black")
+        person(m, ox, 6.7, ("White", "Shirt5", "White")[k], sitting=True)
+        m.box(ox - 0.25, ox + 0.25, 5.5, 5.55, 0.9, 1.25, "Black")
+        m.box(ox - 0.22, ox + 0.22, 5.49, 5.5, 0.93, 1.22, "Screen")
+    # The podium behind it: second, first, third, the sponsors' board behind.
     for dx, h, colour in ((-1.3, 0.5, "Silver"), (0.0, 0.8, "Gold"), (1.3, 0.35, "Bronze")):
-        m.box((0.6 + dx, 9.0, h / 2), (1.2, 1.2, h), colour)
-    # The photo-finish mast outside the barrier, on the line.
-    m.box((0.0, -(RAIL + 0.9), 3.0), (0.25, 0.25, 6.0), "Steel")
-    m.box((0.0, -(RAIL + 0.6), 5.8), (0.5, 0.7, 0.45), "Black")
+        m.box(0.6 + dx - 0.6, 0.6 + dx + 0.6, 8.4, 9.6, 0, h, colour)
+    m.box(-1.6, 2.8, 10.0, 10.1, 0.0, 2.4, "PenIndigo")
+    m.box(-1.4, 2.6, 9.98, 10.0, 1.6, 2.2, "White")
+    # The lap board and its bell at the line's infield end, facing the track.
+    for lx in (-3.6, -1.6):
+        m.cone(lx, 4.4, 0, 1.8, 0.05, 0.05, 6, "Steel")
+    m.box(-3.8, -1.4, 4.3, 4.4, 1.8, 2.8, "Black")
+    for j in range(2):
+        m.box(-3.4 + j * 1.0, -2.8 + j * 1.0, 4.28, 4.3, 1.95, 2.65, "Gold")
+    m.cone(-0.9, 4.4, 0, 2.2, 0.04, 0.04, 6, "Steel")
+    m.cone(-0.9, 4.4, 2.0, 2.3, 0.16, 0.06, 10, "Gold")
+    # The photo-finish mast outside the barrier, on the line, its camera looking across it.
+    m.cone(0.0, -(RAIL + 0.9), 0, 6.0, 0.12, 0.09, 8, "Steel")
+    m.box(-0.3, 0.3, -(RAIL + 0.95), -(RAIL + 0.2), 5.6, 6.1, "Black")
+    m.cyl((0.0, -(RAIL + 0.2), 5.85), (0.0, -(RAIL + 0.05), 5.85), 0.12, "Glass", 10)
     m.done("InfieldKit")
 
 
@@ -415,6 +547,8 @@ def main() -> None:
     build_barrier()
     build_stands()
     build_infield_kit()
+    build_crowd()
+    build_hall_kit()
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     bpy.ops.export_scene.gltf(

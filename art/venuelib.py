@@ -261,6 +261,19 @@ def person(m: Mesh, x: float, y: float, top: str, tall: float = 1.0, sitting: bo
         m.cyl((x, y, head + 0.02), (x, y, head + 0.17), 0.15, hat, 7, rb=0.07)
 
 
+def fan(m: Mesh, x: float, y: float, z: float, top: str, skin: str = "Skin") -> None:
+    """A spectator far off in a stand, seated at height z: a five-sided cone for the body and an octahedron head, a dozen corners in all."""
+    ring = [m.vert((x + 0.21 * math.cos(2 * math.pi * k / 5), y + 0.18 * math.sin(2 * math.pi * k / 5), z)) for k in range(5)]
+    apex = m.vert((x, y, z + 0.62))
+    for k in range(5):
+        m.face((ring[k], ring[(k + 1) % 5], apex), top, smooth=True)
+    c, r = (x, y, z + 0.74), 0.11
+    o = [m.vert((c[0] + dx * r, c[1] + dy * r, c[2] + dz * r)) for dx, dy, dz in ((1, 0, 0), (0, 1, 0), (-1, 0, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1))]
+    for k in range(4):
+        m.face((o[k], o[(k + 1) % 4], o[4]), skin, smooth=True)
+        m.face((o[(k + 1) % 4], o[k], o[5]), skin, smooth=True)
+
+
 def chair(m: Mesh, x: float, y: float, colour: str) -> None:
     """A folding chair at (x, y) facing −y: its seat 0.47 high, the back behind, crossed legs."""
     m.box(x - 0.24, x + 0.24, y - 0.22, y + 0.2, 0.43, 0.47, colour)

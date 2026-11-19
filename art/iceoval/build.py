@@ -28,6 +28,13 @@ z is up; the glTF exporter turns it round.
 The hall keeps its daylight colours in both themes, like every field scene.
 There is no roof: the broadcast camera looks down from high over the west
 bend.
+
+PR 13av filled the hall with the shared venue blocks (art/venuelib.py): a
+seated crowd, thickest along the home straight with gaps for the stairs;
+goals on the rink; a rounded resurfacer with its driver's cab and beacon;
+coaches and chairs in the team pens; officials at the desk; the starter on
+a stand; a lap board and bell; a glass rail along the stands, floodlights
+along the wall and a big screen on the east end wall.
 """
 
 from __future__ import annotations
@@ -41,6 +48,13 @@ from pathlib import Path
 import bmesh
 import bpy
 from mathutils import Vector
+
+# Import the shared blocks without leaving a __pycache__ folder for the art workflow to commit.
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import venuelib  # noqa: E402
+from venuelib import Mesh as VMesh  # noqa: E402
+from venuelib import chair, fan, person, wheel  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / "public" / "models" / "models.json"
@@ -81,6 +95,8 @@ BLOCKS = 4.0
 # The stands: their front at STANDS_IN, ROWS rows of seats each ROW deep and STEP higher, the first at STANDS_UP; the hall's wall at WALL_OUT.
 STANDS_IN, STANDS_UP, ROWS, ROW, STEP = 11.0, 3.2, 10, 1.2, 0.68
 WALL_OUT, WALL_UP = 26.0, 14.0
+# The crowd: a seat every SEAT metres along a row, a stair every AISLE metres round the stands.
+SEAT, AISLE = 0.6, 12.0
 
 # Colours, sRGB hex. The ice matches the code-drawn oval (src/render/replayScene.ts COLOURS.ice).
 COLOURS = {
@@ -117,6 +133,17 @@ COLOURS = {
     "Silver": "B9C0C8",
     "Bronze": "B9784A",
     "Screen": "3D5BFF",
+    # The crowd, the officials and the hall's kit (PR 13av).
+    "Skin": "D9A88B",
+    "Shirt1": "4F5BD5",
+    "Shirt2": "E0695D",
+    "Shirt3": "E3A23B",
+    "Shirt4": "2E9E95",
+    "Pane": "C9D6E6",
+    "Lamp": "FFF4D6",
+    "Hub": "B9C0C8",
+    "Tyre": "1D242B",
+    "Net": "F4F4F2",
 }
 
 
@@ -143,8 +170,16 @@ def mat(name: str) -> bpy.types.Material:
         bsdf.inputs["Metallic"].default_value = 0.3 if name in ("Rail", "Steel") else 0.0
         # The hall's wall faces in and is one-sided, so a low camera outside it sees through.
         m.use_backface_culling = name == "HallWall"
+        if name == "Lamp":
+            bsdf.inputs["Emission Color"].default_value = srgb(COLOURS[name])
+            bsdf.inputs["Emission Strength"].default_value = 2.0
         MATS[name] = m
     return MATS[name]
+
+
+# The shared blocks' pieces take this hall's colours and materials.
+venuelib.COLOURS.update(COLOURS)
+venuelib.mat = mat
 
 
 class Mesh:
@@ -338,40 +373,149 @@ def rounded(cx: float, cy: float, hx: float, hy: float, r: float, steps: int = 4
 
 
 def build_infield_kit() -> None:
-    """The infield: a rink with its boards, four team pens along the home straight, the officials' desk and the podium at the line, the lap board and the ice resurfacer."""
-    m = Mesh()
-    # The rink in the middle of the infield: 60 by 30 m, white boards with an amber kick plate, red and blue lines.
+    """The infield: a rink with its boards and goals, four team pens along the home straight, the officials' desk, the starter's stand and the podium at the line, the lap board with its bell and the ice resurfacer."""
+    m = VMesh()
+    # The rink in the middle of the infield: 60 by 30 m, white boards with an amber kick plate, red and blue lines, a goal at each end.
     cx, cy = STRAIGHT / 2, RADIUS
     outline = rounded(cx, cy, 30, 15, 8)
-    m.quad([(x, y, 0.06) for x, y in outline], "Ice", up=True)
+    m.poly([(x, y, 0.06) for x, y in outline], "Ice")
     for (x0, y0), (x1, y1) in zip(outline, outline[1:] + outline[:1]):
-        m.quad([(x0, y0, 0), (x1, y1, 0), (x1, y1, 0.25), (x0, y0, 0.25)], "Kick")
-        m.quad([(x0, y0, 0.25), (x1, y1, 0.25), (x1, y1, 1.1), (x0, y0, 1.1)], "Barrier")
+        m.poly([(x0, y0, 0), (x1, y1, 0), (x1, y1, 0.25), (x0, y0, 0.25)], "Kick")
+        m.poly([(x0, y0, 0.25), (x1, y1, 0.25), (x1, y1, 1.1), (x0, y0, 1.1)], "Barrier")
     for x, w, colour in ((cx - 0.15, 0.3, "Red"), (cx - 9.15, 0.3, "LaneLine"), (cx + 8.85, 0.3, "LaneLine")):
-        m.quad([(x, cy - 15, 0.1), (x + w, cy - 15, 0.1), (x + w, cy + 15, 0.1), (x, cy + 15, 0.1)], colour, up=True)
-    # The ice resurfacer, parked by the rink's end.
-    m.box((cx + 36, cy + 4, 0.9), (4.2, 2.1, 1.4), "Resurfacer")
-    m.box((cx + 35.4, cy + 4, 2.1), (1.4, 1.6, 1.0), "Glass")
-    # Four team pens along the home straight's infield side.
+        m.flat(x, x + w, cy - 15, cy + 15, 0.1, colour)
+    for gx, s in ((cx - 26, -1), (cx + 26, 1)):
+        for gy in (cy - 0.9, cy + 0.9):
+            m.cone(gx, gy, 0.06, 1.28, 0.03, 0.03, 5, "Red")
+        m.rod((gx, cy - 0.9, 1.28), (gx, cy + 0.9, 1.28), 0.03, "Red", 5)
+        for gy in (cy - 0.9, cy + 0.9):
+            m.rod((gx, gy, 1.28), (gx + s * 0.9, gy, 0.06), 0.02, "Red")
+        m.poly([(gx + s * 0.9, cy - 0.9, 0.06), (gx + s * 0.9, cy + 0.9, 0.06), (gx, cy + 0.9, 1.28), (gx, cy - 0.9, 1.28)], "Net")
+    # The ice resurfacer, parked by the rink's end: a rounded body with the snow tank, the cab with its driver, four wheels and the conditioner at the back.
+    with m.at(cx + 36, cy + 4, 0):
+        side = [(-2.1, 0.35), (1.8, 0.35), (2.1, 0.6), (2.1, 1.3), (1.6, 1.6), (-2.1, 1.6)]
+        m.loft([[(x, -1.05, z) for x, z in side], [(x, 1.05, z) for x, z in side]], "Resurfacer", smooth=False)
+        m.loft([[(x, y, 1.6) for x, y in ((-2.0, -1.0), (0.2, -1.0), (0.2, 1.0), (-2.0, 1.0))], [(x, y, 2.3) for x, y in ((-2.3, -1.15), (0.4, -1.15), (0.4, 1.15), (-2.3, 1.15))]], "White", cap_start=False, smooth=False)
+        m.box(0.5, 1.6, -0.9, 0.9, 1.6, 2.6, "Glass")
+        m.box(0.4, 1.7, -1.0, 1.0, 2.6, 2.72, "Resurfacer")
+        m.cone(1.0, 0, 2.72, 2.86, 0.1, 0.1, 8, "Lamp")
+        m.box(-2.6, -2.1, -1.1, 1.1, 0.1, 0.5, "Steel")
+        for wx in (-1.3, 1.4):
+            for s in (-1, 1):
+                wheel(m, wx, s * 1.0, 0.35, 0.28, "Hub", 10)
+    # Four team pens along the home straight's infield side: a mat, a bench with a coach on it, two chairs, a skate case.
+    coaches = ("Shirt1", "Shirt2", "Shirt3", "Shirt4")
     for k, colour in enumerate(("PenCoral", "PenTeal", "PenIndigo", "PenAmber")):
         x = 14.0 + k * 7.0
-        m.box((x, 9.0, 0.04), (5.6, 3.4, 0.08), colour)
-        m.box((x, 10.5, 0.25), (4.8, 0.45, 0.5), "Desk")
-        m.box((x + 2.0, 8.2, 0.3), (0.5, 0.5, 0.6), "Rail")
-    # The officials' desk inside the warm-up lane, level with the finish line, and the podium behind.
-    m.box((0.6, 6.4, 0.45), (3.4, 1.0, 0.9), "Desk")
-    m.box((0.6, 7.2, 0.6), (3.4, 0.5, 1.2), "Rail")
+        m.box(x - 2.8, x + 2.8, 7.3, 10.7, 0, 0.08, colour)
+        m.box(x - 2.4, x + 2.4, 10.28, 10.73, 0.08, 0.5, "Desk")
+        person(m, x - 0.9 + 0.4 * (k % 2), 10.5, coaches[k], sitting=True)
+        for cx2 in (x + 0.6, x + 1.4):
+            chair(m, cx2, 9.3, colour)
+        m.box(x - 2.2, x - 1.4, 8.0, 8.5, 0.08, 0.45, "Rail")
+        m.box(x + 1.75, x + 2.25, 7.95, 8.45, 0.08, 0.68, "Rail")
+    # The officials' desk inside the warm-up lane, level with the finish line: officials behind it on chairs, screens on top.
+    m.box(-1.1, 2.3, 5.9, 6.9, 0, 0.9, "Desk")
+    m.box(-1.1, 2.3, 5.85, 5.9, 0.1, 0.8, "LaneLine")
+    for k, ox in enumerate((-0.3, 0.6, 1.5)):
+        chair(m, ox, 7.5, "Black")
+        person(m, ox, 7.5, ("White", "Shirt4", "White")[k], sitting=True)
+        m.box(ox - 0.25, ox + 0.25, 6.3, 6.35, 0.9, 1.25, "Black")
+        m.box(ox - 0.22, ox + 0.22, 6.29, 6.3, 0.93, 1.22, "Screen")
+    # The starter's stand a little up the straight, the starter in red on top.
+    m.box(-6.4, -5.2, 5.4, 6.6, 0, 1.0, "Desk")
+    m.box(-5.2, -4.7, 5.6, 6.4, 0, 0.5, "Desk")
+    with m.at(-5.8, 6.0, 1.0):
+        person(m, 0, 0, "Red", hat="Red")
+    # The podium behind the desk, a board behind it.
     for dx, h, colour in ((-1.3, 0.5, "Silver"), (0.0, 0.8, "Gold"), (1.3, 0.35, "Bronze")):
-        m.box((0.6 + dx, 10.0, h / 2), (1.2, 1.2, h), colour)
-    # The lap board beyond the pads past the line, facing the ice, and the photo-finish mast on the line.
+        m.box(0.0 + dx, 1.2 + dx, 9.4, 10.6, 0, h, colour)
+    m.box(-1.6, 2.8, 11.0, 11.1, 0, 2.4, "LaneLine")
+    m.box(-1.4, 2.6, 10.98, 11.0, 1.6, 2.2, "White")
+    # The lap board beyond the pads past the line, facing the ice, the bell beside it, and the photo-finish mast on the line.
     y = -(OUTER + PADS + 1.2)
     for x in (6.0, 12.0):
-        m.box((x, y, 2.0), (0.25, 0.25, 4.0), "Steel")
-    m.box((9.0, y, 4.6), (7.2, 0.3, 2.4), "Black")
-    m.box((9.0, y + 0.16, 4.6), (6.6, 0.04, 1.9), "Screen")
-    m.box((0.0, -(OUTER + PADS + 0.6), 3.0), (0.25, 0.25, 6.0), "Steel")
-    m.box((0.0, -(OUTER + PADS + 0.3), 5.8), (0.5, 0.7, 0.45), "Black")
+        m.cone(x, y, 0, 3.6, 0.1, 0.1, 6, "Steel")
+    m.box(5.4, 12.6, y - 0.15, y + 0.15, 3.4, 5.8, "Black")
+    m.box(5.7, 12.3, y + 0.15, y + 0.19, 3.65, 5.55, "Screen")
+    for j in range(2):
+        m.box(7.4 + j * 1.7, 8.9 + j * 1.7, y + 0.19, y + 0.21, 3.9, 5.3, "White")
+    m.cone(13.6, y, 0, 2.6, 0.04, 0.04, 6, "Steel")
+    m.cone(13.6, y, 2.4, 2.7, 0.18, 0.06, 10, "Gold")
+    m.cone(0.0, -(OUTER + PADS + 0.6), 0, 6.0, 0.12, 0.09, 8, "Steel")
+    m.box(-0.3, 0.3, -(OUTER + PADS + 0.65), -(OUTER + PADS + 0.05), 5.6, 6.1, "Black")
+    m.cyl((0.0, -(OUTER + PADS + 0.05), 5.85), (0.0, -(OUTER + PADS - 0.1), 5.85), 0.12, "Glass", 10)
     m.done("InfieldKit")
+
+
+def seat_fill(st: Station, r: int) -> float:
+    """How full a stand is here: the home straight (outside is −y) fullest, the back straight less, the bends thin; the lower rows fuller."""
+    base = 0.12 if st.ny < -0.99 else 0.05 if st.ny > 0.99 else 0.018
+    return base * (1.25 - 0.6 * r / ROWS)
+
+
+def spread(k: int, salt: float) -> float:
+    """A fixed, even spread in 0..1 for the k-th seat: the same every build."""
+    v = math.sin(k * 12.9898 + salt * 78.233) * 43758.5453
+    return v - math.floor(v)
+
+
+def build_crowd() -> None:
+    """People dotted through the stands, seated, in winter colours, thickest along the home straight, with gaps for the stairs."""
+    m = VMesh()
+    st = stations(8.0, 16, False)
+    n = len(st)
+    coats = ("Shirt1", "Shirt2", "Shirt3", "Shirt4", "Red", "White")
+    k = 0
+    along = 0.0
+    for i in range(n):
+        a, b = st[i], st[(i + 1) % n]
+        for r in range(ROWS):
+            d = STANDS_IN + ROW * r + 0.6
+            z = STANDS_UP + STEP * r
+            pa, pb = Vector(a.at(d, z)), Vector(b.at(d, z))
+            seats = max(1, int((pb - pa).length / SEAT))
+            for j in range(seats):
+                k += 1
+                # A stair every AISLE metres round the stands.
+                if (along + (j + 0.5) * SEAT) % AISLE < 1.4:
+                    continue
+                if spread(k, 1) > seat_fill(a, r):
+                    continue
+                p = pa.lerp(pb, (j + 0.5) / seats)
+                fan(m, p.x, p.y, z, coats[int(spread(k, 2) * len(coats))])
+        along += (Vector(b.at(STANDS_IN, 0)) - Vector(a.at(STANDS_IN, 0))).length
+    m.done("Crowd")
+
+
+def build_hall_kit() -> None:
+    """The hall round the oval: a glass rail along the stands' front, floodlights along the top of the wall and the big screen on the east end wall."""
+    m = Mesh()
+    st = stations(8.0, 16, False)
+    n = len(st)
+    for i in range(n):
+        a, b = st[i], st[(i + 1) % n]
+        m.quad([a.at(STANDS_IN, STANDS_UP), b.at(STANDS_IN, STANDS_UP), b.at(STANDS_IN, STANDS_UP + 1.0), a.at(STANDS_IN, STANDS_UP + 1.0)], "Pane")
+        m.quad([a.at(STANDS_IN, STANDS_UP + 1.0), b.at(STANDS_IN, STANDS_UP + 1.0), b.at(STANDS_IN + 0.1, STANDS_UP + 1.05), a.at(STANDS_IN + 0.1, STANDS_UP + 1.05)], "Rail", up=True)
+    m.done("StandRail")
+    v = VMesh()
+    ex = STRAIGHT + RADIUS + WALL_OUT - 0.6
+    for i in range(0, n, 4):
+        s = st[i]
+        x, y, _ = s.at(WALL_OUT - 0.4, 0)
+        # None in front of the big screen.
+        if x > ex - 8 and abs(y - RADIUS) < 9:
+            continue
+        with v.at(x, y, WALL_UP - 0.6, math.atan2(-s.ny, -s.nx)):
+            v.box(-0.4, 0.0, -0.1, 0.1, -0.1, 0.1, "Steel")
+            v.box(0.0, 0.25, -0.6, 0.6, -0.35, 0.35, "Black")
+            v.box(0.25, 0.27, -0.5, 0.5, -0.28, 0.28, "Lamp")
+    # The big screen on the east end wall, facing back down the hall (−x), over the top row.
+    v.box(ex, ex + 0.5, RADIUS - 6.2, RADIUS + 6.2, 10.6, 16.6, "Black")
+    v.box(ex - 0.03, ex, RADIUS - 5.9, RADIUS + 5.9, 10.9, 16.3, "Screen")
+    for y in (RADIUS - 3.5, RADIUS + 3.5):
+        v.box(ex + 0.1, ex + 0.4, y - 0.15, y + 0.15, 7.0, 10.6, "Steel")
+    v.done("HallKit")
 
 
 # --- Previews.
@@ -418,6 +562,8 @@ def main() -> None:
     build_pads()
     build_stands()
     build_infield_kit()
+    build_crowd()
+    build_hall_kit()
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     bpy.ops.export_scene.gltf(
