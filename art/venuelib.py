@@ -167,6 +167,13 @@ class Mesh:
             rings.append([c + Vector((math.sin(t) * math.cos(2 * math.pi * k / n) * r * squash[0], math.sin(t) * math.sin(2 * math.pi * k / n) * r * squash[1], -math.cos(t) * r * squash[2])) for k in range(n)])
         self.loft(rings, name)
 
+    def roof(self, x0: float, x1: float, y0: float, y1: float, z0: float, ridge: float, name: str) -> None:
+        """A gable roof over x0..x1, y0..y1 from the eaves at z0, its ridge along x at z0 + ridge."""
+        ym = (y0 + y1) / 2
+        a = [self.vert(p) for p in ((x0, y0, z0), (x1, y0, z0), (x1, y1, z0), (x0, y1, z0), (x0, ym, z0 + ridge), (x1, ym, z0 + ridge))]
+        for idx in ((0, 1, 5, 4), (2, 3, 4, 5), (0, 4, 3), (1, 2, 5), (0, 3, 2, 1)):
+            self.face([a[i] for i in idx], name)
+
     def done(self, obj_name: str) -> bpy.types.Object:
         bmesh.ops.remove_doubles(self.bm, verts=self.bm.verts, dist=1e-5)
         bmesh.ops.recalc_face_normals(self.bm, faces=self.bm.faces)
