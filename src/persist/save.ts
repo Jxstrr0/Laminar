@@ -17,6 +17,7 @@ import { AIRCRAFT_RANGE, type AircraftDesign } from '../data/aircraft'
 import { POD_RANGE, type PodDesign } from '../data/pod'
 import type { Design } from '../sim/design'
 import { ALL_SCALES, MACHINE_IDS, MAKER_IDS, MODEL_FINISH, MODEL_GRADE, type MachineId } from '../data/model'
+import { BRIEFS } from '../data/briefs'
 import { CRANK_DIAL, DEMO_TUNNEL_SEED } from '../data/tunnel'
 import { briefTemplate, newCareer, tidyFirmName, type Brief, type CareerState, type Ending, type Job, type JobRecord } from '../sim/career'
 import { NO_CLEARANCE, type Clearance } from '../sim/clearance'
@@ -421,7 +422,9 @@ function soundFacility(x: unknown): Facility | null {
 /** The career, or null if it isn't one the game could have written. */
 export function soundCareer(x: unknown): CareerState | null {
   if (!isObj(x) || !isSeed(x.seed) || !isNum(x.money) || !isCount(x.day) || !isCount(x.jobsDone)) return null
-  if (!Array.isArray(x.board)) return null
+  // A board holds a few briefs and none twice, so it can never be longer than
+  // the list of briefs. A tampered save with thousands on it slowed the game to a crawl.
+  if (!Array.isArray(x.board) || x.board.length > BRIEFS.length) return null
   const board = x.board.map(soundBrief)
   if (board.some((b) => !b)) return null
   const job = x.job === null ? null : soundJob(x.job)
@@ -435,7 +438,7 @@ export function soundCareer(x: unknown): CareerState | null {
   const round = x.round === undefined ? x.jobsDone : x.round
   if (!isCount(round)) return null
   const lost = x.lost === undefined ? [] : x.lost
-  if (!Array.isArray(lost) || !lost.every((id) => typeof id === 'string' && briefTemplate(id))) return null
+  if (!Array.isArray(lost) || lost.length > BRIEFS.length || !lost.every((id) => typeof id === 'string' && briefTemplate(id))) return null
   // Careers from before PR 5i get the guide only if they haven't finished a job.
   const guide = x.guide === undefined ? { off: x.jobsDone > 0, done: [] } : x.guide
   if (!isObj(guide) || typeof guide.off !== 'boolean' || !Array.isArray(guide.done)) return null

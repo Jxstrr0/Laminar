@@ -4,6 +4,7 @@ import { DEFAULT_CYCLIST, POSTURE_RANGE, SIT_UP_CYCLIST } from '../src/data/cycl
 import { packSave, parseSave, SAVE_VERSION, soundDesign, type SaveFile } from '../src/persist/save'
 import { newLab, type LabState } from '../src/sim/lab'
 import { acceptBrief, newCareer } from '../src/sim/career'
+import { BRIEFS } from '../src/data/briefs'
 import { DEMO_TUNNEL_SEED } from '../src/data/tunnel'
 import type { Run } from '../src/sim/run'
 
@@ -98,6 +99,16 @@ describe('the save file', () => {
     expect(back.career).toEqual(career)
     expect(roundTrip({ ...file(), career: { ...career, board: [{ ...career.board[0]!, id: 'nobody' }] } })).toBeNull()
     expect(roundTrip({ ...file(), career: { ...career, job: { ...career.job!, daysLeft: 99 } } })).toBeNull()
+  })
+
+  it('turns away a board or a lost list longer than the game could ever make', () => {
+    const career = newCareer(99)
+    const brief = career.board[0]!
+    expect(roundTrip({ ...file(), career })).not.toBeNull()
+    expect(roundTrip({ ...file(), career: { ...career, board: Array.from({ length: BRIEFS.length }, () => brief) } })).not.toBeNull()
+    expect(roundTrip({ ...file(), career: { ...career, board: Array.from({ length: BRIEFS.length + 1 }, () => brief) } })).toBeNull()
+    expect(roundTrip({ ...file(), career: { ...career, board: Array.from({ length: 10_000 }, () => brief) } })).toBeNull()
+    expect(roundTrip({ ...file(), career: { ...career, lost: Array.from({ length: 10_000 }, () => brief.id) } })).toBeNull()
   })
 
   it('gives careers from before bids a board round and no lost briefs', () => {
