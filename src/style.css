@@ -210,7 +210,12 @@ input, textarea, [contenteditable] {
   flex-direction: column;
   gap: 12px;
   padding: 0 calc(12px + var(--safe-r)) calc(12px + var(--dock-h)) calc(12px + var(--safe-l));
-  pointer-events: none;
+  /* The sheet takes touches itself (PR 13ax). It used to let them through to
+     the 3D view, but on iPhone (above all the home-screen app) a scroller that
+     ignores touches often won't scroll when its cards are swiped, and a swipe
+     between cards spun the model instead. Its box only ever covers the cards,
+     never the view above them. */
+  pointer-events: auto;
   /* The 3D view always keeps the top of the screen (PR 13g): on a shorter
      phone the cards scroll inside the sheet rather than covering the model. */
   max-height: calc(100% - 290px - var(--safe-t));
@@ -224,7 +229,6 @@ input, textarea, [contenteditable] {
   mask-image: linear-gradient(to bottom, transparent 0, #000 calc(28px * var(--fade-k)), #000 calc(100% - var(--dock-h) + 4px), transparent calc(100% - var(--dock-h) + 40px));
 }
 .sheet::-webkit-scrollbar { display: none; }
-.sheet > * { pointer-events: auto; }
 /* A card: white, round, lifted. In dark mode it also gets a hairline. */
 .card {
   padding: 14px 16px;
