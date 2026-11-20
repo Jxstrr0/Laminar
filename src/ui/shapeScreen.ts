@@ -217,7 +217,9 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
 
   // --- Sheet: readouts, rule breaks, tabs, controls.
   const sheet = el('section', 'sheet shape-sheet')
-  scrollFade(sheet, 28)
+  // The readouts stay put (PR 13ay); only the rule breaks and the controls scroll, beneath them.
+  const scroller = el('div', 'shape-scroll')
+  scrollFade(scroller, 28)
   sheet.setAttribute('aria-label', t('shape.sheet'))
   const grid = el('div', 'readouts')
   const deskR = readout(t('read.desk'), 'deskEstimate')
@@ -332,7 +334,8 @@ export function startShapeScreen(host: HTMLElement, view: ShapeView): ScreenCont
   // Isobar (PR 13f): the readouts are cards of their own; the controls share one.
   const controlCard = el('div', 'card shape-controls')
   controlCard.append(tabBar, panelBox, foot)
-  sheet.append(grid, breaks, controlCard)
+  scroller.append(breaks, controlCard)
+  sheet.append(grid, scroller)
   host.append(header, sheet)
 
   // A one-line hint just above the sheet, over the 3D view.
