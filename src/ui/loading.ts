@@ -1,4 +1,4 @@
-// Adapted from Quench src/ui/loading.ts (15 November 2026), which came from Lombard src/ui/loading.ts
+// Adapted from a retired Longlight game, src/ui/loading.ts (15 November 2026), which came from Lombard src/ui/loading.ts
 /**
  * The loading screen. Its markup and style are written straight into
  * index.html (#loading) so it paints on the first frame. This module drives

@@ -1,4 +1,4 @@
-// Adapted from Quench eslint.config.js (15 November 2026), which came from Lombard
+// Adapted from a retired Longlight game, eslint.config.js (15 November 2026), which came from Lombard
 import js from '@eslint/js'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'

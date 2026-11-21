@@ -1,4 +1,4 @@
-// Adapted from Quench src/sim/rng.ts (15 November 2026), which came from Lombard src/game/rng.ts
+// Adapted from a retired Longlight game, src/sim/rng.ts (15 November 2026), which came from Lombard src/game/rng.ts
 /**
  * Seeded PRNG (mulberry32). The whole generator state is one uint32, so it
  * serializes into the save as a plain number.

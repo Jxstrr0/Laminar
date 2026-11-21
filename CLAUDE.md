@@ -29,7 +29,7 @@ plan and over `.github/LONGLIGHT-STUDIO.md` where they disagree.
 
 ## Stack (fixed; ask before changing)
 
-- TypeScript (strict), Vite, three.js from npm (0.187, same as Lombard and Quench), in its own chunk.
+- TypeScript (strict), Vite, three.js from npm (0.187, same as Lombard), in its own chunk.
 - UI is plain DOM and CSS. No framework.
 - Vitest for the sim. ESLint plus `tsc`.
 - Hosting: GitHub Pages from Actions. Repo `Jxstrr0/Laminar` (renamed from

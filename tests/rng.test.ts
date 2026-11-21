@@ -1,4 +1,4 @@
-// Adapted from Quench tests/rng.test.ts (15 November 2026)
+// Adapted from a retired Longlight game, tests/rng.test.ts (15 November 2026)
 import { describe, expect, it } from 'vitest'
 import { detCos, detExp, detLog, detPow, detSin } from '../src/sim/det'
 import { Rng, hashString } from '../src/sim/rng'

@@ -1,4 +1,4 @@
-// Adapted from Quench src/sim/det.ts (15 November 2026), which came from Season Ticket src/sim/spatial/det.ts
+// Adapted from a retired Longlight game, src/sim/det.ts (15 November 2026), which came from Season Ticket src/sim/spatial/det.ts
 /**
  * Deterministic maths for the Laminar sim.
  *
