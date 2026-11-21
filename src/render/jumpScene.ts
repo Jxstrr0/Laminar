@@ -18,6 +18,7 @@ import { groundAt, hillSurface, xAtAlong } from '../sim/jumper'
 import type { JumpFrame } from '../sim/jumpReplay'
 import type { JumperDesign } from '../data/jumper'
 import { buildRider, disposeGroup } from './riderFigure'
+import { attachSky } from './sky'
 import { sceneColours } from './theme'
 
 const COLOURS = {
@@ -54,12 +55,15 @@ export function createJumpView(host: HTMLElement): JumpView {
   const scene = new THREE.Scene()
   // The sky follows the phone's theme (Isobar, PR 13h); the hill keeps its daylight colours.
   const theme = sceneColours()
-  scene.background = new THREE.Color(theme.fieldSky)
-  scene.fog = new THREE.Fog(theme.fieldSky, 60, 420)
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a96a3, 2.2))
+  // A photographed winter sky (PR 13az) replaces the flat colour once it has loaded, and lights the venue.
+  const fog = new THREE.Fog(theme.fieldSky, 60, 420)
+  scene.fog = fog
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x8a96a3, 2.2)
+  scene.add(hemi)
   const sun = new THREE.DirectionalLight(0xffffff, 1.5)
   sun.position.set(-20, 60, 40)
   scene.add(sun)
+  const skyDome = attachSky(renderer, scene, fog, hemi, sun, 'winter')
   const camera = new THREE.PerspectiveCamera(S.camera.fov, 1, 0.1, 800)
 
   const hillGroup = new THREE.Group()
@@ -320,6 +324,7 @@ export function createJumpView(host: HTMLElement): JumpView {
       drop(old)
       disposeGroup(hillGroup)
       ghostMat.dispose()
+      skyDome.dispose()
       renderer.dispose()
       renderer.domElement.remove()
     },

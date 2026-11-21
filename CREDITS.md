@@ -40,6 +40,25 @@ the Ozimka survey fields (`public/models/fields.glb`), the Stavren Ice Oval
 the people's smooth body parts (`public/models/body.glb`) by `art/body/build.py`.
 Blender is GPL-licensed software; the models it outputs belong to the studio.
 
+## Skies and textures
+
+The replays' skies (`public/sky/`) are Poly Haven HDRIs, CC0 (public domain),
+tone-mapped to JPEG by `scripts/make-skies.py`. The ground detail
+(`public/tex/`) is ambientCG materials, CC0, turned greyscale by
+`scripts/make-ground.py`. CC0 asks for no credit; they're listed anyway.
+
+| File | What | Author | Licence | Source |
+| --- | --- | --- | --- | --- |
+| `sky/kloofendal_48d_partly_cloudy_puresky.jpg` | Kloofendal 48d Partly Cloudy (Pure Sky) | Greg Zaal, Jarod Guest | CC0 | https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky |
+| `sky/autumn_field_puresky.jpg` | Autumn Field (Pure Sky) | Jarod Guest, Sergej Majboroda | CC0 | https://polyhaven.com/a/autumn_field_puresky |
+| `sky/kloofendal_43d_clear_puresky.jpg` | Kloofendal 43d Clear (Pure Sky) | Greg Zaal | CC0 | https://polyhaven.com/a/kloofendal_43d_clear_puresky |
+| `sky/overcast_soil_puresky.jpg` | Overcast Soil (Pure Sky) | Jarod Guest, Sergej Majboroda | CC0 | https://polyhaven.com/a/overcast_soil_puresky |
+| `sky/kloppenheim_06_puresky.jpg` | Kloppenheim 06 (Pure Sky) | Greg Zaal, Jarod Guest | CC0 | https://polyhaven.com/a/kloppenheim_06_puresky |
+| `sky/evening_road_01_puresky.jpg` | Evening Road 01 (Pure Sky) | Jarod Guest, Sergej Majboroda | CC0 | https://polyhaven.com/a/evening_road_01_puresky |
+| `tex/grass.jpg` | Grass 004 | ambientCG (Lennart Demes) | CC0 | https://ambientcg.com/view?id=Grass004 |
+| `tex/asphalt.jpg` | Asphalt 031 | ambientCG (Lennart Demes) | CC0 | https://ambientcg.com/view?id=Asphalt031 |
+| `tex/snow.jpg` | Snow 006 | ambientCG (Lennart Demes) | CC0 | https://ambientcg.com/view?id=Snow006 |
+
 ## Sound
 
 The lab sounds are synthesized in code with the Web Audio API (`src/audio/`).
