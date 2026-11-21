@@ -58,6 +58,10 @@ tone-mapped to JPEG by `scripts/make-skies.py`. The ground detail
 | `tex/grass.jpg` | Grass 004 | ambientCG (Lennart Demes) | CC0 | https://ambientcg.com/view?id=Grass004 |
 | `tex/asphalt.jpg` | Asphalt 031 | ambientCG (Lennart Demes) | CC0 | https://ambientcg.com/view?id=Asphalt031 |
 | `tex/snow.jpg` | Snow 006 | ambientCG (Lennart Demes) | CC0 | https://ambientcg.com/view?id=Snow006 |
+| `tex/wall.jpg` (the tunnel's walls) | Plaster 001 | ambientCG (Lennart Demes) | CC0 | https://ambientcg.com/view?id=Plaster001 |
+| `tex/floor.jpg` (the tunnel's floor) | Concrete 034 | ambientCG (Lennart Demes) | CC0 | https://ambientcg.com/view?id=Concrete034 |
+
+The tunnel and Shape's studio reflections are three.js's own `RoomEnvironment` (MIT), drawn in code.
 
 ## Sound
 

@@ -1,4 +1,4 @@
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { GROUND_TILE, type GroundKind } from '../src/data/ground'
@@ -32,4 +32,15 @@ describe('the replays’ skies (PR 13az)', () => {
   it('has a ground texture for every surface', () => {
     for (const kind of Object.keys(GROUND_TILE) as GroundKind[]) expect(existsSync(join(ROOT, 'public/tex', `${kind}.jpg`))).toBe(true)
   })
+
+  for (const id of ['university', 'own']) {
+    it(`the ${id} tunnel's walls and floor carry texture coordinates, and nothing else does (PR 13ba)`, () => {
+      const glb = readFileSync(join(ROOT, `public/models/tunnel-${id}.glb`))
+      const json = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString('utf8')) as { meshes: { name: string; primitives: { attributes: Record<string, number> }[] }[] }
+      for (const mesh of json.meshes) {
+        const uv = mesh.primitives.some((p) => 'TEXCOORD_0' in p.attributes)
+        expect(uv, mesh.name).toBe(mesh.name === 'Shell' || mesh.name === 'FarWall')
+      }
+    })
+  }
 })

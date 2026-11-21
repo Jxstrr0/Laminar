@@ -49,6 +49,9 @@ import type { FlowField, Tuft } from '../sim/flow/field'
 import type { Tap } from '../sim/flow/taps'
 import { createFlowViz, type Instruments } from './flowViz'
 import { createCpSurface } from './cpSurface'
+import { groundDetail } from './groundDetail'
+import { STUDIO_LIGHT } from '../data/skies'
+import { studioLight } from './studioLight'
 import { onThemeChange, sceneColours } from './theme'
 import type { PivGrid } from '../sim/flow/piv'
 import { buildReferenceWheel, buildRider, disposeGroup, type RiderState } from './riderFigure'
@@ -277,6 +280,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   const key = new THREE.DirectionalLight(theme.key, 1.4)
   key.position.set(-1.5, 3, 2)
   scene.add(key)
+  const studio = studioLight(renderer, scene, hemi)
 
   const { length: L, width: W, height: H } = UNIVERSITY_TUNNEL.section
   const floorY = -H / 2
@@ -466,6 +470,13 @@ export function createTunnelView(host: HTMLElement): TunnelView {
           const mat = obj.material as THREE.MeshStandardMaterial
           const role = paintRole(mat.name, id)
           if (role && !paint.some((p) => p.mat === mat)) paint.push({ mat, role })
+          // Plaster on the walls and concrete on the floor (PR 13ba), over the theme's colours.
+          if ((mat.name === 'Wall' || mat.name === 'Floor') && !mat.map) {
+            mat.map = groundDetail(mat.name === 'Wall' ? 'wall' : 'floor', renderer)
+            mat.needsUpdate = true
+          }
+          // The pale shell, its seams and the turntable would glare in the studio light; they take only a little of it.
+          if (['Wall', 'Floor', 'Seam', 'Turntable'].includes(mat.name) && mat.envMap === null) studio.share(mat, STUDIO_LIGHT.shell)
         })
         sections.set(id, { root, rotor: root.getObjectByName('FanRotor') ?? null, paint })
         scene.add(root)
@@ -662,6 +673,8 @@ export function createTunnelView(host: HTMLElement): TunnelView {
   const flowViz = createFlowViz(dotTexture)
   // Pressure colour on the model (PR 13i): only while the taps are on, from their latest scan.
   const cpSurface = createCpSurface()
+  // The pressure map's colours are data: no studio reflections on them (PR 13ba).
+  studio.share(cpSurface.material, 0)
   let scan: { taps: readonly Tap[]; cps: readonly number[] } = { taps: [], cps: [] }
   function paintCp() {
     if (instruments.taps && riderGroup && scan.taps.length > 0) cpSurface.paint(riderGroup, flowViz.group, scan.taps, scan.cps)
@@ -1517,6 +1530,7 @@ export function createTunnelView(host: HTMLElement): TunnelView {
     dispose() {
       disposed = true
       stopTheme()
+      studio.dispose()
       cpSurface.dispose()
       clearRider()
       clearDebris()

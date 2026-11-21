@@ -6,11 +6,14 @@
  * snow stop looking like flat paper. Credits in CREDITS.md.
  */
 
-export type GroundKind = 'grass' | 'asphalt' | 'snow'
+/** The tunnel's walls and floor (PR 13ba) use the same idea: plaster and smooth concrete. */
+export type GroundKind = 'grass' | 'asphalt' | 'snow' | 'wall' | 'floor'
 
 /** How many metres one copy of each texture covers. */
 export const GROUND_TILE: Record<GroundKind, number> = {
   grass: 3,
   asphalt: 2.5,
   snow: 5,
+  wall: 1.2,
+  floor: 1.6,
 }

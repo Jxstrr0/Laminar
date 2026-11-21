@@ -55,6 +55,8 @@ export interface CpSurface {
   paint(root: THREE.Object3D, frame: THREE.Object3D, taps: readonly Tap[], cps: readonly number[]): void
   /** Take the paint off and give every mesh its own geometry and material back. */
   clear(): void
+  /** The paint's one material, so the tunnel can keep its studio reflections off it (PR 13ba). */
+  readonly material: THREE.MeshStandardMaterial
   dispose(): void
 }
 
@@ -209,6 +211,7 @@ export function createCpSurface(): CpSurface {
   }
 
   return {
+    material,
     paint(root, frame, taps, cps) {
       if (taps.length === 0 || cps.length !== taps.length) {
         clear()
