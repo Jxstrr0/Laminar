@@ -1,4 +1,4 @@
-// Adapted from Quench tests/credits.test.ts (17 Nov 2026)
+// Adapted from a retired Longlight game, tests/credits.test.ts (17 Nov 2026)
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
@@ -52,7 +52,7 @@ describe('the studio brand', () => {
 
   it('uses the official logo file, unchanged', () => {
     const sha = (path: string) => createHash('sha256').update(readFileSync(path)).digest('hex')
-    // The same files as Quench's, copied from the studio press kit.
+    // The official logo files, copied from the studio press kit.
     expect(sha('public/brand/longlight-logo-dark.svg')).toBe('e619f5110ba27d0c77afcfcef9d99ccaa360e7619456213c19b14b5400851c97')
     expect(STUDIO_LOGO.src).toBe('./brand/longlight-logo-dark.svg')
   })

@@ -2,7 +2,7 @@
  * The Credits sheet (PR 13c): the studio block, then everyone whose work is in
  * the game. The studio block is a studio piece, so it wears the Longlight
  * colours, the official logo file and Space Grotesk; the rest is Laminar's own.
- * Adapted from Quench src/ui/creditsSheet.ts (17 Nov 2026).
+ * Adapted from a retired Longlight game, src/ui/creditsSheet.ts (17 Nov 2026).
  */
 import { FONTS, LIBRARIES, STUDIO_LOGO, STUDIO_URL, type Credit } from '../data/credits'
 import { offlineState } from '../pwa/register'

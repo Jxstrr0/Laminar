@@ -27,7 +27,7 @@ describe('offline cache', () => {
   })
 
   it("deletes only this game's old caches, never another game's or the voice cache", () => {
-    const names = ['laminar-aaaa', 'laminar-bbbb', VOICE_CACHE, 'quench-1', 'longlight-3', 'pew-x']
+    const names = ['laminar-aaaa', 'laminar-bbbb', VOICE_CACHE, 'hulldown-1', 'longlight-3', 'pew-x']
     expect(staleCaches(names, 'laminar-bbbb')).toEqual(['laminar-aaaa'])
   })
 

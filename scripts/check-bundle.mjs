@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Adapted from Quench scripts/check-bundle.mjs (15 November 2026), which came from Lombard
+// Adapted from a retired Longlight game, scripts/check-bundle.mjs (15 November 2026), which came from Lombard
 /**
  * First-load guard. Runs after `vite build` (npm's postbuild) and fails the
  * build when dist/ grows past the plan's 15 MiB first-load budget (Lombard's
