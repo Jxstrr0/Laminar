@@ -27,6 +27,8 @@ import { recordAxis, recordLength } from '../sim/geom/record'
 import type { PlanePose } from '../sim/planeReplay'
 import { turnAngle, type TrackPoint } from '../sim/replay'
 import { buildRider, disposeGroup } from './riderFigure'
+import { groundDetail, metrePlane } from './groundDetail'
+import { attachSky } from './sky'
 import { onThemeChange, sceneColours } from './theme'
 
 const COLOURS = {
@@ -185,14 +187,15 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
 
   const scene = new THREE.Scene()
   // The sky follows the phone's theme (Isobar, PR 13h); the ground and course keep their daylight colours.
-  const sky = new THREE.Color(sceneColours().fieldSky)
-  scene.background = sky
-  const fog = new THREE.Fog(sky.getHex(), S.fogNear, S.fogFar)
+  // A photographed sky (PR 13az) replaces the flat colour once it has loaded, and lights the venue.
+  const fog = new THREE.Fog(sceneColours().fieldSky, S.fogNear, S.fogFar)
   scene.fog = fog
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a9480, 2.2))
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x8a9480, 2.2)
+  scene.add(hemi)
   const sun = new THREE.DirectionalLight(0xffffff, 1.6)
   sun.position.set(30, 60, 20)
   scene.add(sun)
+  const skyDome = attachSky(renderer, scene, fog, hemi, sun, 'day')
 
   const camera = new THREE.PerspectiveCamera(lay.camera.fov, 1, 0.1, S.fogFar + 200)
   // Everything flat on the ground (grass, grid, road, dashes) is drawn first, in that order,
@@ -205,7 +208,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
   }
   // Over the wheat (PR 10o) the camera is high: the ground and its rows reach to the fog.
   const groundSize = fields || airfield ? S.fogFar * 2 : S.gridSize
-  const ground = flat(new THREE.Mesh(new THREE.PlaneGeometry(groundSize * 2, groundSize * 2), new THREE.MeshLambertMaterial({ color: salt ? COLOURS.salt : fields ? COLOURS.wheat : COLOURS.ground })), -4)
+  const ground = flat(new THREE.Mesh(metrePlane(groundSize * 2, groundSize * 2), new THREE.MeshLambertMaterial({ color: salt ? COLOURS.salt : fields ? COLOURS.wheat : COLOURS.ground })), -4)
   ground.rotation.x = -Math.PI / 2
   const gridColour = salt ? COLOURS.saltGrid : fields ? COLOURS.rows : COLOURS.grid
   const gridCell = fields ? SURVEY_SCENE.rows : S.gridCell
@@ -237,8 +240,6 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
   const ringMine = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: sceneColours().mine, depthWrite: false }))
   // The phone switched between light and dark: a new sky and your ring's blue, nothing else.
   const stopTheme = onThemeChange((next) => {
-    sky.setHex(next.fieldSky)
-    fog.color.setHex(next.fieldSky)
     ;(ringMine.material as THREE.MeshBasicMaterial).color.setHex(next.mine)
   })
   const ringOld = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: COLOURS.markOld, depthWrite: false }))
@@ -1097,7 +1098,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
   function layRunway() {
     const W = AIRFIELD_SCENE.runway
     const len = W.to - W.from
-    const strip = new THREE.Mesh(new THREE.PlaneGeometry(len, W.width), roadMat)
+    const strip = new THREE.Mesh(metrePlane(len, W.width), roadMat)
     strip.renderOrder = -2
     strip.rotation.x = -Math.PI / 2
     strip.position.set((W.from + W.to) / 2, 0, 0)
@@ -1133,6 +1134,10 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       boardsMat.color.setHex(opts.ice ? COLOURS.ice : COLOURS.boards)
       roadMat.color.setHex(salt ? COLOURS.saltCourse : meadow ? COLOURS.mown : opts.ice ? COLOURS.ice : COLOURS.road)
       ;(ground.material as THREE.MeshLambertMaterial).color.setHex(salt ? COLOURS.salt : fields ? COLOURS.wheat : opts.lap ? COLOURS.infield : opts.ice ? COLOURS.snow : COLOURS.ground)
+      // Surface detail (PR 13az): salt, snow and ice get the snow texture, tarmac the asphalt, the rest grass.
+      roadMat.map = groundDetail(salt || opts.ice ? 'snow' : meadow ? 'grass' : 'asphalt', renderer)
+      ;(ground.material as THREE.MeshLambertMaterial).map = groundDetail(salt || opts.ice ? 'snow' : 'grass', renderer)
+      roadMat.needsUpdate = (ground.material as THREE.Material).needsUpdate = true
       // The cycling track's 250 m lap is the velodrome; the 400 m ice oval is the Stavren Ice Oval.
       const hallFile = opts.lap === TRACK.lap && !opts.ice ? 'velodrome.glb' : opts.lap === OVAL.lap && opts.ice ? 'iceoval.glb' : null
       wantHall = hallFile !== null
@@ -1148,6 +1153,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       // An ice race that isn't on an oval is Lake Dolgo's loop (PR 13y): snowbanks, not farms.
       lake = roadside && opts.ice === true
       road = roadside && !lake
+      skyDome.setMood(lake ? 'winter' : 'day')
       if (road) loadKit('road.glb')
       if (lake) loadKit('lake.glb')
       placeKit()
@@ -1160,7 +1166,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       let along = 0
       for (const seg of segs) {
         const { fx, fz, rx, rz } = axes(seg.heading)
-        const road = new THREE.Mesh(new THREE.PlaneGeometry(lay.roadWidth, seg.length), roadMat)
+        const road = new THREE.Mesh(metrePlane(lay.roadWidth, seg.length), roadMat)
         road.renderOrder = -2
         road.rotation.order = 'YXZ'
         road.rotation.y = -seg.heading * DEG
@@ -1313,6 +1319,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       placeKit()
       if (kit) dropModel(kit)
       stopTheme()
+      skyDome.dispose()
       watcher.disconnect()
       clearCourse()
       dropFigure(mine)

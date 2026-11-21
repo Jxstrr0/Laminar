@@ -16,6 +16,7 @@ import { SLED_KIT as K, SLED_SCENE as S } from '../data/replay'
 import { bobsledPose } from '../sim/geom/bobsledPose'
 import { pointAt, type SledFrame, type TrackLine } from '../sim/sledReplay'
 import { buildRider, disposeGroup } from './riderFigure'
+import { attachSky } from './sky'
 import { sceneColours } from './theme'
 
 const COLOURS = {
@@ -112,12 +113,15 @@ export function createSledView(host: HTMLElement): SledView {
   const scene = new THREE.Scene()
   // The sky follows the phone's theme (Isobar, PR 13h); the track keeps its daylight colours.
   const theme = sceneColours()
-  scene.background = new THREE.Color(theme.fieldSky)
-  scene.fog = new THREE.Fog(theme.fieldSky, 40, 260)
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a96a3, 2.2))
+  // A photographed winter sky (PR 13az) replaces the flat colour once it has loaded, and lights the venue.
+  const fog = new THREE.Fog(theme.fieldSky, 40, 260)
+  scene.fog = fog
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x8a96a3, 2.2)
+  scene.add(hemi)
   const sun = new THREE.DirectionalLight(0xffffff, 1.4)
   sun.position.set(-40, 80, 30)
   scene.add(sun)
+  const skyDome = attachSky(renderer, scene, fog, hemi, sun, 'winter')
   const camera = new THREE.PerspectiveCamera(S.camera.fov, 1, 0.1, 600)
 
   const trackGroup = new THREE.Group()
@@ -378,6 +382,7 @@ export function createSledView(host: HTMLElement): SledView {
       drop(old)
       disposeGroup(trackGroup)
       ghostMat.dispose()
+      skyDome.dispose()
       renderer.dispose()
       renderer.domElement.remove()
     },
