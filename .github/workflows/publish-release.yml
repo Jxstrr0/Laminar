@@ -1,4 +1,4 @@
-# Adapted from Quench .github/workflows/publish-release.yml (15 November 2026), which came from Lombard
+# Adapted from a retired Longlight game, .github/workflows/publish-release.yml (15 November 2026), which came from Lombard
 #
 # Publishes a GitHub Release for each new version of the game.
 #

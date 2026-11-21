@@ -1,4 +1,4 @@
-// Adapted from Quench tests/releaseTitle.test.ts (15 November 2026)
+// Adapted from a retired Longlight game, tests/releaseTitle.test.ts (15 November 2026)
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'

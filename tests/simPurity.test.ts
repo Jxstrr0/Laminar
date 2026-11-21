@@ -1,4 +1,4 @@
-// Adapted from Quench tests/simPurity.test.ts (15 November 2026), from an idea in Season Ticket and Scrapline
+// Adapted from a retired Longlight game, tests/simPurity.test.ts (15 November 2026), from an idea in Season Ticket and Scrapline
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'

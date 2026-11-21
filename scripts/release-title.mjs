@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Adapted from Quench scripts/release-title.mjs (15 November 2026)
+// Adapted from a retired Longlight game, scripts/release-title.mjs (15 November 2026)
 /**
  * Picks the "what's new" line for a GitHub Release from commit titles.
  *

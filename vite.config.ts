@@ -1,4 +1,4 @@
-// Adapted from Quench vite.config.ts (15 November 2026), which came from Lombard.
+// Adapted from a retired Longlight game, vite.config.ts (15 November 2026), which came from Lombard.
 import { execSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'

@@ -218,6 +218,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 - **0.15.35.1** (security test, 19 November): a pasted save code or challenge code has a size limit. A small code could be built to unpack to hundreds of megabytes and freeze the phone; reading now stops at 64 MB (`CODE_LIMITS` in `src/persist/code.ts`), far above any real career, and the code is called damaged. Nothing changes in play.
 - **0.15.36.0** (PR 13ax): Shape and Tunnel's cards scroll on iPhone again, and a swipe between cards scrolls instead of spinning the model.
 - **0.15.40.0** (PR 13bb): greener grass in the replays, to go with the real skies.
+- **0.15.40.1** (housekeeping, 21 November): the studio catalogue recopied and code credits reworded after Kelbo deleted a retired game; nothing changes in play.
 - **0.15.39.0** (PR 13ba): studio reflections on the tunnel and Shape models, plaster walls and a concrete floor in the tunnel.
 - **0.15.38.0** (PR 13az): photographed skies and textured ground in the replays (CC0 from Poly Haven and ambientCG), with a `?sky=` trial switch.
 - **0.15.37.0** (PR 13ay): Shape's readouts stay put while the sliders scroll, so you see each change without scrolling back up.
@@ -1364,7 +1365,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 - Repo: renamed from `Jxstrr0/Laminar-` to `Jxstrr0/Laminar` on
   15 November 2026. Old links redirect.
 - DNS: `laminar.longlight.games` is a CNAME to `jxstrr0.github.io` in
-  Cloudflare (added 15 November 2026, not proxied, like Quench).
+  Cloudflare (added 15 November 2026, not proxied, like the other games).
 - GitHub Pages: **Source: GitHub Actions** (switched on 15 November 2026),
   custom domain `laminar.longlight.games`, **Enforce HTTPS** on.
 
