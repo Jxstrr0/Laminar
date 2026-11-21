@@ -37,9 +37,19 @@ export const REPLAY_SCENE = {
   flagEvery: 400,
   flagSide: -6,
   flagHeight: 3,
-  /** The ground grid: cell size and how far it reaches. */
+  /** The ground grid: cell size and how far the ground reaches. */
   gridCell: 25,
   gridSize: 2400,
+  /**
+   * The grid is drawn by the ground itself (PR 13bc): each line this many pixels wide, fading out as the
+   * cells shrink with distance, from `fadeFrom` of a cell per pixel to gone at `fadeTo` (so far lines never crowd into stripes).
+   */
+  gridLine: { width: 1.4, fadeFrom: 0.05, fadeTo: 0.3 },
+  /**
+   * The ground follows the camera in steps this long, m: a whole number of grid cells, of the
+   * survey's crop rows and of each ground texture's tile, so nothing on it seems to jump.
+   */
+  groundStep: 200,
   /** Fog closes in between these distances. */
   fogNear: 120,
   fogFar: 1500,

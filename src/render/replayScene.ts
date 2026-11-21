@@ -28,11 +28,12 @@ import type { PlanePose } from '../sim/planeReplay'
 import { turnAngle, type TrackPoint } from '../sim/replay'
 import { buildRider, disposeGroup } from './riderFigure'
 import { groundDetail, metrePlane } from './groundDetail'
+import { lateDraw } from './lateDraw'
 import { attachSky } from './sky'
 import { onThemeChange, sceneColours } from './theme'
 
 const COLOURS = {
-  /** Grass: a deeper green since the real skies (PR 13bb), the grid a shade darker. */
+  /** Grass: a deeper green since the real skies (PR 13bb), the grid a shade darker. Every grid colour is lit with its ground (PR 13bc). */
   ground: 0x95b06e,
   grid: 0x86a062,
   road: 0x6b737a,
@@ -44,8 +45,9 @@ const COLOURS = {
   boards: 0xc89f6a,
   /** Skated ice, indoors or on the lake. */
   ice: 0xe2edf4,
-  /** Snow round the lake, a shade darker than the ice so the loop reads. */
+  /** Snow round the lake, a shade darker than the ice so the loop reads, and its grid a shade darker again. */
   snow: 0xc3d0da,
+  snowGrid: 0xb1bfca,
   infield: 0xa9b8c6,
   line: 0xffffff,
   markOld: 0x5a6875,
@@ -64,6 +66,33 @@ const COLOURS = {
 }
 
 const DEG = Math.PI / 180
+
+/**
+ * Draw a grid on a flat ground's material (PR 13bc), from its texture coordinates in metres (metrePlane):
+ * a line each `cell` metres both ways, in `colour` under the ground's own light and texture, as wide as
+ * REPLAY_SCENE.gridLine says and fading out where the cells get small on screen. Returns its colour, and `gridOn` (0 hides it).
+ */
+function gridLines(mat: THREE.MeshLambertMaterial, colour: number, cell: number): { gridColour: { value: THREE.Color }; gridOn: { value: number } } {
+  const L = S.gridLine
+  const uniforms = { gridColour: { value: new THREE.Color(colour) }, gridCell: { value: cell }, gridOn: { value: 1 } }
+  mat.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, uniforms)
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vGridAt;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvGridAt = uv;')
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec2 vGridAt;\nuniform vec3 gridColour;\nuniform float gridCell;\nuniform float gridOn;')
+      .replace(
+        '#include <map_fragment>',
+        `vec2 gridAt = vGridAt / gridCell;
+        vec2 gridPx = max(fwidth(gridAt), vec2(1e-6));
+        vec2 gridLine = 1.0 - clamp(abs(fract(gridAt + 0.5) - 0.5) / gridPx - ${(L.width / 2).toFixed(2)} + 0.5, 0.0, 1.0);
+        gridLine *= 1.0 - smoothstep(${L.fadeFrom.toFixed(3)}, ${L.fadeTo.toFixed(3)}, gridPx);
+        diffuseColor.rgb = mix(diffuseColor.rgb, gridColour, max(gridLine.x, gridLine.y) * gridOn);
+        #include <map_fragment>`,
+      )
+  }
+  mat.customProgramCacheKey = () => 'ground-grid'
+  return uniforms
+}
 
 /** Unit vectors for a compass heading: forward along the road, and right of it. */
 /** A fixed hash of a whole number to [0, 1): the roadside's trees vary by place, the same on every phone. */
@@ -196,10 +225,12 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
   const sun = new THREE.DirectionalLight(0xffffff, 1.6)
   sun.position.set(30, 60, 20)
   scene.add(sun)
-  const skyDome = attachSky(renderer, scene, fog, hemi, sun, 'day')
+  // A sky, a texture or a model that lands after the replay has stopped on its last frame gets one more draw (PR 13bc).
+  const late = lateDraw(() => renderer.render(scene, camera))
+  const skyDome = attachSky(renderer, scene, fog, hemi, sun, 'day', late.ask)
 
   const camera = new THREE.PerspectiveCamera(lay.camera.fov, 1, 0.1, S.fogFar + 200)
-  // Everything flat on the ground (grass, grid, road, dashes) is drawn first, in that order,
+  // Everything flat on the ground (grass with its grid, road, dashes) is drawn first, in that order,
   // without writing depth: a phone's depth buffer can't tell layers a few millimetres apart.
   const flat = (o: THREE.Mesh | THREE.LineSegments, order: number) => {
     o.renderOrder = order
@@ -211,10 +242,16 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
   const groundSize = fields || airfield ? S.fogFar * 2 : S.gridSize
   const ground = flat(new THREE.Mesh(metrePlane(groundSize * 2, groundSize * 2), new THREE.MeshLambertMaterial({ color: salt ? COLOURS.salt : fields ? COLOURS.wheat : COLOURS.ground })), -4)
   ground.rotation.x = -Math.PI / 2
-  const gridColour = salt ? COLOURS.saltGrid : fields ? COLOURS.rows : COLOURS.grid
-  const gridCell = fields ? SURVEY_SCENE.rows : S.gridCell
-  const grid = flat(new THREE.GridHelper(groundSize, Math.round(groundSize / gridCell), gridColour, gridColour), -3)
-  scene.add(ground, grid)
+  // The grid is drawn by the ground's own shader (PR 13bc), so it takes the same light, sits under the road,
+  // and fades out with distance instead of crowding into stripes at the horizon.
+  const grid = gridLines(ground.material as THREE.MeshLambertMaterial, salt ? COLOURS.saltGrid : fields ? COLOURS.rows : COLOURS.grid, fields ? SURVEY_SCENE.rows : S.gridCell)
+  scene.add(ground)
+
+  /** The ground follows the camera in whole steps, so its grid and texture never seem to jump. */
+  function followGround(p: { x: number; z: number }) {
+    ground.position.x = Math.round(p.x / S.groundStep) * S.groundStep
+    ground.position.z = Math.round(p.z / S.groundStep) * S.groundStep
+  }
 
   const course = new THREE.Group()
   scene.add(course)
@@ -475,6 +512,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
         hall = gltf.scene
         scene.add(gltf.scene)
         showHall()
+        late.ask()
       },
       undefined,
       // Offline with an old cache, or missing: the code-drawn boards stay, and the race plays the same.
@@ -515,6 +553,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
         kit = gltf.scene
         kit.updateMatrixWorld(true)
         placeKit()
+        late.ask()
       },
       undefined,
       () => undefined,
@@ -1131,13 +1170,14 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       clearCourse()
       broadcast = null
       ringMine.visible = ringOld.visible = !!opts.lap
-      grid.visible = !opts.lap
+      grid.gridOn.value = opts.lap ? 0 : 1
+      grid.gridColour.value.setHex(salt ? COLOURS.saltGrid : fields ? COLOURS.rows : opts.ice ? COLOURS.snowGrid : COLOURS.grid)
       boardsMat.color.setHex(opts.ice ? COLOURS.ice : COLOURS.boards)
       roadMat.color.setHex(salt ? COLOURS.saltCourse : meadow ? COLOURS.mown : opts.ice ? COLOURS.ice : COLOURS.road)
       ;(ground.material as THREE.MeshLambertMaterial).color.setHex(salt ? COLOURS.salt : fields ? COLOURS.wheat : opts.lap ? COLOURS.infield : opts.ice ? COLOURS.snow : COLOURS.ground)
       // Surface detail (PR 13az): salt, snow and ice get the snow texture, tarmac the asphalt, the rest grass.
-      roadMat.map = groundDetail(salt || opts.ice ? 'snow' : meadow ? 'grass' : 'asphalt', renderer)
-      ;(ground.material as THREE.MeshLambertMaterial).map = groundDetail(salt || opts.ice ? 'snow' : 'grass', renderer)
+      roadMat.map = groundDetail(salt || opts.ice ? 'snow' : meadow ? 'grass' : 'asphalt', renderer, late.ask)
+      ;(ground.material as THREE.MeshLambertMaterial).map = groundDetail(salt || opts.ice ? 'snow' : 'grass', renderer, late.ask)
       roadMat.needsUpdate = (ground.material as THREE.Material).needsUpdate = true
       // The cycling track's 250 m lap is the velodrome; the 400 m ice oval is the Stavren Ice Oval.
       const hallFile = opts.lap === TRACK.lap && !opts.ice ? 'velodrome.glb' : opts.lap === OVAL.lap && opts.ice ? 'iceoval.glb' : null
@@ -1274,10 +1314,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
           camera.position.set(p.x + fx * v.side.ahead + rx * v.side.out, y, p.z + fz * v.side.ahead + rz * v.side.out)
           camera.lookAt(p.x, p.y, p.z)
         }
-        grid.position.x = Math.round(p.x / S.gridCell) * S.gridCell
-        grid.position.z = Math.round(p.z / S.gridCell) * S.gridCell
-        ground.position.x = grid.position.x
-        ground.position.z = grid.position.z
+        followGround(p)
         return
       }
       // Over the wheat (PR 10o): behind your plane at its own height, sinking with it as it comes down, never into the crop.
@@ -1286,10 +1323,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
         const y = Math.max(SURVEY_SCENE.cameraLow, p.y + v.up)
         camera.position.set(p.x - fx * v.back + rx * v.side, y, p.z - fz * v.back + rz * v.side)
         camera.lookAt(p.x + fx * v.ahead, Math.max(0, p.y - v.below), p.z + fz * v.ahead)
-        grid.position.x = Math.round(p.x / gridCell) * gridCell
-        grid.position.z = Math.round(p.z / gridCell) * gridCell
-        ground.position.x = grid.position.x
-        ground.position.z = grid.position.z
+        followGround(p)
         return
       }
       // A quad falling from a tumble (PR 10h): the camera sinks with it and looks down at where it lands.
@@ -1299,11 +1333,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       const lookUp = c.lookUp - sink - DRONE_SCENE.fallLook.down * fall
       camera.position.set(p.x - fx * c.back + rx * c.side, c.up - sink, p.z - fz * c.back + rz * c.side)
       camera.lookAt(p.x + fx * ahead, lookUp, p.z + fz * ahead)
-      // The ground grid follows the camera in whole cells, so it never seems to jump.
-      grid.position.x = Math.round(p.x / S.gridCell) * S.gridCell
-      grid.position.z = Math.round(p.z / S.gridCell) * S.gridCell
-      ground.position.x = grid.position.x
-      ground.position.z = grid.position.z
+      followGround(p)
     },
     setInset(px) {
       if (px === inset) return
@@ -1315,6 +1345,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
     },
     dispose() {
       disposed = true
+      late.stop()
       if (hall instanceof THREE.Object3D) dropModel(hall)
       kitCourse = null
       placeKit()
@@ -1326,7 +1357,6 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
       dropFigure(mine)
       dropFigure(old)
       for (const geo of [poleGeo, flagGeo, coneGeo, dashGeo, ringGeo, chuteGeo, shockGeo, ground.geometry]) geo.dispose()
-      grid.dispose()
       for (const m of [roadMat, dashMat, poleMat, flagMat, coneMat, ghostMat, boardsMat, lineMat, chuteMat, chuteLineMat, shockMat, gateMat, ringMine.material, ringOld.material, ground.material as THREE.Material])
         m.dispose()
       renderer.dispose()

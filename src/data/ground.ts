@@ -11,7 +11,8 @@ export type GroundKind = 'grass' | 'asphalt' | 'snow' | 'wall' | 'floor'
 
 /** How many metres one copy of each texture covers. */
 export const GROUND_TILE: Record<GroundKind, number> = {
-  grass: 3,
+  // An eighth of a grid cell: the ground moves in whole cells, and the grass mustn't seem to jump (PR 13bc).
+  grass: 3.125,
   asphalt: 2.5,
   snow: 5,
   wall: 1.2,

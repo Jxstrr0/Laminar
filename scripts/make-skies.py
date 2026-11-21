@@ -8,7 +8,9 @@ The HDRIs themselves are not committed (each 4k file is about 18 MB). Fetch
 the 4k .hdr for each id below from https://polyhaven.com/a/<id> into one
 folder, then run this. It writes public/sky/<id>.jpg (4096 x 2048) and prints
 each sky's horizon colour, which goes in src/data/skies.ts as the fog colour,
-so the far ground fades into the sky instead of meeting it at a line.
+so the far ground fades into the sky instead of meeting it at a line, and
+where its sun sits (`sunAt` there), so the game can turn the sky to put the
+sun where each venue's own light comes from.
 
 Credits for every sky are in CREDITS.md.
 """
@@ -51,6 +53,18 @@ def horizon(path: Path) -> str:
     return "#" + "".join("%02x" % round(255 * min(1.0, max(0.0, to_srgb(float(c))))) for c in band)
 
 
+def sun_at(path: Path) -> float:
+    """Where the picture's brightest patch sits, degrees: the angle atan2(z, x) the game sees it at with no turn."""
+    img = bpy.data.images.load(str(path))
+    w, h = img.size
+    px = np.array(img.pixels[:]).reshape(h, w, 4)[:, :, :3].mean(2)
+    block = w // 256
+    coarse = px[: h // block * block, : w // block * block].reshape(h // block, block, w // block, block).mean((1, 3))
+    _, col = np.unravel_index(coarse.argmax(), coarse.shape)
+    bpy.data.images.remove(img)
+    return ((col + 0.5) / coarse.shape[1] - 0.5) * 360
+
+
 def main() -> None:
     src = Path(sys.argv[sys.argv.index("--") + 1])
     OUT.mkdir(parents=True, exist_ok=True)
@@ -66,7 +80,7 @@ def main() -> None:
         out = OUT / f"{sky_id}.jpg"
         img.save_render(str(out), scene=scene)
         bpy.data.images.remove(img)
-        print(f"SKY {sky_id} horizon {horizon(out)} {out.stat().st_size // 1024} KiB")
+        print(f"SKY {sky_id} horizon {horizon(out)} sunAt {sun_at(out):.0f} {out.stat().st_size // 1024} KiB")
 
 
 main()

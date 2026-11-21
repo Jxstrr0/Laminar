@@ -18,6 +18,7 @@ import { groundAt, hillSurface, xAtAlong } from '../sim/jumper'
 import type { JumpFrame } from '../sim/jumpReplay'
 import type { JumperDesign } from '../data/jumper'
 import { buildRider, disposeGroup } from './riderFigure'
+import { lateDraw } from './lateDraw'
 import { attachSky } from './sky'
 import { sceneColours } from './theme'
 
@@ -63,7 +64,9 @@ export function createJumpView(host: HTMLElement): JumpView {
   const sun = new THREE.DirectionalLight(0xffffff, 1.5)
   sun.position.set(-20, 60, 40)
   scene.add(sun)
-  const skyDome = attachSky(renderer, scene, fog, hemi, sun, 'winter')
+  // A sky or a model that lands after the replay has stopped on its last frame gets one more draw (PR 13bc).
+  const late = lateDraw(() => renderer.render(scene, camera))
+  const skyDome = attachSky(renderer, scene, fog, hemi, sun, 'winter', late.ask)
   const camera = new THREE.PerspectiveCamera(S.camera.fov, 1, 0.1, 800)
 
   const hillGroup = new THREE.Group()
@@ -95,6 +98,7 @@ export function createJumpView(host: HTMLElement): JumpView {
       if (disposed) return dropModel(gltf.scene)
       kit = gltf.scene
       placeBuildings()
+      late.ask()
     },
     undefined,
     () => undefined,
@@ -317,6 +321,7 @@ export function createJumpView(host: HTMLElement): JumpView {
     },
     dispose() {
       disposed = true
+      late.stop()
       buildings.clear()
       if (kit) dropModel(kit)
       watcher.disconnect()

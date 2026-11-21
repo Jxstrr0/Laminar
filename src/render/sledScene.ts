@@ -16,6 +16,7 @@ import { SLED_KIT as K, SLED_SCENE as S } from '../data/replay'
 import { bobsledPose } from '../sim/geom/bobsledPose'
 import { pointAt, type SledFrame, type TrackLine } from '../sim/sledReplay'
 import { buildRider, disposeGroup } from './riderFigure'
+import { lateDraw } from './lateDraw'
 import { attachSky } from './sky'
 import { sceneColours } from './theme'
 
@@ -121,7 +122,9 @@ export function createSledView(host: HTMLElement): SledView {
   const sun = new THREE.DirectionalLight(0xffffff, 1.4)
   sun.position.set(-40, 80, 30)
   scene.add(sun)
-  const skyDome = attachSky(renderer, scene, fog, hemi, sun, 'winter')
+  // A sky or a model that lands after the replay has stopped on its last frame gets one more draw (PR 13bc).
+  const late = lateDraw(() => renderer.render(scene, camera))
+  const skyDome = attachSky(renderer, scene, fog, hemi, sun, 'winter', late.ask)
   const camera = new THREE.PerspectiveCamera(S.camera.fov, 1, 0.1, 600)
 
   const trackGroup = new THREE.Group()
@@ -229,6 +232,7 @@ export function createSledView(host: HTMLElement): SledView {
       kit = gltf.scene
       kit.updateMatrixWorld(true)
       placeKit()
+      late.ask()
     },
     undefined,
     () => undefined,
@@ -375,6 +379,7 @@ export function createSledView(host: HTMLElement): SledView {
     },
     dispose() {
       disposed = true
+      late.stop()
       for (const child of kitGroup.children) if (child instanceof THREE.InstancedMesh) child.dispose()
       if (kit) dropModel(kit)
       watcher.disconnect()
