@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { GROUND_TILE, type GroundKind } from '../src/data/ground'
 import { REPLAY_SCENE, SURVEY_SCENE } from '../src/data/replay'
 import { lateDraw } from '../src/render/lateDraw'
-import { pickSky, SKIES, SKY_FOR, type SkyId } from '../src/data/skies'
+import { pickSky, SKIES, SKY_FOR, WEATHER, weatherByAir, weatherByWind, type SkyId } from '../src/data/skies'
 
 const ROOT = join(__dirname, '..')
 
@@ -17,13 +17,38 @@ describe('the replays’ skies (PR 13az)', () => {
     }
   })
 
-  it('gives each mood its sky, and lets the address try another or switch them off', () => {
-    expect(pickSky('day', null)).toBe(SKY_FOR.day)
-    expect(pickSky('winter', null)).toBe(SKY_FOR.winter)
-    expect(pickSky('day', 'clear')).toBe('kloofendal_43d_clear_puresky')
-    expect(pickSky('dusk', 'off')).toBeNull()
-    // An unknown name is ignored.
-    expect(pickSky('day', 'purple')).toBe(SKY_FOR.day)
+  it('reads the day’s sky from its wind, or from its air against the venue’s usual (PR 13bd)', () => {
+    // Calm is clear; a stiff wind is overcast; each threshold starts the next sky.
+    expect(weatherByWind(0)).toBe(0)
+    expect(weatherByWind(WEATHER.wind[0])).toBe(1)
+    expect(weatherByWind(WEATHER.wind[1])).toBe(2)
+    expect(weatherByWind(WEATHER.wind[2])).toBe(3)
+    expect(weatherByWind(20)).toBe(3)
+    // In summer the warmer day is the clear one, and the usual day has some cloud.
+    expect(weatherByAir(6)).toBe(0)
+    expect(weatherByAir(0)).toBe(1)
+    expect(weatherByAir(-2)).toBe(2)
+    expect(weatherByAir(-8)).toBe(3)
+    // On snow and ice it's the cold day that's clear.
+    expect(weatherByAir(-6, true)).toBe(0)
+    expect(weatherByAir(8, true)).toBe(3)
+  })
+
+  it('gives every mood a sky for each weather, uses every sky it ships, and keeps Kelbo’s picks for the usual day', () => {
+    const used = new Set<SkyId>()
+    for (const mood of ['day', 'winter', 'dusk'] as const) {
+      for (const weather of [0, 1, 2, 3] as const) {
+        const id = pickSky(mood, weather)
+        expect(SKIES[id]).toBeDefined()
+        used.add(id)
+      }
+    }
+    expect([...used].sort()).toEqual((Object.keys(SKIES) as SkyId[]).sort())
+    // Cumulus by day and dusk in dark mode (Kelbo, 20 November 2026) are the skies of a venue with no weather.
+    expect(SKIES[pickSky('day', WEATHER.usual)].name).toBe('cumulus')
+    expect(SKIES[pickSky('dusk', WEATHER.usual)].name).toBe('dusk')
+    // A rougher day never has a clearer daytime sky.
+    expect(SKY_FOR.day.map((id) => SKIES[id].name)).toEqual(['clear', 'wisps', 'cumulus', 'overcast'])
   })
 
   it('names every sky differently', () => {

@@ -11,6 +11,7 @@
  * survey-day debrief. Every number comes from survey day's two flights.
  */
 import type { PlaneDesign } from '../data/plane'
+import type { Weather } from '../data/skies'
 import { t } from '../data/strings'
 import type { SurveyDay, SurveyFlight } from '../sim/planeJob'
 import { clipClock, clipsPlayTime, planePose, planeRide, surveyClips, surveyNotes, type SurveyNote } from '../sim/planeReplay'
@@ -32,6 +33,8 @@ export interface PlaneReplayInput {
   predicted: number
   actual: number | null
   /** Called when the replay closes, whether watched to the end or skipped. */
+  /** The day's sky (PR 13bd), clear to overcast: from the day's wind, or its air against the venue's usual. */
+  weather: Weather
   onDone(): void
 }
 
@@ -142,7 +145,7 @@ export async function playPlaneReplay(input: PlaneReplayInput): Promise<void> {
   document.body.append(root)
 
   const reduce = reducedMotion()
-  const view = createReplayView(stage, { still: reduce, survey: true })
+  const view = createReplayView(stage, { still: reduce, survey: true, weather: input.weather })
   const panelWatch = new ResizeObserver(() => view.setInset(panel.offsetHeight))
   panelWatch.observe(panel)
   view.setCourse(mine.course, { windFromDeg: 0, calm: true })

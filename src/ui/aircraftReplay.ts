@@ -9,6 +9,7 @@
  * Every number comes from test day's two flights.
  */
 import type { AircraftDesign } from '../data/aircraft'
+import type { Weather } from '../data/skies'
 import { AIRCRAFT_REPLAY as R } from '../data/replay'
 import { t } from '../data/strings'
 import { KMH } from '../sim/aircraft'
@@ -31,6 +32,8 @@ export interface AircraftReplayInput {
   predicted: number
   actual: number | null
   /** Called when the replay closes, whether watched to the end or skipped. */
+  /** The day's sky (PR 13bd), clear to overcast: from the day's wind, or its air against the venue's usual. */
+  weather: Weather
   onDone(): void
 }
 
@@ -126,7 +129,7 @@ export async function playAircraftReplay(input: AircraftReplayInput): Promise<vo
   root.append(stage, top, panel)
   document.body.append(root)
 
-  const view = createReplayView(stage, { still: reduce, airfield: true })
+  const view = createReplayView(stage, { still: reduce, airfield: true, weather: input.weather })
   const panelWatch = new ResizeObserver(() => view.setInset(panel.offsetHeight))
   panelWatch.observe(panel)
   view.setRiders(input.design, input.setup)

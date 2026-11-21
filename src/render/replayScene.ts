@@ -29,6 +29,7 @@ import { turnAngle, type TrackPoint } from '../sim/replay'
 import { buildRider, disposeGroup } from './riderFigure'
 import { groundDetail, metrePlane } from './groundDetail'
 import { lateDraw } from './lateDraw'
+import { WEATHER, type Weather } from '../data/skies'
 import { attachSky } from './sky'
 import { onThemeChange, sceneColours } from './theme'
 
@@ -142,6 +143,8 @@ export interface ReplayOptions {
   survey?: boolean
   /** Test day for a light aircraft (PR 10v): Belyanka's grass and runway with its timing masts, and a camera flying alongside your plane. */
   airfield?: boolean
+  /** The day's sky, clear to overcast (PR 13bd). Left out indoors: the usual broken cloud lights the hall. */
+  weather?: Weather
 }
 
 /** A rider as drawn: tucked as designed, and (built the first time it's needed) sitting up. */
@@ -227,7 +230,7 @@ export function createReplayView(host: HTMLElement, opts: ReplayOptions = {}): R
   scene.add(sun)
   // A sky, a texture or a model that lands after the replay has stopped on its last frame gets one more draw (PR 13bc).
   const late = lateDraw(() => renderer.render(scene, camera))
-  const skyDome = attachSky(renderer, scene, fog, hemi, sun, 'day', late.ask)
+  const skyDome = attachSky(renderer, scene, fog, hemi, sun, 'day', opts.weather ?? WEATHER.usual, late.ask)
 
   const camera = new THREE.PerspectiveCamera(lay.camera.fov, 1, 0.1, S.fogFar + 200)
   // Everything flat on the ground (grass with its grid, road, dashes) is drawn first, in that order,

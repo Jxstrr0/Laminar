@@ -8,6 +8,7 @@
  * from the day's runs.
  */
 import type { BobsledDesign } from '../data/bobsled'
+import type { Weather } from '../data/skies'
 import type { Track } from '../data/tracks'
 import { SLED_REPLAY } from '../data/replay'
 import { t } from '../data/strings'
@@ -29,6 +30,8 @@ export interface SledReplayInput {
   predicted: number
   actual: number
   /** Called when the replay closes, whether watched to the end or skipped. */
+  /** The day's sky (PR 13bd), clear to overcast: from the day's wind, or its air against the venue's usual. */
+  weather: Weather
   onDone(): void
 }
 
@@ -123,7 +126,7 @@ export async function playSledReplay(input: SledReplayInput): Promise<void> {
   document.body.append(root)
 
   const reduce = reducedMotion()
-  const view = createSledView(stage)
+  const view = createSledView(stage, input.weather)
   const panelWatch = new ResizeObserver(() => view.setInset(panel.offsetHeight))
   panelWatch.observe(panel)
   view.setTrack(line, input.track.push.length)

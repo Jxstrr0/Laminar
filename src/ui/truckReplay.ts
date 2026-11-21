@@ -8,6 +8,7 @@
  * trial's debrief. Every number comes from the day's two fuel runs.
  */
 import { TRUCK_REPLAY } from '../data/replay'
+import type { Weather } from '../data/skies'
 import type { Route } from '../data/routes'
 import { t } from '../data/strings'
 import type { TruckDesign } from '../data/truck'
@@ -33,6 +34,8 @@ export interface TruckReplayInput {
   predicted: number
   actual: number
   /** Called when the replay closes, whether watched to the end or skipped. */
+  /** The day's sky (PR 13bd), clear to overcast: from the day's wind, or its air against the venue's usual. */
+  weather: Weather
   onDone(): void
 }
 
@@ -121,7 +124,7 @@ export async function playTruckReplay(input: TruckReplayInput): Promise<void> {
   document.body.append(root)
 
   const reduce = reducedMotion()
-  const view = createReplayView(stage, { still: reduce, truck: true })
+  const view = createReplayView(stage, { still: reduce, truck: true, weather: input.weather })
   const panelWatch = new ResizeObserver(() => view.setInset(panel.offsetHeight))
   panelWatch.observe(panel)
   view.setCourse(mine.course, { windFromDeg: input.day.windFromDeg, calm: input.day.windSpeed < 0.3 })

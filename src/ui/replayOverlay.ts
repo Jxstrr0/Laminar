@@ -7,6 +7,7 @@
  * debrief. Every number comes from the field result; nothing is re-run.
  */
 import type { Design } from '../sim/design'
+import type { Weather } from '../data/skies'
 import type { CourseSegment } from '../data/field'
 import { REPLAY } from '../data/replay'
 import { t } from '../data/strings'
@@ -29,6 +30,8 @@ export interface ReplayInput {
   /** Raced on ice. */
   ice?: boolean
   /** Called when the replay closes, whether watched to the end or skipped. */
+  /** The day's sky (PR 13bd), clear to overcast: from the day's wind, or its air against the venue's usual. */
+  weather: Weather
   onDone(): void
 }
 
@@ -145,7 +148,7 @@ export async function playReplay(input: ReplayInput): Promise<void> {
   document.body.append(root)
 
   const reduce = reducedMotion()
-  const view = createReplayView(stage, { still: reduce })
+  const view = createReplayView(stage, { still: reduce, weather: input.weather })
   const panelWatch = new ResizeObserver(() => view.setInset(panel.offsetHeight))
   panelWatch.observe(panel)
   view.setCourse(input.course, { windFromDeg: input.result.windFromDeg, calm, lap: input.lap, ice: input.ice })

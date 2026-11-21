@@ -19,7 +19,7 @@ export type SkyId =
 export type SkyMood = 'day' | 'winter' | 'dusk'
 
 export interface Sky {
-  /** A short name for the trial list (`?sky=` in the address). */
+  /** A short name, for the notes and the credits. */
   name: string
   /** The colour just above its horizon (printed by the script): the fog fades the far ground into it. */
   horizon: number
@@ -45,25 +45,49 @@ export const SKIES: Record<SkyId, Sky> = {
   evening_road_01_puresky: { name: 'evening', horizon: 0xa1a6a8, light: 1.4, hemi: 0.32, sun: 0.5, sunColour: 0xffd2ae, sunAt: 40 },
 }
 
-/** The sky each mood gets. */
-export const SKY_FOR: Record<SkyMood, SkyId> = {
-  day: 'kloofendal_48d_partly_cloudy_puresky',
-  winter: 'overcast_soil_puresky',
-  dusk: 'kloppenheim_06_puresky',
+/**
+ * How a day's sky reads (PR 13bd), from clear (0) through thin cloud (1) and
+ * broken cloud (2) to overcast (3). The replay shows the day the sim ran:
+ * the same job always gets the same sky.
+ */
+export type Weather = 0 | 1 | 2 | 3
+
+export const WEATHER = {
+  /** By the day's wind, m/s: under each figure the sky is clear, thin, broken; from the last up, overcast. */
+  wind: [1.5, 3, 6],
+  /**
+   * Where a venue's day has no wind to go by, the air against the venue's usual, °C: this much
+   * warmer or more is clear, then thin, then broken; colder than the last, overcast.
+   * On snow and ice it runs the other way: the colder day is the clear one.
+   */
+  warmer: [2.5, -0.5, -4],
+  /** A venue with no weather (indoors): broken cloud, Kelbo's pick for the day sky. */
+  usual: 2,
+} as const satisfies { wind: readonly [number, number, number]; warmer: readonly [number, number, number]; usual: Weather }
+
+/** The sky for a day with this much wind, m/s (a gust, where that's what the day has). */
+export function weatherByWind(wind: number): Weather {
+  const [clear, thin, broken] = WEATHER.wind
+  return wind < clear ? 0 : wind < thin ? 1 : wind < broken ? 2 : 3
 }
 
-/**
- * The sky for a venue's mood, or what `?sky=` in the address asks for while
- * Kelbo tries them out: a sky's short name (`?sky=clear`) or `off` for the old flat colour.
- * Returns null for the flat colour.
- */
-export function pickSky(mood: SkyMood, trial: string | null): SkyId | null {
-  if (trial === 'off') return null
-  if (trial) {
-    const hit = (Object.keys(SKIES) as SkyId[]).find((id) => SKIES[id].name === trial)
-    if (hit) return hit
-  }
-  return SKY_FOR[mood]
+/** The sky for a day this much warmer than the venue's usual, °C (colder is negative); `winter` for snow and ice, where the cold day is the clear one. */
+export function weatherByAir(warmer: number, winter = false): Weather {
+  const [clear, thin, broken] = WEATHER.warmer
+  const by = winter ? -warmer : warmer
+  return by >= clear ? 0 : by >= thin ? 1 : by >= broken ? 2 : 3
+}
+
+/** The sky each mood gets in each weather, clear to overcast. Dark mode's dusk has two: a calmer evening, and heavier cloud. */
+export const SKY_FOR: Record<SkyMood, readonly [SkyId, SkyId, SkyId, SkyId]> = {
+  day: ['kloofendal_43d_clear_puresky', 'autumn_field_puresky', 'kloofendal_48d_partly_cloudy_puresky', 'overcast_soil_puresky'],
+  winter: ['kloofendal_43d_clear_puresky', 'autumn_field_puresky', 'overcast_soil_puresky', 'overcast_soil_puresky'],
+  dusk: ['evening_road_01_puresky', 'evening_road_01_puresky', 'kloppenheim_06_puresky', 'kloppenheim_06_puresky'],
+}
+
+/** The sky for a venue's mood on a day with this weather. */
+export function pickSky(mood: SkyMood, weather: Weather): SkyId {
+  return SKY_FOR[mood][weather]
 }
 
 /**

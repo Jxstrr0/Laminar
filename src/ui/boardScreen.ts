@@ -6,6 +6,7 @@
  * event and pays the fee.
  */
 import { AIRCRAFT_JOBS, POD_JOBS, BID, CAREER, CAR_JOBS, DRONE_JOBS, PLANE_JOBS, PROMISE, RECORD_JOBS, SLED_JOBS, TRACK, type BriefTemplate } from '../data/briefs'
+import { WEATHER, weatherByAir, weatherByWind } from '../data/skies'
 import { BROKE, REPUTATION } from '../data/reputation'
 import { ring } from './ring'
 import { isobarLayer } from './isobars'
@@ -456,6 +457,8 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       baselineDay: d.debrief.baselineDay,
       predicted: d.debrief.predicted,
       actual: d.debrief.actual,
+      // On the hill a colder day than usual is the clear one.
+      weather: weatherByAir(d.debrief.day.temperature - d.event.temperature, true),
       onDone: after,
     })
   }
@@ -617,6 +620,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       baselineDay: d.debrief.baselineDay,
       predicted: d.debrief.predicted,
       actual: d.debrief.actual,
+      weather: weatherByAir(d.debrief.conditions.temperature - d.event.temperature, true),
       onDone: after,
     })
   }
@@ -759,6 +763,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
         cracked: d.debrief.cracked !== null,
         predicted: d.debrief.predicted,
         actual: d.debrief.actual,
+        weather: weatherByWind(d.debrief.day.windSpeed),
         onDone: () => showTruckDelivery(d),
       })
     })
@@ -1081,6 +1086,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       baselineAttempt: db.baselineAttempt,
       predicted: db.predicted,
       actual: db.actual,
+      weather: weatherByWind(Math.hypot(db.day.along, db.day.cross)),
       onDone: after,
     })
   }
@@ -1098,6 +1104,8 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       baselineLap: d.debrief.baselineLap,
       predicted: d.debrief.predicted,
       actual: d.debrief.actual,
+      // No wind in a lap: a warmer race day than the circuit's usual is the clear one.
+      weather: weatherByAir(d.debrief.day.temperature - d.event.circuit.temperature),
       onDone: after,
     })
   }
@@ -1322,6 +1330,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       baselineRace: d.debrief.baselineRace,
       predicted: d.debrief.predicted,
       actual: d.debrief.actual,
+      weather: weatherByAir(d.debrief.day.temperature - d.event.course.temperature),
       onDone: after,
     })
   }
@@ -1415,6 +1424,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       baselineFlight: d.debrief.baselineFlight,
       predicted: d.debrief.predicted,
       actual: d.debrief.actual,
+      weather: weatherByWind(d.debrief.day.gust),
       onDone: after,
     })
   }
@@ -1564,6 +1574,7 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       baselineFlight: d.debrief.baselineFlight,
       predicted: d.debrief.predicted,
       actual: d.debrief.actual,
+      weather: weatherByAir(d.debrief.day.temperature - d.event.field.temperature),
       onDone: after,
     })
   }
@@ -1787,6 +1798,8 @@ export function startBoardScreen(host: HTMLElement, go: (screen: 'shape') => voi
       predicted: d.debrief.predicted,
       lap: b.event.indoor ? (b.event.lap ?? TRACK.lap) : undefined,
       ice: b.event.ice === true,
+      // Indoors the hall has no weather; outdoors the day's wind sets the sky.
+      weather: b.event.indoor ? WEATHER.usual : weatherByWind(d.result.windSpeed),
       onDone: after,
     })
   }

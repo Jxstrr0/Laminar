@@ -10,6 +10,7 @@
  * debrief. Every number comes from race day's two races.
  */
 import { DRONE_RACE, type DroneCourse, type DroneDesign } from '../data/drone'
+import type { Weather } from '../data/skies'
 import { DRONE_REPLAY } from '../data/replay'
 import { t } from '../data/strings'
 import type { DroneRace } from '../sim/drone'
@@ -32,6 +33,8 @@ export interface DroneReplayInput {
   predicted: number
   actual: number | null
   /** Called when the replay closes, whether watched to the end or skipped. */
+  /** The day's sky (PR 13bd), clear to overcast: from the day's wind, or its air against the venue's usual. */
+  weather: Weather
   onDone(): void
 }
 
@@ -144,7 +147,7 @@ export async function playDroneReplay(input: DroneReplayInput): Promise<void> {
   document.body.append(root)
 
   const reduce = reducedMotion()
-  const view = createReplayView(stage, { still: reduce, drone: true })
+  const view = createReplayView(stage, { still: reduce, drone: true, weather: input.weather })
   const panelWatch = new ResizeObserver(() => view.setInset(panel.offsetHeight))
   panelWatch.observe(panel)
   view.setCourse(droneLap(input.course), { windFromDeg: 0, calm: true, gates: droneGates(input.course) })
