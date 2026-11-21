@@ -139,7 +139,21 @@ def material(name: str, rough: float, metal: float = 0.0, emit: float = 0.0, one
     return mat
 
 
-def mesh_object(name: str, bm: bmesh.types.BMesh, mats: list[bpy.types.Material]) -> bpy.types.Object:
+def metre_uvs(bm: bmesh.types.BMesh) -> None:
+    """Texture coordinates in metres (PR 13ba), projected along each face's main axis, so the game's plaster and concrete tile at their real size."""
+    layer = bm.loops.layers.uv.new("UVMap")
+    for f in bm.faces:
+        n = f.normal
+        ax = max(range(3), key=lambda i: abs(n[i]))
+        for loop in f.loops:
+            co = loop.vert.co
+            loop[layer].uv = (co.y, co.z) if ax == 0 else (co.x, co.z) if ax == 1 else (co.x, co.y)
+
+
+def mesh_object(name: str, bm: bmesh.types.BMesh, mats: list[bpy.types.Material], uvs: bool = False) -> bpy.types.Object:
+    if uvs:
+        bm.normal_update()
+        metre_uvs(bm)
     me = bpy.data.meshes.new(name)
     bm.to_mesh(me)
     bm.free()
@@ -183,7 +197,7 @@ def build_shell(wall: bpy.types.Material, floor: bpy.types.Material) -> None:
     # recalc points normals outwards for a closed-ish tube: flip them in.
     for f in bm.faces:
         f.normal_flip()
-    mesh_object("Shell", bm, [wall, floor])
+    mesh_object("Shell", bm, [wall, floor], uvs=True)
 
 
 def box(bm: bmesh.types.BMesh, centre: tuple[float, float, float], size: tuple[float, float, float]) -> list[bmesh.types.BMVert]:
@@ -278,7 +292,7 @@ def build_far_wall(wall: bpy.types.Material, frame: bpy.types.Material, windows:
         xa, xb = edges[k], edges[k + 1]
         if xb - xa > 1e-4:
             facing_quad(bm, [(xa, w, z0), (xb, w, z0), (xb, w, z1), (xa, w, z1)], inward)
-    mesh_object("FarWall", bm, [wall])
+    mesh_object("FarWall", bm, [wall], uvs=True)
     # The reveals: the hole's four sides, back to the room's face of the wall.
     rm = bmesh.new()
     d = WALL_DEPTH
@@ -676,6 +690,12 @@ def build(name: str, v: dict, with_preview: bool) -> None:
         build_yaw_marks(mats["Seam"])
     shade_smooth_by_angle()
 
+    # Only the walls and floor carry texture coordinates (PR 13ba); the rest stay plain and small.
+    for obj in bpy.data.objects:
+        if obj.type == "MESH" and obj.name not in ("Shell", "FarWall"):
+            while obj.data.uv_layers:
+                obj.data.uv_layers.remove(obj.data.uv_layers[0])
+
     out: Path = v["out"]
     out.parent.mkdir(parents=True, exist_ok=True)
     bpy.ops.export_scene.gltf(
@@ -683,7 +703,7 @@ def build(name: str, v: dict, with_preview: bool) -> None:
         export_format="GLB",
         use_selection=False,
         export_extras=False,
-        export_texcoords=False,
+        export_texcoords=True,
         export_normals=True,
         export_tangents=False,
         export_materials="EXPORT",

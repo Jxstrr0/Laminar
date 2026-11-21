@@ -16,6 +16,8 @@ import { HANDLE_TOUCH, type HandleId } from '../data/handles'
 import type { Project, ScreenPoint } from '../sim/geom/handles'
 import type { Point } from '../sim/geom/pose'
 import type { RuleVolume } from '../sim/geom/ruleBox'
+import { STUDIO_LIGHT } from '../data/skies'
+import { studioLight } from './studioLight'
 import { onThemeChange, sceneColours, type SceneColours } from './theme'
 import { ball, buildRider, disposeGroup, v3, type Highlight, type RiderState } from './riderFigure'
 
@@ -133,10 +135,13 @@ export function createShapeView(host: HTMLElement): ShapeView {
   const key = new THREE.DirectionalLight(theme.key, 1.5)
   key.position.set(1.5, 3, 2.5)
   scene.add(key)
+  const studio = studioLight(renderer, scene, hemi)
 
   const floor = new THREE.Mesh(new THREE.CircleGeometry(2.6, 64), new THREE.MeshStandardMaterial({ color: theme.floor, roughness: 0.95 }))
   floor.rotation.x = -Math.PI / 2
   scene.add(floor)
+  // The pale floor would glare in the studio light; it takes only a little of it.
+  studio.share(floor.material, STUDIO_LIGHT.shell)
   const grid = new THREE.GridHelper(5, 20, 0xffffff, 0xffffff)
   ;(grid.material as THREE.LineBasicMaterial).color.setHex(theme.grid)
   ;(grid.material as THREE.Material).transparent = true
@@ -343,6 +348,7 @@ export function createShapeView(host: HTMLElement): ShapeView {
     },
     dispose() {
       stopTheme()
+      studio.dispose()
       observer.disconnect()
       disposeGroup(figure)
       controls.dispose()

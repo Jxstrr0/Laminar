@@ -62,3 +62,11 @@ export function pickSky(mood: SkyMood, trial: string | null): SkyId | null {
   }
   return SKY_FOR[mood]
 }
+
+/**
+ * The tunnel and Shape's soft studio light (PR 13ba): a lit room the models
+ * reflect, how strongly, how much of the flat hemisphere light stays, and
+ * how much of it the tunnel's pale walls and floor take.
+ * The pressure map ignores it, so its colours read the same.
+ */
+export const STUDIO_LIGHT = { light: 0.55, hemi: 0.8, shell: 0.12 } as const
