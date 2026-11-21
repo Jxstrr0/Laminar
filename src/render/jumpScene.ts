@@ -19,6 +19,7 @@ import type { JumpFrame } from '../sim/jumpReplay'
 import type { JumperDesign } from '../data/jumper'
 import { buildRider, disposeGroup } from './riderFigure'
 import { lateDraw } from './lateDraw'
+import type { Weather } from '../data/skies'
 import { attachSky } from './sky'
 import { sceneColours } from './theme'
 
@@ -45,7 +46,7 @@ export interface JumpView {
   dispose(): void
 }
 
-export function createJumpView(host: HTMLElement): JumpView {
+export function createJumpView(host: HTMLElement, weather: Weather): JumpView {
   const renderer = new THREE.WebGLRenderer({ antialias: true })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
   renderer.outputColorSpace = THREE.SRGBColorSpace
@@ -66,7 +67,7 @@ export function createJumpView(host: HTMLElement): JumpView {
   scene.add(sun)
   // A sky or a model that lands after the replay has stopped on its last frame gets one more draw (PR 13bc).
   const late = lateDraw(() => renderer.render(scene, camera))
-  const skyDome = attachSky(renderer, scene, fog, hemi, sun, 'winter', late.ask)
+  const skyDome = attachSky(renderer, scene, fog, hemi, sun, 'winter', weather, late.ask)
   const camera = new THREE.PerspectiveCamera(S.camera.fov, 1, 0.1, 800)
 
   const hillGroup = new THREE.Group()

@@ -7,6 +7,7 @@
  * hands over to the debrief. Every number comes from the day's flights.
  */
 import type { JumperDesign } from '../data/jumper'
+import type { Weather } from '../data/skies'
 import type { Hill } from '../data/hills'
 import { JUMP_REPLAY } from '../data/replay'
 import { t } from '../data/strings'
@@ -28,6 +29,8 @@ export interface JumpReplayInput {
   predicted: number
   actual: number
   /** Called when the replay closes, whether watched to the end or skipped. */
+  /** The day's sky (PR 13bd), clear to overcast: from the day's wind, or its air against the venue's usual. */
+  weather: Weather
   onDone(): void
 }
 
@@ -132,7 +135,7 @@ export async function playJumpReplay(input: JumpReplayInput): Promise<void> {
   document.body.append(root)
 
   const reduce = reducedMotion()
-  const view = createJumpView(stage)
+  const view = createJumpView(stage, input.weather)
   const panelWatch = new ResizeObserver(() => view.setInset(panel.offsetHeight))
   panelWatch.observe(panel)
   view.setHill(input.hill)

@@ -8,6 +8,7 @@
  * Every number comes from race day's two laps.
  */
 import type { CarDesign } from '../data/car'
+import type { Weather } from '../data/skies'
 import type { Circuit } from '../data/circuits'
 import { CAR_REPLAY } from '../data/replay'
 import { t } from '../data/strings'
@@ -31,6 +32,8 @@ export interface CarReplayInput {
   predicted: number
   actual: number
   /** Called when the replay closes, whether watched to the end or skipped. */
+  /** The day's sky (PR 13bd), clear to overcast: from the day's wind, or its air against the venue's usual. */
+  weather: Weather
   onDone(): void
 }
 
@@ -122,7 +125,7 @@ export async function playCarReplay(input: CarReplayInput): Promise<void> {
   document.body.append(root)
 
   const reduce = reducedMotion()
-  const view = createReplayView(stage, { still: reduce, car: true })
+  const view = createReplayView(stage, { still: reduce, car: true, weather: input.weather })
   const panelWatch = new ResizeObserver(() => view.setInset(panel.offsetHeight))
   panelWatch.observe(panel)
   view.setCourse(mine.course, { windFromDeg: 0, calm: true })

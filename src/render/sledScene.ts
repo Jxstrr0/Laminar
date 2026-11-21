@@ -17,6 +17,7 @@ import { bobsledPose } from '../sim/geom/bobsledPose'
 import { pointAt, type SledFrame, type TrackLine } from '../sim/sledReplay'
 import { buildRider, disposeGroup } from './riderFigure'
 import { lateDraw } from './lateDraw'
+import type { Weather } from '../data/skies'
 import { attachSky } from './sky'
 import { sceneColours } from './theme'
 
@@ -103,7 +104,7 @@ export function sledSites(line: TrackLine, push: number): SledSites {
   return { arches: [push, ...K.splits.filter((s) => s > push && s < line.length)], shades, terraces, masts }
 }
 
-export function createSledView(host: HTMLElement): SledView {
+export function createSledView(host: HTMLElement, weather: Weather): SledView {
   const renderer = new THREE.WebGLRenderer({ antialias: true })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
   renderer.outputColorSpace = THREE.SRGBColorSpace
@@ -124,7 +125,7 @@ export function createSledView(host: HTMLElement): SledView {
   scene.add(sun)
   // A sky or a model that lands after the replay has stopped on its last frame gets one more draw (PR 13bc).
   const late = lateDraw(() => renderer.render(scene, camera))
-  const skyDome = attachSky(renderer, scene, fog, hemi, sun, 'winter', late.ask)
+  const skyDome = attachSky(renderer, scene, fog, hemi, sun, 'winter', weather, late.ask)
   const camera = new THREE.PerspectiveCamera(S.camera.fov, 1, 0.1, 600)
 
   const trackGroup = new THREE.Group()

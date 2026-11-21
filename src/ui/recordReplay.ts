@@ -12,6 +12,7 @@
  * over to speed week's debrief. Every number comes from record day's runs.
  */
 import type { RecordDesign } from '../data/record'
+import type { Weather } from '../data/skies'
 import { RECORD_RUN } from '../data/record'
 import { RECORD_REPLAY, REPLAY } from '../data/replay'
 import { t } from '../data/strings'
@@ -35,6 +36,8 @@ export interface RecordReplayInput {
   predicted: number
   actual: number | null
   /** Called when the replay closes, whether watched to the end or skipped. */
+  /** The day's sky (PR 13bd), clear to overcast: from the day's wind, or its air against the venue's usual. */
+  weather: Weather
   onDone(): void
 }
 
@@ -167,7 +170,7 @@ export async function playRecordReplay(input: RecordReplayInput): Promise<void> 
   document.body.append(root)
 
   const reduce = reducedMotion()
-  const view = createReplayView(stage, { still: reduce, record: true })
+  const view = createReplayView(stage, { still: reduce, record: true, weather: input.weather })
   const panelWatch = new ResizeObserver(() => view.setInset(panel.offsetHeight))
   panelWatch.observe(panel)
 

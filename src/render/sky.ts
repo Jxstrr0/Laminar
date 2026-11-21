@@ -1,10 +1,11 @@
 /**
  * A photographed sky behind a replay, lighting it too (PR 13az). The
  * flat theme colour stays until the picture has loaded, and if it never
- * does. Dark mode swaps in a dusk sky.
+ * does. Dark mode swaps in a dusk sky. Which sky depends on the day's
+ * weather (PR 13bd).
  */
 import * as THREE from 'three'
-import { pickSky, SKIES, type SkyId, type SkyMood } from '../data/skies'
+import { pickSky, SKIES, type SkyId, type SkyMood, type Weather } from '../data/skies'
 import { currentTheme, onThemeChange, sceneColours } from './theme'
 
 const loader = new THREE.TextureLoader()
@@ -26,15 +27,6 @@ function picture(id: SkyId): Promise<THREE.Texture> {
   return p
 }
 
-/** What `?sky=` asks for while Kelbo tries the skies out. */
-function trial(): string | null {
-  try {
-    return new URLSearchParams(location.search).get('sky')
-  } catch {
-    return null
-  }
-}
-
 export interface SkyDome {
   /** Change the venue's kind of day (a lake replay after a road one). */
   setMood(mood: SkyMood): void
@@ -45,9 +37,10 @@ export interface SkyDome {
  * Put a sky on `scene`: its picture as the background and the light, its
  * horizon as the fog's colour, the hemisphere light turned down so the
  * two don't add up to a glare, and the sun matched to it (low and warm at dusk).
+ * `weather` is the day's, clear to overcast: with the venue's mood it picks the sky (PR 13bd).
  * `onChange` is called whenever what's shown changes, so a scene standing on a still frame can draw again.
  */
-export function attachSky(renderer: THREE.WebGLRenderer, scene: THREE.Scene, fog: THREE.Fog, hemi: THREE.HemisphereLight, sun: THREE.DirectionalLight, mood: SkyMood, onChange: () => void): SkyDome {
+export function attachSky(renderer: THREE.WebGLRenderer, scene: THREE.Scene, fog: THREE.Fog, hemi: THREE.HemisphereLight, sun: THREE.DirectionalLight, mood: SkyMood, weather: Weather, onChange: () => void): SkyDome {
   const flat = new THREE.Color(sceneColours().fieldSky)
   const hemiFull = hemi.intensity
   const sunFull = sun.intensity
@@ -70,12 +63,8 @@ export function attachSky(renderer: THREE.WebGLRenderer, scene: THREE.Scene, fog
   }
 
   function apply() {
-    const id = pickSky(currentTheme() === 'dark' ? 'dusk' : current, trial())
+    const id = pickSky(currentTheme() === 'dark' ? 'dusk' : current, weather)
     wanted = id
-    if (!id) {
-      showFlat()
-      return
-    }
     picture(id).then(
       (tex) => {
         if (disposed || wanted !== id) return
