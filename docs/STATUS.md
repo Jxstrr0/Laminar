@@ -219,6 +219,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 - **0.15.35.0** (PR 13aw): the ski-jump hill and the sliding track polished in Blender: crowds in winter coats, coaches and judges, gabled roofs, truss arches with lit clocks, a photo-finish camera, a podium and pines. The Blender series is done.
 - **0.15.35.1** (security test, 19 November): a pasted save code or challenge code has a size limit. A small code could be built to unpack to hundreds of megabytes and freeze the phone; reading now stops at 64 MB (`CODE_LIMITS` in `src/persist/code.ts`), far above any real career, and the code is called damaged. Nothing changes in play.
 - **0.15.36.0** (PR 13ax): Shape and Tunnel's cards scroll on iPhone again, and a swipe between cards scrolls instead of spinning the model.
+- **0.15.42.1** (housekeeping, 21 November): the studio catalogue recopied after Outwash, a Laminar game, was added to the studio site (hidden); nothing changes in play.
 - **0.15.42.0** (PR 13bd): the replay's sky follows the day: clear when it's calm, overcast when it blows, a cold clear day on the snow. The `?sky=` trial switch is removed.
 - **0.15.41.0** (PR 13bc): venue look check under the real skies: late-loading skies and venue models now show, the ground grid no longer stripes the horizon, the grass stops jumping, and snow and dusk are lit properly.
 - **0.15.40.1** (housekeeping, 21 November): the studio catalogue recopied and code credits reworded after Kelbo deleted a retired game; nothing changes in play.
