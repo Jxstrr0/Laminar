@@ -32,8 +32,9 @@ import { attachSky } from './sky'
 import { onThemeChange, sceneColours } from './theme'
 
 const COLOURS = {
-  ground: 0xc9d3b8,
-  grid: 0xaab59c,
+  /** Grass: a deeper green since the real skies (PR 13bb), the grid a shade darker. */
+  ground: 0x95b06e,
+  grid: 0x86a062,
   road: 0x6b737a,
   dash: 0xf5f7f9,
   pole: 0x5a6875,
@@ -51,7 +52,7 @@ const COLOURS = {
   /** The salt flat (PR 9v): the pan, its cracks, the graded course and its black line, and the chutes. */
   salt: 0xece8de,
   /** The drone club's mown line through the meadow, and its gates (PR 10h). */
-  mown: 0xb3bf9e,
+  mown: 0xb4c78f,
   gate: 0xe08a00,
   /** The survey fields (PR 10o): ripe wheat, and its rows. */
   wheat: 0xd9c98c,

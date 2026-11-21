@@ -190,6 +190,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 | 13ay | Pinned readouts on Shape: the result cards (desk estimate, drag area, parts, rules and the rest) stay at the top of the sheet and only the rule breaks and sliders scroll under them, so a slider's effect is always in view. Short phones get slimmer readouts with one-line details | **Done** (v0.15.37.0) |
 | 13az | Real skies and ground: the replays' flat sky colour becomes a photographed CC0 sky from Poly Haven that also lights the venue (cumulus by day, overcast for the winter venues, a warm dusk in dark mode), and the grass, tarmac, salt and snow get faint CC0 detail from ambientCG. A trial: `?sky=cumulus`, `wisps`, `clear`, `overcast`, `dusk`, `evening` or `off` in the address picks another for comparing | **Done** (v0.15.38.0) |
 | 13ba | Studio light in the tunnel and on Shape: the models reflect a soft lit room (three.js's own, no download), so the bike, rider, steel and glass catch highlights; the pale walls, floor and seams take only a little so they don't glare, and the pressure map none, so its colours read the same. The tunnel's walls get faint CC0 plaster and its floor smooth concrete (ambientCG), on texture coordinates the Blender script now gives them | **Done** (v0.15.39.0) |
+| 13bb | Greener grass: under the real skies the replays' pale mint ground looked washed out, so the grass, its grid and the drone club's mown line are a deeper green (Kelbo's pick). Kelbo kept cumulus as the day sky and dusk for dark mode | **Done** (v0.15.40.0) |
 | Next | | Kelbo's call: the Blender pass is finished, every test object and venue polished. |
 
 ## Versions
@@ -216,6 +217,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 - **0.15.35.0** (PR 13aw): the ski-jump hill and the sliding track polished in Blender: crowds in winter coats, coaches and judges, gabled roofs, truss arches with lit clocks, a photo-finish camera, a podium and pines. The Blender series is done.
 - **0.15.35.1** (security test, 19 November): a pasted save code or challenge code has a size limit. A small code could be built to unpack to hundreds of megabytes and freeze the phone; reading now stops at 64 MB (`CODE_LIMITS` in `src/persist/code.ts`), far above any real career, and the code is called damaged. Nothing changes in play.
 - **0.15.36.0** (PR 13ax): Shape and Tunnel's cards scroll on iPhone again, and a swipe between cards scrolls instead of spinning the model.
+- **0.15.40.0** (PR 13bb): greener grass in the replays, to go with the real skies.
 - **0.15.39.0** (PR 13ba): studio reflections on the tunnel and Shape models, plaster walls and a concrete floor in the tunnel.
 - **0.15.38.0** (PR 13az): photographed skies and textured ground in the replays (CC0 from Poly Haven and ambientCG), with a `?sky=` trial switch.
 - **0.15.37.0** (PR 13ay): Shape's readouts stay put while the sliders scroll, so you see each change without scrolling back up.
