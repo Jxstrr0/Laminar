@@ -45,8 +45,9 @@ export interface SkyDome {
  * Put a sky on `scene`: its picture as the background and the light, its
  * horizon as the fog's colour, the hemisphere light turned down so the
  * two don't add up to a glare, and the sun matched to it (low and warm at dusk).
+ * `onChange` is called whenever what's shown changes, so a scene standing on a still frame can draw again.
  */
-export function attachSky(renderer: THREE.WebGLRenderer, scene: THREE.Scene, fog: THREE.Fog, hemi: THREE.HemisphereLight, sun: THREE.DirectionalLight, mood: SkyMood): SkyDome {
+export function attachSky(renderer: THREE.WebGLRenderer, scene: THREE.Scene, fog: THREE.Fog, hemi: THREE.HemisphereLight, sun: THREE.DirectionalLight, mood: SkyMood, onChange: () => void): SkyDome {
   const flat = new THREE.Color(sceneColours().fieldSky)
   const hemiFull = hemi.intensity
   const sunFull = sun.intensity
@@ -65,6 +66,7 @@ export function attachSky(renderer: THREE.WebGLRenderer, scene: THREE.Scene, fog
     hemi.intensity = hemiFull
     sun.intensity = sunFull
     sun.color.copy(sunWhite)
+    onChange()
   }
 
   function apply() {
@@ -83,12 +85,14 @@ export function attachSky(renderer: THREE.WebGLRenderer, scene: THREE.Scene, fog
         scene.background = tex
         scene.environment = lit.texture
         scene.environmentIntensity = sky.light
-        scene.backgroundRotation.set(0, THREE.MathUtils.degToRad(sky.turn), 0)
+        // Turn the picture so its sun sits where the venue's own sun light comes from.
+        scene.backgroundRotation.set(0, THREE.MathUtils.degToRad(sky.sunAt) - Math.atan2(sun.position.z, sun.position.x), 0)
         scene.environmentRotation.copy(scene.backgroundRotation)
         fog.color.setHex(sky.horizon)
         hemi.intensity = hemiFull * sky.hemi
         sun.intensity = sunFull * sky.sun
         sun.color.setHex(sky.sunColour)
+        onChange()
       },
       () => undefined,
     )

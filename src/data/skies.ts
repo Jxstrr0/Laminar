@@ -29,17 +29,20 @@ export interface Sky {
   /** The venue's sun light under it: how strong, against the daylight's, and its colour. */
   sun: number
   sunColour: number
-  /** How far it's turned, degrees, so its sun sits roughly where the venue's sun light is. */
-  turn: number
+  /**
+   * Where its sun (or its brightest patch) sits in the picture, degrees, as the script prints it.
+   * Each venue turns the sky so that lands where its own sun light comes from (PR 13bc).
+   */
+  sunAt: number
 }
 
 export const SKIES: Record<SkyId, Sky> = {
-  kloofendal_48d_partly_cloudy_puresky: { name: 'cumulus', horizon: 0xced0d5, light: 1, hemi: 0.45, sun: 1, sunColour: 0xffffff, turn: 0 },
-  autumn_field_puresky: { name: 'wisps', horizon: 0xdce1e4, light: 1, hemi: 0.45, sun: 1, sunColour: 0xffffff, turn: 0 },
-  kloofendal_43d_clear_puresky: { name: 'clear', horizon: 0xd5d8db, light: 1, hemi: 0.45, sun: 1, sunColour: 0xffffff, turn: 0 },
-  overcast_soil_puresky: { name: 'overcast', horizon: 0xdedddb, light: 1, hemi: 0.5, sun: 0.6, sunColour: 0xf2f4ff, turn: 0 },
-  kloppenheim_06_puresky: { name: 'dusk', horizon: 0x98938f, light: 1.6, hemi: 0.5, sun: 0.55, sunColour: 0xffc69c, turn: 0 },
-  evening_road_01_puresky: { name: 'evening', horizon: 0xa1a6a8, light: 1.4, hemi: 0.5, sun: 0.6, sunColour: 0xffd2ae, turn: 0 },
+  kloofendal_48d_partly_cloudy_puresky: { name: 'cumulus', horizon: 0xced0d5, light: 1, hemi: 0.45, sun: 1, sunColour: 0xffffff, sunAt: 34 },
+  autumn_field_puresky: { name: 'wisps', horizon: 0xdce1e4, light: 1, hemi: 0.45, sun: 1, sunColour: 0xffffff, sunAt: 36 },
+  kloofendal_43d_clear_puresky: { name: 'clear', horizon: 0xd5d8db, light: 1, hemi: 0.45, sun: 1, sunColour: 0xffffff, sunAt: 36 },
+  overcast_soil_puresky: { name: 'overcast', horizon: 0xdedddb, light: 0.85, hemi: 0.28, sun: 0.5, sunColour: 0xf2f4ff, sunAt: -12 },
+  kloppenheim_06_puresky: { name: 'dusk', horizon: 0x98938f, light: 1.6, hemi: 0.3, sun: 0.45, sunColour: 0xffc69c, sunAt: 39 },
+  evening_road_01_puresky: { name: 'evening', horizon: 0xa1a6a8, light: 1.4, hemi: 0.32, sun: 0.5, sunColour: 0xffd2ae, sunAt: 40 },
 }
 
 /** The sky each mood gets. */
