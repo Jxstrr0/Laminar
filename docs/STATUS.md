@@ -221,6 +221,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 - **0.15.36.0** (PR 13ax): Shape and Tunnel's cards scroll on iPhone again, and a swipe between cards scrolls instead of spinning the model.
 - **0.15.42.1** (housekeeping, 21 November): the studio catalogue recopied after Outwash, a Laminar game, was added to the studio site (hidden); nothing changes in play.
 - **0.15.42.2** (housekeeping, 25 November): the studio catalogue recopied after Kelbo deleted The Whip; nothing changes in play.
+- **0.15.42.3** (housekeeping, 26 November): two supply-chain guards from the studio test of 26 November (Kelbo picked both). Dependabot now also watches the GitHub Actions the workflows use (one grouped pull request a month), and the `art` workflow checks Blender against its published checksum on every run, also when it comes from the cache; nothing changes in play.
 - **0.15.42.0** (PR 13bd): the replay's sky follows the day: clear when it's calm, overcast when it blows, a cold clear day on the snow. The `?sky=` trial switch is removed.
 - **0.15.41.0** (PR 13bc): venue look check under the real skies: late-loading skies and venue models now show, the ground grid no longer stripes the horizon, the grass stops jumping, and snow and dusk are lit properly.
 - **0.15.40.1** (housekeeping, 21 November): the studio catalogue recopied and code credits reworded after Kelbo deleted a retired game; nothing changes in play.
