@@ -222,6 +222,7 @@ Where the build stands against `docs/LAMINAR-PLAN.md` section 14.
 - **0.15.42.1** (housekeeping, 21 November): the studio catalogue recopied after Outwash, a Laminar game, was added to the studio site (hidden); nothing changes in play.
 - **0.15.42.2** (housekeeping, 25 November): the studio catalogue recopied after Kelbo deleted The Whip; nothing changes in play.
 - **0.15.42.3** (housekeeping, 26 November): two supply-chain guards from the studio test of 26 November (Kelbo picked both). Dependabot now also watches the GitHub Actions the workflows use (one grouped pull request a month), and the `art` workflow checks Blender against its published checksum on every run, also when it comes from the cache; nothing changes in play.
+- **0.15.42.7** (housekeeping, 28 November): the studio catalogue recopied after Kelbo deleted Crumple; nothing changes in play.
 - **0.15.42.6** (housekeeping, 27 November): the studio catalogue recopied after Bump Stop went on the studio site; nothing changes in play.
 - **0.15.42.5** (housekeeping, 27 November): the studio catalogue recopied after Kelbo deleted Mainline; nothing changes in play.
 - **0.15.42.4** (housekeeping, 26 November): the studio catalogue recopied after Kelbo deleted Outwash; nothing changes in play.
